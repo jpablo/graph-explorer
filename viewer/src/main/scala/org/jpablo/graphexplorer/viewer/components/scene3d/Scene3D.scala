@@ -172,7 +172,15 @@ final class GraphScene3D(state: ViewerState):
   private var selectedNodes         = Set.empty[NodeId]
   private var lastNodeCount         = -1
 
-  private var controlsOpt: Option[three.OrbitControls]        = None
+  // ---------------- trackball camera (no OrbitControls, no poles) ----------------
+  // The camera orbits `orbitTarget` carrying its own rolling up-vector: no
+  // world direction is privileged, so rotation composes freely and never hits
+  // the pole clamp a fixed-up orbit needs. The gizmo camera inherits the same
+  // up, so the globe keeps matching even with the horizon tilted.
+  private var orbitTarget = Vec3.zero
+  private var camUp       = Vec3(0, 1, 0)
+  /** Screen-space anchor of an in-progress empty-space drag (drag = orbit). */
+  private var mouseOrbitLast: Option[(Double, Double)] = None
   private var resizeObserverOpt: Option[dom.ResizeObserver]   = None
 
   /** True once the browser reports an immersive-vr-capable device; gates the
@@ -311,12 +319,14 @@ final class GraphScene3D(state: ViewerState):
     * rotated as the world.
     */
   private def renderGizmo(): Unit =
-    controlsOpt.foreach: controls =>
+    locally:
       val camP  = Vec3(camera.position.x, camera.position.y, camera.position.z)
-      val t     = Vec3(controls.target.x, controls.target.y, controls.target.z)
-      val toCam = camP - t
+      val toCam = camP - orbitTarget
       val dir   = toCam * (1.0 / math.max(1e-9, toCam.length))
       gizmoCamera.position.set(dir.x * GizmoCamDist, dir.y * GizmoCamDist, dir.z * GizmoCamDist)
+      // The gizmo must roll with the main camera, or the globe stops matching
+      // the moment the horizon tilts (there is no fixed up anymore).
+      gizmoCamera.up.set(camUp.x, camUp.y, camUp.z)
       gizmoCamera.lookAt(0, 0, 0)
       val w = renderer.domElement.clientWidth.toDouble
       renderer.autoClear = false
@@ -397,7 +407,6 @@ final class GraphScene3D(state: ViewerState):
 
   def setNavMode(trackpad: Boolean): Unit =
     trackpadNav = trackpad
-    controlsOpt.foreach(_.enableZoom = !trackpad)
 
   def setAlgorithm(algoId: String): Unit =
     val next = Layout3D.byId(algoId).getOrElse(ForceLayout3D)
@@ -654,10 +663,9 @@ final class GraphScene3D(state: ViewerState):
     */
   private def updateFog(): Unit =
     if layout.positions.nonEmpty then
-      controlsOpt.foreach: controls =>
+      locally:
         val camP = Vec3(camera.position.x, camera.position.y, camera.position.z)
-        val t    = Vec3(controls.target.x, controls.target.y, controls.target.z)
-        val toT  = t - camP
+        val toT  = orbitTarget - camP
         val view = toT * (1.0 / math.max(1e-9, toT.length))
         var minD = Double.MaxValue
         var maxD = -Double.MaxValue
@@ -670,22 +678,17 @@ final class GraphScene3D(state: ViewerState):
         scene.fog.far = maxD + spread
 
   /** Screen basis for an orbit pose: `dir` is target→camera; view = where the
-    * camera looks, right/up span the screen (matching three's lookAt).
+    * camera looks, right/up span the screen. Derived from the ROLLING camUp —
+    * with trackball rotation there is no world up to reference.
     */
   private def basisFor(dir: Vec3): (Vec3, Vec3, Vec3) =
-    val view    = dir * -1.0
-    val worldUp = if math.abs(view.y) > 0.99 then Vec3(0, 0, 1) else Vec3(0, 1, 0)
-    val right0 = Vec3(
-      view.y * worldUp.z - view.z * worldUp.y,
-      view.z * worldUp.x - view.x * worldUp.z,
-      view.x * worldUp.y - view.y * worldUp.x
-    )
-    val right = right0 * (1.0 / math.max(1e-9, right0.length))
-    val up = Vec3(
-      right.y * view.z - right.z * view.y,
-      right.z * view.x - right.x * view.z,
-      right.x * view.y - right.y * view.x
-    )
+    val view   = dir * -1.0
+    val ref    = if math.abs(view.dot(camUp)) > 0.99 then Vec3(0, 0, 1) else camUp
+    val right0 = view.cross(ref) // same convention as rotateBy: right = view × up
+    val right =
+      if right0.length < 1e-9 then Vec3(1, 0, 0)
+      else right0 * (1.0 / right0.length)
+    val up = right.cross(view)
     (right, up, view)
 
   /** Frame the drawing the way the 2D canvas fits a diagram: as large as the
@@ -704,8 +707,8 @@ final class GraphScene3D(state: ViewerState):
     */
   private def fitCamera(alpha: Double): Unit =
     if layout.positions.nonEmpty && !renderer.xr.isPresenting then
-      controlsOpt.foreach: controls =>
-        val target0 = Vec3(controls.target.x, controls.target.y, controls.target.z)
+      locally:
+        val target0 = orbitTarget
         val camP    = Vec3(camera.position.x, camera.position.y, camera.position.z)
         val dirRaw  = camP - target0
         val dir = // target -> camera, the orbit direction we preserve
@@ -788,12 +791,13 @@ final class GraphScene3D(state: ViewerState):
 
         val newTarget = target0 + (center - target0) * alpha
         val newDist   = dirRaw.length + (fitDist - dirRaw.length) * alpha
-        controls.target.set(newTarget.x, newTarget.y, newTarget.z)
+        orbitTarget = newTarget
         camera.position.set(
           newTarget.x + dir.x * newDist,
           newTarget.y + dir.y * newDist,
           newTarget.z + dir.z * newDist
         )
+        applyCameraPose()
 
   // ---------------- lifecycle ----------------
 
@@ -802,12 +806,7 @@ final class GraphScene3D(state: ViewerState):
     renderer.domElement.style.display = "block"
     container.appendChild(renderer.domElement)
 
-    val controls = three.OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
-    controls.dampingFactor = 0.08
-    controls.enableZoom = !trackpadNav
-    controlsOpt = Some(controls)
-    attachWheelNavigation(controls)
+    attachWheelNavigation()
 
     resize(container)
     val observer = dom.ResizeObserver((_, _) => resize(container))
@@ -837,7 +836,6 @@ final class GraphScene3D(state: ViewerState):
             writePositions()
             if autoFitOn then fitCamera(1.0)
             updateFog()
-            controlsOpt.foreach(_.update())
             renderer.render(scene, camera)
         )
       )
@@ -967,9 +965,6 @@ final class GraphScene3D(state: ViewerState):
     // slide the node off the pointer.
     if autoFitOn && mouseDragNode.isEmpty && vrDrag.isEmpty then fitCamera(0.2)
     updateFog()
-    // During a session the headset owns the camera; OrbitControls' damping
-    // writes would fight it.
-    if !renderer.xr.isPresenting then controlsOpt.foreach(_.update())
     renderer.render(scene, camera)
     // The corner viewport pass makes no sense inside a headset.
     if !renderer.xr.isPresenting then renderGizmo()
@@ -999,40 +994,57 @@ final class GraphScene3D(state: ViewerState):
   private var downX = 0.0
   private var downY = 0.0
 
-  /** Trackpad-mode wheel: two-finger scroll ORBITS — the same gesture a drag
-    * performs, minus the click — and pinch dollies. The rotation uses
-    * OrbitControls' own sensitivity (2π per canvas-height of travel) so the
-    * two grips feel identical; finger direction maps to drag direction
-    * (fingers right ≡ drag right, under natural scrolling's inverted deltas).
+  /** Write the pose: position is wherever the caller put it; up and lookAt
+    * complete the orientation. Every camera mutation funnels through here.
     */
-  private def attachWheelNavigation(controls: three.OrbitControls): Unit =
+  private def applyCameraPose(): Unit =
+    camera.up.set(camUp.x, camUp.y, camUp.z)
+    camera.lookAt(orbitTarget.x, orbitTarget.y, orbitTarget.z)
+
+  /** Trackball rotation about the target: yaw about the camera's own up,
+    * pitch about its right — both the offset AND the up-vector rotate, so
+    * there is no privileged axis, no pole, no clamp. Sensitivity matches the
+    * old orbit (2π per canvas-height of travel); `mx/my` are pointer-movement
+    * pixels (drag direction; wheel deltas negate into this under natural
+    * scrolling).
+    */
+  private def rotateBy(mx: Double, my: Double): Unit =
+    val camP   = Vec3(camera.position.x, camera.position.y, camera.position.z)
+    val offset = camP - orbitTarget
+    val h      = math.max(1, renderer.domElement.clientHeight).toDouble
+    val view   = offset * (-1.0 / math.max(1e-9, offset.length))
+    val right0 = view.cross(camUp)
+    val right  = right0 * (1.0 / math.max(1e-9, right0.length))
+    val up     = right.cross(view) // orthonormalized true screen-up
+    val yaw    = -2 * math.Pi * mx / h
+    val pitch  = -2 * math.Pi * my / h
+    val off1   = offset.rotatedAround(up, yaw)
+    val off2   = off1.rotatedAround(right, pitch)
+    camUp = up.rotatedAround(right, pitch)
+    camera.position.set(orbitTarget.x + off2.x, orbitTarget.y + off2.y, orbitTarget.z + off2.z)
+    applyCameraPose()
+
+  private def dollyBy(factor: Double): Unit =
+    val camP   = Vec3(camera.position.x, camera.position.y, camera.position.z)
+    val offset = camP - orbitTarget
+    val dist   = math.max(1e-9, offset.length)
+    val dir    = offset * (1.0 / dist)
+    val nd     = math.min(400.0, math.max(0.6, dist * factor))
+    camera.position.set(orbitTarget.x + dir.x * nd, orbitTarget.y + dir.y * nd, orbitTarget.z + dir.z * nd)
+    applyCameraPose()
+
+  /** Wheel: pinch (ctrl/meta) dollies in both modes; a plain wheel dollies in
+    * mouse mode and ROTATES in trackpad mode — the drag gesture without the
+    * click, finger direction matching drag direction under natural scrolling.
+    */
+  private def attachWheelNavigation(): Unit =
     renderer.domElement.addEventListener(
       "wheel",
       (e: dom.WheelEvent) =>
-        if trackpadNav && !renderer.xr.isPresenting then
+        if !renderer.xr.isPresenting then
           e.preventDefault()
-          val target = Vec3(controls.target.x, controls.target.y, controls.target.z)
-          val camP   = Vec3(camera.position.x, camera.position.y, camera.position.z)
-          val toCam  = camP - target
-          val dist   = math.max(0.5, toCam.length)
-          if e.ctrlKey || e.metaKey then
-            // pinch (browsers report it as ctrl+wheel) or meta+scroll: dolly,
-            // exactly what the wheel does in mouse mode
-            val dir = toCam * (1.0 / math.max(1e-9, toCam.length))
-            val nd  = math.min(400.0, math.max(0.6, dist * math.exp(e.deltaY * 0.01)))
-            camera.position.set(target.x + dir.x * nd, target.y + dir.y * nd, target.z + dir.z * nd)
-          else
-            // spherical orbit about the target, three's convention:
-            // theta = azimuth around Y, phi = polar angle from +Y
-            val heightPx = math.max(1, renderer.domElement.clientHeight).toDouble
-            val theta    = math.atan2(toCam.x, toCam.z) + 2 * math.Pi * e.deltaX / heightPx
-            val phi0     = math.acos(math.min(1.0, math.max(-1.0, toCam.y / dist)))
-            val phi      = math.min(math.Pi - 0.05, math.max(0.05, phi0 + 2 * math.Pi * e.deltaY / heightPx))
-            camera.position.set(
-              target.x + dist * math.sin(phi) * math.sin(theta),
-              target.y + dist * math.cos(phi),
-              target.z + dist * math.sin(phi) * math.cos(theta)
-            )
+          if e.ctrlKey || e.metaKey || !trackpadNav then dollyBy(math.exp(e.deltaY * 0.01))
+          else rotateBy(-e.deltaX, -e.deltaY)
     )
 
   /** Pointer down on a node begins a drag (orbit is suspended for its
@@ -1051,9 +1063,11 @@ final class GraphScene3D(state: ViewerState):
             mouseDragNode = Some(id)
             dragPlanePoint = localToWorld(layout.positions.getOrElse(id, Vec3.zero))
             dragPlaneNormal = cameraDirection()
-            controlsOpt.foreach(_.enabled = false)
             renderer.domElement.asInstanceOf[js.Dynamic].setPointerCapture(e.pointerId)
-          case None => ()
+          case None =>
+            // empty space: the drag is an orbit
+            mouseOrbitLast = Some((e.clientX, e.clientY))
+            renderer.domElement.asInstanceOf[js.Dynamic].setPointerCapture(e.pointerId)
     )
     renderer.domElement.addEventListener(
       "pointermove",
@@ -1064,16 +1078,19 @@ final class GraphScene3D(state: ViewerState):
           // the one mapping from a 2D pointer to 3D that never surprises.
           planeIntersect(dragPlanePoint, dragPlaneNormal).foreach: world =>
             pinNodeAt(id, worldToLocal(world))
+        mouseOrbitLast.foreach: (lx, ly) =>
+          rotateBy(e.clientX - lx, e.clientY - ly)
+          mouseOrbitLast = Some((e.clientX, e.clientY))
     )
     renderer.domElement.addEventListener(
       "pointerup",
       (e: dom.PointerEvent) =>
         val wasClick = math.hypot(e.clientX - downX, e.clientY - downY) < ClickSlopPx
         val additive = e.shiftKey || e.metaKey
+        mouseOrbitLast = None
         mouseDragNode match
           case Some(id) =>
             mouseDragNode = None
-            controlsOpt.foreach(_.enabled = true)
             releasePins()
             if wasClick then
               if additive then state.selection.toggle(id) else state.selection.set2(id)
@@ -1156,7 +1173,6 @@ final class GraphScene3D(state: ViewerState):
     renderer.setAnimationLoop(null)
     resizeObserverOpt.foreach(_.disconnect())
     xrSessionOpt.foreach(_.applyDynamic("end")())
-    controlsOpt.foreach(_.dispose())
     sprites.values.foreach(disposeSprite)
     sprites = Map.empty
     hullMeshes.foreach: (mesh, material) =>

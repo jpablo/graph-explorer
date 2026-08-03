@@ -10,6 +10,15 @@ final case class Vec3(x: Double, y: Double, z: Double) derives CanEqual:
 
   def dot(o: Vec3): Double = x * o.x + y * o.y + z * o.z
 
+  def cross(o: Vec3): Vec3 =
+    Vec3(y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.x)
+
+  /** Rodrigues rotation about a UNIT axis. */
+  def rotatedAround(axis: Vec3, angle: Double): Vec3 =
+    val cosA = math.cos(angle)
+    val sinA = math.sin(angle)
+    this * cosA + axis.cross(this) * sinA + axis * (axis.dot(this) * (1 - cosA))
+
   def length: Double = math.sqrt(x * x + y * y + z * z)
 
   def isFinite: Boolean =

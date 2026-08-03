@@ -16,6 +16,7 @@ import scala.scalajs.js.typedarray.Float32Array
 class Object3D extends js.Object:
   val position: Vector3                 = js.native
   val scale: Vector3                    = js.native
+  val up: Vector3                       = js.native
   val quaternion: Quaternion            = js.native
   val matrixWorld: Matrix4              = js.native
   var visible: Boolean                  = js.native
@@ -209,16 +210,6 @@ class Raycaster extends js.Object:
   def setFromCamera(coords: Vector2, camera: PerspectiveCamera): Unit = js.native
   def intersectObjects(objects: js.Array[Object3D], recursive: Boolean): js.Array[Intersection] = js.native
 
-// three maps "three/addons/*" to its examples/jsm/* via the package's export map.
-@js.native
-@JSImport("three/addons/controls/OrbitControls.js", "OrbitControls")
-class OrbitControls(camera: PerspectiveCamera, domElement: dom.Element) extends js.Object:
-  var enabled: Boolean       = js.native
-  var enableZoom: Boolean    = js.native
-  var enableDamping: Boolean = js.native
-  var dampingFactor: Double  = js.native
-  val target: Vector3        = js.native
-  def update(): Boolean      = js.native
-  def dispose(): Unit        = js.native
-  // EventDispatcher: 'start' fires on user-initiated camera interaction.
-  def addEventListener(tpe: String, listener: js.Function1[js.Any, Unit]): Unit = js.native
+// (OrbitControls is gone on purpose: its fixed world-up forces a clamp at the
+// poles. The viewer implements trackball rotation itself — Scene3D.rotateBy —
+// where no direction is special and rotation never hits a wall.)
