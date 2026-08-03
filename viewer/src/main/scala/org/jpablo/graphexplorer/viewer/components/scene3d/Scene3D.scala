@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.backends.threejs as three
 import org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D, Vec3}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -170,12 +170,21 @@ final class GraphScene3D(state: ViewerState):
   private var linePosAttrOpt: Option[three.BufferAttribute]   = None
   private var linePositions: Float32Array                     = new Float32Array(0)
 
+  /** Soft, distinguishable hull tints; assigned by cluster order (stable —
+    * clusters are sorted by group id).
+    */
+  private val HullPalette = Vector(0x4a90d9, 0xd9744a, 0x4ad98f, 0xc9b458, 0x9a6ad9, 0x50b8c9)
+  private val HullPad     = NodeHeight * 0.7
+  private var clusterSets = Vector.empty[Vector[NodeId]]
+  private var hullMeshes  = Vector.empty[(three.Mesh, three.MeshBasicMaterial)]
+
   // ---------------- graph -> scene ----------------
 
   def setGraph(g: ViewerGraph): Unit =
     val nodeIds = g.nodes.keys.toVector
     edges = g.arrows.values.map(a => (a.source, a.target)).toVector
-    layout = algo.sync(layout, LayoutGraph(nodeIds, edges))
+    clusterSets = visibleClusters(g, nodeIds)
+    layout = algo.sync(layout, LayoutGraph(nodeIds, edges, clusterSets))
 
     val labels: Map[NodeId, String] =
       g.nodes.map((id, node) => id -> displayLabel(id, node)).toMap
@@ -186,11 +195,29 @@ final class GraphScene3D(state: ViewerState):
         if acc.contains(id) then acc else acc.updated(id, createSprite(id, label))
 
     rebuildLines()
+    rebuildHulls()
     applySelection()
     writePositions()
     if nodeIds.size != lastNodeCount then
       lastNodeCount = nodeIds.size
       frameCamera(nodeIds.size)
+
+  /** Each visible group's NODE members, ≥ 2 of them, sorted for stable colors
+    * and determinism. A folded group has no visible members (its proxy is a
+    * plain node) and drops out naturally. Nested groups hull their IMMEDIATE
+    * members only — the outer hull does not yet absorb inner groups' nodes.
+    */
+  private def visibleClusters(g: ViewerGraph, nodeIds: Vector[NodeId]): Vector[Vector[NodeId]] =
+    val visible     = nodeIds.toSet
+    val memberOrder = nodeIds.zipWithIndex.toMap
+    g.elements.memberships.toVector
+      .collect:
+        case (n: NodeId, gid) if gid != ViewerGraphElements.defaultRootId && visible.contains(n) => (gid, n)
+      .groupBy(_._1)
+      .toVector
+      .sortBy(_._1.value)
+      .map((_, pairs) => pairs.map(_._2).sortBy(memberOrder))
+      .filter(_.size >= 2)
 
   def setSelection(sel: ElementIds): Unit =
     selectedNodes = sel.ids.collect { case n: NodeId => n }.toSet
@@ -308,6 +335,53 @@ final class GraphScene3D(state: ViewerState):
       lineGeometryOpt = Some(geometry)
       linePosAttrOpt = Some(posAttr)
 
+  /** One translucent hull mesh per cluster; the geometry is re-hulled on every
+    * position write (QuickHull over tens of points — cheap), the mesh and
+    * material persist per graph.
+    */
+  private def rebuildHulls(): Unit =
+    hullMeshes.foreach: (mesh, material) =>
+      graphRoot.remove(mesh)
+      mesh.geometry.dispose()
+      material.dispose()
+    hullMeshes = clusterSets.zipWithIndex.map: (members, i) =>
+      val material = three.MeshBasicMaterial(
+        three.MeshBasicMaterial.params(
+          color = HullPalette(i % HullPalette.size),
+          transparent = true,
+          opacity = 0.10,
+          depthWrite = false, // a veil, not a wall: nodes and lines behind stay visible
+          side = 2            // DoubleSide, so the inside reads when the camera is within
+        )
+      )
+      val mesh = three.Mesh(hullGeometry(members), material)
+      graphRoot.add(mesh)
+      (mesh, material)
+
+  /** Members' positions padded with a small octahedron each, so 2-member and
+    * coplanar clusters (every same-rank pair in the layered layout) still span
+    * a volume QuickHull accepts.
+    */
+  private def hullGeometry(members: Vector[NodeId]): three.ConvexGeometry =
+    val pts = js.Array[three.Vector3]()
+    for
+      m <- members
+      p <- layout.positions.get(m)
+      (dx, dy, dz) <- Seq(
+        (HullPad, 0.0, 0.0), (-HullPad, 0.0, 0.0),
+        (0.0, HullPad, 0.0), (0.0, -HullPad, 0.0),
+        (0.0, 0.0, HullPad), (0.0, 0.0, -HullPad)
+      )
+    do pts.push(three.Vector3().set(p.x + dx, p.y + dy, p.z + dz))
+    three.ConvexGeometry(pts)
+
+  private def updateHulls(): Unit =
+    hullMeshes.zip(clusterSets).foreach:
+      case ((mesh, _), members) =>
+        val old = mesh.geometry
+        mesh.geometry = hullGeometry(members)
+        old.dispose()
+
   private def writePositions(): Unit =
     sprites.foreach: (id, ns) =>
       layout.positions.get(id).foreach(p => ns.sprite.position.set(p.x, p.y, p.z))
@@ -321,6 +395,7 @@ final class GraphScene3D(state: ViewerState):
         linePositions(i * 6 + 4) = tp.y.toFloat
         linePositions(i * 6 + 5) = tp.z.toFloat
     linePosAttrOpt.foreach(_.needsUpdate = true)
+    updateHulls()
 
   private def applySelection(): Unit =
     sprites.foreach: (id, ns) =>
@@ -640,6 +715,10 @@ final class GraphScene3D(state: ViewerState):
     controlsOpt.foreach(_.dispose())
     sprites.values.foreach(disposeSprite)
     sprites = Map.empty
+    hullMeshes.foreach: (mesh, material) =>
+      mesh.geometry.dispose()
+      material.dispose()
+    hullMeshes = Vector.empty
     lineGeometryOpt.foreach(_.dispose())
     lineMaterial.dispose()
     renderer.dispose()

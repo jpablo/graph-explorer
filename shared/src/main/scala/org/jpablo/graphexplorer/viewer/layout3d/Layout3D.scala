@@ -2,14 +2,21 @@ package org.jpablo.graphexplorer.viewer.layout3d
 
 import org.jpablo.graphexplorer.viewer.models.NodeId
 
-/** The layout's view of a graph: node identity and connectivity, nothing else.
-  * Equality on this type is what decides whether a re-emitted `visibleGraph`
-  * restarts the simulation — attribute-only edits (colors, labels) produce the
-  * same LayoutGraph and must leave a settled layout untouched.
+/** The layout's view of a graph: node identity, connectivity, and cluster
+  * membership — nothing else. Equality on this type is what decides whether a
+  * re-emitted `visibleGraph` restarts the simulation — attribute-only edits
+  * (colors, labels) produce the same LayoutGraph and must leave a settled
+  * layout untouched; a membership change is a real topology change and
+  * re-adopts.
+  *
+  * `clusters` are the node-member sets of the visible groups (each with at
+  * least two members); layouts may use them for cohesion, and the renderer
+  * draws hulls around them.
   */
 case class LayoutGraph(
-    nodes: Vector[NodeId],
-    edges: Vector[(NodeId, NodeId)]
+    nodes:    Vector[NodeId],
+    edges:    Vector[(NodeId, NodeId)],
+    clusters: Vector[Vector[NodeId]] = Vector.empty
 ) derives CanEqual
 
 /** A layout snapshot, shared by every algorithm. `step` is pure

@@ -15,13 +15,15 @@ object ForceLayout3D extends Layout3D:
 
   override val knobs: List[Knob3D] = List(
     Knob3D("k", "Edge length", 0.4, 3.0, 0.05, 1.0),
-    Knob3D("gravity", "Gravity", 0.0, 0.3, 0.005, 0.05)
+    Knob3D("gravity", "Gravity", 0.0, 0.3, 0.005, 0.05),
+    Knob3D("cohesion", "Cohesion", 0.0, 0.6, 0.01, 0.15)
   )
 
   def paramsFrom(values: Map[String, Double]): Params =
     Params(
       k = values.getOrElse("k", defaultParams.k),
-      gravity = values.getOrElse("gravity", defaultParams.gravity)
+      gravity = values.getOrElse("gravity", defaultParams.gravity),
+      cohesion = values.getOrElse("cohesion", defaultParams.cohesion)
     )
 
   override def withKnobs(values: Map[String, Double]): Layout3D =
@@ -52,6 +54,10 @@ object ForceLayout3D extends Layout3D:
         * drifting apart forever (repulsion alone is unbounded).
         */
       gravity: Double = 0.05,
+      /** Pull of each cluster member toward its cluster's barycenter — what
+        * keeps a group reading as a group in space.
+        */
+      cohesion: Double = 0.15,
       /** Starting temperature as a fraction of the layout radius. */
       initialTempFactor: Double = 0.3,
       /** Geometric cooling per step. */
@@ -164,6 +170,17 @@ object ForceLayout3D extends Layout3D:
         val pull  = delta * (d / k)
         disp(si) = disp(si) - pull
         disp(ti) = disp(ti) + pull
+
+      // Cohesion: members lean toward their cluster's barycenter, linearly in
+      // distance (like gravity, but per group).
+      if params.cohesion > 0 then
+        for members <- state.graph.clusters if members.size >= 2 do
+          val idxs = members.map(idx)
+          var bx = 0.0; var by = 0.0; var bz = 0.0
+          for i <- idxs do
+            bx += pos(i).x; by += pos(i).y; bz += pos(i).z
+          val bary = Vec3(bx / idxs.size, by / idxs.size, bz / idxs.size)
+          for i <- idxs do disp(i) = disp(i) - (pos(i) - bary) * params.cohesion
 
       // Gravity toward the origin, then displace — capped by temperature.
       // Pinned nodes (a drag in progress) stay exactly put; they still exert

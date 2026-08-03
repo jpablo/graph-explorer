@@ -123,6 +123,26 @@ object LineBasicMaterial:
 class LineSegments(geometry: BufferGeometry, lineMaterial: LineBasicMaterial) extends Object3D
 
 @js.native
+@JSImport("three", "MeshBasicMaterial")
+class MeshBasicMaterial(parameters: js.Object) extends js.Object:
+  def dispose(): Unit = js.native
+
+object MeshBasicMaterial:
+  /** side: 0 = FrontSide, 1 = BackSide, 2 = DoubleSide (three's constants). */
+  def params(color: Int, transparent: Boolean, opacity: Double, depthWrite: Boolean, side: Int): js.Object =
+    js.Dynamic.literal(color = color, transparent = transparent, opacity = opacity, depthWrite = depthWrite, side = side)
+
+@js.native
+@JSImport("three", "Mesh")
+class Mesh(geom: BufferGeometry, meshMaterial: MeshBasicMaterial) extends Object3D:
+  var geometry: BufferGeometry = js.native
+
+// QuickHull over a point cloud; needs 4+ non-coplanar points.
+@js.native
+@JSImport("three/addons/geometries/ConvexGeometry.js", "ConvexGeometry")
+class ConvexGeometry(points: js.Array[Vector3]) extends BufferGeometry
+
+@js.native
 trait WebXRManager extends js.Object:
   var enabled: Boolean         = js.native
   val isPresenting: Boolean    = js.native

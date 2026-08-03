@@ -78,6 +78,24 @@ class ForceLayout3DSpec extends munit.FunSuite:
     val synced = ForceLayout3D.sync(s, graph("a", "b")(("a", "b")))
     assertEquals(synced.positions.keySet, Set(NodeId("a"), NodeId("b")))
 
+  test("cohesion pulls cluster members together across the same edge structure"):
+    // Two 2-node clusters joined by one edge; the only intra-cluster bond is
+    // the cohesion force itself, so its effect is directly measurable.
+    val nodes = Vector("a1", "a2", "b1", "b2").map(NodeId(_))
+    val edges = Vector((NodeId("a1"), NodeId("b1")))
+    val clusters = Vector(Vector(NodeId("a1"), NodeId("a2")), Vector(NodeId("b1"), NodeId("b2")))
+    def intra(s: LayoutState3D) = (dist(s, "a1", "a2") + dist(s, "b1", "b2")) / 2
+    val without = ForceLayout3D.run(LayoutGraph(nodes, edges))
+    val within  = ForceLayout3D.run(LayoutGraph(nodes, edges, clusters))
+    assert(intra(within) < intra(without))
+
+  test("a membership change re-adopts (sync is not identity)"):
+    val nodes = Vector(NodeId("a"), NodeId("b"))
+    val g1    = LayoutGraph(nodes, Vector.empty)
+    val g2    = LayoutGraph(nodes, Vector.empty, Vector(Vector(NodeId("a"), NodeId("b"))))
+    val s     = ForceLayout3D.run(g1)
+    assert(!(ForceLayout3D.sync(s, g2) eq s))
+
   test("the edge-length knob is the equilibrium distance: k=2 spreads a pair to ~2"):
     val g  = graph("a", "b")(("a", "b"))
     val s1 = ForceLayout3D.run(g, ForceLayout3D.paramsFrom(Map("k" -> 1.0)))
