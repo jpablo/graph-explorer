@@ -362,6 +362,7 @@ final class GraphScene3D(state: ViewerState):
     if nodeIds.size != lastNodeCount then
       lastNodeCount = nodeIds.size
       fitCamera(1.0) // snap: a fresh graph frames correctly from its very first paint
+      convergenceFollow = true // and stays framed while the simulation settles
 
   /** Each visible group's NODE members, ≥ 2 of them, sorted for stable colors
     * and determinism. A folded group has no visible members (its proxy is a
@@ -644,9 +645,19 @@ final class GraphScene3D(state: ViewerState):
   /** Mirrors the toolbar's Auto toggle (the same Var the 2D canvas honors).
     * ON: the fit runs every frame — the user owns the ROTATION, the fit owns
     * target and distance, so every part of the drawing stays visible through
-    * orbits, morphs and simulation alike. OFF: only a graph load frames.
+    * orbits, morphs and simulation alike. OFF (the default): only a graph
+    * load frames. The mount-time binder overwrites this with the Var's value;
+    * the initial only matters for the frames before that, so it matches.
     */
-  private var autoFitOn = true
+  private var autoFitOn = false
+
+  /** With Auto off, a fresh graph still has to END UP framed, not merely start
+    * framed: the load-time snap fit sees iteration 0, and the simulation then
+    * expands well past that frame while it converges. So the follow runs
+    * transiently from load until the first convergence, then the camera is the
+    * user's. A user zoom mid-convergence cancels it (same contract as Auto).
+    */
+  private var convergenceFollow = false
 
   def setAutoFit(on: Boolean): Unit = autoFitOn = on
 
@@ -834,7 +845,10 @@ final class GraphScene3D(state: ViewerState):
           settle = () =>
             while !layout.done do layout = algo.step(layout)
             writePositions()
-            if autoFitOn then fitCamera(1.0)
+            // Same policy as the animation loop: the convergence follow frames
+            // the settled drawing exactly once, then hands the camera over.
+            if autoFitOn || convergenceFollow then fitCamera(1.0)
+            convergenceFollow = false
             updateFog()
             renderer.render(scene, camera)
         )
@@ -963,7 +977,13 @@ final class GraphScene3D(state: ViewerState):
     // target and distance are the fit's). Suspended during a node drag: the
     // grab-plane mapping assumes a still camera, and a creeping fit would
     // slide the node off the pointer.
-    if autoFitOn && mouseDragNode.isEmpty && vrDrag.isEmpty then fitCamera(0.2)
+    if (autoFitOn || convergenceFollow) && mouseDragNode.isEmpty && vrDrag.isEmpty then
+      fitCamera(0.2)
+      // The transient follow ends at convergence — with one exact fit, since
+      // the soft alpha above always trails the target by a step or two.
+      if convergenceFollow && layout.done then
+        fitCamera(1.0)
+        convergenceFollow = false
     updateFog()
     renderer.render(scene, camera)
     // The corner viewport pass makes no sense inside a headset.
@@ -1025,6 +1045,9 @@ final class GraphScene3D(state: ViewerState):
     applyCameraPose()
 
   private def dollyBy(factor: Double): Unit =
+    // Only user gestures dolly, and a user zoom owns the framing from here on:
+    // it cancels the load-time convergence follow just as it disengages Auto.
+    convergenceFollow = false
     val camP   = Vec3(camera.position.x, camera.position.y, camera.position.z)
     val offset = camP - orbitTarget
     val dist   = math.max(1e-9, offset.length)

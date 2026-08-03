@@ -52,7 +52,12 @@ trait SvgTransformOps:
     * invisible at any zoom this canvas allows. */
   private val PanEpsilon = 0.01
 
-  val autoFit = Var(true)
+  // Off by default: Auto is a framing POLICY the user opts into. In 2D it
+  // re-frames on every re-layout (overriding anchoring), and in 3D it is a
+  // continuous per-frame fit — both take framing away from the user, so
+  // neither should be the out-of-the-box behavior. Loads still frame: 2D's
+  // initial transform and 3D's setGraph fit are unconditional.
+  val autoFit = Var(false)
 
   val fitDiagram = EventBus[Unit]()
 
