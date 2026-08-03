@@ -16,6 +16,7 @@ import scala.scalajs.js.typedarray.Float32Array
 class Object3D extends js.Object:
   val position: Vector3                 = js.native
   val scale: Vector3                    = js.native
+  val quaternion: Quaternion            = js.native
   val matrixWorld: Matrix4              = js.native
   var visible: Boolean                  = js.native
   var frustumCulled: Boolean            = js.native
@@ -69,6 +70,11 @@ class Color extends js.Object:
   def setHex(hex: Double): this.type = js.native
 
 @js.native
+@JSImport("three", "Quaternion")
+class Quaternion extends js.Object:
+  def setFromUnitVectors(vFrom: Vector3, vTo: Vector3): this.type = js.native
+
+@js.native
 @JSImport("three", "Texture")
 class Texture extends js.Object:
   var needsUpdate: Boolean = js.native
@@ -82,8 +88,10 @@ class CanvasTexture(canvas: dom.html.Canvas) extends Texture
 @js.native
 @JSImport("three", "SpriteMaterial")
 class SpriteMaterial(parameters: js.Object) extends js.Object:
-  val color: Color    = js.native
-  def dispose(): Unit = js.native
+  val color: Color     = js.native
+  var map: Texture     = js.native
+  var opacity: Double  = js.native
+  def dispose(): Unit  = js.native
 
 object SpriteMaterial:
   def params(map: Texture, transparent: Boolean): js.Object =
@@ -141,6 +149,10 @@ class Mesh(geom: BufferGeometry, meshMaterial: MeshBasicMaterial) extends Object
 @js.native
 @JSImport("three/addons/geometries/ConvexGeometry.js", "ConvexGeometry")
 class ConvexGeometry(points: js.Array[Vector3]) extends BufferGeometry
+
+@js.native
+@JSImport("three", "ConeGeometry")
+class ConeGeometry(radius: Double, height: Double, radialSegments: Int) extends BufferGeometry
 
 @js.native
 trait WebXRManager extends js.Object:

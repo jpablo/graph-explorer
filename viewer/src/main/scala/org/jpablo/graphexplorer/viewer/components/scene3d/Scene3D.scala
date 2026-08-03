@@ -40,6 +40,10 @@ def Scene3D(state: ViewerState): Div =
     state.visibleGraph --> scene.setGraph,
     state.selection.signal --> scene.setSelection,
     state.layout3D.signal --> scene.setAlgorithm,
+    // Labels bake theme colors into their textures at paint time, so a theme
+    // switch must repaint them. setTheme's own observer registered first, so
+    // the CSS variables are already the new theme's when this fires.
+    state.currentTheme.signal.changes --> (_ => scene.repaintLabels()),
     // Bottom-LEFT: the zoom toolbar centers over the whole middle area, and
     // with the right panel open its tail reaches the canvas's right edge — the
     // left corner is the one spot no floating chrome owns. Only rendered when
@@ -109,6 +113,8 @@ final class GraphScene3D(state: ViewerState):
   private val MaxNodeWidth = 3.0
   private val SelectedTint = 0x86b6ff
   private val NormalTint   = 0xffffff
+  /** Opacity of nodes outside the selection's neighborhood. */
+  private val DimOpacity   = 0.16
 
   private val renderer   = three.WebGLRenderer(three.WebGLRenderer.params(antialias = true, alpha = true))
   private val scene      = three.Scene()
@@ -169,6 +175,18 @@ final class GraphScene3D(state: ViewerState):
   private var lineGeometryOpt: Option[three.BufferGeometry]   = None
   private var linePosAttrOpt: Option[three.BufferAttribute]   = None
   private var linePositions: Float32Array                     = new Float32Array(0)
+  private var lineColorAttrOpt: Option[three.BufferAttribute] = None
+  private var lineColors: Float32Array                        = new Float32Array(0)
+  private var brightEdges: Array[Boolean]                     = Array.empty
+
+  // One shared cone geometry/material for every arrowhead; meshes per edge.
+  private val coneGeometry = three.ConeGeometry(0.05, 0.14, 10)
+  private val coneMaterial = three.MeshBasicMaterial(
+    three.MeshBasicMaterial.params(color = 0x296bc7, transparent = true, opacity = 0.9, depthWrite = true, side = 0)
+  )
+  private var coneMeshes = Vector.empty[three.Mesh]
+  private val coneUp     = three.Vector3().set(0, 1, 0)
+  private val coneDir    = three.Vector3()
 
   /** Soft, distinguishable hull tints; assigned by cluster order (stable —
     * clusters are sorted by group id).
@@ -222,6 +240,17 @@ final class GraphScene3D(state: ViewerState):
   def setSelection(sel: ElementIds): Unit =
     selectedNodes = sel.ids.collect { case n: NodeId => n }.toSet
     applySelection()
+
+  /** Repaint every label texture with the current theme's colors; tint,
+    * opacity and scale carry over untouched (same text, same font — same
+    * aspect).
+    */
+  def repaintLabels(): Unit =
+    sprites = sprites.map: (id, ns) =>
+      val (texture, _) = paintLabel(ns.label)
+      ns.material.map = texture
+      ns.texture.dispose()
+      id -> ns.copy(texture = texture)
 
   /** Switch layout algorithms. The new algorithm adopts the CURRENT state —
     * its sync sees a foreign algoId and re-adopts even though the graph is
@@ -312,20 +341,23 @@ final class GraphScene3D(state: ViewerState):
   private def rebuildLines(): Unit =
     lineSegmentsOpt.foreach(graphRoot.remove(_))
     lineGeometryOpt.foreach(_.dispose())
+    coneMeshes.foreach(graphRoot.remove(_)) // geometry/material are shared — only the meshes go
+    coneMeshes = Vector.empty
     lineSegmentsOpt = None
     lineGeometryOpt = None
     linePosAttrOpt = None
+    lineColorAttrOpt = None
     if edges.nonEmpty then
       linePositions = new Float32Array(edges.size * 6)
-      val colors = new Float32Array(edges.size * 6)
-      for i <- edges.indices do
-        // source end: neutral gray; target end: accent blue
-        colors(i * 6 + 0) = 0.42f; colors(i * 6 + 1) = 0.45f; colors(i * 6 + 2) = 0.50f
-        colors(i * 6 + 3) = 0.16f; colors(i * 6 + 4) = 0.42f; colors(i * 6 + 5) = 0.78f
+      // RGBA per vertex: alpha is how the neighborhood dim reaches lines
+      // without a second material (needs material.transparent, which is on).
+      lineColors = new Float32Array(edges.size * 8)
+      brightEdges = Array.fill(edges.size)(true)
       val geometry = three.BufferGeometry()
       val posAttr  = three.BufferAttribute(linePositions, 3)
+      val colAttr  = three.BufferAttribute(lineColors, 4)
       geometry.setAttribute("position", posAttr)
-      geometry.setAttribute("color", three.BufferAttribute(colors, 3))
+      geometry.setAttribute("color", colAttr)
       val segments = three.LineSegments(geometry, lineMaterial)
       // Positions mutate every frame; skip bounding-sphere culling instead of
       // recomputing it per step.
@@ -334,6 +366,28 @@ final class GraphScene3D(state: ViewerState):
       lineSegmentsOpt = Some(segments)
       lineGeometryOpt = Some(geometry)
       linePosAttrOpt = Some(posAttr)
+      lineColorAttrOpt = Some(colAttr)
+      coneMeshes = edges.map: _ =>
+        val cone = three.Mesh(coneGeometry, coneMaterial)
+        graphRoot.add(cone)
+        cone
+      writeLineColors()
+
+  /** Rewrites the RGBA line buffer from the current highlight: with a
+    * selection, only edges incident to a selected node stay opaque (they ARE
+    * the neighborhood); with none, everything is. Arrowheads follow their
+    * edge by visibility.
+    */
+  private def writeLineColors(): Unit =
+    for i <- edges.indices do
+      val (s, t) = edges(i)
+      brightEdges(i) = selectedNodes.isEmpty || selectedNodes.contains(s) || selectedNodes.contains(t)
+      val alpha = if brightEdges(i) then 0.95f else 0.08f
+      lineColors(i * 8 + 0) = 0.42f; lineColors(i * 8 + 1) = 0.45f
+      lineColors(i * 8 + 2) = 0.50f; lineColors(i * 8 + 3) = alpha
+      lineColors(i * 8 + 4) = 0.16f; lineColors(i * 8 + 5) = 0.42f
+      lineColors(i * 8 + 6) = 0.78f; lineColors(i * 8 + 7) = alpha
+    lineColorAttrOpt.foreach(_.needsUpdate = true)
 
   /** One translucent hull mesh per cluster; the geometry is re-hulled on every
     * position write (QuickHull over tens of points — cheap), the mesh and
@@ -394,12 +448,40 @@ final class GraphScene3D(state: ViewerState):
         linePositions(i * 6 + 3) = tp.x.toFloat
         linePositions(i * 6 + 4) = tp.y.toFloat
         linePositions(i * 6 + 5) = tp.z.toFloat
+        // Arrowhead: a cone just short of the target pill, aimed along the edge.
+        if i < coneMeshes.size then
+          val cone = coneMeshes(i)
+          val d    = tp - sp
+          val len  = d.length
+          if len < 1e-6 || !brightEdges(i) then cone.visible = false
+          else
+            cone.visible = true
+            val dir  = d * (1.0 / len)
+            val back = math.min(len * 0.5, NodeHeight * 0.55)
+            cone.position.set(tp.x - dir.x * back, tp.y - dir.y * back, tp.z - dir.z * back)
+            cone.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
     linePosAttrOpt.foreach(_.needsUpdate = true)
     updateHulls()
 
+  /** Selection tint plus neighborhood focus: with a selection, everything not
+    * selected or adjacent fades — in 3D, where occlusion is constant, dimming
+    * the rest is what makes a selection findable at all.
+    */
   private def applySelection(): Unit =
+    val neighborhood: Option[Set[NodeId]] =
+      if selectedNodes.isEmpty then None
+      else
+        Some(
+          selectedNodes ++ edges.flatMap: (s, t) =>
+            if selectedNodes.contains(s) then s :: t :: Nil
+            else if selectedNodes.contains(t) then s :: t :: Nil
+            else Nil
+        )
     sprites.foreach: (id, ns) =>
       ns.material.color.setHex(if selectedNodes.contains(id) then SelectedTint else NormalTint)
+      ns.material.opacity = if neighborhood.forall(_.contains(id)) then 1.0 else DimOpacity
+    writeLineColors()
+    writePositions() // cone visibility follows brightEdges
 
   private def frameCamera(nodeCount: Int): Unit =
     val r = ForceLayout3D.radiusFor(nodeCount, ForceLayout3D.defaultParams.k)
@@ -719,6 +801,8 @@ final class GraphScene3D(state: ViewerState):
       mesh.geometry.dispose()
       material.dispose()
     hullMeshes = Vector.empty
+    coneGeometry.dispose()
+    coneMaterial.dispose()
     lineGeometryOpt.foreach(_.dispose())
     lineMaterial.dispose()
     renderer.dispose()
