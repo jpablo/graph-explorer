@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.scene3d
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.backends.threejs as three
-import org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels
+import org.jpablo.graphexplorer.viewer.formats.dot.LabelSummary
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D, Vec3}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
@@ -360,7 +360,7 @@ final class GraphScene3D(state: ViewerState):
     layout = algo.sync(layout, LayoutGraph(nodeIds, edges, clusterSets))
 
     val labels: Map[NodeId, String] =
-      g.nodes.map((id, node) => id -> displayLabel(id, node)).toMap
+      g.nodes.map((id, node) => id -> displayLabel(g, id, node)).toMap
     val (keep, drop) = sprites.partition((id, ns) => labels.get(id).contains(ns.label))
     drop.values.foreach(disposeSprite)
     sprites = labels.foldLeft(keep):
@@ -429,16 +429,19 @@ final class GraphScene3D(state: ViewerState):
       algo = next
       layout = algo.sync(layout, layout.graph)
 
-  /** What the sprite shows: the label attribute when it is plain text, the id
-    * otherwise. Record/HTML markup would render as raw source, so it falls back
-    * to the id; DOT line breaks (\n \l \r) flatten to spaces for now.
+  /** What the sprite shows: the label's rendered TEXT via LabelSummary — the
+    * same summarizer the Elements list uses — so HTML and record labels
+    * contribute their content instead of falling back to the id. (The old
+    * id-fallback looked fine exactly when ids WERE the names, and printed
+    * `a`, `ab`… for generated DOT whose ids are short tokens.) The id remains
+    * the fallback for empty labels and DOT's \N default.
     */
-  private def displayLabel(id: NodeId, node: ViewerNode): String =
+  private def displayLabel(g: ViewerGraph, id: NodeId, node: ViewerNode): String =
     val raw = node.label.toString
-    val text =
-      if raw.isEmpty || raw == "\\N" || HtmlLabels.isHtml(raw) || raw.contains('|') then id.value
-      else raw.replaceAll("""\\[nlr]""", " ")
-    if text.length > 40 then text.take(39) + "…" else text
+    if raw.isEmpty || raw == "\\N" then id.value
+    else
+      val text = LabelSummary.short(raw, isRecord = g.isRecordNode(id), maxLen = 40)
+      if text.isEmpty then id.value else text
 
   private def createSprite(id: NodeId, label: String): NodeSprite =
     val (texture, aspect) = paintLabel(label)
