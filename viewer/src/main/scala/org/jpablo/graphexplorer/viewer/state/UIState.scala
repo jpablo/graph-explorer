@@ -47,9 +47,10 @@ trait UIState:
     */
   val layout3D = Var(org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id)
 
-  /** 3D navigation idiom: true = trackpad (two-finger scroll pans, pinch
-    * zooms — the 2D canvas's idiom, hence the default); false = mouse (wheel
-    * zooms). Drag orbits in both. Persisted in ViewerSettings.
+  /** 3D navigation idiom: true = trackpad (two-finger scroll ORBITS — the
+    * drag gesture without the click — and pinch zooms); false = mouse (wheel
+    * zooms). Drag orbits in both; the modes differ only in whether rotating
+    * needs a click. Persisted in ViewerSettings.
     */
   val nav3DTrackpad = Var(true)
 

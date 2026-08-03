@@ -40,8 +40,8 @@ private def threeDControls(state: ViewerState) =
     cls := "flex items-center gap-1",
     layout3DSelect(state),
     IconToggle(
-      "bi-arrows-move",
-      "Trackpad navigation: scroll pans, pinch zooms (off: wheel zooms)",
+      "bi-arrow-repeat",
+      "Trackpad navigation: scroll orbits without clicking, pinch zooms (off: wheel zooms)",
       state.nav3DTrackpad
     )
   )

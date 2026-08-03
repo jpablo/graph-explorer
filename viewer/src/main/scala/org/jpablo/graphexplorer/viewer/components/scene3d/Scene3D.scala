@@ -850,11 +850,11 @@ final class GraphScene3D(state: ViewerState):
   private var downX = 0.0
   private var downY = 0.0
 
-  /** Trackpad-mode wheel: scroll pans in the view plane, pinch dollies.
-    * Mirrors the 2D canvas exactly — there, content translates by +delta, so
-    * here the CAMERA moves by the opposite (−deltaX right, +deltaY up: screen
-    * y points down). World-per-pixel is taken at the orbit target's depth,
-    * which makes the pan finger-accurate for content at that depth.
+  /** Trackpad-mode wheel: two-finger scroll ORBITS — the same gesture a drag
+    * performs, minus the click — and pinch dollies. The rotation uses
+    * OrbitControls' own sensitivity (2π per canvas-height of travel) so the
+    * two grips feel identical; finger direction maps to drag direction
+    * (fingers right ≡ drag right, under natural scrolling's inverted deltas).
     */
   private def attachWheelNavigation(controls: three.OrbitControls): Unit =
     renderer.domElement.addEventListener(
@@ -867,18 +867,24 @@ final class GraphScene3D(state: ViewerState):
           val camP   = Vec3(camera.position.x, camera.position.y, camera.position.z)
           val toCam  = camP - target
           val dist   = math.max(0.5, toCam.length)
-          val dir    = toCam * (1.0 / math.max(1e-9, toCam.length))
           if e.ctrlKey || e.metaKey then
-            // pinch (browsers report it as ctrl+wheel) or meta+scroll: dolly
-            val nd = math.min(400.0, math.max(0.6, dist * math.exp(e.deltaY * 0.01)))
+            // pinch (browsers report it as ctrl+wheel) or meta+scroll: dolly,
+            // exactly what the wheel does in mouse mode
+            val dir = toCam * (1.0 / math.max(1e-9, toCam.length))
+            val nd  = math.min(400.0, math.max(0.6, dist * math.exp(e.deltaY * 0.01)))
             camera.position.set(target.x + dir.x * nd, target.y + dir.y * nd, target.z + dir.z * nd)
           else
-            val (right, up, _) = basisFor(dir)
-            val heightPx = math.max(1, renderer.domElement.clientHeight)
-            val wpp      = 2 * dist * math.tan(math.toRadians(CameraFovDeg / 2)) / heightPx
-            val off      = right * (-e.deltaX * wpp) + up * (e.deltaY * wpp)
-            controls.target.set(target.x + off.x, target.y + off.y, target.z + off.z)
-            camera.position.set(camP.x + off.x, camP.y + off.y, camP.z + off.z)
+            // spherical orbit about the target, three's convention:
+            // theta = azimuth around Y, phi = polar angle from +Y
+            val heightPx = math.max(1, renderer.domElement.clientHeight).toDouble
+            val theta    = math.atan2(toCam.x, toCam.z) + 2 * math.Pi * e.deltaX / heightPx
+            val phi0     = math.acos(math.min(1.0, math.max(-1.0, toCam.y / dist)))
+            val phi      = math.min(math.Pi - 0.05, math.max(0.05, phi0 + 2 * math.Pi * e.deltaY / heightPx))
+            camera.position.set(
+              target.x + dist * math.sin(phi) * math.sin(theta),
+              target.y + dist * math.cos(phi),
+              target.z + dist * math.sin(phi) * math.cos(theta)
+            )
     )
 
   /** Pointer down on a node begins a drag (orbit is suspended for its

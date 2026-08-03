@@ -185,7 +185,7 @@ case class ViewerSettings(
     // None = default (force), and an unknown id degrades to the default
     // instead of costing the user every other setting.
     layout3D:           Option[String] = None,
-    // 3D navigation idiom: true = trackpad (scroll pans), false = mouse (wheel zooms).
+    // 3D navigation idiom: true = trackpad (scroll orbits, no click), false = mouse (wheel zooms).
     nav3DTrackpad:      Boolean = true,
     // Library page: false = thumbnail cards, true = compact rows.
     libraryListMode:    Boolean = false,
