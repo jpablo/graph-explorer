@@ -1416,16 +1416,35 @@ final class GraphScene3D(state: ViewerState):
     camera.position.set(camP.x + move.x, camP.y + move.y, camP.z + move.z)
     applyCameraPose()
 
-  private def dollyBy(factor: Double): Unit =
+  /** Zoom about the point under the POINTER, not the orbit target: scale the
+    * whole camera rig (camera AND target) about the world point the cursor is
+    * on, at the target's depth. That point stays screen-fixed — the map-app
+    * zoom idiom — the view direction is untouched (the rig scales, it does
+    * not turn), and the orbit target drifts toward where the user is zooming,
+    * which is exactly where the next rotation should pivot.
+    */
+  private def dollyBy(factor: Double, e: dom.MouseEvent): Unit =
     // Only user gestures dolly, and a user zoom owns the framing from here on:
     // it cancels the load-time convergence follow just as it disengages Auto.
     convergenceFollow = false
     val camP   = Vec3(camera.position.x, camera.position.y, camera.position.z)
     val offset = camP - orbitTarget
     val dist   = math.max(1e-9, offset.length)
-    val dir    = offset * (1.0 / dist)
-    val nd     = math.min(400.0, math.max(0.6, dist * factor))
-    camera.position.set(orbitTarget.x + dir.x * nd, orbitTarget.y + dir.y * nd, orbitTarget.z + dir.z * nd)
+    // Clamp on the resulting distance, then rescale the factor to honor it.
+    val nd = math.min(400.0, math.max(0.6, dist * factor))
+    val f  = nd / dist
+    // The anchor: pointer ray ∩ the screen-parallel plane through the target.
+    // Content near that depth stays exactly under the cursor; the fallback
+    // (grazing ray) degrades to a plain centered dolly.
+    setRayFromPointer(e)
+    val view   = offset * (-1.0 / dist)
+    val anchor = planeIntersect(orbitTarget, view).getOrElse(orbitTarget)
+    orbitTarget = anchor + (orbitTarget - anchor) * f
+    camera.position.set(
+      anchor.x + (camP.x - anchor.x) * f,
+      anchor.y + (camP.y - anchor.y) * f,
+      anchor.z + (camP.z - anchor.z) * f
+    )
     applyCameraPose()
 
   /** Wheel: pinch (ctrl/meta) dollies in both modes; ⌥ (alt) PANS in both
@@ -1447,7 +1466,7 @@ final class GraphScene3D(state: ViewerState):
             // (the toolbar button follows, via the shared Var). Rotation
             // stays compatible with Auto and leaves it alone.
             if state.autoFit.now() then state.autoFit.set(false)
-            dollyBy(math.exp(e.deltaY * 0.01))
+            dollyBy(math.exp(e.deltaY * 0.01), e)
           else rotateBy(-e.deltaX, -e.deltaY)
     )
 
