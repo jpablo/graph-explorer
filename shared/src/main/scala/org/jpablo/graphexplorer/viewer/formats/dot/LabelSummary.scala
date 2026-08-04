@@ -38,6 +38,30 @@ object LabelSummary:
   def full(label: String, isRecord: Boolean = false): String =
     collapse(parts(label, isRecord).mkString(" "))
 
+  /** The label's text as display LINES, for a renderer that stacks them (the
+    * 3D pill): the BR-separated spans of an HTML text label, the cells of a
+    * table, the fields of a record, or a plain label's \n/\l/\r lines. Where
+    * [[short]] joins the first meaningful parts into one line, this keeps
+    * the label's own line structure.
+    */
+  def lines(label: String, isRecord: Boolean = false, maxLen: Int = DefaultMaxLen, maxLines: Int = 8): Vector[String] =
+    val raw: Vector[String] =
+      if HtmlLabels.isHtml(label) then
+        HtmlParser.parse(label) match
+          // The one case parts() flattens: a text label's spans ARE its lines.
+          case Some(HtmlLabel.Text(t)) => t.spans.toVector.map(_.items.map(_.str).mkString)
+          case Some(HtmlLabel.Table(tbl)) => HtmlLabelOps.cellTexts(tbl)
+          case Some(other)                => Vector(HtmlLabelOps.plainText(other))
+          case None                       => Vector(label)
+      else if isRecord then RecordTree.leaves(RecordTree.parse(label)).map(l => RecordTree.displayText(l.text))
+      else
+        // unescape resolves \n; \l and \r (justified breaks) survive it as
+        // literal backslash pairs and split here.
+        TextUtils.unescape(label).split('\n').toVector.flatMap(_.split("""\\[lr]""").toVector)
+    val cleaned = raw.map(collapse).filter(_.nonEmpty).map(truncate(_, maxLen))
+    if cleaned.size <= maxLines then cleaned
+    else cleaned.take(maxLines - 1) :+ "…"
+
   private def headline(label: String, isRecord: Boolean): String =
     val ps = parts(label, isRecord).filter(_.trim.nonEmpty)
     if ps.isEmpty then ""

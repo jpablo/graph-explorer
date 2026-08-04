@@ -109,7 +109,7 @@ final class GraphScene3D(state: ViewerState):
       sprite:   three.Sprite,
       material: three.SpriteMaterial,
       texture:  three.CanvasTexture,
-      label:    String
+      label:    Vector[String] // display LINES, stacked in the pill like the 2D box
   )
 
   private val StepsPerFrame = 3
@@ -368,7 +368,7 @@ final class GraphScene3D(state: ViewerState):
     clusterSets = visibleClusters(g, nodeIds)
     layout = algo.sync(layout, LayoutGraph(nodeIds, edges, clusterSets, hints = hintsFor(g)))
 
-    val labels: Map[NodeId, String] =
+    val labels: Map[NodeId, Vector[String]] =
       g.nodes.map((id, node) => id -> displayLabel(g, id, node)).toMap
     val (keep, drop) = sprites.partition((id, ns) => labels.get(id).contains(ns.label))
     drop.values.foreach(disposeSprite)
@@ -457,19 +457,19 @@ final class GraphScene3D(state: ViewerState):
       rebuildLines()
       applySelection()
 
-  /** What the sprite shows: the label's rendered TEXT via LabelSummary — the
-    * same summarizer the Elements list uses — so HTML and record labels
-    * contribute their content instead of falling back to the id. (The old
-    * id-fallback looked fine exactly when ids WERE the names, and printed
-    * `a`, `ab`… for generated DOT whose ids are short tokens.) The id remains
-    * the fallback for empty labels and DOT's \N default.
+  /** What the sprite shows: the label's rendered LINES via LabelSummary — the
+    * same interpreter the Elements list uses — so HTML and record labels
+    * contribute their content instead of falling back to the id, and a
+    * multi-line 2D box (BR-separated spans, record fields) stays multi-line
+    * in 3D instead of flattening to one long string. The id remains the
+    * fallback for empty labels and DOT's \N default.
     */
-  private def displayLabel(g: ViewerGraph, id: NodeId, node: ViewerNode): String =
+  private def displayLabel(g: ViewerGraph, id: NodeId, node: ViewerNode): Vector[String] =
     val raw = node.label.toString
-    if raw.isEmpty || raw == "\\N" then id.value
+    if raw.isEmpty || raw == "\\N" then Vector(id.value)
     else
-      val text = LabelSummary.short(raw, isRecord = g.isRecordNode(id), maxLen = 40)
-      if text.isEmpty then id.value else text
+      val ls = LabelSummary.lines(raw, isRecord = g.isRecordNode(id), maxLen = 40)
+      if ls.isEmpty then Vector(id.value) else ls
 
   /** The node's world size when the current layout dictates geometry (the
     * hints' dot box, in points): with it, arrows meet the node exactly where
@@ -480,16 +480,22 @@ final class GraphScene3D(state: ViewerState):
       .flatMap(_.sizes.get(id))
       .map((w, h) => (w * DotPlanar3D.PtToWorld, h * DotPlanar3D.PtToWorld))
 
-  private def createSprite(id: NodeId, label: String): NodeSprite =
+  /** Label-derived pill size: one line is NodeHeight tall, each further line
+    * adds another — matching the 2D box's habit of growing downward — with
+    * the width capped and the whole pill shrinking proportionally under it.
+    */
+  private def defaultSpriteSize(lines: Vector[String], aspect: Double): (Double, Double) =
+    val height = NodeHeight * lines.size.max(1)
+    val width  = math.min(height * aspect, MaxNodeWidth)
+    (width, width / aspect)
+
+  private def createSprite(id: NodeId, label: Vector[String]): NodeSprite =
     val dictated          = dictatedSize(id)
     val (texture, aspect) = paintLabel(label, forcedAspect = dictated.map((w, h) => w / h))
     val material          = three.SpriteMaterial(three.SpriteMaterial.params(map = texture, transparent = true))
     val sprite            = three.Sprite(material)
-    dictated match
-      case Some((w, h)) => sprite.scale.set(w, h, 1)
-      case None =>
-        val width = math.min(NodeHeight * aspect, MaxNodeWidth)
-        sprite.scale.set(width, width / aspect, 1)
+    val (w, h)            = dictated.getOrElse(defaultSpriteSize(label, aspect))
+    sprite.scale.set(w, h, 1)
     sprite.userData("nodeId") = id.value
     nodesGroup.add(sprite)
     NodeSprite(sprite, material, texture, label)
@@ -501,10 +507,7 @@ final class GraphScene3D(state: ViewerState):
     */
   private def resizeSprites(): Unit =
     sprites = sprites.map: (id, ns) =>
-      val (w, h) = dictatedSize(id).getOrElse:
-        val measured = paintLabelAspect(ns.label)
-        val width    = math.min(NodeHeight * measured, MaxNodeWidth)
-        (width, width / measured)
+      val (w, h) = dictatedSize(id).getOrElse(defaultSpriteSize(ns.label, paintLabelAspect(ns.label)))
       if math.abs(ns.sprite.scale.x - w) < 1e-6 && math.abs(ns.sprite.scale.y - h) < 1e-6 then id -> ns
       else
         val (texture, _) = paintLabel(ns.label, forcedAspect = Some(w / h))
@@ -514,7 +517,7 @@ final class GraphScene3D(state: ViewerState):
         id -> ns.copy(texture = texture)
 
   /** The aspect paintLabel would produce unforced, without painting. */
-  private def paintLabelAspect(label: String): Double =
+  private def paintLabelAspect(lines: Vector[String]): Double =
     val fontPx  = 64.0
     val padX    = fontPx * 0.55
     val padY    = fontPx * 0.32
@@ -522,9 +525,9 @@ final class GraphScene3D(state: ViewerState):
     val canvas  = dom.document.createElement("canvas").asInstanceOf[dom.html.Canvas]
     val ctx     = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
     ctx.font = s"${fontPx}px ${dom.window.getComputedStyle(dom.document.body).fontFamily}"
-    val textWidth = ctx.measureText(label).width
+    val textWidth = lines.map(ctx.measureText(_).width).maxOption.getOrElse(0.0)
     val w         = math.ceil(textWidth + 2 * padX + 2 * borderW).max(1)
-    val h         = math.ceil(fontPx * 1.25 + 2 * padY + 2 * borderW)
+    val h         = math.ceil(fontPx * 1.25 * lines.size.max(1) + 2 * padY + 2 * borderW)
     w / h
 
   private def disposeSprite(ns: NodeSprite): Unit =
@@ -537,19 +540,21 @@ final class GraphScene3D(state: ViewerState):
     * In-scene text (not a DOM overlay) on purpose: DOM overlays do not exist
     * inside an immersive WebXR session, and this canvas is on the VR path.
     */
-  private def paintLabel(label: String, forcedAspect: Option[Double] = None): (three.CanvasTexture, Double) =
+  private def paintLabel(lines: Vector[String], forcedAspect: Option[Double] = None): (three.CanvasTexture, Double) =
     val fontPx  = 64.0
     val padX    = fontPx * 0.55
     val padY    = fontPx * 0.32
     val borderW = 4.0
+    val lineH   = fontPx * 1.25
+    val n       = lines.size.max(1)
 
     val canvas = dom.document.createElement("canvas").asInstanceOf[dom.html.Canvas]
     val ctx    = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
     val font   = s"${fontPx}px ${dom.window.getComputedStyle(dom.document.body).fontFamily}"
 
     ctx.font = font
-    val textWidth = ctx.measureText(label).width
-    canvas.height = math.ceil(fontPx * 1.25 + 2 * padY + 2 * borderW).toInt
+    val textWidth = lines.map(ctx.measureText(_).width).maxOption.getOrElse(0.0)
+    canvas.height = math.ceil(lineH * n + 2 * padY + 2 * borderW).toInt
     // A forced aspect (a layout that dictates node geometry — the dot box the
     // splines were clipped against) fixes the canvas SHAPE; the text then
     // shrinks to fit rather than stretching with the texture.
@@ -561,7 +566,7 @@ final class GraphScene3D(state: ViewerState):
     ctx.fillStyle = themeColor("--color-base-100", "#ffffff")
     ctx.strokeStyle = themeColor("--color-base-content", "#333333")
     ctx.lineWidth = borderW
-    val radius = (canvas.height - borderW) / 4.0
+    val radius = math.min((canvas.height - borderW) / 4.0, lineH * 0.6)
     ctx.beginPath()
     ctx.asInstanceOf[js.Dynamic].roundRect(
       borderW / 2, borderW / 2, canvas.width - borderW, canvas.height - borderW, radius)
@@ -573,7 +578,8 @@ final class GraphScene3D(state: ViewerState):
     val availW = canvas.width - 2 * borderW - fontPx * 0.3
     if textWidth > availW && availW > 1 then
       ctx.font = s"${fontPx * availW / textWidth}px ${dom.window.getComputedStyle(dom.document.body).fontFamily}"
-    ctx.fillText(label, canvas.width / 2.0, canvas.height / 2.0)
+    lines.zipWithIndex.foreach: (line, i) =>
+      ctx.fillText(line, canvas.width / 2.0, canvas.height / 2.0 + (i - (n - 1) / 2.0) * lineH)
 
     val texture = three.CanvasTexture(canvas)
     texture.colorSpace = "srgb"

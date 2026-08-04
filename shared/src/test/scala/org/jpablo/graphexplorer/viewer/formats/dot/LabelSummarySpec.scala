@@ -79,3 +79,24 @@ class LabelSummarySpec extends FunSuite:
 
   test("an empty label summarizes to nothing (callers fall back to the id)"):
     assertEquals(LabelSummary.short(""), "")
+
+  // ---- lines (the 3D pill's stacked view) --------------------------------
+
+  test("lines keeps an HTML text label's BR structure"):
+    // label VALUES carry the markup without DOT's outer <...> delimiters
+    val dep = "org.scala-js<BR/>scalajs-library_2.13<BR/>1.7.1"
+    assertEquals(LabelSummary.lines(dep), Vector("org.scala-js", "scalajs-library_2.13", "1.7.1"))
+
+  test("lines splits a plain label on \\n and justified breaks"):
+    assertEquals(LabelSummary.lines("""first\nsecond\lthird"""), Vector("first", "second", "third"))
+
+  test("lines of a record label are its fields"):
+    assertEquals(LabelSummary.lines("RecordName|{x|y}", isRecord = true), Vector("RecordName", "x", "y"))
+
+  test("lines caps the count with an ellipsis line"):
+    val many = (1 to 12).map(i => s"line$i").mkString("""\n""")
+    val ls   = LabelSummary.lines(many, maxLines = 4)
+    assertEquals(ls, Vector("line1", "line2", "line3", "…"))
+
+  test("a single-line label is a single line"):
+    assertEquals(LabelSummary.lines("plain"), Vector("plain"))
