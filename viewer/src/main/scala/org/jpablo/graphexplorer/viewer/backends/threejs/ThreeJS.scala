@@ -21,6 +21,7 @@ class Object3D extends js.Object:
   val matrixWorld: Matrix4              = js.native
   var visible: Boolean                  = js.native
   var frustumCulled: Boolean            = js.native
+  var renderOrder: Double               = js.native
   val userData: js.Dictionary[js.Any]   = js.native
   val children: js.Array[Object3D]      = js.native
   def add(objects: Object3D*): this.type    = js.native
@@ -82,6 +83,7 @@ class Color extends js.Object:
 @JSImport("three", "Quaternion")
 class Quaternion extends js.Object:
   def setFromUnitVectors(vFrom: Vector3, vTo: Vector3): this.type = js.native
+  def copy(q: Quaternion): this.type                              = js.native
 
 @js.native
 @JSImport("three", "Texture")
@@ -149,9 +151,21 @@ class MeshBasicMaterial(parameters: js.Object) extends js.Object:
   def dispose(): Unit      = js.native
 
 object MeshBasicMaterial:
-  /** side: 0 = FrontSide, 1 = BackSide, 2 = DoubleSide (three's constants). */
-  def params(color: Int, transparent: Boolean, opacity: Double, depthWrite: Boolean, side: Int): js.Object =
-    js.Dynamic.literal(color = color, transparent = transparent, opacity = opacity, depthWrite = depthWrite, side = side)
+  /** side: 0 = FrontSide, 1 = BackSide, 2 = DoubleSide (three's constants).
+    * colorWrite = false makes a depth-only material: it writes the depth
+    * buffer but no pixels — the halo trick's raw ingredient.
+    */
+  def params(
+      color:       Int,
+      transparent: Boolean,
+      opacity:     Double,
+      depthWrite:  Boolean,
+      side:        Int,
+      colorWrite:  Boolean = true
+  ): js.Object =
+    js.Dynamic.literal(
+      color = color, transparent = transparent, opacity = opacity,
+      depthWrite = depthWrite, side = side, colorWrite = colorWrite)
 
 @js.native
 @JSImport("three", "Mesh")

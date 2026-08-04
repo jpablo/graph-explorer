@@ -181,6 +181,7 @@ final class GraphScene3D(state: ViewerState):
     // and the animation loop only writes transforms while stepping — without
     // this, such a knob is visually inert until something else redraws.
     writePositions()
+    writeEdgeHighlight() // altitude luminance follows the (possibly re-signed) bows
   private var sprites               = Map.empty[NodeId, NodeSprite]
   private var edges                 = Vector.empty[(NodeId, NodeId)]
   private var selectedNodes         = Set.empty[NodeId]
@@ -239,6 +240,30 @@ final class GraphScene3D(state: ViewerState):
   private val stemMaterial = three.MeshBasicMaterial(
     three.MeshBasicMaterial.params(color = 0x8a92a0, transparent = false, opacity = 1.0, depthWrite = true, side = 0)
   )
+  /** Aerial perspective for the depth bows: edges bowing toward the viewer
+    * render lighter, away darker. A GLOBAL altitude cue that works even
+    * head-on, where the bow itself is invisible.
+    */
+  private val stemFrontMaterial = three.MeshBasicMaterial(
+    three.MeshBasicMaterial.params(color = 0xb8c0cc, transparent = false, opacity = 1.0, depthWrite = true, side = 0)
+  )
+  private val stemBackMaterial = three.MeshBasicMaterial(
+    three.MeshBasicMaterial.params(color = 0x596069, transparent = false, opacity = 1.0, depthWrite = true, side = 0)
+  )
+  /** The halo: an invisible depth-only casing around each stem. It writes
+    * depth but no color, so anything sufficiently BEHIND a stem is clipped in
+    * a band around it — at a crossing, the nearer edge visibly CUTS the
+    * farther one, the way a map draws a bridge over a road. The casing is
+    * pushed away from the camera each frame (frame loop) so it never clips
+    * its own stem, only genuinely deeper geometry.
+    */
+  private val HaloRadiusFactor = 2.2
+  private val HaloDepthOffset  = 0.022
+  private val stemHaloMaterial = three.MeshBasicMaterial(
+    three.MeshBasicMaterial.params(
+      color = 0x000000, transparent = false, opacity = 1.0, depthWrite = true, side = 0, colorWrite = false)
+  )
+  private var stemHalos = Vector.empty[Vector[three.Mesh]]
   // The neighborhood dim, formerly per-vertex alpha in the line buffer: now a
   // swap to this shared faint material. depthWrite off — a dimmed stem is
   // context, and must not punch holes into things behind it.
@@ -535,6 +560,9 @@ final class GraphScene3D(state: ViewerState):
         material.needsUpdate = true
         val mesh = three.Mesh(planeGeometry, material)
         mesh.scale.set(w, h, 1)
+        // Before the depth-only halos (renderOrder -1): a sheet already drawn
+        // keeps its pixels — casings must cut edges, never nodes.
+        mesh.renderOrder = -2
         mesh.userData("nodeId") = id.value
         nodesGroup.add(mesh)
         NodeSprite(
@@ -670,9 +698,11 @@ final class GraphScene3D(state: ViewerState):
   private def rebuildLines(): Unit =
     stemMeshes.flatten.foreach(graphRoot.remove(_))
     stemJoints.flatten.foreach(graphRoot.remove(_))
+    stemHalos.flatten.foreach(graphRoot.remove(_))
     coneMeshes.foreach(graphRoot.remove(_))
     stemMeshes = Vector.empty
     stemJoints = Vector.empty
+    stemHalos = Vector.empty
     coneMeshes = Vector.empty
     if edges.nonEmpty then
       brightEdges = Array.fill(edges.size)(true)
@@ -689,11 +719,33 @@ final class GraphScene3D(state: ViewerState):
           joint.frustumCulled = false
           graphRoot.add(joint)
           joint
+      stemHalos = stemMeshes.map: chain =>
+        chain.map: _ =>
+          val halo = three.Mesh(stemGeometry, stemHaloMaterial)
+          halo.frustumCulled = false
+          // Depth-only pass runs before the visible stems, so a nearer casing
+          // is already in the depth buffer when a farther stem draws.
+          halo.renderOrder = -1
+          graphRoot.add(halo)
+          halo
       coneMeshes = edges.map: _ =>
         val cone = three.Mesh(coneGeometry, coneMaterial)
         graphRoot.add(cone)
         cone
       writeEdgeHighlight()
+
+  /** Which luminance an edge gets: lighter toward the viewer, darker away —
+    * read off the stored bow's sign, so it needs no knowledge of the layout.
+    */
+  private def altitudeMaterial(i: Int): three.MeshBasicMaterial =
+    val apex = layout.edgeOffsets
+      .lift(i)
+      .filter(_.nonEmpty)
+      .map(off => off.maxBy(o => math.abs(o.z)).z)
+      .getOrElse(0.0)
+    if apex > 1e-6 then stemFrontMaterial
+    else if apex < -1e-6 then stemBackMaterial
+    else stemMaterial
 
   /** Applies the current highlight to edges: with a selection, only edges
     * incident to a selected node stay opaque (they ARE the neighborhood) —
@@ -705,7 +757,7 @@ final class GraphScene3D(state: ViewerState):
       val (s, t) = edges(i)
       brightEdges(i) = selectedNodes.isEmpty || selectedNodes.contains(s) || selectedNodes.contains(t)
       if i < stemMeshes.size then
-        val material = if brightEdges(i) then stemMaterial else stemDimMaterial
+        val material = if brightEdges(i) then altitudeMaterial(i) else stemDimMaterial
         stemMeshes(i).foreach(_.material = material)
         if i < stemJoints.size then stemJoints(i).foreach(_.material = material)
 
@@ -1246,9 +1298,38 @@ final class GraphScene3D(state: ViewerState):
         fitCamera(1.0)
         convergenceFollow = false
     updateFog()
+    updateStemHalos()
     renderer.render(scene, camera)
     // The corner viewport pass makes no sense inside a headset.
     if !renderer.xr.isPresenting then renderGizmo()
+
+  /** Place each stem's depth-only casing: same pose, fattened radially, and
+    * pushed one small step AWAY from the camera — far enough that the casing
+    * never clips its own stem, near enough that a crossing edge one bow-level
+    * deeper always is. View-dependent, so it runs per frame, not per layout
+    * step.
+    */
+  private def updateStemHalos(): Unit =
+    val vd = cameraDirection()
+    var i  = 0
+    while i < stemMeshes.size do
+      val chain = stemMeshes(i)
+      val halos = if i < stemHalos.size then stemHalos(i) else Vector.empty
+      var k     = 0
+      while k < chain.size && k < halos.size do
+        val stem = chain(k)
+        val halo = halos(k)
+        halo.visible = stem.visible
+        if stem.visible then
+          halo.position.set(
+            stem.position.x + vd.x * HaloDepthOffset,
+            stem.position.y + vd.y * HaloDepthOffset,
+            stem.position.z + vd.z * HaloDepthOffset
+          )
+          halo.quaternion.copy(stem.quaternion)
+          halo.scale.set(stem.scale.x * HaloRadiusFactor, stem.scale.y, stem.scale.z * HaloRadiusFactor)
+        k += 1
+      i += 1
 
   /** A hidden or not-yet-painted pane reports zero sizes; sizing the renderer
     * from those would bake a 0×0 viewport. Skip — the observer fires again when
