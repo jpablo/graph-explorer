@@ -50,15 +50,19 @@ private def threeDControls(state: ViewerState) =
       i(cls := "bi bi-aspect-ratio"),
       onClick --> state.face3DFront.emit(())
     ).tiny.ghost,
+    // tooltip-top: this toolbar is docked at the canvas's BOTTOM edge, so a
+    // bottom-opening bubble falls off the viewport.
     IconToggle(
       "bi-arrow-repeat",
       "Trackpad navigation: scroll orbits without clicking, pinch zooms (off: wheel zooms). ⌥ pans in both modes.",
-      state.nav3DTrackpad
+      state.nav3DTrackpad,
+      tipPos = "tooltip-top"
     ),
     IconToggle(
       "bi-person-video",
       "Labels face the camera (off: labels are fixed sheets facing the front view)",
-      state.label3DBillboard
+      state.label3DBillboard,
+      tipPos = "tooltip-top"
     )
   )
 
