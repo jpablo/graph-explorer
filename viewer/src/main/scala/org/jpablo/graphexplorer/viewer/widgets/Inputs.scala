@@ -60,6 +60,11 @@ object InputVariant:
 def InputBox(mods: Mods*) =
   label(cls := "input", mods)
 
+/** daisyUI range slider (the 3D layout knobs). The caller wires bounds,
+  * step and binding; layout classes compose via mods. */
+def RangeSlider(mods: Mods*) =
+  input(tpe := "range", cls := "range range-xs", mods)
+
 /** daisyUI toggle bound to a Boolean Var (the preferences switches). */
 def Toggle(flag: Var[Boolean], mods: Mods*) =
   input(

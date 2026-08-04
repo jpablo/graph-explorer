@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D, Vec3}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Button, ghost, tiny}
+import org.jpablo.graphexplorer.viewer.widgets.{Button, RangeSlider, ghost, tiny}
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -69,9 +69,8 @@ private def knobPanel(scene: GraphScene3D, algo: Layout3D) =
       div(
         cls := "flex items-center gap-2",
         span(cls := "text-xs w-20 shrink-0 opacity-70", knob.label),
-        input(
-          typ      := "range",
-          cls      := "range range-xs flex-1",
+        RangeSlider(
+          cls      := "flex-1",
           minAttr  := knob.min.toString,
           maxAttr  := knob.max.toString,
           stepAttr := knob.step.toString,

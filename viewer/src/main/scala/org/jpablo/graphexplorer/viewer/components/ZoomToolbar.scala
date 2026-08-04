@@ -53,8 +53,10 @@ private def threeDControls(state: ViewerState) =
   )
 
 private def layout3DSelect(state: ViewerState) =
-  select(
-    cls   := "select select-ghost select-xs w-auto",
+  SelectBox(
+    SelectVariant.ghost,
+    SelectVariant.xs,
+    cls   := "w-auto",
     title := "3D layout algorithm",
     Layout3D.all.map(algo => option(value := algo.id, algo.label)),
     controlled(
