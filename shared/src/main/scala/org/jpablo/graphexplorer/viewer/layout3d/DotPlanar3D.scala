@@ -199,8 +199,12 @@ object DotPlanar3D extends Layout3D:
 
   /** Per-edge offsets from the straight chord (see LayoutState3D.edgeOffsets):
     * the in-plane part reproduces dot's spline, the z part is the depth bow —
-    * level × depth × sin(πt), zero at both endpoints so edges stay attached
-    * to their in-plane nodes.
+    * level × depth × sin²(πt). sin² rather than sin: both are zero at the
+    * endpoints, but sin's SLOPE peaks there, so the edge shot out of the
+    * plane right at the node border and read as detached from any off-axis
+    * view (parallax between the out-of-plane stem and the in-plane node).
+    * sin² leaves tangent to the plane — the edge hugs the drawing near its
+    * nodes and bows only through its middle.
     */
   def offsets(graph: LayoutGraph, params: Params = defaultParams): Vector[Vector[Vec3]] =
     graph.hints match
@@ -222,7 +226,9 @@ object DotPlanar3D extends Layout3D:
                 // an edge must attach to its in-plane node, not hover by ulps).
                 val bow =
                   if j == 0 || j == n - 1 then 0.0
-                  else levels(i) * params.depth * math.sin(math.Pi * tt)
+                  else
+                    val s = math.sin(math.Pi * tt)
+                    levels(i) * params.depth * s * s
                 val world = Vec3(
                   (path(j)._1 - cx) * params.ptToWorld,
                   (path(j)._2 - cy) * params.ptToWorld,

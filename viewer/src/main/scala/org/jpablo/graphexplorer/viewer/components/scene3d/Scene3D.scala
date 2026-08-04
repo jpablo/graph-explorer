@@ -211,7 +211,7 @@ final class GraphScene3D(state: ViewerState):
   private val ConeLen      = 0.14
   private val ConeTipInset = 0.07
   private val coneMaterial = three.MeshBasicMaterial(
-    three.MeshBasicMaterial.params(color = 0x5a9df2, transparent = true, opacity = 0.95, depthWrite = true, side = 0)
+    three.MeshBasicMaterial.params(color = 0x5a9df2, transparent = false, opacity = 1.0, depthWrite = true, side = 0)
   )
   private var coneMeshes = Vector.empty[three.Mesh]
   private val coneUp     = three.Vector3().set(0, 1, 0)
@@ -226,8 +226,13 @@ final class GraphScene3D(state: ViewerState):
   // with distance, which the constant-px hairline never did.
   private val StemRadius   = 0.011
   private val stemGeometry = three.CylinderGeometry(1, 1, 1, 8)
+  // OPAQUE: stems, joints and cones overlap by construction (joint spheres
+  // sit on segment ends, stems run into cone bases), and translucent overlaps
+  // double-blend — every joint read as a bright ghost dot, and spheres showed
+  // through arrowheads. The dim material stays translucent; it exists to
+  // recede.
   private val stemMaterial = three.MeshBasicMaterial(
-    three.MeshBasicMaterial.params(color = 0x8a92a0, transparent = true, opacity = 0.95, depthWrite = true, side = 0)
+    three.MeshBasicMaterial.params(color = 0x8a92a0, transparent = false, opacity = 1.0, depthWrite = true, side = 0)
   )
   // The neighborhood dim, formerly per-vertex alpha in the line buffer: now a
   // swap to this shared faint material. depthWrite off — a dimmed stem is
