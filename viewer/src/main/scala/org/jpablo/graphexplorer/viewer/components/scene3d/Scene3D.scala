@@ -176,6 +176,11 @@ final class GraphScene3D(state: ViewerState):
     knobValuesV.update(_.updated(knobId, value))
     algo = baseAlgo.withKnobs(knobValuesV.now())
     layout = algo.reheat(layout)
+    // Write through even when the reheat left the state settled: a knob can
+    // change EDGE geometry alone (the planar layout's Depth moves no node),
+    // and the animation loop only writes transforms while stepping — without
+    // this, such a knob is visually inert until something else redraws.
+    writePositions()
   private var sprites               = Map.empty[NodeId, NodeSprite]
   private var edges                 = Vector.empty[(NodeId, NodeId)]
   private var selectedNodes         = Set.empty[NodeId]
