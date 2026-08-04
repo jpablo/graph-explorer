@@ -105,11 +105,22 @@ private def vrButton(scene: GraphScene3D) =
 
 final class GraphScene3D(state: ViewerState):
 
+  /** A node's visual, in either presentation: a camera-facing billboard
+    * (Sprite) for spatial layouts, or a mesh LYING IN THE DRAWING PLANE for a
+    * layout that dictates geometry — a billboard's border swings away from
+    * the plane the moment the camera leaves the axis, detaching every edge
+    * endpoint; a plane mesh keeps edges glued at any angle, and foreshortens
+    * like the sheet of paper the flat drawing is. The closures capture the
+    * concrete material so every other code path stays presentation-blind.
+    */
   private case class NodeSprite(
-      sprite:   three.Sprite,
-      material: three.SpriteMaterial,
-      texture:  three.CanvasTexture,
-      label:    Vector[String] // display LINES, stacked in the pill like the 2D box
+      obj:             three.Object3D,
+      texture:         three.CanvasTexture,
+      label:           Vector[String], // display LINES, stacked in the pill like the 2D box
+      planar:          Boolean,
+      setMap:          three.CanvasTexture => Unit,
+      setTint:         (Int, Double) => Unit, // (color hex, opacity)
+      disposeMaterial: () => Unit
   )
 
   private val StepsPerFrame = 3
@@ -194,8 +205,10 @@ final class GraphScene3D(state: ViewerState):
 
   // One shared cone geometry/material for every arrowhead; meshes per edge.
   private val coneGeometry = three.ConeGeometry(0.05, 0.14, 10)
-  /** Half the cone's height: positioning its CENTER this far back along the
-    * path tangent puts its TIP exactly on the path's endpoint. */
+  /** The cone's height, and its half: positioning the CENTER half a height
+    * back along the path tangent puts the TIP exactly on the path's endpoint;
+    * stems stop a FULL height back — at the cone's base. */
+  private val ConeLen      = 0.14
   private val ConeTipInset = 0.07
   private val coneMaterial = three.MeshBasicMaterial(
     three.MeshBasicMaterial.params(color = 0x5a9df2, transparent = true, opacity = 0.95, depthWrite = true, side = 0)
@@ -228,6 +241,14 @@ final class GraphScene3D(state: ViewerState):
     * from the current layout state.
     */
   private var stemMeshes = Vector.empty[Vector[three.Mesh]]
+  /** Sphere at each interior joint of a curved chain: segments meet at an
+    * angle, and exact-length cylinders leave a notch there — the sphere is
+    * the round join (2D stroke `lineJoin: round`, in 3D).
+    */
+  private val jointGeometry = three.SphereGeometry(1, 8, 6)
+  private var stemJoints    = Vector.empty[Vector[three.Mesh]]
+  /** Unit plane for in-plane node sheets (dictated-geometry layouts). */
+  private val planeGeometry = three.PlaneGeometry(1, 1)
 
   /** Soft, distinguishable hull tints; assigned by cluster order (stable —
     * clusters are sorted by group id).
@@ -416,7 +437,7 @@ final class GraphScene3D(state: ViewerState):
       // Keep the sprite's current aspect (which may be layout-dictated) —
       // a theme repaint changes colors, never geometry.
       val (texture, _) = paintLabel(ns.label, forcedAspect = dictatedSize(id).map((w, h) => w / h))
-      ns.material.map = texture
+      ns.setMap(texture)
       ns.texture.dispose()
       id -> ns.copy(texture = texture)
 
@@ -492,13 +513,44 @@ final class GraphScene3D(state: ViewerState):
   private def createSprite(id: NodeId, label: Vector[String]): NodeSprite =
     val dictated          = dictatedSize(id)
     val (texture, aspect) = paintLabel(label, forcedAspect = dictated.map((w, h) => w / h))
-    val material          = three.SpriteMaterial(three.SpriteMaterial.params(map = texture, transparent = true))
-    val sprite            = three.Sprite(material)
     val (w, h)            = dictated.getOrElse(defaultSpriteSize(label, aspect))
-    sprite.scale.set(w, h, 1)
-    sprite.userData("nodeId") = id.value
-    nodesGroup.add(sprite)
-    NodeSprite(sprite, material, texture, label)
+    dictated match
+      case Some(_) =>
+        // DoubleSide: the back of the sheet stays visible (mirrored, like
+        // holding a printed page against the light) instead of vanishing.
+        val material = three.MeshBasicMaterial(
+          three.MeshBasicMaterial.params(color = 0xffffff, transparent = true, opacity = 1.0, depthWrite = true, side = 2)
+        )
+        material.map = texture
+        material.needsUpdate = true
+        val mesh = three.Mesh(planeGeometry, material)
+        mesh.scale.set(w, h, 1)
+        mesh.userData("nodeId") = id.value
+        nodesGroup.add(mesh)
+        NodeSprite(
+          mesh,
+          texture,
+          label,
+          planar = true,
+          setMap = t => { material.map = t; material.needsUpdate = true },
+          setTint = (c, o) => { material.color.setHex(c); material.opacity = o },
+          disposeMaterial = () => material.dispose()
+        )
+      case None =>
+        val material = three.SpriteMaterial(three.SpriteMaterial.params(map = texture, transparent = true))
+        val sprite   = three.Sprite(material)
+        sprite.scale.set(w, h, 1)
+        sprite.userData("nodeId") = id.value
+        nodesGroup.add(sprite)
+        NodeSprite(
+          sprite,
+          texture,
+          label,
+          planar = false,
+          setMap = t => material.map = t,
+          setTint = (c, o) => { material.color.setHex(c); material.opacity = o },
+          disposeMaterial = () => material.dispose()
+        )
 
   /** Re-fit every surviving sprite to the current layout's sizing regime —
     * called when the layout (and so possibly the hints) changed. The scale
@@ -507,14 +559,21 @@ final class GraphScene3D(state: ViewerState):
     */
   private def resizeSprites(): Unit =
     sprites = sprites.map: (id, ns) =>
-      val (w, h) = dictatedSize(id).getOrElse(defaultSpriteSize(ns.label, paintLabelAspect(ns.label)))
-      if math.abs(ns.sprite.scale.x - w) < 1e-6 && math.abs(ns.sprite.scale.y - h) < 1e-6 then id -> ns
+      val dictated = dictatedSize(id)
+      if ns.planar != dictated.isDefined then
+        // Presentation flips with the layout (billboard <-> in-plane sheet):
+        // rebuild the node visual outright.
+        disposeSprite(ns)
+        id -> createSprite(id, ns.label)
       else
-        val (texture, _) = paintLabel(ns.label, forcedAspect = Some(w / h))
-        ns.material.map = texture
-        ns.texture.dispose()
-        ns.sprite.scale.set(w, h, 1)
-        id -> ns.copy(texture = texture)
+        val (w, h) = dictated.getOrElse(defaultSpriteSize(ns.label, paintLabelAspect(ns.label)))
+        if math.abs(ns.obj.scale.x - w) < 1e-6 && math.abs(ns.obj.scale.y - h) < 1e-6 then id -> ns
+        else
+          val (texture, _) = paintLabel(ns.label, forcedAspect = Some(w / h))
+          ns.setMap(texture)
+          ns.texture.dispose()
+          ns.obj.scale.set(w, h, 1)
+          id -> ns.copy(texture = texture)
 
   /** The aspect paintLabel would produce unforced, without painting. */
   private def paintLabelAspect(lines: Vector[String]): Double =
@@ -531,8 +590,8 @@ final class GraphScene3D(state: ViewerState):
     w / h
 
   private def disposeSprite(ns: NodeSprite): Unit =
-    nodesGroup.remove(ns.sprite)
-    ns.material.dispose()
+    nodesGroup.remove(ns.obj)
+    ns.disposeMaterial()
     ns.texture.dispose()
 
   /** Draw the label as a rounded pill on a 2D canvas and wrap it in a texture.
@@ -566,7 +625,12 @@ final class GraphScene3D(state: ViewerState):
     ctx.fillStyle = themeColor("--color-base-100", "#ffffff")
     ctx.strokeStyle = themeColor("--color-base-content", "#333333")
     ctx.lineWidth = borderW
-    val radius = math.min((canvas.height - borderW) / 4.0, lineH * 0.6)
+    // A dictated aspect means the shape IS dot's clip box: near-square
+    // corners, or edges clipped to the rectangle's corners point at rounded
+    // air. Free-form pills keep their soft radius.
+    val radius =
+      if forcedAspect.isDefined then borderW * 2
+      else math.min((canvas.height - borderW) / 4.0, lineH * 0.6)
     ctx.beginPath()
     ctx.asInstanceOf[js.Dynamic].roundRect(
       borderW / 2, borderW / 2, canvas.width - borderW, canvas.height - borderW, radius)
@@ -595,8 +659,10 @@ final class GraphScene3D(state: ViewerState):
     */
   private def rebuildLines(): Unit =
     stemMeshes.flatten.foreach(graphRoot.remove(_))
+    stemJoints.flatten.foreach(graphRoot.remove(_))
     coneMeshes.foreach(graphRoot.remove(_))
     stemMeshes = Vector.empty
+    stemJoints = Vector.empty
     coneMeshes = Vector.empty
     if edges.nonEmpty then
       brightEdges = Array.fill(edges.size)(true)
@@ -607,6 +673,12 @@ final class GraphScene3D(state: ViewerState):
           stem.frustumCulled = false // transforms mutate every frame; skip stale-sphere culling
           graphRoot.add(stem)
           stem
+      stemJoints = stemMeshes.map: chain =>
+        Vector.fill(math.max(0, chain.size - 1)):
+          val joint = three.Mesh(jointGeometry, stemMaterial)
+          joint.frustumCulled = false
+          graphRoot.add(joint)
+          joint
       coneMeshes = edges.map: _ =>
         val cone = three.Mesh(coneGeometry, coneMaterial)
         graphRoot.add(cone)
@@ -625,6 +697,7 @@ final class GraphScene3D(state: ViewerState):
       if i < stemMeshes.size then
         val material = if brightEdges(i) then stemMaterial else stemDimMaterial
         stemMeshes(i).foreach(_.material = material)
+        if i < stemJoints.size then stemJoints(i).foreach(_.material = material)
 
   /** One translucent hull mesh per cluster; the geometry is re-hulled on every
     * position write (QuickHull over tens of points — cheap), the mesh and
@@ -675,7 +748,7 @@ final class GraphScene3D(state: ViewerState):
 
   private def writePositions(): Unit =
     sprites.foreach: (id, ns) =>
-      layout.positions.get(id).foreach(p => ns.sprite.position.set(p.x, p.y, p.z))
+      layout.positions.get(id).foreach(p => ns.obj.position.set(p.x, p.y, p.z))
     for i <- edges.indices do
       val (s, t) = edges(i)
       for sp <- layout.positions.get(s); tp <- layout.positions.get(t) do
@@ -685,17 +758,35 @@ final class GraphScene3D(state: ViewerState):
           // Curved edge: segments trace the sampled path. No pill inset —
           // a layout that provides paths has already clipped them at the
           // node borders (dot splines start and end there).
-          for k <- chain.indices do placeStemSegment(chain(k), path(k), path(k + 1))
-          // Arrowhead at the path's end, aimed along the final segment; the
-          // cone's tip (half its height from center) lands ON the endpoint.
+          val lastD   = path.last - path(path.size - 2)
+          val lastLen = lastD.length
+          val coneOn  = lastLen >= 1e-6 && brightEdges(i)
+          // The stem must stop at the cone's BASE: run it to the tip and it
+          // pierces the taper near the point, poking out of the head's sides.
+          val drawPath =
+            if coneOn then
+              val dir  = lastD * (1.0 / lastLen)
+              val trim = math.min(ConeLen, lastLen * 0.9)
+              path.updated(path.size - 1, path.last - dir * trim)
+            else path
+          for k <- chain.indices do placeStemSegment(chain(k), drawPath(k), drawPath(k + 1))
+          // Round joins: a sphere at each interior point closes the notch
+          // exact-length segments open on the outside of every bend.
+          if i < stemJoints.size then
+            val joints = stemJoints(i)
+            for k <- joints.indices do
+              val p = drawPath(k + 1)
+              joints(k).visible = true
+              joints(k).position.set(p.x, p.y, p.z)
+              joints(k).scale.set(StemRadius, StemRadius, StemRadius)
+          // Arrowhead aimed along the final segment; the cone's tip (half its
+          // height from center) lands ON the path's endpoint.
           if i < coneMeshes.size then
             val cone = coneMeshes(i)
-            val d    = path.last - path(path.size - 2)
-            val len  = d.length
-            if len < 1e-6 || !brightEdges(i) then cone.visible = false
+            if !coneOn then cone.visible = false
             else
               cone.visible = true
-              val dir = d * (1.0 / len)
+              val dir = lastD * (1.0 / lastLen)
               val tip = path.last
               cone.position.set(tip.x - dir.x * ConeTipInset, tip.y - dir.y * ConeTipInset, tip.z - dir.z * ConeTipInset)
               cone.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
@@ -709,18 +800,24 @@ final class GraphScene3D(state: ViewerState):
               val dir = d * (1.0 / len)
               // Stop short of both pills: the hairline vanished into a label
               // unnoticed, but a stem with real girth crossing INTO the pill
-              // reads as a smudge on the text.
-              val inset = math.min(len * 0.3, NodeHeight * 0.4)
-              val a     = sp + dir * inset
-              val b     = tp - dir * inset
+              // reads as a smudge on the text. On the target side, stop at
+              // the CONE'S BASE — run to the tip and the stem pokes out of
+              // the head's taper.
+              val insetSrc = math.min(len * 0.3, NodeHeight * 0.4)
+              val insetTgt =
+                if brightEdges(i) then math.min(len * 0.5, NodeHeight * 0.55) + ConeTipInset
+                else insetSrc
+              val a = sp + dir * insetSrc
+              val b = tp - dir * insetTgt
               // The unit cylinder is y-aligned and centered: midpoint + length
               // scale + the same aim quaternion the cone uses.
               stem.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2)
-              stem.scale.set(StemRadius, len - 2 * inset, StemRadius)
+              stem.scale.set(StemRadius, math.max(1e-3, len - insetSrc - insetTgt), StemRadius)
               stem.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
           // Allocation raced a state change (chain sized for another layout):
           // hide the rest until the pending rebuild lands.
           chain.drop(1).foreach(_.visible = false)
+          if i < stemJoints.size then stemJoints(i).foreach(_.visible = false)
           // Arrowhead: a cone just short of the target pill, aimed along the edge.
           if i < coneMeshes.size then
             val cone = coneMeshes(i)
@@ -752,9 +849,9 @@ final class GraphScene3D(state: ViewerState):
       stem.visible = true
       val dir = d * (1.0 / len)
       stem.position.set((p.x + q.x) / 2, (p.y + q.y) / 2, (p.z + q.z) / 2)
-      // 6% overlength: adjacent segments meet at an angle, and butt joints
-      // open a visible notch on the outside of every bend.
-      stem.scale.set(StemRadius, len * 1.06, StemRadius)
+      // Exact length: the round join at each interior point is a sphere
+      // (stemJoints) — overlength here read as a bulge at every bend.
+      stem.scale.set(StemRadius, len, StemRadius)
       stem.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
 
   /** Selection tint plus neighborhood focus: with a selection, everything not
@@ -772,8 +869,10 @@ final class GraphScene3D(state: ViewerState):
             else Nil
         )
     sprites.foreach: (id, ns) =>
-      ns.material.color.setHex(if selectedNodes.contains(id) then SelectedTint else NormalTint)
-      ns.material.opacity = if neighborhood.forall(_.contains(id)) then 1.0 else DimOpacity
+      ns.setTint(
+        if selectedNodes.contains(id) then SelectedTint else NormalTint,
+        if neighborhood.forall(_.contains(id)) then 1.0 else DimOpacity
+      )
     writeEdgeHighlight()
     writePositions() // cone visibility follows brightEdges
 
@@ -889,9 +988,9 @@ final class GraphScene3D(state: ViewerState):
         val roughCenter = Vec3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)
 
         def halfW(nodeId: NodeId) =
-          sprites.get(nodeId).map(_.sprite.scale.x / 2).getOrElse(NodeHeight) + NodeHeight * 0.25
+          sprites.get(nodeId).map(_.obj.scale.x / 2).getOrElse(NodeHeight) + NodeHeight * 0.25
         def halfH(nodeId: NodeId) =
-          sprites.get(nodeId).map(_.sprite.scale.y / 2).getOrElse(NodeHeight) + NodeHeight * 0.25
+          sprites.get(nodeId).map(_.obj.scale.y / 2).getOrElse(NodeHeight) + NodeHeight * 0.25
 
         // Exact perspective-correct fit, solved per screen axis. Each pill
         // imposes two one-sided visibility constraints on the camera axis:

@@ -142,7 +142,11 @@ class LineSegments(geometry: BufferGeometry, lineMaterial: LineBasicMaterial) ex
 @js.native
 @JSImport("three", "MeshBasicMaterial")
 class MeshBasicMaterial(parameters: js.Object) extends js.Object:
-  def dispose(): Unit = js.native
+  val color: Color         = js.native
+  var map: Texture         = js.native
+  var opacity: Double      = js.native
+  var needsUpdate: Boolean = js.native
+  def dispose(): Unit      = js.native
 
 object MeshBasicMaterial:
   /** side: 0 = FrontSide, 1 = BackSide, 2 = DoubleSide (three's constants). */
@@ -168,6 +172,14 @@ class ConeGeometry(radius: Double, height: Double, radialSegments: Int) extends 
 @JSImport("three", "CylinderGeometry")
 class CylinderGeometry(radiusTop: Double, radiusBottom: Double, height: Double, radialSegments: Int)
     extends BufferGeometry
+
+@js.native
+@JSImport("three", "SphereGeometry")
+class SphereGeometry(radius: Double, widthSegments: Int, heightSegments: Int) extends BufferGeometry
+
+@js.native
+@JSImport("three", "PlaneGeometry")
+class PlaneGeometry(width: Double, height: Double) extends BufferGeometry
 
 @js.native
 trait WebXRManager extends js.Object:
