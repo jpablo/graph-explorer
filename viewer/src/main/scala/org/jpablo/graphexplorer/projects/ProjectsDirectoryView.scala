@@ -103,6 +103,8 @@ def ProjectsDirectoryView(
   // place and not the other is the inconsistency this whole change is about.
   val promptLabelVar: Var[Boolean] =
     viewerSettings.zoomLazy(_.promptLabelBeforeNewNode)((s, b) => s.copy(promptLabelBeforeNewNode = b))
+  val enable3DVar: Var[Boolean] =
+    viewerSettings.zoomLazy(_.enable3D)((s, b) => s.copy(enable3D = b))
 
   // The detail toolbar's gear menu minus the entries that need a diagram open
   // (keyboard shortcuts). Same labels and order as Toolbar.gearMenu.
@@ -176,7 +178,8 @@ def ProjectsDirectoryView(
         viewerSettings.update(_.copy(currentTheme = Some(theme)))
         setTheme(theme)
       ,
-      promptLabelBeforeNewNode = promptLabelVar
+      promptLabelBeforeNewNode = promptLabelVar,
+      enable3D = enable3DVar
     ),
     div(
       idAttr := "projects-body",

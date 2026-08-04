@@ -29,8 +29,10 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     tabIndex := 0,
     state.fitDiagram.events --> state.resetView(),
     // the main canvas!! Either the engine's SVG or the experimental three.js
-    // scene — a fresh Scene3D per toggle-on, so 3D state never outlives the mode.
-    child.maybe <-- state.view3D.signal.distinct.flatMapSwitch:
+    // scene — a fresh Scene3D per toggle-on, so 3D state never outlives the
+    // mode. view3DActive, not view3D: disabling the 3D feature in Preferences
+    // drops straight back to the SVG even if the mode Var still says 3D.
+    child.maybe <-- state.view3DActive.distinct.flatMapSwitch:
       case true  => Signal.fromValue(Some(Scene3D(state)): Option[ChildNode.Base])
       case false => state.finalSVG.map(svg => svg: Option[ChildNode.Base])
     ,
@@ -57,11 +59,11 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // Also keeps trackpad pinch (wheel + ctrlKey) from zooming the whole page.
     // preventDefault works here because the div's listener is non-passive —
     // Chrome's passive-by-default applies only to window/document/body.
-    // In 3D, OrbitControls owns the wheel gesture; the guard keeps the 2D
+    // In 3D, the scene owns the wheel gesture; the guard keeps the 2D
     // transform from silently mutating under an unmounted SVG. preventDefault
     // still applies (it runs at the listener, before the filter), so the
     // back-swipe protection above holds in both modes.
-    onWheel.preventDefault(_.filter(_ => !state.view3D.now()).withCurrentValueOf(state.finalSVG)) --> (
+    onWheel.preventDefault(_.filter(_ => !state.view3DActiveNow).withCurrentValueOf(state.finalSVG)) --> (
       (e, svgElemO) => svgElemO.map(s => state.handleWheel(e, s.ref.viewBox.baseVal))
     )
   )

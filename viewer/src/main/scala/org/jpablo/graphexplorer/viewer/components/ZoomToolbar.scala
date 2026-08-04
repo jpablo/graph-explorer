@@ -24,16 +24,22 @@ def ZoomToolbar(state: ViewerState, commands: Commands) =
     ).tiny.ghost.activeWhen(state.autoFit.signal),
     Button(span().plusIcon, onClick --> commands.all.zoomIn.execute()).tiny.ghost,
     // ---------- render mode ----------
-    Button(
-      title := "3D view (experimental)",
-      "3D",
-      SwapIcon(state.view3D.signal, onIcon = "bi bi-check-circle", offIcon = "bi bi-circle"),
-      onClick --> state.view3D.update(!_)
-    ).tiny.ghost.activeWhen(state.view3D.signal),
+    // The whole 3D cluster exists only once the feature is enabled in
+    // Preferences — an experiment shouldn't occupy toolbar space for
+    // everyone else.
+    child.maybe <-- state.enable3D.signal.map(en => Option.when(en)(threeDToggle(state))),
     // The layout picker and navigation toggle only mean something while the
     // 3D scene is up. Switching layouts morphs the drawing live.
-    child.maybe <-- state.view3D.signal.map(on => Option.when(on)(threeDControls(state)))
+    child.maybe <-- state.view3DActive.map(on => Option.when(on)(threeDControls(state)))
   )
+
+private def threeDToggle(state: ViewerState) =
+  Button(
+    title := "3D view (experimental)",
+    "3D",
+    SwapIcon(state.view3D.signal, onIcon = "bi bi-check-circle", offIcon = "bi bi-circle"),
+    onClick --> state.view3D.update(!_)
+  ).tiny.ghost.activeWhen(state.view3D.signal)
 
 private def threeDControls(state: ViewerState) =
   div(

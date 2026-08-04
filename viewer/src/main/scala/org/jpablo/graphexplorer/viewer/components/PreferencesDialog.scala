@@ -18,7 +18,8 @@ def PreferencesDialog(
     open:                     Var[Boolean],
     currentTheme:             Signal[Option[String]],
     onSelectTheme:            String => Unit,
-    promptLabelBeforeNewNode: Var[Boolean]
+    promptLabelBeforeNewNode: Var[Boolean],
+    enable3D:                 Var[Boolean]
 ): HtmlElement =
   SimpleDialog(
     open,
@@ -46,6 +47,11 @@ def PreferencesDialog(
         cls := "flex items-center justify-between gap-6 cursor-pointer",
         span(cls := "text-sm", "Ask for a label when creating a node"),
         Toggle(promptLabelBeforeNewNode)
+      ),
+      label(
+        cls := "flex items-center justify-between gap-6 cursor-pointer",
+        span(cls := "text-sm", "3D view (experimental)"),
+        Toggle(enable3D)
       )
     )
   )
@@ -58,5 +64,6 @@ def PreferencesDialog(state: ViewerState): HtmlElement =
     open = state.preferencesDialogOpen,
     currentTheme = state.currentTheme.signal,
     onSelectTheme = theme => state.currentTheme.set(Some(theme)),
-    promptLabelBeforeNewNode = state.promptLabelBeforeNewNode
+    promptLabelBeforeNewNode = state.promptLabelBeforeNewNode,
+    enable3D = state.enable3D
   )

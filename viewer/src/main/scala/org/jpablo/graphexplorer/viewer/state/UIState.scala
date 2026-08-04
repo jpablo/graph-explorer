@@ -42,6 +42,23 @@ trait UIState:
     */
   val view3D = Var(false)
 
+  /** Feature gate for 3D mode, set in Preferences and off by default: the 3D
+    * toggle and its companions stay out of the toolbar until the user opts in.
+    * Deliberately separate from [[view3D]] (which remembers whether 3D was ON):
+    * disabling the feature hides the mode without erasing that choice, so
+    * re-enabling brings the user back to where they left off. Persisted in
+    * ViewerSettings.
+    */
+  val enable3D = Var(false)
+
+  /** Whether the 3D scene actually shows: the mode is on AND the feature is
+    * enabled. Render sites read this; the raw Vars are for the controls.
+    */
+  val view3DActive: Signal[Boolean] =
+    view3D.signal.combineWithFn(enable3D.signal)(_ && _)
+
+  def view3DActiveNow: Boolean = view3D.now() && enable3D.now()
+
   /** Which 3D layout algorithm drives Scene3D, by [[Layout3D.id]]. Persisted
     * in ViewerSettings; unknown stored ids fall back to the force layout.
     */

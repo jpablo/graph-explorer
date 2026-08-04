@@ -66,6 +66,7 @@ trait Persistence:
       wrapSourceLines -> restoredViewerSettings.wrapSourceLines,
       elementsPinned -> restoredViewerSettings.elementsPinned,
       view3D -> restoredViewerSettings.view3D,
+      enable3D -> restoredViewerSettings.enable3D,
       layout3D -> restoredViewerSettings.layout3D.getOrElse(
         org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id
       ),
@@ -109,29 +110,38 @@ trait Persistence:
         view3D.signal,
         layout3D.signal
       )
-      // combineWith rather than a 10th combine slot: Signal.combine tops out at 9.
+      // combineWith rather than a 10th combine slot: Signal.combine tops out
+      // at 9, and tuplez stops flattening at 10 (T9+scalar) — so the second
+      // combineWith NESTS: the value is ((ten settings), enable3D), and the
+      // pattern below mirrors that shape.
       .combineWith(nav3DTrackpad.signal)
+      .combineWith(enable3D.signal)
       .changes
       .distinct
-      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D, layout3DId, navTrackpad) =>
-        // copy, not a fresh ViewerSettings: fields this page does not own (the library's
-        // view mode) must survive a detail-page sync instead of resetting to defaults.
-        viewerSettings.update(
-          _.copy(
-            leftPanelVisible = leftVisible,
-            rightPanelTabIndex = tabIndex.ordinal,
-            currentTheme = theme,
-            promptLabelBeforeNewNode = promptBeforeNewNode,
-            rightPanelWidth = Some(panelWidth),
-            wrapSourceLines = wrapLines,
-            elementsPinned = pinned,
-            view3D = in3D,
-            layout3D = Some(layout3DId),
-            nav3DTrackpad = navTrackpad,
-            schemaVersion = ViewerSettings.currentSchemaVersion
+      .foreach:
+        case (
+              (leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D, layout3DId,
+                navTrackpad),
+              en3D
+            ) =>
+          // copy, not a fresh ViewerSettings: fields this page does not own (the library's
+          // view mode) must survive a detail-page sync instead of resetting to defaults.
+          viewerSettings.update(
+            _.copy(
+              leftPanelVisible = leftVisible,
+              rightPanelTabIndex = tabIndex.ordinal,
+              currentTheme = theme,
+              promptLabelBeforeNewNode = promptBeforeNewNode,
+              rightPanelWidth = Some(panelWidth),
+              wrapSourceLines = wrapLines,
+              elementsPinned = pinned,
+              view3D = in3D,
+              layout3D = Some(layout3DId),
+              nav3DTrackpad = navTrackpad,
+              enable3D = en3D,
+              schemaVersion = ViewerSettings.currentSchemaVersion
+            )
           )
-        )
-      )
 
   /** Initializes persistence by restoring state and setting up synchronization. */
   def initializePersistence(): Unit =
@@ -181,6 +191,10 @@ case class ViewerSettings(
     elementsPinned:     Boolean = false,
     // Experimental 3D canvas (three.js scene instead of the engine's SVG).
     view3D:             Boolean = false,
+    // Feature gate for 3D, set in Preferences: until true, the 3D toggle and
+    // its controls are absent from the toolbar entirely. Separate from view3D
+    // so disabling the feature does not erase which mode the user was in.
+    enable3D:           Boolean = false,
     // 3D layout algorithm by Layout3D.id. Stored loosely like librarySort:
     // None = default (force), and an unknown id degrades to the default
     // instead of costing the user every other setting.
