@@ -5,7 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.backends.threejs as three
 import org.jpablo.graphexplorer.viewer.formats.dot.LabelSummary
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
-import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D, Vec3}
+import org.jpablo.graphexplorer.viewer.layout3d.{DotPlanar3D, ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D, PlanarHints, Vec3}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{Button, RangeSlider, ghost, tiny}
@@ -193,6 +193,9 @@ final class GraphScene3D(state: ViewerState):
 
   // One shared cone geometry/material for every arrowhead; meshes per edge.
   private val coneGeometry = three.ConeGeometry(0.05, 0.14, 10)
+  /** Half the cone's height: positioning its CENTER this far back along the
+    * path tangent puts its TIP exactly on the path's endpoint. */
+  private val ConeTipInset = 0.07
   private val coneMaterial = three.MeshBasicMaterial(
     three.MeshBasicMaterial.params(color = 0x5a9df2, transparent = true, opacity = 0.95, depthWrite = true, side = 0)
   )
@@ -218,7 +221,12 @@ final class GraphScene3D(state: ViewerState):
   private val stemDimMaterial = three.MeshBasicMaterial(
     three.MeshBasicMaterial.params(color = 0x8a92a0, transparent = true, opacity = 0.10, depthWrite = false, side = 0)
   )
-  private var stemMeshes = Vector.empty[three.Mesh]
+  /** One CHAIN of segment meshes per edge: a straight stem is a chain of one;
+    * a curved edge (a layout that fills edgeOffsets — dot splines, depth
+    * bows) gets one segment per sample interval. Chains are sized at rebuild
+    * from the current layout state.
+    */
+  private var stemMeshes = Vector.empty[Vector[three.Mesh]]
 
   /** Soft, distinguishable hull tints; assigned by cluster order (stable —
     * clusters are sorted by group id).
@@ -353,10 +361,11 @@ final class GraphScene3D(state: ViewerState):
   // ---------------- graph -> scene ----------------
 
   def setGraph(g: ViewerGraph): Unit =
+    lastViewerGraph = Some(g)
     val nodeIds = g.nodes.keys.toVector
     edges = g.arrows.values.map(a => (a.source, a.target)).toVector
     clusterSets = visibleClusters(g, nodeIds)
-    layout = algo.sync(layout, LayoutGraph(nodeIds, edges, clusterSets))
+    layout = algo.sync(layout, LayoutGraph(nodeIds, edges, clusterSets, hints = hintsFor(g)))
 
     val labels: Map[NodeId, String] =
       g.nodes.map((id, node) => id -> displayLabel(g, id, node)).toMap
@@ -365,6 +374,7 @@ final class GraphScene3D(state: ViewerState):
     sprites = labels.foldLeft(keep):
       case (acc, (id, label)) =>
         if acc.contains(id) then acc else acc.updated(id, createSprite(id, label))
+    resizeSprites() // surviving sprites adopt the (possibly new) sizing regime
 
     rebuildLines()
     rebuildHulls()
@@ -402,7 +412,9 @@ final class GraphScene3D(state: ViewerState):
     */
   def repaintLabels(): Unit =
     sprites = sprites.map: (id, ns) =>
-      val (texture, _) = paintLabel(ns.label)
+      // Keep the sprite's current aspect (which may be layout-dictated) —
+      // a theme repaint changes colors, never geometry.
+      val (texture, _) = paintLabel(ns.label, forcedAspect = dictatedSize(id).map((w, h) => w / h))
       ns.material.map = texture
       ns.texture.dispose()
       id -> ns.copy(texture = texture)
@@ -420,13 +432,29 @@ final class GraphScene3D(state: ViewerState):
   def setNavMode(trackpad: Boolean): Unit =
     trackpadNav = trackpad
 
+  /** The dot engine runs only for a layout that declared it wants the flat
+    * drawing — it is a full synchronous 2D layout, pure waste for the others.
+    */
+  private var lastViewerGraph: Option[ViewerGraph] = None
+
+  private def hintsFor(g: ViewerGraph): Option[PlanarHints] =
+    if algo.wantsPlanarHints then PlanarHints.fromViewerGraph(g) else None
+
   def setAlgorithm(algoId: String): Unit =
     val next = Layout3D.byId(algoId).getOrElse(ForceLayout3D)
     if next.id != baseAlgo.id then
       baseAlgo = next
       knobValuesV.set(defaultKnobValues(next))
       algo = next
-      layout = algo.sync(layout, layout.graph)
+      // Hints follow the algorithm: same topology, recomputed hints — so a
+      // hints-hungry layout gets them on switch, and switching away drops
+      // them (LayoutGraph equality then re-adopts, which animates the morph).
+      val newGraph = layout.graph.copy(hints = lastViewerGraph.flatMap(hintsFor))
+      layout = algo.sync(layout, newGraph)
+      resizeSprites() // node geometry may be dictated by the new layout's hints
+      // Segment allocation per stem depends on the layout's edge curves.
+      rebuildLines()
+      applySelection()
 
   /** What the sprite shows: the label's rendered TEXT via LabelSummary — the
     * same summarizer the Elements list uses — so HTML and record labels
@@ -442,15 +470,61 @@ final class GraphScene3D(state: ViewerState):
       val text = LabelSummary.short(raw, isRecord = g.isRecordNode(id), maxLen = 40)
       if text.isEmpty then id.value else text
 
+  /** The node's world size when the current layout dictates geometry (the
+    * hints' dot box, in points): with it, arrows meet the node exactly where
+    * the flat drawing clipped them. None = label-derived pill sizing.
+    */
+  private def dictatedSize(id: NodeId): Option[(Double, Double)] =
+    layout.graph.hints
+      .flatMap(_.sizes.get(id))
+      .map((w, h) => (w * DotPlanar3D.PtToWorld, h * DotPlanar3D.PtToWorld))
+
   private def createSprite(id: NodeId, label: String): NodeSprite =
-    val (texture, aspect) = paintLabel(label)
+    val dictated          = dictatedSize(id)
+    val (texture, aspect) = paintLabel(label, forcedAspect = dictated.map((w, h) => w / h))
     val material          = three.SpriteMaterial(three.SpriteMaterial.params(map = texture, transparent = true))
     val sprite            = three.Sprite(material)
-    val width             = math.min(NodeHeight * aspect, MaxNodeWidth)
-    sprite.scale.set(width, width / aspect, 1)
+    dictated match
+      case Some((w, h)) => sprite.scale.set(w, h, 1)
+      case None =>
+        val width = math.min(NodeHeight * aspect, MaxNodeWidth)
+        sprite.scale.set(width, width / aspect, 1)
     sprite.userData("nodeId") = id.value
     nodesGroup.add(sprite)
     NodeSprite(sprite, material, texture, label)
+
+  /** Re-fit every surviving sprite to the current layout's sizing regime —
+    * called when the layout (and so possibly the hints) changed. The scale
+    * check makes the no-change case free; a real change repaints the texture
+    * at the new aspect so text never stretches.
+    */
+  private def resizeSprites(): Unit =
+    sprites = sprites.map: (id, ns) =>
+      val (w, h) = dictatedSize(id).getOrElse:
+        val measured = paintLabelAspect(ns.label)
+        val width    = math.min(NodeHeight * measured, MaxNodeWidth)
+        (width, width / measured)
+      if math.abs(ns.sprite.scale.x - w) < 1e-6 && math.abs(ns.sprite.scale.y - h) < 1e-6 then id -> ns
+      else
+        val (texture, _) = paintLabel(ns.label, forcedAspect = Some(w / h))
+        ns.material.map = texture
+        ns.texture.dispose()
+        ns.sprite.scale.set(w, h, 1)
+        id -> ns.copy(texture = texture)
+
+  /** The aspect paintLabel would produce unforced, without painting. */
+  private def paintLabelAspect(label: String): Double =
+    val fontPx  = 64.0
+    val padX    = fontPx * 0.55
+    val padY    = fontPx * 0.32
+    val borderW = 4.0
+    val canvas  = dom.document.createElement("canvas").asInstanceOf[dom.html.Canvas]
+    val ctx     = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+    ctx.font = s"${fontPx}px ${dom.window.getComputedStyle(dom.document.body).fontFamily}"
+    val textWidth = ctx.measureText(label).width
+    val w         = math.ceil(textWidth + 2 * padX + 2 * borderW).max(1)
+    val h         = math.ceil(fontPx * 1.25 + 2 * padY + 2 * borderW)
+    w / h
 
   private def disposeSprite(ns: NodeSprite): Unit =
     nodesGroup.remove(ns.sprite)
@@ -462,7 +536,7 @@ final class GraphScene3D(state: ViewerState):
     * In-scene text (not a DOM overlay) on purpose: DOM overlays do not exist
     * inside an immersive WebXR session, and this canvas is on the VR path.
     */
-  private def paintLabel(label: String): (three.CanvasTexture, Double) =
+  private def paintLabel(label: String, forcedAspect: Option[Double] = None): (three.CanvasTexture, Double) =
     val fontPx  = 64.0
     val padX    = fontPx * 0.55
     val padY    = fontPx * 0.32
@@ -474,8 +548,13 @@ final class GraphScene3D(state: ViewerState):
 
     ctx.font = font
     val textWidth = ctx.measureText(label).width
-    canvas.width = math.ceil(textWidth + 2 * padX + 2 * borderW).toInt.max(1)
     canvas.height = math.ceil(fontPx * 1.25 + 2 * padY + 2 * borderW).toInt
+    // A forced aspect (a layout that dictates node geometry — the dot box the
+    // splines were clipped against) fixes the canvas SHAPE; the text then
+    // shrinks to fit rather than stretching with the texture.
+    canvas.width = forcedAspect match
+      case Some(aspect) => math.ceil(canvas.height * aspect).toInt.max(1)
+      case None         => math.ceil(textWidth + 2 * padX + 2 * borderW).toInt.max(1)
 
     ctx.font = font // canvas state resets when the canvas is resized
     ctx.fillStyle = themeColor("--color-base-100", "#ffffff")
@@ -490,6 +569,9 @@ final class GraphScene3D(state: ViewerState):
     ctx.fillStyle = themeColor("--color-base-content", "#333333")
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
+    val availW = canvas.width - 2 * borderW - fontPx * 0.3
+    if textWidth > availW && availW > 1 then
+      ctx.font = s"${fontPx * availW / textWidth}px ${dom.window.getComputedStyle(dom.document.body).fontFamily}"
     ctx.fillText(label, canvas.width / 2.0, canvas.height / 2.0)
 
     val texture = three.CanvasTexture(canvas)
@@ -505,17 +587,19 @@ final class GraphScene3D(state: ViewerState):
     * are (re)written every layout step in writePositions.
     */
   private def rebuildLines(): Unit =
-    stemMeshes.foreach(graphRoot.remove(_))
+    stemMeshes.flatten.foreach(graphRoot.remove(_))
     coneMeshes.foreach(graphRoot.remove(_))
     stemMeshes = Vector.empty
     coneMeshes = Vector.empty
     if edges.nonEmpty then
       brightEdges = Array.fill(edges.size)(true)
-      stemMeshes = edges.map: _ =>
-        val stem = three.Mesh(stemGeometry, stemMaterial)
-        stem.frustumCulled = false // transforms mutate every frame; skip stale-sphere culling
-        graphRoot.add(stem)
-        stem
+      stemMeshes = edges.indices.toVector.map: i =>
+        val segments = layout.edgeOffsets.lift(i).filter(_.size >= 2).map(_.size - 1).getOrElse(1)
+        Vector.fill(segments):
+          val stem = three.Mesh(stemGeometry, stemMaterial)
+          stem.frustumCulled = false // transforms mutate every frame; skip stale-sphere culling
+          graphRoot.add(stem)
+          stem
       coneMeshes = edges.map: _ =>
         val cone = three.Mesh(coneGeometry, coneMaterial)
         graphRoot.add(cone)
@@ -532,7 +616,8 @@ final class GraphScene3D(state: ViewerState):
       val (s, t) = edges(i)
       brightEdges(i) = selectedNodes.isEmpty || selectedNodes.contains(s) || selectedNodes.contains(t)
       if i < stemMeshes.size then
-        stemMeshes(i).material = if brightEdges(i) then stemMaterial else stemDimMaterial
+        val material = if brightEdges(i) then stemMaterial else stemDimMaterial
+        stemMeshes(i).foreach(_.material = material)
 
   /** One translucent hull mesh per cluster; the geometry is re-hulled on every
     * position write (QuickHull over tens of points — cheap), the mesh and
@@ -587,36 +672,83 @@ final class GraphScene3D(state: ViewerState):
     for i <- edges.indices do
       val (s, t) = edges(i)
       for sp <- layout.positions.get(s); tp <- layout.positions.get(t) do
-        val d   = tp - sp
-        val len = d.length
-        if i < stemMeshes.size then
-          val stem = stemMeshes(i)
-          if len < 1e-6 then stem.visible = false
-          else
-            stem.visible = true
-            val dir = d * (1.0 / len)
-            // Stop short of both pills: the hairline vanished into a label
-            // unnoticed, but a stem with real girth crossing INTO the pill
-            // reads as a smudge on the text.
-            val inset = math.min(len * 0.3, NodeHeight * 0.4)
-            val a     = sp + dir * inset
-            val b     = tp - dir * inset
-            // The unit cylinder is y-aligned and centered: midpoint + length
-            // scale + the same aim quaternion the cone uses.
-            stem.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2)
-            stem.scale.set(StemRadius, len - 2 * inset, StemRadius)
-            stem.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
-        // Arrowhead: a cone just short of the target pill, aimed along the edge.
-        if i < coneMeshes.size then
-          val cone = coneMeshes(i)
-          if len < 1e-6 || !brightEdges(i) then cone.visible = false
-          else
-            cone.visible = true
-            val dir  = d * (1.0 / len)
-            val back = math.min(len * 0.5, NodeHeight * 0.55)
-            cone.position.set(tp.x - dir.x * back, tp.y - dir.y * back, tp.z - dir.z * back)
-            cone.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
+        val chain = if i < stemMeshes.size then stemMeshes(i) else Vector.empty
+        val path  = curvedPath(i, sp, tp)
+        if path.size >= 2 && chain.size == path.size - 1 then
+          // Curved edge: segments trace the sampled path. No pill inset —
+          // a layout that provides paths has already clipped them at the
+          // node borders (dot splines start and end there).
+          for k <- chain.indices do placeStemSegment(chain(k), path(k), path(k + 1))
+          // Arrowhead at the path's end, aimed along the final segment; the
+          // cone's tip (half its height from center) lands ON the endpoint.
+          if i < coneMeshes.size then
+            val cone = coneMeshes(i)
+            val d    = path.last - path(path.size - 2)
+            val len  = d.length
+            if len < 1e-6 || !brightEdges(i) then cone.visible = false
+            else
+              cone.visible = true
+              val dir = d * (1.0 / len)
+              val tip = path.last
+              cone.position.set(tip.x - dir.x * ConeTipInset, tip.y - dir.y * ConeTipInset, tip.z - dir.z * ConeTipInset)
+              cone.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
+        else
+          val d   = tp - sp
+          val len = d.length
+          chain.headOption.foreach: stem =>
+            if len < 1e-6 then stem.visible = false
+            else
+              stem.visible = true
+              val dir = d * (1.0 / len)
+              // Stop short of both pills: the hairline vanished into a label
+              // unnoticed, but a stem with real girth crossing INTO the pill
+              // reads as a smudge on the text.
+              val inset = math.min(len * 0.3, NodeHeight * 0.4)
+              val a     = sp + dir * inset
+              val b     = tp - dir * inset
+              // The unit cylinder is y-aligned and centered: midpoint + length
+              // scale + the same aim quaternion the cone uses.
+              stem.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2)
+              stem.scale.set(StemRadius, len - 2 * inset, StemRadius)
+              stem.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
+          // Allocation raced a state change (chain sized for another layout):
+          // hide the rest until the pending rebuild lands.
+          chain.drop(1).foreach(_.visible = false)
+          // Arrowhead: a cone just short of the target pill, aimed along the edge.
+          if i < coneMeshes.size then
+            val cone = coneMeshes(i)
+            if len < 1e-6 || !brightEdges(i) then cone.visible = false
+            else
+              cone.visible = true
+              val dir  = d * (1.0 / len)
+              val back = math.min(len * 0.5, NodeHeight * 0.55)
+              cone.position.set(tp.x - dir.x * back, tp.y - dir.y * back, tp.z - dir.z * back)
+              cone.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
     updateHulls()
+
+  /** The sampled 3D path of edge `i` for the CURRENT node positions: chord
+    * between the live endpoints plus the layout's stored offsets (see
+    * LayoutState3D.edgeOffsets). Empty = straight stem.
+    */
+  private def curvedPath(i: Int, sp: Vec3, tp: Vec3): Vector[Vec3] =
+    layout.edgeOffsets.lift(i).filter(_.size >= 2) match
+      case Some(off) =>
+        val n = off.size
+        Vector.tabulate(n)(j => sp + (tp - sp) * (j.toDouble / (n - 1)) + off(j))
+      case None => Vector.empty
+
+  private def placeStemSegment(stem: three.Mesh, p: Vec3, q: Vec3): Unit =
+    val d   = q - p
+    val len = d.length
+    if len < 1e-6 then stem.visible = false
+    else
+      stem.visible = true
+      val dir = d * (1.0 / len)
+      stem.position.set((p.x + q.x) / 2, (p.y + q.y) / 2, (p.z + q.z) / 2)
+      // 6% overlength: adjacent segments meet at an angle, and butt joints
+      // open a visible notch on the outside of every bend.
+      stem.scale.set(StemRadius, len * 1.06, StemRadius)
+      stem.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
 
   /** Selection tint plus neighborhood focus: with a selection, everything not
     * selected or adjacent fades — in 3D, where occlusion is constant, dimming

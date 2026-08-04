@@ -16,7 +16,14 @@ import org.jpablo.graphexplorer.viewer.models.NodeId
 case class LayoutGraph(
     nodes:    Vector[NodeId],
     edges:    Vector[(NodeId, NodeId)],
-    clusters: Vector[Vector[NodeId]] = Vector.empty
+    clusters: Vector[Vector[NodeId]] = Vector.empty,
+    /** The dot engine's flat drawing (positions + edge splines), supplied by
+      * the caller for layouts that declare [[Layout3D.wantsPlanarHints]].
+      * Part of the graph on purpose: hints participate in equality, so a
+      * source edit that reshapes the flat drawing re-adopts like any other
+      * topology change.
+      */
+    hints: Option[PlanarHints] = None
 ) derives CanEqual
 
 /** A layout snapshot, shared by every algorithm. `step` is pure
@@ -50,7 +57,15 @@ case class LayoutState3D(
     iteration:   Int,
     targets:     Map[NodeId, Vec3] = Map.empty,
     pinned:      Set[NodeId] = Set.empty,
-    motion:      Map[NodeId, (move: Vec3, scale: Double)] = Map.empty
+    motion:      Map[NodeId, (move: Vec3, scale: Double)] = Map.empty,
+    /** Per-edge curve, parallel to `graph.edges`; empty vector (outer or
+      * inner) = a straight stem. Each inner vector holds the sampled path's
+      * offsets FROM THE STRAIGHT CHORD at uniform t = j/(n-1): the renderer
+      * draws point(j) = lerp(source, target, t_j) + offset_j using the
+      * CURRENT node positions — so mid-morph the curve rides its moving
+      * endpoints, and at the targets it reproduces the layout's exact path.
+      */
+    edgeOffsets: Vector[Vector[Vec3]] = Vector.empty
 ) derives CanEqual:
   def done: Boolean = temperature <= 0
 
@@ -80,6 +95,12 @@ trait Layout3D:
   /** The tunable parameters this algorithm exposes, in display order. */
   def knobs: List[Knob3D] = Nil
 
+  /** Whether this layout consumes [[PlanarHints]] (the dot engine's flat
+    * drawing). The caller computes hints only on demand — running the full
+    * dot layout for an algorithm that ignores it would be waste.
+    */
+  def wantsPlanarHints: Boolean = false
+
   /** This algorithm with the given knob values applied. The returned instance
     * keeps the same `id` — knob changes are not an algorithm switch, so sync's
     * identity semantics are unaffected; pair with [[reheat]] to make a change
@@ -107,7 +128,7 @@ trait Layout3D:
 
 object Layout3D:
   /** Display order for the layout selector. */
-  val all: List[Layout3D] = List(ForceLayout3D, LayeredLayout3D)
+  val all: List[Layout3D] = List(ForceLayout3D, LayeredLayout3D, DotPlanar3D)
 
   def byId(id: String): Option[Layout3D] = all.find(_.id == id)
 
