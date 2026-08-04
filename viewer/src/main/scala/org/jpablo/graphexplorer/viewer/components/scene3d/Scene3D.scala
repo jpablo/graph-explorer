@@ -254,11 +254,17 @@ final class GraphScene3D(state: ViewerState):
     * depth but no color, so anything sufficiently BEHIND a stem is clipped in
     * a band around it — at a crossing, the nearer edge visibly CUTS the
     * farther one, the way a map draws a bridge over a road. The casing is
-    * pushed away from the camera each frame (frame loop) so it never clips
-    * its own stem, only genuinely deeper geometry.
+    * pushed away from the camera each frame (frame loop); the offset sets the
+    * CUT THRESHOLD: a fragment is clipped only when it sits more than
+    * (offset − haloR + stemR) behind the stem's axis. It must comfortably
+    * exceed the casing radius — at 0.022 (≈ the 0.024 casing) two SAME-DEPTH
+    * edges brushing at a shallow angle fell inside each other's cut band and
+    * mutually erased into dashes, with no visible cutter. 0.055 puts the
+    * threshold at ~0.04 world: same-plane neighbors never cut, a one-level
+    * bow (≥0.2 at mid-span) always does.
     */
   private val HaloRadiusFactor = 2.2
-  private val HaloDepthOffset  = 0.022
+  private val HaloDepthOffset  = 0.055
   private val stemHaloMaterial = three.MeshBasicMaterial(
     three.MeshBasicMaterial.params(
       color = 0x000000, transparent = false, opacity = 1.0, depthWrite = true, side = 0, colorWrite = false)
