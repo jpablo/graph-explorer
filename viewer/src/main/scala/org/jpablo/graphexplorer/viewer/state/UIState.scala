@@ -67,9 +67,16 @@ trait UIState:
   /** 3D navigation idiom: true = trackpad (two-finger scroll ORBITS — the
     * drag gesture without the click — and pinch zooms); false = mouse (wheel
     * zooms). Drag orbits in both; the modes differ only in whether rotating
-    * needs a click. Persisted in ViewerSettings.
+    * needs a click. ⌥ pans in both. Persisted in ViewerSettings.
     */
   val nav3DTrackpad = Var(true)
+
+  /** Snap the 3D camera orthogonal to the drawing plane (view along −z, up
+    * +y) and re-fit — the home view for planar layouts, and the way back to
+    * level after free rotation. A bus like fitDiagram: the toolbar emits,
+    * the live scene consumes.
+    */
+  val face3DFront = com.raquo.airstream.eventbus.EventBus[Unit]()
 
   extension (section: RightPanelSection)
     def isSectionActive: Signal[Boolean] =

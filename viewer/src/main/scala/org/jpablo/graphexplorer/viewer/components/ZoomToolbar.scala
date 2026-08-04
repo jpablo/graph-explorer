@@ -45,9 +45,14 @@ private def threeDControls(state: ViewerState) =
   div(
     cls := "flex items-center gap-1",
     layout3DSelect(state),
+    Button(
+      title := "Face the drawing straight-on (orthogonal to its plane)",
+      i(cls := "bi bi-aspect-ratio"),
+      onClick --> state.face3DFront.emit(())
+    ).tiny.ghost,
     IconToggle(
       "bi-arrow-repeat",
-      "Trackpad navigation: scroll orbits without clicking, pinch zooms (off: wheel zooms)",
+      "Trackpad navigation: scroll orbits without clicking, pinch zooms (off: wheel zooms). ⌥ pans in both modes.",
       state.nav3DTrackpad
     )
   )

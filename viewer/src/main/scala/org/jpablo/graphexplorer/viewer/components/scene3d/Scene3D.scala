@@ -45,6 +45,7 @@ def Scene3D(state: ViewerState): Div =
     // the 2D transform.
     state.autoFit.signal --> scene.setAutoFit,
     state.fitDiagram.events --> (_ => scene.fitNow()),
+    state.face3DFront.events --> (_ => scene.faceFront()),
     // Labels bake theme colors into their textures at paint time, so a theme
     // switch must repaint them. setTheme's own observer registered first, so
     // the CSS variables are already the new theme's when this fires.
@@ -796,6 +797,19 @@ final class GraphScene3D(state: ViewerState):
   /** One-shot exact fit — the toolbar's Fit button. */
   def fitNow(): Unit = fitCamera(1.0)
 
+  /** Snap orthogonal to the drawing plane: view straight down −z with a level
+    * horizon, then exact-fit. The trackball's freedom means there is no force
+    * returning the camera to level — this is the way home, and the natural
+    * reading view for the planar layout.
+    */
+  def faceFront(): Unit =
+    camUp = Vec3(0, 1, 0)
+    val camP = Vec3(camera.position.x, camera.position.y, camera.position.z)
+    val dist = math.max(1e-9, (camP - orbitTarget).length)
+    camera.position.set(orbitTarget.x, orbitTarget.y, orbitTarget.z + dist)
+    applyCameraPose()
+    fitCamera(1.0)
+
   /** The depth-cue fog, re-anchored to the drawing EVERY frame: near at the
     * drawing's current front face, far one depth-spread behind its back face,
     * so the fade discriminates within the drawing (front crisp, back at most
@@ -1176,6 +1190,30 @@ final class GraphScene3D(state: ViewerState):
     camera.position.set(orbitTarget.x + off2.x, orbitTarget.y + off2.y, orbitTarget.z + off2.z)
     applyCameraPose()
 
+  /** Translate camera AND target in the screen plane — the 2D canvas's pan,
+    * in 3D. `mx/my` are pointer-movement pixels; content follows the pointer
+    * (grab semantics), scaled so a pixel of pointer travel moves the drawing
+    * one pixel at the target's distance. A pan states framing intent exactly
+    * like a zoom, so it disengages Auto and the convergence follow.
+    */
+  private def panBy(mx: Double, my: Double): Unit =
+    convergenceFollow = false
+    if state.autoFit.now() then state.autoFit.set(false)
+    val camP    = Vec3(camera.position.x, camera.position.y, camera.position.z)
+    val offset  = camP - orbitTarget
+    val dist    = math.max(1e-9, offset.length)
+    val h       = math.max(1, renderer.domElement.clientHeight).toDouble
+    val wpp     = 2 * dist * math.tan(CameraFovDeg / 2 * math.Pi / 180) / h // world per pixel at target depth
+    val view    = offset * (-1.0 / dist)
+    val right0  = view.cross(camUp)
+    val right   = right0 * (1.0 / math.max(1e-9, right0.length))
+    val up      = right.cross(view)
+    // Content follows the pointer: the CAMERA moves the other way.
+    val move = right * (-mx * wpp) + up * (my * wpp)
+    orbitTarget = orbitTarget + move
+    camera.position.set(camP.x + move.x, camP.y + move.y, camP.z + move.z)
+    applyCameraPose()
+
   private def dollyBy(factor: Double): Unit =
     // Only user gestures dolly, and a user zoom owns the framing from here on:
     // it cancels the load-time convergence follow just as it disengages Auto.
@@ -1188,9 +1226,11 @@ final class GraphScene3D(state: ViewerState):
     camera.position.set(orbitTarget.x + dir.x * nd, orbitTarget.y + dir.y * nd, orbitTarget.z + dir.z * nd)
     applyCameraPose()
 
-  /** Wheel: pinch (ctrl/meta) dollies in both modes; a plain wheel dollies in
-    * mouse mode and ROTATES in trackpad mode — the drag gesture without the
-    * click, finger direction matching drag direction under natural scrolling.
+  /** Wheel: pinch (ctrl/meta) dollies in both modes; ⌥ (alt) PANS in both
+    * modes; a plain wheel dollies in mouse mode and ROTATES in trackpad mode
+    * — the drag gesture without the click, finger direction matching drag
+    * direction under natural scrolling. ⌥ rather than shift: browsers remap
+    * shift+wheel to horizontal scroll for mice, mangling the deltas.
     */
   private def attachWheelNavigation(): Unit =
     renderer.domElement.addEventListener(
@@ -1198,7 +1238,8 @@ final class GraphScene3D(state: ViewerState):
       (e: dom.WheelEvent) =>
         if !renderer.xr.isPresenting then
           e.preventDefault()
-          if e.ctrlKey || e.metaKey || !trackpadNav then
+          if e.altKey then panBy(-e.deltaX, -e.deltaY)
+          else if e.ctrlKey || e.metaKey || !trackpadNav then
             // A zoom states an intent about framing that Auto's per-frame
             // re-fit would immediately undo — so zooming disengages Auto
             // (the toolbar button follows, via the shared Var). Rotation
@@ -1240,7 +1281,9 @@ final class GraphScene3D(state: ViewerState):
           planeIntersect(dragPlanePoint, dragPlaneNormal).foreach: world =>
             pinNodeAt(id, worldToLocal(world))
         mouseOrbitLast.foreach: (lx, ly) =>
-          rotateBy(e.clientX - lx, e.clientY - ly)
+          // ⌥-drag pans, plain drag orbits — the same split as the wheel.
+          if e.altKey then panBy(e.clientX - lx, e.clientY - ly)
+          else rotateBy(e.clientX - lx, e.clientY - ly)
           mouseOrbitLast = Some((e.clientX, e.clientY))
     )
     renderer.domElement.addEventListener(
