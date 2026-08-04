@@ -41,6 +41,7 @@ def Scene3D(state: ViewerState): Div =
     state.selection.signal --> scene.setSelection,
     state.layout3D.signal --> scene.setAlgorithm,
     state.nav3DTrackpad.signal --> scene.setNavMode,
+    state.label3DBillboard.signal --> scene.setLabelBillboard,
     // The toolbar's Auto and Fit speak to the 3D camera exactly as they do to
     // the 2D transform.
     state.autoFit.signal --> scene.setAutoFit,
@@ -495,6 +496,17 @@ final class GraphScene3D(state: ViewerState):
   def setNavMode(trackpad: Boolean): Unit =
     trackpadNav = trackpad
 
+  /** Billboard labels: on = labels turn to face the camera; off (default) =
+    * fixed sheets facing the front view. Dictated-geometry layouts always use
+    * in-plane sheets regardless — see createSprite.
+    */
+  private var labelBillboard = false
+
+  def setLabelBillboard(on: Boolean): Unit =
+    if on != labelBillboard then
+      labelBillboard = on
+      resizeSprites() // presentation flips: sprites are rebuilt as needed
+
   /** The dot engine runs only for a layout that declared it wants the flat
     * drawing — it is a full synchronous 2D layout, pure waste for the others.
     */
@@ -555,8 +567,10 @@ final class GraphScene3D(state: ViewerState):
     val dictated          = dictatedSize(id)
     val (texture, aspect) = paintLabel(label, forcedAspect = dictated.map((w, h) => w / h))
     val (w, h)            = dictated.getOrElse(defaultSpriteSize(label, aspect))
-    dictated match
-      case Some(_) =>
+    // A sheet unless the user opted into billboards — and ALWAYS a sheet when
+    // the layout dictates geometry, where a billboard detaches the edges.
+    val asSheet = dictated.isDefined || !labelBillboard
+    if asSheet then
         // DoubleSide: the back of the sheet stays visible (mirrored, like
         // holding a printed page against the light) instead of vanishing.
         val material = three.MeshBasicMaterial(
@@ -580,7 +594,7 @@ final class GraphScene3D(state: ViewerState):
           setTint = (c, o) => { material.color.setHex(c); material.opacity = o },
           disposeMaterial = () => material.dispose()
         )
-      case None =>
+    else
         val material = three.SpriteMaterial(three.SpriteMaterial.params(map = texture, transparent = true))
         val sprite   = three.Sprite(material)
         sprite.scale.set(w, h, 1)
@@ -604,7 +618,8 @@ final class GraphScene3D(state: ViewerState):
   private def resizeSprites(): Unit =
     sprites = sprites.map: (id, ns) =>
       val dictated = dictatedSize(id)
-      if ns.planar != dictated.isDefined then
+      val asSheet  = dictated.isDefined || !labelBillboard
+      if ns.planar != asSheet then
         // Presentation flips with the layout (billboard <-> in-plane sheet):
         // rebuild the node visual outright.
         disposeSprite(ns)

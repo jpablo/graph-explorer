@@ -70,7 +70,8 @@ trait Persistence:
       layout3D -> restoredViewerSettings.layout3D.getOrElse(
         org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id
       ),
-      nav3DTrackpad -> restoredViewerSettings.nav3DTrackpad
+      nav3DTrackpad -> restoredViewerSettings.nav3DTrackpad,
+      label3DBillboard -> restoredViewerSettings.label3DBillboard
     )
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
@@ -116,13 +117,15 @@ trait Persistence:
       // pattern below mirrors that shape.
       .combineWith(nav3DTrackpad.signal)
       .combineWith(enable3D.signal)
+      .combineWith(label3DBillboard.signal)
       .changes
       .distinct
       .foreach:
         case (
               (leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D, layout3DId,
                 navTrackpad),
-              en3D
+              en3D,
+              billboard3D
             ) =>
           // copy, not a fresh ViewerSettings: fields this page does not own (the library's
           // view mode) must survive a detail-page sync instead of resetting to defaults.
@@ -139,6 +142,7 @@ trait Persistence:
               layout3D = Some(layout3DId),
               nav3DTrackpad = navTrackpad,
               enable3D = en3D,
+              label3DBillboard = billboard3D,
               schemaVersion = ViewerSettings.currentSchemaVersion
             )
           )
@@ -201,6 +205,8 @@ case class ViewerSettings(
     layout3D:           Option[String] = None,
     // 3D navigation idiom: true = trackpad (scroll orbits, no click), false = mouse (wheel zooms).
     nav3DTrackpad:      Boolean = true,
+    // 3D labels turn to face the camera (billboards). Off = fixed sheets.
+    label3DBillboard:   Boolean = false,
     // Library page: false = thumbnail cards, true = compact rows.
     libraryListMode:    Boolean = false,
     // Library page: the sort column, and the format the list is filtered to.

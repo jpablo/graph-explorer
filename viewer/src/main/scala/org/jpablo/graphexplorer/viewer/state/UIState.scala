@@ -78,6 +78,14 @@ trait UIState:
     */
   val face3DFront = com.raquo.airstream.eventbus.EventBus[Unit]()
 
+  /** Billboard node labels: ON = every label turns to face the camera; OFF
+    * (the default) = labels are sheets with a fixed orientation, facing the
+    * front view. Layouts that dictate node geometry (the flat dot layout)
+    * always use in-plane sheets — a billboard's border swings off the plane
+    * and detaches the edges. Persisted in ViewerSettings.
+    */
+  val label3DBillboard = Var(false)
+
   extension (section: RightPanelSection)
     def isSectionActive: Signal[Boolean] =
       rightPanelActiveSection.signal.map(_ == section)

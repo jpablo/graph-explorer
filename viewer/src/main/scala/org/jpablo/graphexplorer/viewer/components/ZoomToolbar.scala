@@ -54,6 +54,11 @@ private def threeDControls(state: ViewerState) =
       "bi-arrow-repeat",
       "Trackpad navigation: scroll orbits without clicking, pinch zooms (off: wheel zooms). ⌥ pans in both modes.",
       state.nav3DTrackpad
+    ),
+    IconToggle(
+      "bi-person-video",
+      "Labels face the camera (off: labels are fixed sheets facing the front view)",
+      state.label3DBillboard
     )
   )
 
