@@ -125,6 +125,32 @@ case class ViewerState(
   def setDiagramFormat(format: DiagramFormat): Unit =
     formatSelection.set(format)
 
+  val autoDetectFormat = phases.autoDetectFormat
+
+  /** The format selector's three options as ONE string, since a `<select>` has
+    * one value: the sentinel, or a format's name.
+    */
+  object formatOption:
+    val auto = "Auto"
+
+    val selected: Signal[String] =
+      autoDetectFormat.signal.combineWithFn(formatSelection.signal): (isAuto, format) =>
+        if isAuto then auto else format.toString
+
+    /** What Auto currently resolves to, for the option's own label — "Auto" alone
+      * says the app decided, not what it decided.
+      */
+    val autoLabel: Signal[String] =
+      currentFormat.map(format => s"$auto — ${formatInfo(format).selectorLabel}")
+
+    /** Picking a language by hand turns Auto off: the two cannot both be in
+      * charge, and the explicit choice is the newer instruction.
+      */
+    def select(value: String): Unit =
+      if value == auto then autoDetectFormat.set(true)
+      else
+        Var.set(autoDetectFormat -> false, formatSelection -> DiagramFormat.valueOf(value))
+
   /** The title shown for this project: the user's chosen name, or — while the project is
     * still unnamed — the diagram's own declared title (Mermaid frontmatter / `title` line,
     * DOT graph label). Display-only substitution: the stored name changes only when the

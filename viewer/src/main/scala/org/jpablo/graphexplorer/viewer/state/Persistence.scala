@@ -47,6 +47,9 @@ trait Persistence:
     restoredDiagramState.format
       .flatMap(format => Try(DiagramFormat.valueOf(format)).toOption)
       .foreach(formatSelection.set)
+    // After the format, not with it: turning auto-detect on re-derives the
+    // language from the text, and it should do that over the RESTORED format.
+    autoDetectFormat.set(restoredDiagramState.autoDetectFormat.getOrElse(false))
 
     Var.set(
       project.name -> restoredDiagramState.projectName,
@@ -83,18 +86,20 @@ trait Persistence:
         project.collapsedGroups.signal,
         project.name.signal,
         sourceText.signal,
-        formatSelection.signal
+        formatSelection.signal,
+        autoDetectFormat.signal
       )
       .changes
       .distinct
-      .foreach: (hidden, collapsed, name, source, format) =>
+      .foreach: (hidden, collapsed, name, source, format, autoDetect) =>
         persistedDiagramState.set(
           PersistedDiagramState(
             hiddenElements = hidden,
             collapsedGroups = collapsed,
             projectName = name,
             source = source,
-            format = Some(format.toString)
+            format = Some(format.toString),
+            autoDetectFormat = Some(autoDetect)
           )
         )
 
@@ -158,7 +163,9 @@ case class PersistedDiagramState(
     collapsedGroups: Set[GroupId] = Set.empty,
     projectName:    String = "",
     source:         String = "",
-    format:         Option[String] = None
+    format:         Option[String] = None,
+    // None for every project saved before the mode existed, which reads as off.
+    autoDetectFormat: Option[Boolean] = None
 ) derives ReadWriter
 
 object PersistedDiagramState:

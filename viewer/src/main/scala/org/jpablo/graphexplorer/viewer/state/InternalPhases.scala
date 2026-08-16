@@ -91,7 +91,7 @@ class InternalPhases(
               Success((text, Left(EditorNotice.info(f.details)), format, origin))
             case Failure(f) =>
               simpleLog(s"Error parsing ${format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
-              Success((text, Left(EditorNotice.error(f.getMessage)), format, origin))
+              Success((text, Left(explain(text, format, f)), format, origin))
           }
         EventStream.fromFuture(parseFuture)
     }
@@ -227,6 +227,20 @@ class InternalPhases(
   val selectionStrategy: Signal[SelectableElementStrategy] =
     currentFormat.map(languages.forFormat(_).selectionStrategy)
 
+  /** Why the parse failed, in the most useful terms available.
+    *
+    * When the document DECLARES a language and it is not the selected one, that
+    * is the whole story, and the backend's own message is a symptom of it —
+    * Graphviz reports a syntax error at line 1, Mermaid an "UnknownDiagramError"
+    * quoting the entire document back. Neither names the cause, and the cause is
+    * one selector away. Anything else keeps the backend's message: it is the one
+    * that knows.
+    */
+  private def explain(text: String, format: DiagramFormat, failure: Throwable): EditorNotice =
+    DiagramFormat.declared(text).filter(_ != format) match
+      case Some(actual) => EditorNotice.formatMismatch(actual, format)
+      case None         => EditorNotice.error(failure.getMessage)
+
   /** Triggers async parsing of text into a ViewerGraph. Empty text is handled by the same
     * pipeline (committing the empty graph), so the canvas always tracks the editor.
     */
@@ -273,6 +287,33 @@ class InternalPhases(
   private def hasNoElements(g: ViewerGraph): Boolean =
     g.nodeIds.isEmpty && g.arrowIds.isEmpty &&
       g.groupIds.forall(_ == GroupId(ViewerGraphElements.defaultRootId.value))
+
+  /** Auto-detect: the language FOLLOWS the document instead of being asserted
+    * over it. Off by default — a document that declares nothing keeps whatever
+    * is selected, so this can only ever act on evidence.
+    */
+  val autoDetectFormat: Var[Boolean] = Var(false)
+
+  /** Move the selection to whatever the text declares, if that is something else.
+    *
+    * Through `replaceDocument` rather than `formatSelection.set` so the switch
+    * stays atomic — the text is ALREADY the new one here, and setting the format
+    * on its own would leave the format-change observer to re-parse, including
+    * down its empty-diagram branch, which would overwrite the document.
+    */
+  private def applyAutoDetect(text: String): Unit =
+    if autoDetectFormat.now() then
+      for actual <- DiagramFormat.declared(text) if actual != state.now().format do
+        replaceDocument(text, actual)
+
+  // Typing a `flowchart` header into a DOT document switches the language under
+  // you. `sourceText` is distinct, so the no-op re-set inside replaceDocument
+  // cannot feed back into this.
+  sourceText.signal.changes.foreach(applyAutoDetect)
+
+  // Turning it on acts on the document already open, rather than waiting for the
+  // next keystroke to prove itself.
+  autoDetectFormat.signal.changes.filter(identity).foreach(_ => applyAutoDetect(state.now().text))
 
   // Re-parse the current text when the user switches the selected format.
   formatSelection.signal.changes.foreach: newFormat =>

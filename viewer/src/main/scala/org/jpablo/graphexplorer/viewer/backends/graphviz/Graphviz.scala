@@ -55,9 +55,14 @@ class Graphviz(viz: Viz):
     */
   def textToSimpleGraph(dotText: String): Try[SimpleGraph] =
     Try {
-      val result  = renderOutputs(sanitizeText(dotText), Seq("dot_json"))
-      val dotJson = result.output("dot_json")
-      read[SimpleGraph](dotJson)
+      val result = renderOutputs(sanitizeText(dotText), Seq("dot_json"))
+      // Status FIRST, like textToSvg and textToSvgOnly. Reading `output` straight
+      // off a failed render threw `key not found: dot_json` — a NoSuchElementException
+      // from the outputs Map, shown to the user as if it were a diagnosis, while
+      // the actual syntax errors sat unread in `result.errors`.
+      if result.status != "success" then
+        throw new Exception(s"Graphviz parsing failed: ${result.errors}")
+      read[SimpleGraph](result.output("dot_json"))
     }
 
   // TODO: investigate why is this needed

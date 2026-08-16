@@ -6,7 +6,8 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
+import scala.scalajs.js
 
 /** The "Paste diagram" command: the clipboard replaces the document, and the
   * language selector follows the pasted text rather than staying on whatever
@@ -18,6 +19,20 @@ class ImportOpsSpec extends FunSuite with TestHelpers:
   given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
 
   override def munitFixtures = List(mockStorageFixture())
+
+  /** Polls until `condition` holds — for the steps that go through an async
+    * parse, where a single microtask turn is not enough.
+    */
+  private def waitFor(condition: => Boolean, description: String, timeoutMs: Int = 5000): Future[Unit] =
+    val p     = Promise[Unit]()
+    val start = js.Date.now()
+    def loop(): Unit =
+      if condition then p.trySuccess(())
+      else if js.Date.now() - start >= timeoutMs then
+        p.tryFailure(new RuntimeException(s"Timed out after ${timeoutMs}ms waiting for $description"))
+      else js.timers.setTimeout(20)(loop())
+    loop()
+    p.future
 
   private def stateWithClipboard(
       id:            String,
@@ -81,6 +96,66 @@ class ImportOpsSpec extends FunSuite with TestHelpers:
                val disagreeing = pairs.filter((text, format) => DiagramFormat.declared(text).exists(_ != format))
                assert(disagreeing.isEmpty, s"text under the wrong backend: $disagreeing")
                assert(pairs.exists((text, _) => text == mermaid), s"the paste should be in the log: $pairs")
+             }
+      yield ()
+    }
+
+  test("a format mismatch is reported as one, not as the backend's symptom"):
+    withGraphvizAsync { graphviz =>
+      val mermaid = "flowchart TD\n  A --> B"
+      val state =
+        stateWithClipboard("mismatch", Future.failed(ClipboardUnavailable), graphviz, initialSource = Some(mermaid))
+
+      for
+        _ <- afterMicrotasks(assertEquals(state.formatSelection.now(), DiagramFormat.Mermaid))
+        // What the user does with the selector: assert DOT over a Mermaid document.
+        _ = state.setDiagramFormat(DiagramFormat.DOT)
+        _ <- waitFor(state.editorNotice.now().exists(_.isError), "the mismatch notice")
+        _ <- afterMicrotasks {
+               val notice = state.editorNotice.now().get
+               // Not "key not found: dot_json", and not a syntax error at line 1.
+               assertEquals(
+                 notice.message,
+                 "This looks like a Mermaid diagram, but DOT/Graphviz is selected."
+               )
+               assertEquals(notice.suggestedFormat, Some(DiagramFormat.Mermaid), "the notice carries its own remedy")
+             }
+      yield ()
+    }
+
+  test("auto-detect follows the document, and only on evidence"):
+    withGraphvizAsync { graphviz =>
+      val dot   = "digraph G {\n  a -> b\n}"
+      val state = stateWithClipboard("auto", Future.failed(ClipboardUnavailable), graphviz, initialSource = Some(dot))
+
+      for
+        _ <- afterMicrotasks(assertEquals(state.formatSelection.now(), DiagramFormat.DOT))
+        _ = state.autoDetectFormat.set(true)
+        // Text that declares nothing leaves the language where it was — auto
+        // detection may only ever act on evidence.
+        _ = state.sourceText.set("some notes with no diagram in them")
+        _ <- afterMicrotasks(assertEquals(state.formatSelection.now(), DiagramFormat.DOT))
+        // A declared one moves it.
+        _ = state.sourceText.set("flowchart TD\n  A --> B")
+        _ <- afterMicrotasks {
+               assertEquals(state.formatSelection.now(), DiagramFormat.Mermaid)
+               assertEquals(state.sourceText.now(), "flowchart TD\n  A --> B", "the document itself is untouched")
+             }
+      yield ()
+    }
+
+  test("turning auto-detect on acts on the document already open"):
+    withGraphvizAsync { graphviz =>
+      val mermaid = "flowchart TD\n  A --> B"
+      val state =
+        stateWithClipboard("auto-on", Future.failed(ClipboardUnavailable), graphviz, initialSource = Some(mermaid))
+
+      for
+        _ <- afterMicrotasks(state.setDiagramFormat(DiagramFormat.DOT))
+        _ = state.autoDetectFormat.set(true)
+        _ <- afterMicrotasks {
+               assertEquals(state.formatSelection.now(), DiagramFormat.Mermaid, "not waiting for the next keystroke")
+               assertEquals(state.sourceText.now(), mermaid)
              }
       yield ()
     }
