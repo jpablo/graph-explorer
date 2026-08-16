@@ -234,6 +234,38 @@ class InternalPhases(
     simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
     textChangeBus.writer.onNext((text, format, origin))
 
+  /** Replace the document AND its language in ONE observable step.
+    *
+    * Done as two writes — `formatSelection.set` then `sourceText.set` — a state
+    * exists in between where the OUTGOING text sits under the INCOMING backend,
+    * and every consumer runs against it: the parser rejects the text outright,
+    * and Mermaid's renderer (which draws from the source, not from the graph)
+    * fails on it. The correct pass supersedes both, so nothing wrong survives on
+    * screen, but it costs a console full of errors and a discarded render per
+    * replacement.
+    *
+    * `Var.set` puts both in one transaction, which also disarms the format-change
+    * observer below: that observer reads `state.now()`, already updated by the
+    * time `formatSelection` propagates, so its `format != newFormat` guard is
+    * false and it leaves this switch alone. That matters beyond the wasted
+    * parse — its empty-diagram branch would otherwise overwrite the INCOMING
+    * text with the new backend's empty template, because the graph it judges
+    * emptiness by is still the outgoing one.
+    *
+    * `graphInSync = false` covers the gap until the parse lands, and is not
+    * bookkeeping: the graph on hand still models the OUTGOING document, so a
+    * canvas edit arriving in that window would serialize it over the text just
+    * set here.
+    */
+  def replaceDocument(text: String, format: DiagramFormat): Unit =
+    val origin = ChangeOrigin.CodeMirror
+    simpleLog(s"[${format.displayName}] replaceDocument len=${text.length}", logLevel)
+    Var.set(
+      state -> state.now().copy(text = text, format = format, lastOrigin = origin, graphInSync = false),
+      formatSelection -> format
+    )
+    parseTextToGraphAsync(text, format, origin)
+
   /** No drawable content: nothing but (at most) the materialized root group. Graph-level
     * attributes are deliberately NOT part of the test — they live on the graph and survive
     * a re-serialization, so they don't make a diagram "non-empty" for switching purposes.

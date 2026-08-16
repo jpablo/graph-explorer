@@ -13,14 +13,12 @@ trait ImportOps:
 
   /** Replace the entire document with `text`, read as `format`.
     *
-    * The format is set FIRST and deliberately: `sourceText`'s writer reads
-    * `formatSelection` to decide which backend parses the incoming text, so the
-    * other order hands a Mermaid document to the DOT parser for one round —
-    * long enough to flash a syntax error over a perfectly good diagram.
+    * Text and language land together — see `InternalPhases.replaceDocument` for
+    * why they cannot be two writes: in between them the outgoing document is
+    * observable under the incoming backend, which every consumer then fails on.
     */
   def replaceSource(text: String, format: DiagramFormat): Unit =
-    setDiagramFormat(format)
-    sourceText.set(text)
+    phases.replaceDocument(text, format)
 
   /** As [[replaceSource]], with the language read off the text itself. */
   def replaceSourceDetectingFormat(text: String): DiagramFormat =
@@ -36,8 +34,11 @@ trait ImportOps:
     * the user set by hand over text that declares nothing.
     */
   def restoreSource(text: String): Unit =
-    DiagramFormat.declared(text).foreach(setDiagramFormat)
-    sourceText.set(text)
+    DiagramFormat.declared(text) match
+      // Undeclared: the language is staying put, so this is an ordinary text
+      // change and there is no pair to keep consistent.
+      case None         => sourceText.set(text)
+      case Some(format) => replaceSource(text, format)
 
   /** Replace the diagram with the DOT or Mermaid source on the system clipboard.
     *

@@ -19,8 +19,13 @@ class ImportOpsSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  private def stateWithClipboard(id: String, clipboard: => Future[String], graphviz: Graphviz) =
-    ViewerState(ProjectId(id), graphviz, readText = () => clipboard)
+  private def stateWithClipboard(
+      id:            String,
+      clipboard:     => Future[String],
+      graphviz:      Graphviz,
+      initialSource: Option[String] = None
+  ) =
+    ViewerState(ProjectId(id), graphviz, readText = () => clipboard, initialSource = initialSource)
 
   test("pasting Mermaid over a DOT diagram switches the selected format"):
     withGraphvizAsync { graphviz =>
@@ -47,6 +52,37 @@ class ImportOpsSpec extends FunSuite with TestHelpers:
         assertEquals(state.sourceText.now(), "digraph G {\n  a -> b\n}")
         assertEquals(state.formatSelection.now(), DiagramFormat.DOT)
       }
+    }
+
+  test("no observable state pairs the outgoing text with the incoming backend"):
+    withGraphvizAsync { graphviz =>
+      val mermaid = "flowchart TD\n  A --> B"
+      val dot     = "digraph G {\n  a -> b\n}"
+      // A document with CONTENT, deliberately: an empty one takes the format
+      // observer's other branch (it re-serializes the empty graph into the new
+      // language instead of reinterpreting the text), so it never exhibits this.
+      val state =
+        stateWithClipboard("replace-atomic", Future.successful(mermaid), graphviz, initialSource = Some(dot))
+
+      // Every (text, language) pair the pipeline makes visible. Replacing the two
+      // separately exposes one where they disagree, and everything downstream
+      // runs against it: the parser rejects the text, and Mermaid's renderer —
+      // which draws from the source rather than the graph — fails on it.
+      var pairs = List.empty[(String, DiagramFormat)]
+      state.sourceText.signal
+        .combineWith(state.currentFormat)
+        .foreach((text, format) => pairs = (text, format) :: pairs)
+
+      for
+        _ <- afterMicrotasks(assert(state.fullGraphNow().nodes.nonEmpty, "the initial DOT parse should have landed"))
+        _ = state.pasteDiagram()
+        _ <- afterMicrotasks {
+               state.restoreSource(dot) // the undo direction, which disagrees the other way
+               val disagreeing = pairs.filter((text, format) => DiagramFormat.declared(text).exists(_ != format))
+               assert(disagreeing.isEmpty, s"text under the wrong backend: $disagreeing")
+               assert(pairs.exists((text, _) => text == mermaid), s"the paste should be in the log: $pairs")
+             }
+      yield ()
     }
 
   test("an empty clipboard leaves the diagram alone"):

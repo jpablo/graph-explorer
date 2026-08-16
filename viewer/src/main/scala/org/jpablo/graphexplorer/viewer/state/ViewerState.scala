@@ -162,26 +162,50 @@ case class ViewerState(
   // 5. Render visible content to SVG with position data.
   // Each backend owns its render policy (DOT: synchronous from visibleText; Mermaid: async from
   // sourceText, validated), so the format dispatch lives in the registry, not here.
-  private val renderInputs = DiagramRenderInputs(
-    visibleText = visibleText,
-    // Paced. `visibleText` already is, by way of the parse behind it, but a
-    // Mermaid diagram with nothing hidden renders straight from the SOURCE
-    // (MermaidBackend picks that branch when the view does not differ), which
-    // would leave that one path re-rendering on every keystroke. This is the
-    // RENDER's view of the text, never the document — persistence keeps
-    // reading `sourceText` itself, unpaced.
-    sourceText = EditorPacing.paceSignal(sourceText.signal),
-    viewDiffersFromSource = project.hiddenElements.signal
+
+  // Paced. `visibleText` already is, by way of the parse behind it, but a
+  // Mermaid diagram with nothing hidden renders straight from the SOURCE
+  // (MermaidBackend picks that branch when the view does not differ), which
+  // would leave that one path re-rendering on every keystroke. This is the
+  // RENDER's view of the text, never the document — persistence keeps
+  // reading `sourceText` itself, unpaced. Built ONCE: the pacer is stateful.
+  private val pacedSourceText = EditorPacing.paceSignal(sourceText.signal)
+
+  private val viewDiffersFromSource =
+    project.hiddenElements.signal
       .combineWithFn(project.collapsedGroups.signal)((hidden, collapsed) => hidden.nonEmpty || collapsed.nonEmpty)
       .distinct
-  )
+
+  /** The render inputs for ONE backend, with `visibleText` serialized in THAT
+    * backend's language rather than in whichever one is current.
+    *
+    * The shared `phases.visibleText` is derived from `currentFormat`, and so is
+    * the backend selection below — two paths out of one source, and
+    * `flatMapSwitch` makes no promise to swap the backend before the new text
+    * reaches the outgoing one. It did not: replacing a DOT document with a
+    * Mermaid one handed the still-subscribed Graphviz renderer a Mermaid
+    * serialization of the very same graph, which it duly failed to parse.
+    * Deriving per backend makes that mismatch unrepresentable rather than
+    * merely unlikely — whatever a backend receives here, it is its own.
+    */
+  private def renderInputsFor(format: DiagramFormat) =
+    DiagramRenderInputs(
+      visibleText = visibleGraph.map: graph =>
+        withLog("4. [visibleGraph -> visibleText]", level = phases.logLevel) {
+          languages.forFormat(format).graphToText(graph, omitInternal = false)
+        },
+      sourceText = pacedSourceText,
+      viewDiffersFromSource = viewDiffersFromSource
+    )
 
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
     // .distinct matters: the Mermaid backend HOLDS its previous value while an
     // async render is pending (see MermaidBackend.render), and re-emitting the
     // same instance would re-amend the mounted svg — duplicate binders and
     // event listeners piling up on every render cycle.
-    phases.currentFormat.flatMapSwitch(languages.forFormat(_).render(renderInputs)).distinct
+    phases.currentFormat
+      .flatMapSwitch(format => languages.forFormat(format).render(renderInputsFor(format)))
+      .distinct
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.
