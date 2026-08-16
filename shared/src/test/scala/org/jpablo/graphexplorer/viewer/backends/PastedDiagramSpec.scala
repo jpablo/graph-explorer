@@ -86,6 +86,32 @@ class PastedDiagramSpec extends FunSuite:
     assertEquals(PastedDiagram.from(svg), Some(PastedDiagram(svg, DiagramFormat.DOT, declared = false)))
     assertEquals(PastedDiagram.from("a -> b"), Some(PastedDiagram("a -> b", DiagramFormat.DOT, declared = false)))
 
+  test("`graph LR { … }` is an undirected DOT graph named LR, not a flowchart"):
+    // The one point where the two vocabularies collide, and Mermaid is asked
+    // first. DOT names its graph and opens a brace; Mermaid's `graph <dir>`
+    // header simply ends there.
+    assertEquals(DiagramFormat.declared("graph LR { a -- b }"), Some(DiagramFormat.DOT))
+    assertEquals(DiagramFormat.declared("graph TD\n{\n  a -- b\n}"), Some(DiagramFormat.DOT), "brace on the next line")
+    assertEquals(DiagramFormat.declared("graph LRX { a -- b }"), Some(DiagramFormat.DOT), "a name the direction prefixes")
+    // …and a flowchart is still a flowchart, including the one-line `;` form
+    // whose statements may themselves contain braces.
+    assertEquals(DiagramFormat.declared("graph LR\n  A --> B"), Some(DiagramFormat.Mermaid))
+    assertEquals(DiagramFormat.declared("graph TD\n  A --> B"), Some(DiagramFormat.Mermaid))
+    assertEquals(DiagramFormat.declared("graph LR; A{Decision} --> B"), Some(DiagramFormat.Mermaid))
+
+  test("frontmatter is not a declaration until a header follows it"):
+    // `---` used to be evidence of Mermaid on its own, which made every
+    // Markdown document with YAML frontmatter a Mermaid diagram.
+    assertEquals(DiagramFormat.declared("---\ntitle: notes\n---\njust prose"), None)
+    assertEquals(DiagramFormat.declared("---\ntitle: notes\n"), None, "unterminated frontmatter")
+    assertEquals(
+      DiagramFormat.declared("---\ntitle: Animals\n---\nflowchart LR\n  a --> b"),
+      Some(DiagramFormat.Mermaid)
+    )
+
+  test("a directive settles it even when the header keyword is one we don't know"):
+    assertEquals(DiagramFormat.declared("%%{init: {\"theme\": \"dark\"}}%%\nbrandnewdiagram\n  a"), Some(DiagramFormat.Mermaid))
+
   test("`declared` withholds the DOT fallback that `detect` has to make"):
     // The pair that lets undo move the selector only on evidence.
     assertEquals(DiagramFormat.declared("digraph G { a -> b }"), Some(DiagramFormat.DOT))

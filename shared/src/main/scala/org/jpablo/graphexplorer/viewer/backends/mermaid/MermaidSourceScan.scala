@@ -47,15 +47,16 @@ private[backends] object MermaidSourceScan:
     "zenuml"             -> "zenUML"
   )
 
-  private val DiagramKindPrefixes =
-    KindByPrefix.map(_._1) ++ List(
-      "%%{", // Mermaid directive marker
-      "---"  // YAML frontmatter often used in Mermaid
-    )
-
-  /** True when the given LOWERCASED, trimmed text starts like a Mermaid document. */
-  def looksLikeMermaid(lowercased: String): Boolean =
-    DiagramKindPrefixes.exists(lowercased.startsWith)
+  /** True when the text declares a Mermaid diagram: a header keyword we know, or
+    * an `%%{…}%%` directive, which no other language here has.
+    *
+    * Takes the RAW text and does its own frontmatter and comment skipping. It
+    * used to take a pre-lowercased string and test `---` as a prefix in its own
+    * right, which made every Markdown document in the world a Mermaid diagram —
+    * frontmatter is evidence of nothing until a header follows it.
+    */
+  def looksLikeMermaid(text: String): Boolean =
+    diagramKind(text).isDefined || hasLeadingDirective(text)
 
   /** The diagram's kind (flowchart, sequence, class, ...): the header keyword
     * [[looksLikeMermaid]] detects, as a display name. Frontmatter and directive/
@@ -63,14 +64,44 @@ private[backends] object MermaidSourceScan:
     * contract as [[diagramTitle]]: shown per library card.
     */
   def diagramKind(text: String): Option[String] =
+    headerOnward(text).flatMap: header =>
+      KindByPrefix.collectFirst { case (prefix, kind) if declares(header, prefix) => kind }
+
+  /** The document from its header line onward, trimmed per line and lowercased;
+    * `None` when it has no header at all (frontmatter and comments only).
+    *
+    * From the header ONWARD rather than the header LINE, so the brace test in
+    * [[declares]] can see a `{` that DOT put on the following line.
+    */
+  private def headerOnward(text: String): Option[String] =
     val lines = text.linesIterator.map(_.trim).take(50).toList
     val body = lines match
       case "---" :: rest => rest.dropWhile(_ != "---").drop(1)
       case _             => lines
-    body
-      .find(l => l.nonEmpty && !l.startsWith("%%"))
-      .map(_.toLowerCase)
-      .flatMap(header => KindByPrefix.collectFirst { case (p, kind) if header.startsWith(p) => kind })
+    val header = body.indexWhere(l => l.nonEmpty && !l.startsWith("%%"))
+    Option.when(header >= 0)(body.drop(header).mkString("\n").toLowerCase)
+
+  /** A directive at the top is Mermaid's alone, and settles it even when the
+    * header keyword that follows is one we do not know.
+    */
+  private def hasLeadingDirective(text: String): Boolean =
+    text.linesIterator.map(_.trim).take(50).find(_.nonEmpty).exists(_.startsWith("%%{"))
+
+  /** Whether `header` opens with `prefix` AS THIS LANGUAGE'S KEYWORD.
+    *
+    * Plain `startsWith` everywhere except `graph <dir>`, the one point where the
+    * two vocabularies collide: `graph LR { a -- b }` is an UNDIRECTED DOT GRAPH
+    * NAMED LR, not a left-to-right flowchart. Two things tell them apart and
+    * both are needed — DOT's graph name is an identifier that a direction may
+    * merely prefix (`graph LRX`), and DOT opens a brace where Mermaid's header
+    * simply ends (a same-line Mermaid statement follows a `;`, never a `{`).
+    */
+  private def declares(header: String, prefix: String): Boolean =
+    header.startsWith(prefix) && (!prefix.startsWith("graph ") || {
+      val rest = header.drop(prefix.length)
+      rest.headOption.forall(c => !isIdentifierChar(c)) &&
+      !rest.dropWhile(_.isWhitespace).startsWith("{")
+    })
 
   /** The diagram's declared title, when the source carries one: a YAML-frontmatter
     * `title:` entry, or a standalone `title <text>` line (gantt, journey, C4, timeline,

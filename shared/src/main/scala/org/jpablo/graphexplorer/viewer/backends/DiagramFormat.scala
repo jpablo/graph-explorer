@@ -13,10 +13,11 @@ object DiagramFormat:
 
   /** Detect the diagram format from the input text.
     *
-    * Detection rules:
-    *   - Mermaid: starts with a known Mermaid diagram-kind prefix (the catalogue lives with
-    *     the rest of the Mermaid grammar knowledge in [[mermaid.MermaidSourceScan]])
-    *   - DOT: starts with digraph, graph (not followed by mermaid direction), strict digraph, strict graph
+    * Detection rules, in order:
+    *   - Mermaid: a known diagram-kind header, or a leading `%%{…}%%` directive
+    *     (the catalogue lives with the rest of the Mermaid grammar knowledge in
+    *     [[mermaid.MermaidSourceScan]])
+    *   - DOT: a `digraph`/`graph` declaration, optionally `strict`
     *   - Default: DOT (backward compatibility)
     */
   def detect(text: String): DiagramFormat =
@@ -32,15 +33,10 @@ object DiagramFormat:
     * the user picked by hand.
     */
   def declared(text: String): Option[DiagramFormat] =
-    val trimmed = text.trim.toLowerCase
-    val isMermaid =
-      mermaid.MermaidSourceScan.looksLikeMermaid(trimmed) || {
-        val firstContent = trimmed.linesIterator
-          .map(_.trim)
-          .dropWhile(line => line.isEmpty || (line.startsWith("%%") && !line.startsWith("%%{")))
-          .nextOption()
-          .getOrElse("")
-        mermaid.MermaidSourceScan.looksLikeMermaid(firstContent)
-      }
-    if isMermaid then Some(Mermaid)
+    // Each scanner is handed the RAW text and skips whatever its own grammar
+    // says to skip — frontmatter and `%%` comments for Mermaid, comment lines
+    // ahead of the declaration for DOT. This used to pre-lowercase and hand
+    // Mermaid a first-content-line it had guessed at, which meant the skipping
+    // rules lived half here and half in the scanner.
+    if mermaid.MermaidSourceScan.looksLikeMermaid(text) then Some(Mermaid)
     else Option.when(graphviz.DotSourceScan.diagramKind(text).isDefined)(DOT)

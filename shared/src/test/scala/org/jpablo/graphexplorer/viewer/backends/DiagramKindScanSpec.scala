@@ -36,6 +36,18 @@ class DiagramKindScanSpec extends FunSuite:
   test("mermaid: an unknown header is no kind"):
     assertEquals(MermaidSourceScan.diagramKind("something else entirely"), None)
 
+  test("mermaid: `graph <dir>` yields to DOT when the text is a DOT declaration"):
+    // Same rule that keeps DiagramFormat from calling these Mermaid — asserted
+    // here too because THIS is the scanner that decides, and the library card's
+    // kind badge reads it directly.
+    assertEquals(MermaidSourceScan.diagramKind("graph LR { a -- b }"), None)
+    assertEquals(MermaidSourceScan.diagramKind("graph TD\n{\n  a -- b\n}"), None)
+    assertEquals(MermaidSourceScan.diagramKind("graph LRX\n  A --> B"), None)
+    assertEquals(MermaidSourceScan.diagramKind("graph LR; A{Decision} --> B"), Some("flowchart"))
+
+  test("mermaid: frontmatter with no diagram after it is no kind"):
+    assertEquals(MermaidSourceScan.diagramKind("---\ntitle: notes\n---\njust prose"), None)
+
   // ---------------- DOT ----------------
 
   test("dot: digraph vs graph, case-independent"):
