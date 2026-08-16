@@ -94,7 +94,7 @@ tmpfile="$(mktemp /tmp/gx-disk-to-ui-XXXXXX.dot)"
 printf 'digraph G {\n  n0 -> n0\n}\n' > "${tmpfile}"
 
 watch_json="$(api_watch "${tmpfile}")"
-last_revision="$(jq -r '.revision' <<<"${watch_json}")"
+last_revision="$(jq -r '.watch.revision' <<<"${watch_json}")"
 echo "watch established at revision ${last_revision}; running ${SAMPLES} samples (budget ${MEDIAN_BUDGET_MS}ms median)"
 
 api_port="$(jq -r '.port' "${RUNTIME_FILE}")"
