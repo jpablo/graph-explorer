@@ -529,9 +529,14 @@ Two findings worth carrying forward:
   must survive that *and* a later Scala.js cross-build. Diagram files are
   kilobytes. Revisit only if hashing appears in a profile.
 
-Still to do before P1 closes: the **library store** (`Diagram`/`Binding` records
-on disk, `sources-and-library-architecture.md` §6) and migration from
-`localStorage` (§9).
+The **library store** and **`localStorage` migration** are in (§6, §9). Records
+are one file per diagram, the listing is derived by scanning, and `folders.json`
+carries only what scanning cannot recover. Migration never deletes or
+overwrites, takes its idempotence from a derived id rather than a "have I run?"
+flag, and refuses to let an empty or unparseable directory touch a populated
+library — the hazard `ProjectsStorage` already carries guards for.
+
+**P1 is complete.** 96 tests in `gx-core`; full build green at 1956.
 
 **P2 — Content-addressed revisions (D1).** BLAKE3 in place of the counter.
 Removes the watch-registry-as-store coupling; `gx get` works on unwatched paths.
