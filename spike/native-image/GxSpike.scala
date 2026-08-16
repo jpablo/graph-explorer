@@ -101,6 +101,28 @@ private val sampleDot =
   // the runner, not the binary. (parse - noop) is the part this code controls.
   if args.contains("--bench-noop") then sys.exit(0)
 
+  // Attribution. The process-level delta (parse - noop) came back at 0.2ms on a
+  // dev laptop and 79.6ms on a Linux CI runner — 400x, which CPU speed alone
+  // cannot explain. This splits that delta into the two things hiding inside it:
+  //
+  //   init  — first touch of the parser's object graph (fastparse combinators,
+  //           top-level vals). A per-process cost a CLI pays on every run, and a
+  //           cost GraalVM may pay at BUILD time instead, depending on version —
+  //           which would explain a gap that tracks the toolchain, not the CPU.
+  //   parse — the second parse, with everything already initialized.
+  //
+  // If init dominates, the fix is build-time initialization, not a bigger budget.
+  if args.contains("--bench-attribute") then
+    val t0 = System.nanoTime()
+    DotParser.parse(sampleDot)
+    val t1 = System.nanoTime()
+    DotParser.parse(sampleDot)
+    val t2 = System.nanoTime()
+    val initMs   = (t1 - t0) / 1e6
+    val parseMs  = (t2 - t1) / 1e6
+    println(f"init+first-parse ${initMs}%.2fms  steady-state-parse ${parseMs}%.2fms")
+    sys.exit(0)
+
   println(s"gx native-image P0 gate — ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
   val tmp = Files.createTempDirectory("gx-spike")
 

@@ -127,6 +127,12 @@ print(f"{noop:.1f} {parse:.1f} {max(parse - noop, 0.0):.1f}")
 PY
 )"
 
+# --- 4b. attribute the delta ------------------------------------------------
+# Splits (parse - noop) into first-touch initialization vs steady-state parsing,
+# measured inside the process. If init dominates, the answer is build-time class
+# initialization (-H:+... / --initialize-at-build-time), not a larger budget.
+ATTRIB=$("$BIN" --bench-attribute 2>/dev/null || echo "unavailable")
+
 # --- 5. report --------------------------------------------------------------
 BUILD_S=$(python3 -c "print(f'{$BUILD_END - $BUILD_START:.0f}')")
 SIZE=$(ls -lh "$BIN" | awk '{print $5}')
@@ -136,9 +142,11 @@ echo "=== P0 result: $(uname -s) $(uname -m) ==="
 echo "  binary          $SIZE"
 echo "  build time      ${BUILD_S}s"
 echo "  ${PEAK_RSS:-peak RSS  not reported}   (adaptive — native-image sizes its heap to available RAM)"
+echo "  graal           $(grep -oE "GraalVM.*(CE|EE)[^']*" "$BUILD_LOG" | tail -1 || echo unknown)"
 echo "  spawn baseline  ${NOOP_MS}ms   (the machine's process-spawn tax, not ours)"
 echo "  parse-only      ${PARSE_MS}ms"
 echo "  parse cost      ${DELTA_MS}ms (budget ${STARTUP_BUDGET_MS}ms)  <- the gated number"
+echo "  attribution     ${ATTRIB}"
 
 # The checks program already exited non-zero on failure; the parse-cost budget
 # is the one gate this script adds.
