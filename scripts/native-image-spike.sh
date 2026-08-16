@@ -24,6 +24,12 @@ BUILD_LOG="$ROOT/target/native-image-build.log"
 # The V-14 budget: a parse-only command must stay under this, at any graph size.
 STARTUP_BUDGET_MS=20
 
+# Pinned deliberately. scala-cli documents 22.3.1 as its default and resolved
+# exactly that on a dev laptop, while every CI runner resolved GraalVM CE
+# 17.0.9 — so "the same command" was building with two different compilers, and
+# the resulting numbers were being compared as if it were one.
+GRAALVM_VERSION=17.0.9
+
 echo "=== P0: native-image gate on $(uname -s) $(uname -m) ==="
 
 # --- 0. locate scala-cli ----------------------------------------------------
@@ -74,11 +80,29 @@ EXPECTED=$(tr "$SEP" '\n' < "$CP_FILE" | grep -c .)
 # which everything linking shared/ inherits (D2.1).
 echo "--- building native image (scala-cli fetches GraalVM on first run)"
 BUILD_START=$(python3 -c 'import time; print(time.time())')
+# --no-fallback is the whole point of this gate. Without it, native-image
+# responds to un-configured reflection (scala.Enumeration, reached through the
+# parser) by silently emitting a FALLBACK IMAGE — a JVM launcher wearing the
+# output filename. It runs, it parses DOT correctly, it passes every check
+# below, and it is not a native binary. Three CI runs measured one before
+# anyone noticed. Fail the build instead.
 (cd "$SPIKE" && "$SCALA_CLI" --power package GxSpike.scala \
   --scala 3.7.1 -O -experimental \
   "${JAR_ARGS[@]}" \
-  --native-image -o gx-spike -f) 2>&1 | tee "$BUILD_LOG"
+  --native-image --graalvm-version "$GRAALVM_VERSION" \
+  --graalvm-args --no-fallback \
+  -o gx-spike -f) 2>&1 | tee "$BUILD_LOG"
 BUILD_END=$(python3 -c 'import time; print(time.time())')
+
+# Belt and braces: --no-fallback should make the build fail outright, but assert
+# on the log too, so a future flag change cannot quietly restore the old
+# behaviour.
+if grep -qiE "Generating fallback image|Aborting stand-alone image build" "$BUILD_LOG"; then
+  echo
+  echo "FAIL: native-image fell back to a JVM launcher instead of a native binary."
+  grep -iE "Aborting stand-alone|reflection use without config|Reflection method" "$BUILD_LOG" | head -5 | sed 's/^/    /'
+  exit 1
+fi
 
 BIN="$SPIKE/gx-spike"
 [ -x "$BIN" ] || BIN="$SPIKE/gx-spike.exe"
