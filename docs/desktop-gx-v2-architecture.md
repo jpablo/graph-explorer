@@ -511,10 +511,27 @@ peak RSS is adaptive rather than a requirement, and the gate must assert it is
 measuring a real native binary — plus two platform facts now carried as V-16
 and V-17.
 
-**P1 — `gx-core` in Scala.** New cross-compiled module depending on `shared`.
-Policy, document, watch, store, audit. Land V-01..V-08 as MUnit tests —
-including the three that currently fail (V-03, V-04, V-06). No behavior change
-to the shipped desktop yet.
+**P1 — `gx-core` in Scala. ✅ Engine landed.** Cross-compiled module depending on
+`shared`: pure model in `shared/` (content hashes, origin URIs, sync modes, the
+three-hash reconciliation), everything doing I/O in `jvm/`. V-01..V-08 and V-16
+are MUnit tests, including the three v1 fails — V-03 (`main.rs:1076` chmod'ed
+saved files to 0600), V-04 (line endings), V-06 (deletion produced silence).
+
+Two findings worth carrying forward:
+
+- **V-04 is load-bearing, not politeness.** A revision is the hash of the bytes,
+  so writing LF into a CRLF file changes the document's identity without
+  changing anything the user typed. Two tools could then bounce a diagram
+  between two hashes indefinitely, each seeing the other as the editor. Tested
+  directly: rewriting identical content must not change the hash.
+- **SHA-256, not D1's BLAKE3.** `MessageDigest` ships with the JDK and P0 proved
+  it survives native-image on three platforms; BLAKE3 would be a dependency that
+  must survive that *and* a later Scala.js cross-build. Diagram files are
+  kilobytes. Revisit only if hashing appears in a profile.
+
+Still to do before P1 closes: the **library store** (`Diagram`/`Binding` records
+on disk, `sources-and-library-architecture.md` §6) and migration from
+`localStorage` (§9).
 
 **P2 — Content-addressed revisions (D1).** BLAKE3 in place of the counter.
 Removes the watch-registry-as-store coupling; `gx get` works on unwatched paths.
