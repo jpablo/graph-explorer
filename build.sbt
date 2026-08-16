@@ -27,6 +27,16 @@ scalacOptions ++= // Scala 3.x options
     "-preview"
   )
 
+// P0 gate for the v2 redesign (docs/desktop-gx-v2-architecture.md D2): the
+// native-image spike needs sharedJVM's runtime classpath as literal paths.
+// sbt 2's `export` and `show` both emit ${OUT}/${CSR_CACHE} placeholders, whose
+// expansions differ across the three CI runners. Retire together with
+// spike/native-image once P0 is settled either way.
+// Writes to a fixed path rather than returning one: sbt 2 refuses to cache a
+// task whose result type is File/Path.
+lazy val nativeImageClasspath =
+  taskKey[Unit]("Write this project's runtime classpath to target/native-image-classpath.txt")
+
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .enablePlugins(DynVerPlugin, BuildInfoPlugin)
@@ -59,6 +69,16 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
       "-Yimports:java.lang,scala,scala.Predef,com.softwaremill.quicklens"
     ),
     testFrameworks := Seq(new TestFramework("munit.Framework"))
+  ).jvmSettings(
+    nativeImageClasspath := {
+      // sbt 2 hands back xsbti.HashedVirtualFileRef, not File; fileConverter
+      // is what turns those back into real paths on disk.
+      val conv = fileConverter.value
+      val out  = (ThisBuild / baseDirectory).value / "target" / "native-image-classpath.txt"
+      val cp   = (Compile / fullClasspath).value.map(a => conv.toPath(a.data).toAbsolutePath.toString)
+      IO.write(out, cp.mkString(java.io.File.pathSeparator))
+      streams.value.log.info(s"wrote ${cp.length} classpath entries to $out")
+    }
   ).jsSettings(
     // JS-specific settings
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },

@@ -1,0 +1,87 @@
+# P0 gate for the desktop + gx v2 redesign.
+#
+# docs/desktop-gx-v2-architecture.md D2 decides that `gx` is rewritten in Scala
+# and shipped as a GraalVM native-image binary. D2.1 measured that on macOS/ARM
+# and named what it could not verify from one machine:
+#
+#   - do Linux and Windows build at all
+#   - does peak build RSS fit a standard runner (macOS came in at ~5.7GB
+#     against 7GB, which is the tightest number in the whole decision)
+#   - does java.nio file I/O — fsync, ATOMIC_MOVE, POSIX permissions,
+#     toRealPath — survive native-image
+#
+# This workflow answers those three. If it fails, D2 does not hold as written
+# and the fallback is a `gx serve` daemon with a thin client.
+#
+# Manual dispatch only: it is a decision gate, not a per-commit check, and it
+# costs ~5 minutes of runner time per platform.
+
+name: native-image spike (P0)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'spike/native-image/**'
+      - 'scripts/native-image-spike.sh'
+      - '.github/workflows/native-image-spike.yml'
+
+jobs:
+  spike:
+    name: P0 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # The point is to compare all three platforms in one run. One failing
+      # must not hide the others' results — that is the entire question.
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Set up scala-cli
+        # scala-cli fetches its own GraalVM for --native-image, so no separate
+        # graalvm setup step is needed.
+        uses: VirtusLab/scala-cli-setup@v1
+
+      - name: Report runner capacity
+        # Peak build RSS against available memory is the number D2.1 flagged as
+        # the likeliest reason to fail, so record the denominator explicitly.
+        shell: bash
+        run: |
+          echo "=== ${{ matrix.os }} ==="
+          python3 -c "import shutil; print('disk free:', round(shutil.disk_usage('.').free / 2**30, 1), 'GB')"
+          case "$(uname -s)" in
+            Linux)  free -g | awk '/^Mem:/{print "total memory: "$2" GB"}' ;;
+            Darwin) echo "total memory: $(( $(sysctl -n hw.memsize) / 1024 / 1024 / 1024 )) GB" ;;
+            *)      wmic computersystem get TotalPhysicalMemory 2>/dev/null || echo "total memory: unknown" ;;
+          esac
+          nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "cpus: unknown"
+
+      - name: Run the P0 gate
+        shell: bash
+        run: ./scripts/native-image-spike.sh
+
+      - name: Upload build log
+        # The log carries native-image's own "Peak RSS" line, which is the
+        # portable way to compare the three platforms.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-image-build-log-${{ matrix.os }}
+          path: target/native-image-build.log
+          if-no-files-found: warn
