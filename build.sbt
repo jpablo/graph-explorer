@@ -114,6 +114,31 @@ lazy val graphviz = crossProject(JSPlatform, JVMPlatform)
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
   )
 
+// The local-capabilities engine: policy, documents, watching, the library store
+// and the audit log. See docs/desktop-gx-v2-architecture.md D2.2.
+//
+// CrossType.Full because the split is real, not incidental. `shared/` holds the
+// model — content hashes, origin URIs, sync modes and the three-hash
+// reconciliation — which the viewer needs and which touches no filesystem.
+// `jvm/` holds everything that does I/O, and has no business being linked into a
+// webview that D3 treats as an untrusted principal.
+lazy val gxCore = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Full)
+  .in(file("gx-core"))
+  .dependsOn(shared)
+  .settings(
+    name                     := "gx-core",
+    Test / parallelExecution := false,
+    libraryDependencies ++= Seq(
+      "org.scalameta" %% "munit"            % "1.0.0" % Test,
+      "org.scalameta" %% "munit-scalacheck" % "1.0.0" % Test
+    ),
+    testFrameworks := Seq(new TestFramework("munit.Framework"))
+  )
+  .jsSettings(
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
+  )
+
 lazy val viewer =
   project
     .in(file("viewer"))
@@ -189,7 +214,7 @@ lazy val viewer =
 lazy val root =
   project
     .in(file("."))
-    .aggregate(viewer, shared.js, shared.jvm, graphviz.js, graphviz.jvm)
+    .aggregate(viewer, shared.js, shared.jvm, graphviz.js, graphviz.jvm, gxCore.js, gxCore.jvm)
     .settings(
       name := "graph-explorer",
       welcomeMessage
