@@ -1,6 +1,6 @@
 # Local Capabilities v1 Implementation Plan
 
-Last updated: 2026-08-15
+Last updated: 2026-08-16
 Related architecture:
 - `docs/local-capabilities-v1-architecture.md`
 
@@ -28,10 +28,13 @@ Ship a v1 local-capabilities stack for Graph Explorer with:
 
 ## Tracking Snapshot
 
-Current phase: `Phase 5`
-Current focus: `LC5-T2`
-Resume from: `LC5-T2 - dispatch local-capabilities-smoke.yml for a green Windows
-runtime smoke against the path-decoding fix, then close LC5-T4`
+Current phase: `Phase 5` — complete
+Current focus: `none — the Task Board is fully ✅`
+Resume from: `no task-board work is open. The one unclaimed area is the Test
+Matrix below: LC-INV-01..10 are all still` todo. `Those invariants are
+exercised today only as a side effect of the smoke scripts, not asserted
+directly, so a regression in one would surface as a confusing smoke failure
+rather than a named test.`
 
 ## Proposed Repository Layout
 
@@ -67,10 +70,10 @@ Notes:
 
 | ID | Workstream | Task | Status | Dependencies | Acceptance Criteria | Evidence | Notes |
 |---|---|---|---|---|---|---|---|
-| LC0-T1 | WS1 | Bootstrap `desktop/` Tauri app and launch Graph Explorer UI | in_progress | none | Desktop opens and renders current viewer build | scaffold added + `cd desktop/src-tauri && cargo check` (green) | Need runtime launch verification against dev server |
+| LC0-T1 | WS1 | Bootstrap `desktop/` Tauri app and launch Graph Explorer UI | ✅ | none | Desktop opens and renders current viewer build | Release binary launched 2026-08-16: control API reachable (`gx status` -> `running: true`), and the freshly built `dist/assets/index-*.js` is present in the binary, i.e. the embedded frontend loads rather than `devUrl` | The runtime launch verification this row was waiting on |
 | LC0-T2 | WS4 | Bootstrap `gx` binary with `status` command and structured output | ✅ | LC0-T1 | `gx status` can report "desktop not running" cleanly | `cd gx && cargo check` (green); `cargo run -- status --json` returns `DESKTOP_NOT_RUNNING` with exit code `2` | Exit code mapping started (`0`, `2`, `6`) |
 | LC0-T3 | WS3 | Define protocol v1 schema (watch/document/status/events + errors) | ✅ | LC0-T1, LC0-T2 | Versioned schema checked in and consumed by desktop + CLI | Added `local-protocol/v1/schema.json` and `local-protocol/README.md` | Schema baseline is doc-first in this phase |
-| LC0-T4 | WS7 | Add CI target for desktop+CLI compile smoke tests | in_progress | LC0-T1, LC0-T2 | CI fails on desktop/CLI compile errors | Added `.github/workflows/local-capabilities-smoke.yml` with `cargo check --locked` for desktop+gx | Await first CI execution on PR/push |
+| LC0-T4 | WS7 | Add CI target for desktop+CLI compile smoke tests | ✅ | LC0-T1, LC0-T2 | CI fails on desktop/CLI compile errors | `local-capabilities-smoke.yml` executes (run 31934667443, all jobs green) and its Rust job now runs `cargo test --locked`, not just `cargo check`. A Rust job was also added to `ci.yml`, which is the only workflow that runs on `viewer` | The awaited first CI execution has happened |
 | LC1-T1 | WS3 | Implement runtime discovery file (`~/.graph-explorer/runtime/control.json`) | ✅ | LC0-T3 | Desktop writes pid/port/token/version on startup | Built and launched `target/debug/graph-explorer-desktop`; confirmed runtime file fields (`pid`, `port`, `token`, `version`) | File writes are atomic with owner-only permissions on unix |
 | LC1-T2 | WS3 | Add loopback HTTP API skeleton with bearer-token auth | ✅ | LC1-T1 | Unauthorized requests rejected; valid token accepted | Started desktop binary, verified `GET /v1/status` returns `401` without token and `200` with bearer token | Server binds to `127.0.0.1:<runtime-port>` |
 | LC1-T3 | WS4 | Implement CLI desktop discovery + optional launch flow | ✅ | LC1-T1, LC1-T2 | `gx status` connects without manual port flags | `gx status --json` discovers `~/.graph-explorer/runtime/control.json` and reports `running: true` while desktop is up | Optional auto-launch path deferred to later iteration |
@@ -91,9 +94,9 @@ Notes:
 | LC4-T3 | WS6 | Add request limits (payload size, local rate limiting) | ✅ | LC1-T2 | Oversized/abusive requests rejected safely | Added configurable limits (`GX_MAX_REQUEST_BODY_BYTES`, `GX_RATE_LIMIT_MAX_REQUESTS`, `GX_RATE_LIMIT_WINDOW_MS`) with `413 PAYLOAD_TOO_LARGE` and `429 RATE_LIMITED` responses | `scripts/local-capabilities-limits-smoke.sh` passed; phase3/policy smoke scripts remained green afterward |
 | LC4-T4 | WS6 | Add structured local audit log (watch/add/write/conflict) | ✅ | LC2-T1, LC3-T3 | Log entries include timestamp, action, path, source | Added append-only JSONL audit log at `~/.graph-explorer/runtime/audit.log.jsonl` with events for `watch.added`, `watch.removed`, `watch.rejected`, `document.written`, `document.conflict`, and rate-limit rejections | Content bodies are not logged (metadata-only records) |
 | LC5-T1 | WS7 | Regression pass: `sbt test`, desktop+CLI tests, `npm run build` | ✅ | LC3-T6, LC4-T4 | Full validation suite green | `sbt test` passed; smoke scripts `local-capabilities-phase3-smoke.sh`, `local-capabilities-policy-smoke.sh`, `local-capabilities-limits-smoke.sh` passed; `npm run build` passed | Build emitted known non-blocking chunk-size warnings |
-| LC5-T2 | WS7 | Packaging smoke test for macOS/Linux/Windows desktop binaries | in_progress | LC5-T1 | Build artifacts run and connect to `gx` | macOS/Linux runtime smoke green in CI. Windows blocker fixed 2026-08-15 (URL decoding in `GET /v1/document`, not path normalization) and its smoke step is blocking again in both workflows; local evidence = 11 desktop unit tests + all four smoke scripts green against release binaries | Awaiting one green Windows run to close; dispatch `local-capabilities-smoke.yml` |
+| LC5-T2 | WS7 | Packaging smoke test for macOS/Linux/Windows desktop binaries | ✅ | LC5-T1 | Build artifacts run and connect to `gx` | Run 31934667443 of `local-capabilities-smoke.yml`: all three platforms build a production desktop and pass their runtime smoke, Windows included (`status`/`watch`/`get`/`set`/stale-conflict `5`/`unwatch`). macOS and Linux also pass the LC2-T5 disk->UI smoke | Every platform's smoke is now a blocking gate; none carry `continue-on-error` |
 | LC5-T3 | WS7 | Docs/user guide updates (desktop install + CLI quickstart) | ✅ | LC5-T2 | Users can complete first watch/edit flow from docs | Added `docs/local-capabilities-v1-quickstart.md` with release-binary setup, first watch/edit flow, policy env options, audit log location, and troubleshooting | Includes conflict, auth, payload, and rate-limit troubleshooting paths |
-| LC5-T4 | WS7 | v1 release checklist and go/no-go review | in_progress | LC5-T1, LC5-T2, LC5-T3 | Risks and residual gaps documented | Added `docs/local-capabilities-v1-go-no-go.md` with conditional no-go decision and explicit residual risk inventory | Final go/no-go blocked on LC5-T2 cross-platform packaging smoke |
+| LC5-T4 | WS7 | v1 release checklist and go/no-go review | ✅ | LC5-T1, LC5-T2, LC5-T3 | Risks and residual gaps documented | `docs/local-capabilities-v1-go-no-go.md` records **Go for macOS, Linux and Windows** with no residual gaps; the one blocking defect was root-caused and fixed | Decision moved from Conditional No-Go once Windows went green |
 
 ## Phase Plan and Gates
 
@@ -245,3 +248,4 @@ flowchart TD
 | 2026-03-01 | Drafted go/no-go review with validated scope, explicit residual risks, and release recommendation | LC5-T4 (in progress) | Created `docs/local-capabilities-v1-go-no-go.md` with conditional no-go pending cross-platform packaging smoke completion | LC5-T2 |
 | 2026-03-01 | Added cross-platform release packaging CI matrix and reusable release runtime smoke script | LC5-T2 (in progress) | Updated `.github/workflows/local-capabilities-smoke.yml` with macOS/Linux/Windows release build matrix + runtime smoke steps per OS; `scripts/local-capabilities-release-smoke.sh` passes locally | LC5-T2 |
 | 2026-08-15 | Fixed the Windows blocker: `GET /v1/document` decoded its `path` query parameter by replacing `%2F` only, so anything else escaped (a space, and every separator of a canonical Windows path) never matched the watch registry. Now decodes with `urlencoding::decode`, the inverse of gx's encode. Made both Windows smoke steps blocking; added a Rust job to `ci.yml`, which is the only workflow that runs on `viewer` | LC5-T2 (in progress), LC5-T4 (in progress) | Reproduced end-to-end on macOS with a spaced path (`watch` exit 0, `get` exit 4) and confirmed exit 0 after the fix; 11 new desktop unit tests pass; release-binary runs of the release/phase3/policy/limits smoke scripts all pass; disk->UI median 74ms (budget 300ms) | LC5-T2 - green Windows runtime smoke |
+| 2026-08-16 | Windows runtime smoke passed on `windows-latest` for the first time, against the path-decoding fix. Closed Phase 5 and the v1 go/no-go | LC5-T2 (✅), LC5-T4 (✅) | Run 31934667443: Windows step 13 `success` with no `continue-on-error`; macOS and Linux green in the same run; CI run 31934665609 green on `viewer` | nothing open |

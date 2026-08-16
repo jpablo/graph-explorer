@@ -1,8 +1,18 @@
 # Local Capabilities v1 Go/No-Go Review
 
-Last updated: 2026-08-15
-Decision status: **Go for macOS and Linux. Windows: defect fixed, awaiting its
-first green CI run** (the gate is now blocking, so that run is the evidence)
+Last updated: 2026-08-16
+Decision status: **Go — macOS, Linux, and Windows**
+
+> 2026-08-16: Windows is green. Run 31934667443 of
+> `local-capabilities-smoke.yml` on `windows-latest` built the production
+> desktop and `gx`, then passed the runtime smoke end to end —
+> `status` -> `watch` -> `get` -> `set` -> stale write returning exit `5` ->
+> `unwatch`. The `get` that had returned exit `4` since May now succeeds. That
+> step carries no `continue-on-error`, so its success is a real gate, not a
+> reported warning. macOS and Linux passed the same run, including the
+> disk -> UI latency smoke (LC2-T5).
+>
+> This closes the last open item. LC5-T2 and LC5-T4 are complete.
 
 > 2026-08-15 update: the Windows path defect is **fixed**. Root cause was not
 > path normalization at all — it was URL decoding.
@@ -77,13 +87,9 @@ CI (`.github/workflows/local-capabilities-smoke.yml`), production builds
 - cross-platform packaging smoke status:
   - macOS desktop binary validated in runtime flow
   - Linux desktop binary validated in runtime flow
-  - Windows: the defect that failed its runtime smoke is fixed and the step is
-    now blocking, but no Windows run has executed against the fix yet. The fix
-    is verified by unit tests covering Windows-shaped paths and by an
-    equivalent end-to-end reproduction on macOS (a path containing a space
-    fails identically before the fix, passes after). Dispatch
-    `local-capabilities-smoke.yml` before the next tag to confirm on a real
-    Windows runner.
+  - Windows desktop binary validated in runtime flow (run 31934667443)
+
+No residual gaps block v1 on any of the three platforms.
 - browser-driven interactive desktop automation remains limited:
   - command-path and API-path are covered
   - full GUI automation coverage is still optional hardening, not blocking correctness of protocol path
@@ -101,11 +107,10 @@ CI (`.github/workflows/local-capabilities-smoke.yml`), production builds
 
 ## Recommendation
 
-Go for macOS and Linux v1 (production desktop + runtime validated in CI).
-
-Windows: the blocking defect is fixed and its smoke step is blocking again.
-Promote to Go once that step has passed once on `windows-latest` — dispatch
-`local-capabilities-smoke.yml` to get that evidence without cutting a tag.
+Go for v1 on macOS, Linux, and Windows. All three build a production desktop
+and pass the runtime smoke in CI, and each platform's smoke is a blocking
+publish gate — a regression withholds that platform's binaries rather than
+shipping them.
 
 Known limitations regardless of platform:
 
