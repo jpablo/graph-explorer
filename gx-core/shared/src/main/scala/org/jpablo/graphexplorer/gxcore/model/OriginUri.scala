@@ -139,3 +139,10 @@ object OriginUri:
         else decoded
 
   given CanEqual[OriginUri, OriginUri] = CanEqual.derived
+
+  /** Stored as the canonical string. Reading does NOT re-canonicalize: a record
+    * written on one machine may name a path that does not exist on this one, and
+    * silently rewriting it would change the identity the record is keyed by.
+    */
+  given upickle.default.ReadWriter[OriginUri] =
+    upickle.default.readwriter[String].bimap[OriginUri](_.value, identity)

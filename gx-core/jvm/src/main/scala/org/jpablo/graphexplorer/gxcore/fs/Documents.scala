@@ -2,11 +2,8 @@ package org.jpablo.graphexplorer.gxcore.fs
 
 import org.jpablo.graphexplorer.gxcore.model.ContentHash
 
-import java.nio.ByteBuffer
-import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
-import java.nio.file.attribute.PosixFilePermission
-import java.nio.file.{Files, Path, StandardCopyOption, StandardOpenOption}
+import java.nio.file.{Files, Path}
 import scala.util.control.NonFatal
 
 /** A document as it exists on disk right now. */
@@ -85,51 +82,8 @@ object Documents:
     attempt(path):
       val encoded = lineEnding.applyTo(text)
       val bytes   = encoded.getBytes(StandardCharsets.UTF_8) // V-16
-      writeAtomic(path, bytes)
+      AtomicFiles.write(path, bytes)
       Document(path, encoded, Hashing.ofBytes(bytes), lineEnding)
-
-  /** Write via a temp file in the SAME directory, fsync it, then rename over the
-    * target (V-02). Same directory because `ATOMIC_MOVE` is only atomic within a
-    * filesystem; a temp in `/tmp` can land on a different one and degrade to a
-    * copy, which is exactly the non-atomic write this avoids.
-    *
-    * v1 did `fs::write` + `rename` with no fsync, so a crash between the two
-    * could leave the rename durable and the contents not. The `force(true)` is
-    * that fix.
-    *
-    * Not done: fsync of the parent directory, which would also make the rename
-    * itself durable. Java exposes no portable way to do it, and the exposure is
-    * a crash in the window between rename and the OS flushing metadata.
-    */
-  private def writeAtomic(path: Path, bytes: Array[Byte]): Unit =
-    val dir  = Option(path.getParent).getOrElse(path.toAbsolutePath.getParent)
-    val temp = Files.createTempFile(dir, s".${path.getFileName}.", ".tmp")
-    try
-      val channel = FileChannel.open(temp, StandardOpenOption.WRITE)
-      try
-        channel.write(ByteBuffer.wrap(bytes))
-        channel.force(true)
-      finally channel.close()
-
-      // V-03: keep the target's permission bits. v1 chmod'ed every file it wrote
-      // to 0600 (main.rs:1076), so one Cmd+S silently made a group-readable
-      // diagram owner-only — a change the user never asked for and would not
-      // think to look for.
-      permissionsOf(path).foreach: perms =>
-        try Files.setPosixFilePermissions(temp, perms)
-        catch case NonFatal(_) => () // best effort; must never fail a write
-
-      Files.move(temp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-    catch
-      case NonFatal(e) =>
-        Files.deleteIfExists(temp) // never leave a .tmp behind on failure
-        throw e
-
-  private def permissionsOf(path: Path): Option[java.util.Set[PosixFilePermission]] =
-    if !Files.exists(path) then None
-    else
-      try Some(Files.getPosixFilePermissions(path))
-      catch case _: UnsupportedOperationException => None // Windows has no POSIX view
 
   private def attempt[A](path: Path)(body: => A): Either[DocumentError, A] =
     try Right(body)

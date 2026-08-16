@@ -24,6 +24,15 @@ enum SyncMode derives CanEqual:
   case Sync
 
 object SyncMode:
+  /** Stored by name, so adding a mode does not renumber the existing ones. An
+    * unrecognised name reads as Detached: a record written by a newer version
+    * must not start syncing under a mode this one does not understand.
+    */
+  given upickle.default.ReadWriter[SyncMode] =
+    upickle.default
+      .readwriter[String]
+      .bimap[SyncMode](_.toString, s => values.find(_.toString == s).getOrElse(Detached))
+
   extension (m: SyncMode)
     def pulls: Boolean = m match
       case Pull | Sync           => true

@@ -34,3 +34,6 @@ object ContentHash:
   extension (h: ContentHash) def hex: String = h
 
   given CanEqual[ContentHash, ContentHash] = CanEqual.derived
+
+  given upickle.default.ReadWriter[ContentHash] =
+    upickle.default.readwriter[String].bimap[ContentHash](_.hex, fromHex)
