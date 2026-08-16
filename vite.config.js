@@ -1,5 +1,8 @@
 import {defineConfig} from "vite";
-import scalaJSPlugin from "@scala-js/vite-plugin-scalajs";
+// Local resolver, not `@scala-js/vite-plugin-scalajs`: the upstream plugin
+// reads the LAST line of sbt's stdout as the linker output directory, which
+// sbt 2 broke by moving its logs onto stdout. See vite-scalajs.js.
+import scalaJSPlugin from "./vite-scalajs.js";
 import tailwindcss from "@tailwindcss/vite";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 
