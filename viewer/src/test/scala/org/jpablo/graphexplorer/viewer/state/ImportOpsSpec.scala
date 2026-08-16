@@ -123,6 +123,28 @@ class ImportOpsSpec extends FunSuite with TestHelpers:
       yield ()
     }
 
+  test("auto-detect is on by default, and choosing a language by hand turns it off"):
+    withGraphvizAsync { graphviz =>
+      val dot   = "digraph G {\n  a -> b\n}"
+      val state = stateWithClipboard("auto-default", Future.failed(ClipboardUnavailable), graphviz, initialSource = Some(dot))
+
+      afterMicrotasks {
+        assert(state.autoDetectFormat.now(), "a new document follows its own language")
+        assertEquals(state.formatOption.selected.observe.now(), "Auto")
+
+        // Asserting a language has to stop the following, or auto would sit
+        // behind every manual choice waiting to overrule it — and the "wrong
+        // language" notice could never be read.
+        state.setDiagramFormat(DiagramFormat.Mermaid)
+        assert(!state.autoDetectFormat.now())
+        assertEquals(state.formatOption.selected.observe.now(), "Mermaid")
+
+        // Picking Auto again hands it back.
+        state.formatOption.select(state.formatOption.auto)
+        assert(state.autoDetectFormat.now())
+      }
+    }
+
   test("auto-detect follows the document, and only on evidence"):
     withGraphvizAsync { graphviz =>
       val dot   = "digraph G {\n  a -> b\n}"

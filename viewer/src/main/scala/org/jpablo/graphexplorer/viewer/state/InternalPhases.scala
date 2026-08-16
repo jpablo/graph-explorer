@@ -289,10 +289,15 @@ class InternalPhases(
       g.groupIds.forall(_ == GroupId(ViewerGraphElements.defaultRootId.value))
 
   /** Auto-detect: the language FOLLOWS the document instead of being asserted
-    * over it. Off by default — a document that declares nothing keeps whatever
-    * is selected, so this can only ever act on evidence.
+    * over it.
+    *
+    * ON by default, which is safe for exactly one reason: it moves only on
+    * evidence. A document that declares nothing keeps whatever is selected —
+    * this consults `declared`, never `detect`, so there is no fallback for it
+    * to yank an existing selection to. Asserting a language by hand turns it
+    * off (see `ViewerState.setDiagramFormat`).
     */
-  val autoDetectFormat: Var[Boolean] = Var(false)
+  val autoDetectFormat: Var[Boolean] = Var(true)
 
   /** Move the selection to whatever the text declares, if that is something else.
     *

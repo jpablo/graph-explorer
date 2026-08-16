@@ -49,7 +49,12 @@ trait Persistence:
       .foreach(formatSelection.set)
     // After the format, not with it: turning auto-detect on re-derives the
     // language from the text, and it should do that over the RESTORED format.
-    autoDetectFormat.set(restoredDiagramState.autoDetectFormat.getOrElse(false))
+    // `None` means "saved before the mode existed", and those projects get the
+    // default too — an explicit `Some(false)` is the only thing that keeps it
+    // off. Safe to apply retroactively because auto-detect moves only on
+    // evidence: a stored format is overruled only by a document that plainly
+    // declares a different language, which was a mislabelled project anyway.
+    autoDetectFormat.set(restoredDiagramState.autoDetectFormat.getOrElse(true))
 
     Var.set(
       project.name -> restoredDiagramState.projectName,

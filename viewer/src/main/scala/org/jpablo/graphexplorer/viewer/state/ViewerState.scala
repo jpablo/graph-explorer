@@ -122,8 +122,16 @@ case class ViewerState(
   def selectionStrategyNow(): SelectableElementStrategy = selectionStrategyObs.now()
   def graphRankDirNow(): Rankdir          = graphRankDirObs.now()
   def currentFormatNow(): DiagramFormat   = currentFormatObs.now()
+  /** Assert a language by hand — which also stops the document from choosing.
+    *
+    * The two cannot both be in charge, and the explicit instruction is the
+    * newer one. Without this, auto-detect (on by default) would sit behind
+    * every manual choice waiting to overrule it on the next keystroke, and the
+    * "wrong language selected" notice could never appear at all: the state it
+    * describes would be corrected before anyone could read it.
+    */
   def setDiagramFormat(format: DiagramFormat): Unit =
-    formatSelection.set(format)
+    Var.set(autoDetectFormat -> false, formatSelection -> format)
 
   val autoDetectFormat = phases.autoDetectFormat
 
@@ -143,13 +151,12 @@ case class ViewerState(
     val autoLabel: Signal[String] =
       currentFormat.map(format => s"$auto — ${formatInfo(format).selectorLabel}")
 
-    /** Picking a language by hand turns Auto off: the two cannot both be in
-      * charge, and the explicit choice is the newer instruction.
+    /** Picking a language by hand turns Auto off — [[setDiagramFormat]] owns
+      * that rule, so every path that asserts a language obeys it.
       */
     def select(value: String): Unit =
       if value == auto then autoDetectFormat.set(true)
-      else
-        Var.set(autoDetectFormat -> false, formatSelection -> DiagramFormat.valueOf(value))
+      else setDiagramFormat(DiagramFormat.valueOf(value))
 
   /** The title shown for this project: the user's chosen name, or — while the project is
     * still unnamed — the diagram's own declared title (Mermaid frontmatter / `title` line,
