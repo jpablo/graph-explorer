@@ -180,6 +180,21 @@ private val sampleDot =
     else Left(s"$a != $b")
   }
 
+  // Windows reports windows-1252 as its default charset, where Linux and macOS
+  // report UTF-8. Under D1 a document's revision IS the hash of its bytes, so a
+  // file decoded differently per platform hashes differently — and a diagram
+  // with an accented label would look permanently Diverged between a Windows
+  // machine and a Mac, with no edit having occurred. Every read and write on
+  // the diagram path must therefore name UTF-8 explicitly.
+  check("UTF-8 round trip, independent of the platform default charset") {
+    val f    = tmp.resolve("unicode.dot")
+    val text = "digraph G { a [label=\"café → 日本語\"]; }"
+    writeFileAtomic(f, text)
+    val back = Files.readString(f) // readString is specified as UTF-8 everywhere
+    if back == text then Right(s"${text.length} chars, ${Files.size(f)} bytes")
+    else Left(s"corrupted round trip: $back")
+  }
+
   check("watch: a poll loop observes a change (v2 §7)") {
     val f = tmp.resolve("watched.dot")
     Files.writeString(f, "digraph G { a }")
@@ -210,6 +225,16 @@ private val sampleDot =
   }
   observe("path separator / default charset") {
     s"'${java.io.File.separator}' / ${java.nio.charset.Charset.defaultCharset()}"
+  }
+  // The hazard the check above guards against, demonstrated rather than
+  // asserted: this is the idiom that silently corrupts, and it is what
+  // `scala.io.Source.fromFile(...).mkString` does.
+  observe("reading with the DEFAULT charset instead of UTF-8") {
+    val f    = tmp.resolve("unicode.dot")
+    val text = Files.readString(f)
+    val viaDefault = new String(Files.readAllBytes(f), java.nio.charset.Charset.defaultCharset())
+    if viaDefault == text then "matches UTF-8 here — but do not rely on it"
+    else "CORRUPTS non-ASCII — never read diagram text with the default charset"
   }
 
   println()

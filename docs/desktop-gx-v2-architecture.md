@@ -171,8 +171,58 @@ measurement method was.
 - The macOS runner confirms the §4.2 trap directly: `filesystem case
   sensitivity — INSENSITIVE`, against `sensitive` on Linux.
 
-Still open: **Windows has not built yet.** The first run failed before the
-compiler, on toolchain PATH rather than anything about D2.
+#### D2.1b — P0 result: the gate was measuring a JVM launcher
+
+The three runs behind D2.1a were **not testing native binaries at all.**
+native-image answers un-configured reflection — `scala.Enumeration`, reachable
+through the parser — by silently emitting a *fallback image*: a JVM launcher
+carrying the output filename. It runs, parses DOT correctly, writes atomically,
+and passes every correctness check, so nothing in the gate noticed. Building
+with `--no-fallback` turns that into a failed build (V-17).
+
+Everything D2.1a attributed to hardware or toolchain was JVM startup and class
+loading:
+
+| Linux CI | as fallback image | as real native binary |
+|---|---|---|
+| binary | 13 MB | 30 MB |
+| spawn baseline | 194.1 ms | **3.1 ms** |
+| parse-only | 269.1 ms | **3.5 ms** |
+| parse cost | 75.0 ms | **0.4 ms** |
+| init + first parse | 77.22 ms | **0.36 ms** |
+
+The binary size was the tell, read backwards: the small artifact was small
+because it contained only a launcher. D2.1a's reasoning — larger image, more
+build-time initialization, faster start — was a plausible story fitted to a
+measurement of the wrong thing.
+
+**P0 with real native binaries:**
+
+| | dev laptop | CI Linux | CI macOS | CI Windows |
+|---|---|---|---|---|
+| builds | ✅ | ✅ | ✅ | ✅ |
+| checks | all pass | all pass | all pass | all pass (POSIX perms n/a) |
+| binary | 27 MB | 30 MB | 27 MB | 29 MB |
+| peak build RSS | 4.01 GB | 2.52 GB | 1.74 GB | 2.61 GB |
+| parse-only, cold | 6.7 ms | **3.5 ms** | **5.9 ms** | **9.0 ms** |
+| parse cost | 0.4 ms | 0.4 ms | 0.2 ms | 0.3 ms |
+
+Against the JVM jar's 512 ms, the startup argument for D2 is not merely
+adequate — a shared 4-vCPU Linux runner beats the dev laptop.
+
+Two platform facts the run established, both load-bearing elsewhere:
+
+- **Windows and macOS report case-INSENSITIVE filesystems; Linux does not.**
+  The `sources-and-library-architecture.md` §4.2 trap is the majority case, not
+  an edge case.
+- **Windows' default charset is `windows-1252`.** Under D1 the revision *is* the
+  hash of the bytes, so a platform-default decode makes an accented label look
+  permanently `Diverged` between a Windows machine and a Mac with no edit having
+  occurred. Hence V-16.
+
+`GRAALVM_VERSION` is pinned in the gate script: scala-cli documents 22.3.1 as its
+default and resolved it locally, while every runner resolved CE 17.0.9 — two
+compilers being compared as one.
 
 #### D2.2 — `gx-core` is a Scala module
 
@@ -445,6 +495,8 @@ they can be, as `gx-core` unit tests unless marked otherwise.
 | V-13 | Scala and Rust agree on canonicalization and content hash for a shared fixture set — spaces, non-ASCII, symlinks, case variants, Windows UNC (cross-language, the §4 contract) |
 | V-14 | `gx` parse cost — cold start *minus* the machine's process-spawn baseline — stays under 20ms, at any graph size. Gated on the difference because the absolute is dominated by the host (D2.1a) |
 | V-15 | A document or record command issued by `gx` with no desktop running succeeds, and is reflected in the UI when a desktop is later started (D7.3) |
+| V-16 | Every read and write on the diagram path names UTF-8 explicitly. Windows reports `windows-1252` as its default charset, so a platform-default decode changes the bytes — and under D1 the bytes *are* the revision (see D2.1b) |
+| V-17 | The shipped `gx` is a real native binary, not a GraalVM fallback image. Built with `--no-fallback`, asserted on the build log (D2.1b) |
 
 ---
 
@@ -452,11 +504,12 @@ they can be, as `gx-core` unit tests unless marked otherwise.
 
 Each phase is independently shippable and leaves the tree green.
 
-**P0 — De-risk native-image across platforms.** Build the spike on Linux and
-Windows in CI; confirm build RSS fits the runners; exercise `java.nio` file I/O
-under native-image. **Blocking gate for D2** — everything below assumes it
-passes. If it fails, the fallback is a `gx serve` daemon with a thin client,
-which D7.4 wants eventually anyway.
+**P0 — De-risk native-image across platforms. ✅ PASSED** on Linux, macOS and
+Windows (see D2.1b). D2 stands: a parse-only command costs 3.5–9.0 ms cold on
+CI hardware against the JVM jar's 512 ms. Two corrections came out of it —
+peak RSS is adaptive rather than a requirement, and the gate must assert it is
+measuring a real native binary — plus two platform facts now carried as V-16
+and V-17.
 
 **P1 — `gx-core` in Scala.** New cross-compiled module depending on `shared`.
 Policy, document, watch, store, audit. Land V-01..V-08 as MUnit tests —
