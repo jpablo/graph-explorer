@@ -139,6 +139,33 @@ lazy val gxCore = crossProject(JSPlatform, JVMPlatform)
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
   )
 
+// The `gx` command line, rewritten in Scala (D2). JVM-only: it is shipped as a
+// GraalVM native-image binary, and P0 measured a parse-only command at 3.5-9.0ms
+// cold across three platforms against the JVM jar's 512ms.
+//
+// Lives beside the Rust `gx/` rather than replacing it in place: the old binary
+// is still referenced by two workflows, six smoke scripts and the Makefile, so
+// retiring it is its own change once this one is proven.
+lazy val gxCli =
+  project
+    .in(file("gx-cli"))
+    .dependsOn(gxCore.jvm)
+    .settings(
+      name                     := "gx-cli",
+      Test / parallelExecution := false,
+      libraryDependencies ++= Seq(
+        "org.scalameta" %% "munit" % "1.0.0" % Test
+      ),
+      testFrameworks := Seq(new TestFramework("munit.Framework")),
+      nativeImageClasspath := {
+        val conv = fileConverter.value
+        val out  = (ThisBuild / baseDirectory).value / "target" / "gx-cli-classpath.txt"
+        val cp   = (Compile / fullClasspath).value.map(a => conv.toPath(a.data).toAbsolutePath.toString)
+        IO.write(out, cp.mkString(java.io.File.pathSeparator))
+        streams.value.log.info(s"wrote ${cp.length} classpath entries to $out")
+      }
+    )
+
 lazy val viewer =
   project
     .in(file("viewer"))
@@ -214,7 +241,7 @@ lazy val viewer =
 lazy val root =
   project
     .in(file("."))
-    .aggregate(viewer, shared.js, shared.jvm, graphviz.js, graphviz.jvm, gxCore.js, gxCore.jvm)
+    .aggregate(viewer, shared.js, shared.jvm, graphviz.js, graphviz.jvm, gxCore.js, gxCore.jvm, gxCli)
     .settings(
       name := "graph-explorer",
       welcomeMessage
