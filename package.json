@@ -13,7 +13,6 @@
     "@codemirror/commands": "6.7.1",
     "@codemirror/lang-javascript": "6.2.2",
     "@codemirror/view": "6.34.1",
-    "@scala-js/vite-plugin-scalajs": "^1.0.0",
     "@types/jsdom": "21.1.7",
     "@types/node": "^22.8.2",
     "@viz-js/lang-dot": "1.0.4",
