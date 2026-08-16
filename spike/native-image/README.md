@@ -40,9 +40,27 @@ it reports `INSENSITIVE`, which is the trap
 
 ## Outcome
 
-- **macOS/ARM:** all checks pass, 7.0ms parse-only cold start, peak build RSS
-  5.76 GB, 26 MB binary, 28s build.
-- **Linux, Windows:** pending the first CI run.
+| | dev laptop (macOS) | CI macOS | CI Linux | CI Windows |
+|---|---|---|---|---|
+| builds | ✅ 28s | ✅ 90s | ✅ 95s | ⏳ |
+| checks | 7/7 | 7/7 | 7/7 | ⏳ |
+| peak build RSS | 5.71 GB | 1.62 GB | 2.66 GB | ⏳ |
+| spawn + parse | 7.0 ms | 198 ms | 249 ms | ⏳ |
+
+Two corrections came out of the first cross-platform run, both recorded in the
+v2 doc at D2.1a:
+
+1. **Peak RSS is adaptive, not a requirement.** native-image sizes its heap to
+   available RAM — 5.71 GB on a laptop, 1.62 GB on a 7 GB runner. The number
+   that looked like the decision's biggest risk was measuring the laptop.
+2. **Absolute cold start measures the host.** The same binary is 7 ms on a
+   laptop and ~200 ms on a 3-vCPU runner, nearly all of it process spawn. So
+   `--bench-noop` establishes the host's spawn tax and the gate is on
+   `parse − noop`, which is the part this code controls.
+
+Windows failed its first run on toolchain PATH (`scala-cli: command not found`),
+before reaching the compiler — nothing to do with D2. Its classpath step did
+succeed, including `;` separator detection.
 
 ## Removing it
 

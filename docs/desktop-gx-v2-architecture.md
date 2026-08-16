@@ -141,11 +141,38 @@ Findings:
 - **The 91ms figure is layout, not language.** `dot_json` runs a full `dot`
   layout; Rust would run the same algorithm and has no port of it. Hence D2.3.
 
-Unverified, and the remaining risk: Linux and Windows native-image builds; peak
-build RSS was **5.53 GB** against a 7 GB standard GitHub runner; and `java.nio`
-file I/O under native-image. **De-risk with a Linux + Windows CI build before
-writing `gx-core`.** `gx` also inherits the project's `-experimental` flag
+`gx` also inherits the project's `-experimental` flag
 (`experimental.pureFunctions`).
+
+#### D2.1a — What the cross-platform run corrected
+
+P0 ran the same gate on three runners. Two of D2.1's worries were wrong, and one
+measurement method was.
+
+| | dev laptop (macOS) | CI macOS (3 cpu, 7 GB) | CI Linux (4 cpu) |
+|---|---|---|---|
+| build | 28 s | 90 s | 95 s |
+| checks | 7/7 pass | 7/7 pass | 7/7 pass |
+| binary | 26 MB | 12 MB | 13 MB |
+| peak build RSS | 5.71 GB | **1.62 GB** | **2.66 GB** |
+| spawn + parse | 7.0 ms | 198 ms | 249 ms |
+
+- **The RSS risk was an illusion, and it was the biggest one in this decision.**
+  native-image sizes its heap to available RAM: it took 5.71 GB on a laptop with
+  RAM to spare and 1.62 GB on a 7 GB runner. The 5.71 GB figure was never a
+  *requirement*, so "does it fit a standard runner" had already been answered
+  yes by the thing that looked like the problem.
+- **An absolute cold-start number measures the runner, not the binary.** The same
+  binary costs 7 ms on a laptop and ~200 ms on a 3-vCPU shared runner, dominated
+  by process spawn. V-14 is therefore gated on `parse − noop`, with both
+  absolutes reported; see the `--bench-noop` baseline in the spike.
+- **`java.nio` and `MessageDigest` hold on every platform tested** — fsync,
+  `ATOMIC_MOVE`, POSIX permission preservation, `toRealPath`.
+- The macOS runner confirms the §4.2 trap directly: `filesystem case
+  sensitivity — INSENSITIVE`, against `sensitive` on Linux.
+
+Still open: **Windows has not built yet.** The first run failed before the
+compiler, on toolchain PATH rather than anything about D2.
 
 #### D2.2 — `gx-core` is a Scala module
 
@@ -416,7 +443,7 @@ they can be, as `gx-core` unit tests unless marked otherwise.
 | V-11 | The webview holds no credential: no token in any IPC payload or event (integration) |
 | V-12 | A save whose UI window is gone reports its true outcome (fixes `main.rs:1038`) |
 | V-13 | Scala and Rust agree on canonicalization and content hash for a shared fixture set — spaces, non-ASCII, symlinks, case variants, Windows UNC (cross-language, the §4 contract) |
-| V-14 | `gx` cold start stays under 20ms for a parse-only command, at any graph size (regression gate on D2.1) |
+| V-14 | `gx` parse cost — cold start *minus* the machine's process-spawn baseline — stays under 20ms, at any graph size. Gated on the difference because the absolute is dominated by the host (D2.1a) |
 | V-15 | A document or record command issued by `gx` with no desktop running succeeds, and is reflected in the UI when a desktop is later started (D7.3) |
 
 ---

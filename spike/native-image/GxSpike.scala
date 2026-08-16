@@ -95,6 +95,12 @@ private val sampleDot =
       case Left(err) => System.err.println(err); sys.exit(1)
       case Right(_)  => sys.exit(0)
 
+  // Baseline: process spawn + native runtime init and nothing else. On a shared
+  // CI runner that term dominates — a 3-vCPU macOS runner spends ~200ms here
+  // where a dev laptop spends ~5ms — so an ABSOLUTE cold-start number measures
+  // the runner, not the binary. (parse - noop) is the part this code controls.
+  if args.contains("--bench-noop") then sys.exit(0)
+
   println(s"gx native-image P0 gate — ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
   val tmp = Files.createTempDirectory("gx-spike")
 

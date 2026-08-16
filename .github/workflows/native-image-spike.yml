@@ -58,6 +58,23 @@ jobs:
         # graalvm setup step is needed.
         uses: VirtusLab/scala-cli-setup@v1
 
+      - name: Put coursier bin dir on PATH
+        # The setup action installs into COURSIER_BIN_DIR but does not export it
+        # to later steps on every runner — Windows resolved sbt fine and then
+        # died with `scala-cli: command not found`. Doing it explicitly is
+        # cheaper than depending on the action's per-OS behaviour.
+        shell: bash
+        run: echo "$COURSIER_BIN_DIR" >> "$GITHUB_PATH"
+
+      - name: Verify the toolchain
+        # Fail here, with a legible message, rather than 90 seconds into the
+        # gate script.
+        shell: bash
+        run: |
+          sbt --version 2>/dev/null | tail -1 || true
+          scala-cli version --cli-version
+          python3 --version
+
       - name: Report runner capacity
         # Peak build RSS against available memory is the number D2.1 flagged as
         # the likeliest reason to fail, so record the denominator explicitly.

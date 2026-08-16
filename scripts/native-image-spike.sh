@@ -78,20 +78,38 @@ echo "--- running P0 checks"
 CHECKS_EXIT=$?
 
 # --- 4. startup budget (V-14) ----------------------------------------------
-# --bench-parse, not the full suite: V-14 is about a parse-only command, and the
-# suite's three fsyncs and symlink work are not part of what it bounds.
-echo "--- measuring parse-only cold start over 50 runs"
-STARTUP_MS=$(python3 - "$BIN" <<'PY'
+# Two measurements, because an absolute number here measures the machine, not
+# the binary: a dev laptop spawns this process in ~5ms, a 3-vCPU CI runner in
+# ~200ms. Only the DIFFERENCE is attributable to our code, so that is what
+# gets gated; the absolutes are reported for context.
+echo "--- measuring cold start over 50 runs (noop baseline + parse)"
+read -r NOOP_MS PARSE_MS DELTA_MS <<<"$(python3 - "$BIN" <<'PY'
 import subprocess, sys, time
+
 binary, n = sys.argv[1], 50
-cmd = [binary, "--bench-parse"]
-subprocess.run(cmd, capture_output=True)  # warm the page cache
-start = time.time()
+
+def once(flag):
+    start = time.perf_counter()
+    subprocess.run([binary, flag], capture_output=True)
+    return (time.perf_counter() - start) * 1000
+
+# Interleaved, and scored on the MINIMUM rather than the mean. Both matter on a
+# shared runner: interleaving means a slow patch hits each variant equally
+# instead of whichever ran during it, and the minimum approximates the true cost
+# because scheduler noise can only ever make a run slower, never faster. A mean
+# of 50-then-50 let host drift leak straight into the difference being gated.
+for f in ("--bench-noop", "--bench-parse"):
+    once(f)  # warm the page cache
+
+noops, parses = [], []
 for _ in range(n):
-    subprocess.run(cmd, capture_output=True)
-print(f"{(time.time() - start) * 1000 / n:.1f}")
+    noops.append(once("--bench-noop"))
+    parses.append(once("--bench-parse"))
+
+noop, parse = min(noops), min(parses)
+print(f"{noop:.1f} {parse:.1f} {max(parse - noop, 0.0):.1f}")
 PY
-)
+)"
 
 # --- 5. report --------------------------------------------------------------
 BUILD_S=$(python3 -c "print(f'{$BUILD_END - $BUILD_START:.0f}')")
@@ -101,15 +119,16 @@ echo
 echo "=== P0 result: $(uname -s) $(uname -m) ==="
 echo "  binary          $SIZE"
 echo "  build time      ${BUILD_S}s"
-echo "  ${PEAK_RSS:-peak RSS  not reported}"
-echo "  cold start      ${STARTUP_MS}ms (budget ${STARTUP_BUDGET_MS}ms)"
+echo "  ${PEAK_RSS:-peak RSS  not reported}   (adaptive — native-image sizes its heap to available RAM)"
+echo "  spawn baseline  ${NOOP_MS}ms   (the machine's process-spawn tax, not ours)"
+echo "  parse-only      ${PARSE_MS}ms"
+echo "  parse cost      ${DELTA_MS}ms (budget ${STARTUP_BUDGET_MS}ms)  <- the gated number"
 
-# The checks program already exited non-zero on failure; the budget is the one
-# gate this script adds. Note it measures the full spike, which does more I/O
-# than a real parse-only command, so it is a conservative bound.
+# The checks program already exited non-zero on failure; the parse-cost budget
+# is the one gate this script adds.
 python3 -c "
 import sys
-ok = $STARTUP_MS <= $STARTUP_BUDGET_MS
-print('  verdict         ' + ('PASS' if ok else 'FAIL — over the V-14 budget'))
+ok = $DELTA_MS <= $STARTUP_BUDGET_MS
+print('  verdict         ' + ('PASS' if ok else 'FAIL — parse cost over the V-14 budget'))
 sys.exit(0 if ok else 1)
 "
