@@ -20,7 +20,7 @@ This guide walks through the first end-to-end local workflow:
 From repository root:
 
 ```bash
-sbt --client buildLocalCapabilitiesRelease
+./scripts/build-local-capabilities-release.sh
 ```
 
 Equivalent manual commands (run from repository root):
@@ -45,8 +45,15 @@ touch desktop/src-tauri/src/main.rs                     # force the re-embed (se
 > and `sbt viewer/fullLinkJS` must precede `npm run build` (which is only
 > `vite build`). Tauri embeds `dist/` at compile time and `cargo build` is a
 > no-op when only `dist/` changed, so the entrypoint is touched to force the
-> re-embed. The `buildLocalCapabilitiesRelease` task runs the build/embed
-> steps but assumes deps are already installed — run `npm install` first.
+> re-embed.
+>
+> **Run these from a shell, never from inside an sbt task.** This used to be an
+> sbt task, `buildLocalCapabilitiesRelease`, and it could not complete: vite
+> resolves `scalajs:main.js` by shelling back into sbt, and that nested client
+> queues behind the very task waiting for it — a circular wait, not a slow
+> build. For the same reason, stop any `~viewer/fastLinkJS` watch first: a
+> watch owns the sbt server's exec loop, so the build queues behind it and
+> looks like a hang.
 
 Binaries:
 
@@ -138,6 +145,21 @@ Events include watch lifecycle, document write/conflict, and rate-limit rejectio
 - **Blank desktop window** (title bar shows, content white, no stderr): the
   binary was built without `--features tauri/custom-protocol`, so it is a dev
   build pointing at `devUrl` instead of the embedded `dist/`. Rebuild with the
-  feature (or use `buildLocalCapabilitiesRelease`). Verify with
-  `cargo build --release -v 2>&1 | grep -- '--cfg dev'` — a correct prod build
-  prints nothing.
+  feature (or use `./scripts/build-local-capabilities-release.sh`, which
+  asserts this). To check an existing binary, look for the embedded frontend
+  rather than for a build-log flag — the log line only appears when cargo
+  re-runs the build script, so grepping it passes vacuously on an incremental
+  build:
+
+  ```bash
+  strings -a desktop/src-tauri/target/release/graph-explorer-desktop | grep -c "$(ls dist/assets/index-*.js | head -1 | xargs basename)"
+  ```
+
+  A production build embeds that asset (non-zero count); a dev build embeds
+  nothing.
+- **The build hangs with no output**: something is running `npm run build` from
+  inside an sbt task, or an sbt `~watch` owns the server's exec loop. vite
+  resolves `scalajs:main.js` by shelling back into sbt, so a vite build started
+  from within sbt waits on a nested sbt client that is queued behind it. Build
+  from a shell, and stop `~viewer/fastLinkJS` first. Confirm with
+  `ps -o pcpu -p <sbt-server-pid>` — a deadlocked server sits at 0% CPU.

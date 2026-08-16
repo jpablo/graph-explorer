@@ -1,9 +1,8 @@
 import sbt.Test
 
-val scala3Version                      = "3.7.1"
-val scalametaVersion                   = "4.8.2"
-val laminarVersion                     = "17.2.1"
-lazy val buildLocalCapabilitiesRelease = taskKey[Unit]("Build release binaries for graph-explorer-desktop and gx")
+val scala3Version    = "3.7.1"
+val scalametaVersion = "4.8.2"
+val laminarVersion   = "17.2.1"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
@@ -173,46 +172,14 @@ lazy val root =
     .aggregate(viewer, shared.js, shared.jvm, graphviz.js, graphviz.jvm)
     .settings(
       name := "graph-explorer",
-      welcomeMessage,
-      buildLocalCapabilitiesRelease := Def.uncached {
-        val log  = streams.value.log
-        val base = baseDirectory.value
-
-        def run(cmd: Seq[String], cwd: java.io.File): Unit = {
-          log.info(s"Running `${cmd.mkString(" ")}` in ${cwd.getPath}")
-          val exitCode = scala.sys.process.Process(cmd, cwd).!
-          if (exitCode != 0) sys.error(s"Command failed (${exitCode}): ${cmd.mkString(" ")}")
-        }
-
-        // Tauri embeds `frontendDist` (../../dist) into the desktop binary at compile time.
-        // `cargo build` only recompiles when a Rust source changes, so a frontend-only
-        // change to dist/ is a cargo no-op and the binary silently keeps a stale embedded
-        // bundle. Force a recompile by bumping the mtime of the desktop entrypoint so
-        // generate_context! re-reads the freshly built dist/.
-        def forceRecompile(entrypoint: java.io.File): Unit = {
-          if (!entrypoint.setLastModified(System.currentTimeMillis()))
-            sys.error(s"Could not touch ${entrypoint.getPath} to force a desktop recompile")
-        }
-
-        // The desktop binary MUST be built with tauri's `custom-protocol` feature.
-        // tauri's build script sets `dev = !custom-protocol`; without the feature a
-        // release `cargo build` is still a *dev* build that loads `devUrl`
-        // (http://localhost:5173) instead of the embedded frontendDist, so the
-        // window is blank unless a vite dev server happens to be running. The
-        // Tauri CLI adds this feature automatically; a bare `cargo build` does not.
-        // Install node deps first: vite and the esbuild step in
-        // viewer's Test / jsEnvInput both resolve from node_modules, and no sbt
-        // task auto-installs them. This makes the task self-sufficient on a
-        // clean checkout.
-        run(Seq("npm", "install", "--no-audit", "--no-fund"), base)
-        run(Seq("npm", "run", "build"), base)
-        forceRecompile(base / "desktop" / "src-tauri" / "src" / "main.rs")
-        run(
-          Seq("cargo", "build", "--release", "--locked", "--features", "tauri/custom-protocol"),
-          base / "desktop" / "src-tauri"
-        )
-        run(Seq("cargo", "build", "--release", "--locked"), base / "gx")
-      }
+      welcomeMessage
+      // The desktop/gx release build lives in
+      // scripts/build-local-capabilities-release.sh, not here. It was an sbt
+      // task (`buildLocalCapabilitiesRelease`) that could never complete: it
+      // ran `npm run build` from inside the task, vite resolves
+      // `scalajs:main.js` by shelling back into sbt, and that nested client
+      // queued behind the task waiting for it. Any sbt task that shells out to
+      // vite deadlocks the same way.
     )
 
 def welcomeMessage = onLoadMessage := {
