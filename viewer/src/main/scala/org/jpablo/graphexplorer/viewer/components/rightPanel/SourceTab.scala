@@ -41,6 +41,12 @@ def SourceTab(state: ViewerState) =
         // to scroll into. Same trap IconButtonTitled documents for the breadcrumbs.
         IconToggle("bi-text-wrap", "Wrap long lines", state.wrapSourceLines, TooltipPos.bottomEnd),
         IconButton("bi-clipboard", "Copy source", TooltipPos.bottomEnd)(state.copySourceText()),
+        // Paste's home is next to Copy, on the panel that owns the text: the
+        // format selector to its left is what this button overwrites, so the
+        // auto-detection is visible where it happens.
+        IconButton("bi-clipboard-plus", "Paste diagram (replaces the source, DOT or Mermaid)", TooltipPos.bottomEnd)(
+          state.pasteDiagram()
+        ),
         // The docs link speaks the same icon-and-tooltip language as the rest of the app;
         // the per-language title is what the tooltip says.
         Tooltip(

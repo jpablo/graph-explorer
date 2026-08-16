@@ -20,11 +20,20 @@ import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+
+/** No clipboard was wired in — the default `readText` of a bare [[ViewerState]]. */
+object ClipboardUnavailable extends Exception("Clipboard is not available")
 
 case class ViewerState(
     projectId:                ProjectId,
     graphviz:                 Graphviz,
     writeText:                String => Any = _ => (),
+    /** The system clipboard, read side. Injected like `writeText` so the paste
+      * command is testable without a real `navigator.clipboard` — and so the
+      * default is an honest failure rather than a silent empty string.
+      */
+    readText:                 () => Future[String] = () => Future.failed(ClipboardUnavailable),
     setTheme:                 String => Unit = _ => (),
     errorBus:                 EventBus[String] = EventBus(),
     infoBus:                  EventBus[String] = EventBus(),
@@ -56,6 +65,7 @@ case class ViewerState(
       LayoutStabilityOps,
       VisibilityOps,
       ExportOps,
+      ImportOps,
       AddNewArrowOps,
       MoveArrowEndpointOps,
       ExtendSelectionOps,

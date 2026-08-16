@@ -46,9 +46,20 @@ trait TransactionSpec extends js.Object:
 // ---- @codemirror/view ------------------------------------------------------
 
 @js.native
+trait Transaction extends js.Object:
+  /** True for the named user event and any of its sub-events — `"undo"` and
+    * `"redo"` are what @codemirror/commands annotates history moves with.
+    */
+  def isUserEvent(event: String): Boolean = js.native
+
+@js.native
 trait ViewUpdate extends js.Object:
   def docChanged: Boolean    = js.native
   def state: EditorState     = js.native
+  /** The transactions this update batches — the only place the PROVENANCE of a
+    * change survives; `state.doc` alone cannot say where the text came from.
+    */
+  def transactions: js.Array[Transaction] = js.native
 
 trait EditorViewConfig extends js.Object:
   var doc: js.UndefOr[String]           = js.undefined

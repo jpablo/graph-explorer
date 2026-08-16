@@ -20,13 +20,27 @@ object DiagramFormat:
     *   - Default: DOT (backward compatibility)
     */
   def detect(text: String): DiagramFormat =
+    declared(text).getOrElse(DOT)
+
+  /** The format the text POSITIVELY declares, or `None` when it declares nothing
+    * either grammar recognizes.
+    *
+    * The distinction from [[detect]] is the DOT fallback. `detect` must always
+    * answer, so an unrecognized document reads as DOT; callers that may only
+    * OVERRULE an existing selection need evidence instead of a default — see
+    * `ImportOps.restoreSource`, where guessing would silently undo a language
+    * the user picked by hand.
+    */
+  def declared(text: String): Option[DiagramFormat] =
     val trimmed = text.trim.toLowerCase
-    if mermaid.MermaidSourceScan.looksLikeMermaid(trimmed) then Mermaid
-    else
-      val firstContent = trimmed.linesIterator
-        .map(_.trim)
-        .dropWhile(line => line.isEmpty || (line.startsWith("%%") && !line.startsWith("%%{")))
-        .nextOption()
-        .getOrElse("")
-      if mermaid.MermaidSourceScan.looksLikeMermaid(firstContent) then Mermaid
-      else DOT
+    val isMermaid =
+      mermaid.MermaidSourceScan.looksLikeMermaid(trimmed) || {
+        val firstContent = trimmed.linesIterator
+          .map(_.trim)
+          .dropWhile(line => line.isEmpty || (line.startsWith("%%") && !line.startsWith("%%{")))
+          .nextOption()
+          .getOrElse("")
+        mermaid.MermaidSourceScan.looksLikeMermaid(firstContent)
+      }
+    if isMermaid then Some(Mermaid)
+    else Option.when(graphviz.DotSourceScan.diagramKind(text).isDefined)(DOT)

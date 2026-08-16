@@ -6,9 +6,15 @@ import scala.scalajs.js
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.Mods
 
+/** One edit on its way out of the editor. `fromHistory` distinguishes a
+  * keystroke from an undo/redo: the latter restores a WHOLE document, so the
+  * language selector has to follow it back (see ImportOps.restoreSource).
+  */
+private case class EditorEdit(text: String, fromHistory: Boolean)
+
 def CodeMirror(state: ViewerState, mods: Mods*) =
   // Create a local EventBus for debouncing text updates
-  val textUpdates = new EventBus[String]
+  val textUpdates = new EventBus[EditorEdit]
 
   // Line wrapping lives in a compartment so it can be swapped by a transaction. Rebuilding
   // the EditorView instead would discard the doc's history, selection and scroll position
@@ -32,7 +38,12 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
     if update.docChanged then
       val newText = update.state.doc.toString
       if state.sourceText.now() != newText then
-        textUpdates.emit(newText)
+        // Read off the transactions rather than tracked around the undo/redo
+        // calls below, so in-editor ⌘Z (basicSetup's own history keymap, which
+        // never touches undoEvent) is recognized just the same.
+        val fromHistory =
+          update.transactions.exists(tr => tr.isUserEvent("undo") || tr.isUserEvent("redo"))
+        textUpdates.emit(EditorEdit(newText, fromHistory))
 
   div(
     mods,
@@ -42,8 +53,9 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
       // Set up debounced stream that updates the state
       textUpdates.events
 //        .debounce(100) // TODO: Make this configurable or dynamic.
-        .foreach { text =>
-          state.sourceText.set(text)
+        .foreach { edit =>
+          if edit.fromHistory then state.restoreSource(edit.text)
+          else state.sourceText.set(edit.text)
         }
 
       // Editor -> source

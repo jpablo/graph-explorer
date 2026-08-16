@@ -508,6 +508,17 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Delete all currently hidden nodes, arrows, and groups")
     )
 
+    /** Deliberately shortcut-less: it replaces the WHOLE document, and every
+      * free letter is one stray keypress away from doing that by accident.
+      * ⌘V belongs to the editor, where pasting means inserting at the cursor.
+      */
+    val pasteDiagram = Command(
+      "Paste diagram",
+      () => state.pasteDiagram(),
+      always,
+      description = Some("Replace the diagram with the DOT or Mermaid source on the clipboard")
+    )
+
     val changeProjectName = Command(
       "Change project name",
       () => changeProjectNameAction(),
@@ -750,6 +761,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     common -> List(
       all.newNode,
       all.newBackwardsNode,
+      all.pasteDiagram,
       all.changeProjectName,
       all.moveToGroup,
       routerCmds.createProject,

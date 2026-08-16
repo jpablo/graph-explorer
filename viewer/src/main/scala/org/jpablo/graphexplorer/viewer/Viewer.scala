@@ -5,7 +5,6 @@ import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.projects.{ProjectStorage, ProjectsDirectoryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
 import org.jpablo.graphexplorer.viewer.logging.Level
@@ -62,6 +61,13 @@ object Viewer:
         case e: Throwable =>
           errors.emit(s"Clipboard unavailable: ${e.getMessage}")
 
+    // The read side. A rejected promise (denied permission, no user gesture,
+    // insecure origin) has to reach the caller as a failed Future: the paste
+    // command reports it, and must not mistake it for an empty clipboard.
+    def clipboardRead(): scala.concurrent.Future[String] =
+      try window.navigator.clipboard.readText().toFuture
+      catch case e: Throwable => scala.concurrent.Future.failed(e)
+
     val viewerSettings = ProjectStorage.loadViewerSettings()
     // Unconditionally, not `foreach`: with nothing stored the app has to land on
     // the default theme, and a stored theme we no longer ship has to fall back
@@ -117,6 +123,7 @@ object Viewer:
             projectId = ProjectId(id),
             graphviz = graphviz,
             writeText = clipboardWrite,
+            readText = clipboardRead,
             setTheme = setTheme,
             errorBus = errors,
             infoBus = infos,
@@ -211,10 +218,7 @@ object Viewer:
       val handler: js.Function1[dom.Event, Unit] = event =>
         extractDesktopMessage(event).foreach: message =>
           updateDesktopBridgeContext(message)
-          desktopBridgeTarget.foreach: current =>
-            val detectedFormat = DiagramFormat.detect(message.text)
-            current.setDiagramFormat(detectedFormat)
-            current.sourceText.set(message.text)
+          desktopBridgeTarget.foreach(_.replaceSourceDetectingFormat(message.text))
 
       window.addEventListener(DesktopDocumentChangedEventName, handler)
       window.addEventListener(DesktopDocumentChangedFallbackEventName, handler)
@@ -223,11 +227,9 @@ object Viewer:
       // window.__graphExplorerDesktopBridge.pushText("...")
       val bridge = js.Dynamic.literal(
         pushText = (text: String) =>
-          // Mirror the event path above: detect the format BEFORE setting the text,
-          // otherwise pushed Mermaid text is parsed by the currently selected backend.
-          desktopBridgeTarget.foreach: current =>
-            current.setDiagramFormat(DiagramFormat.detect(text))
-            current.sourceText.set(text)
+          // Same replacement as the event path above — including the ordering
+          // rule that ImportOps.replaceSource documents.
+          desktopBridgeTarget.foreach(_.replaceSourceDetectingFormat(text))
         ,
         saveCurrentText = () => saveCurrentTextToDesktop(),
         saveText = (text: String) => saveTextToDesktop(text)
