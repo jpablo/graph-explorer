@@ -4,8 +4,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
-GX_BIN="${ROOT_DIR}/gx/target/debug/gx"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/debug/graph-explorer-desktop"
+
+# shellcheck source=scripts/lib/control-api.sh
+source "${ROOT_DIR}/scripts/lib/control-api.sh"
 
 desktop_pid=""
 allowed_dir=""
@@ -52,11 +54,6 @@ require_cmd jq
 require_cmd curl
 require_cmd mktemp
 
-if [[ ! -x "${GX_BIN}" ]]; then
-  echo "building gx binary..."
-  (cd "${ROOT_DIR}/gx" && cargo build)
-fi
-
 if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "building desktop binary..."
   (cd "${ROOT_DIR}/desktop/src-tauri" && cargo build)
@@ -76,15 +73,7 @@ desktop_pid=$!
 
 echo "waiting for desktop control API..."
 ready=0
-for _ in $(seq 1 120); do
-  status_json="$("${GX_BIN}" status --json || true)"
-  running="$(jq -r '.running // false' <<<"${status_json}")"
-  if [[ "${running}" == "true" && -f "${RUNTIME_FILE}" ]]; then
-    ready=1
-    break
-  fi
-  sleep 0.25
-done
+if control_wait_ready 120; then ready=1; fi
 
 if [[ "${ready}" -ne 1 ]]; then
   echo "desktop control API did not become ready" >&2
@@ -101,17 +90,14 @@ expected_allowed_root="$(cd "${allowed_dir}" && pwd -P)"
 assert_eq "${expected_allowed_root}" "${allowed_root_from_status}" "status allowed root"
 
 echo "watch allowed path"
-"${GX_BIN}" watch "${allowed_dir}/ok.dot" --json >/tmp/gx-policy-watch-allowed.json
+allowed_json="$(api_watch "$(cd "${allowed_dir}" && pwd -P)/ok.dot")"
+assert_eq "200" "${API_HTTP_STATUS}" "allowed watch status"
 
-echo "watch blocked path via gx (should fail)"
-set +e
-"${GX_BIN}" watch "${blocked_dir}/nope.dot" --json >/tmp/gx-policy-watch-blocked.json
-blocked_exit=$?
-set -e
-assert_eq "4" "${blocked_exit}" "blocked watch exit code"
-blocked_code="$(jq -r '.code' /tmp/gx-policy-watch-blocked.json)"
-assert_eq "INVALID_REQUEST" "${blocked_code}" "blocked watch gx code"
-
+# The old gate also asserted that `gx` mapped this refusal to exit 4 with code
+# INVALID_REQUEST. That was a test of the CLI's error mapping, not of the
+# desktop's policy, and it retires with the Rust gx — the Scala one covers it in
+# CliSpec ("a denied path is refused with exit 4 and recorded"). What the
+# desktop does is asserted below, unchanged.
 echo "watch blocked path via API (message should mention allowlist)"
 blocked_payload="$(jq -n --arg path "${blocked_dir}/nope.dot" '{path: $path, openInUi: true}')"
 blocked_response_file="$(mktemp /tmp/gx-policy-api-blocked-XXXXXX.json)"
@@ -127,6 +113,6 @@ blocked_message="$(jq -r '.message' "${blocked_response_file}")"
 assert_contains "outside configured allowlist" "${blocked_message}" "blocked API message"
 rm -f "${blocked_response_file}"
 
-"${GX_BIN}" unwatch "${allowed_dir}/ok.dot" --json >/dev/null
+api_unwatch "$(cd "${allowed_dir}" && pwd -P)/ok.dot" >/dev/null
 
 echo "policy smoke passed"

@@ -4,8 +4,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
-GX_BIN="${ROOT_DIR}/gx/target/release/gx"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/release/graph-explorer-desktop"
+
+# shellcheck source=scripts/lib/control-api.sh
+source "${ROOT_DIR}/scripts/lib/control-api.sh"
 
 desktop_pid=""
 tmpfile=""
@@ -39,12 +41,8 @@ assert_eq() {
 }
 
 require_cmd jq
+require_cmd curl
 require_cmd mktemp
-
-if [[ ! -x "${GX_BIN}" ]]; then
-  echo "missing release gx binary at ${GX_BIN}" >&2
-  exit 1
-fi
 
 if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "missing release desktop binary at ${DESKTOP_BIN}" >&2
@@ -59,54 +57,39 @@ echo "starting release desktop runtime..."
 desktop_pid=$!
 
 echo "waiting for desktop control API..."
-ready=0
-for _ in $(seq 1 120); do
-  status_json="$("${GX_BIN}" status --json || true)"
-  running="$(jq -r '.running // false' <<<"${status_json}")"
-  if [[ "${running}" == "true" && -f "${RUNTIME_FILE}" ]]; then
-    ready=1
-    break
-  fi
-  sleep 0.25
-done
-
-if [[ "${ready}" -ne 1 ]]; then
-  echo "desktop control API did not become ready" >&2
-  exit 1
-fi
+control_wait_ready 120 || exit 1
 
 tmpfile="$(mktemp /tmp/gx-release-smoke-XXXXXX.dot)"
 printf 'digraph G {\n  a -> b\n}\n' > "${tmpfile}"
 
-status_json="$("${GX_BIN}" status --json)"
-status_running="$(jq -r '.running' <<<"${status_json}")"
-assert_eq "true" "${status_running}" "release status running"
+# gx canonicalized client-side before sending; the gates must do the same, or
+# they stop exercising the path the desktop actually receives.
+tmpfile_canonical="$(cd "$(dirname "${tmpfile}")" && pwd -P)/$(basename "${tmpfile}")"
 
-watch_json="$("${GX_BIN}" watch "${tmpfile}" --json)"
-watch_revision="$(jq -r '.revision' <<<"${watch_json}")"
-assert_eq "1" "${watch_revision}" "release watch revision"
+status_json="$(api_status)"
+assert_eq "200" "${API_HTTP_STATUS}" "release status code"
+assert_eq "true" "$(jq -r '.running' <<<"${status_json}")" "release status running"
 
-get_json="$("${GX_BIN}" get --file "${tmpfile}" --json)"
-get_revision="$(jq -r '.revision' <<<"${get_json}")"
-assert_eq "1" "${get_revision}" "release get revision"
+watch_json="$(api_watch "${tmpfile_canonical}")"
+assert_eq "200" "${API_HTTP_STATUS}" "release watch status"
+assert_eq "1" "$(jq -r '.watch.revision' <<<"${watch_json}")" "release watch revision"
 
-set_json="$("${GX_BIN}" set --file "${tmpfile}" --text $'digraph G {\n  b -> c\n}\n' --json)"
-set_revision="$(jq -r '.revision' <<<"${set_json}")"
-assert_eq "2" "${set_revision}" "release set revision"
+get_json="$(api_get "${tmpfile_canonical}")"
+assert_eq "200" "${API_HTTP_STATUS}" "release get status"
+assert_eq "1" "$(jq -r '.document.revision' <<<"${get_json}")" "release get revision"
 
-set +e
-stale_json="$("${GX_BIN}" set --file "${tmpfile}" --text $'digraph G {\n  stale -> write\n}\n' --base-revision 1 --json)"
-stale_exit=$?
-set -e
-assert_eq "5" "${stale_exit}" "release stale write exit code"
-stale_code="$(jq -r '.code' <<<"${stale_json}")"
-assert_eq "DOCUMENT_CONFLICT" "${stale_code}" "release stale write code"
+set_json="$(api_set "${tmpfile_canonical}" $'digraph G {\n  b -> c\n}\n' cli)"
+assert_eq "200" "${API_HTTP_STATUS}" "release set status"
+assert_eq "2" "$(jq -r '.document.revision' <<<"${set_json}")" "release set revision"
 
-unwatch_json="$("${GX_BIN}" unwatch "${tmpfile}" --json)"
-removed="$(jq -r '.removed' <<<"${unwatch_json}")"
-assert_eq "true" "${removed}" "release unwatch removed"
+stale_json="$(api_put "${tmpfile_canonical}" $'digraph G {\n  stale -> write\n}\n' 1 cli)"
+assert_eq "409" "${API_HTTP_STATUS}" "release stale write status"
+assert_eq "DOCUMENT_CONFLICT" "$(jq -r '.code' <<<"${stale_json}")" "release stale write code"
 
-# A path that needs more than '/' escaped. `gx` sends the path to
+unwatch_json="$(api_unwatch "${tmpfile_canonical}")"
+assert_eq "true" "$(jq -r '.removed' <<<"${unwatch_json}")" "release unwatch removed"
+
+# A path that needs more than '/' escaped. The gate sends the path to
 # `GET /v1/document` percent-encoded, and the desktop used to "decode" it by
 # replacing '%2F' with '/' and nothing else -- so a space (%20) arrived
 # undecoded, missed the watch registry, and `get` failed with exit 4 while
@@ -117,21 +100,23 @@ spacedir="$(dirname "${tmpfile}")/gx smoke dir"
 mkdir -p "${spacedir}"
 spacedfile="${spacedir}/with space.dot"
 printf 'digraph G {\n  a -> b\n}\n' > "${spacedfile}"
-# Both gx and the desktop canonicalize, and on macOS /tmp is a symlink to
+# Both the gate and the desktop canonicalize, and on macOS /tmp is a symlink to
 # /private/tmp -- so the path that comes back is the resolved one.
 spacedfile_canonical="$(cd "${spacedir}" && pwd -P)/with space.dot"
 
-spaced_watch_json="$("${GX_BIN}" watch "${spacedfile}" --json)"
-assert_eq "1" "$(jq -r '.revision' <<<"${spaced_watch_json}")" "spaced-path watch revision"
+spaced_watch_json="$(api_watch "${spacedfile_canonical}")"
+assert_eq "200" "${API_HTTP_STATUS}" "spaced-path watch status"
+assert_eq "1" "$(jq -r '.watch.revision' <<<"${spaced_watch_json}")" "spaced-path watch revision"
 
-spaced_get_json="$("${GX_BIN}" get --file "${spacedfile}" --json)"
-assert_eq "1" "$(jq -r '.revision' <<<"${spaced_get_json}")" "spaced-path get revision"
-assert_eq "${spacedfile_canonical}" "$(jq -r '.path' <<<"${spaced_get_json}")" "spaced-path get path"
+spaced_get_json="$(api_get "${spacedfile_canonical}")"
+assert_eq "200" "${API_HTTP_STATUS}" "spaced-path get status"
+assert_eq "1" "$(jq -r '.document.revision' <<<"${spaced_get_json}")" "spaced-path get revision"
+assert_eq "${spacedfile_canonical}" "$(jq -r '.document.path' <<<"${spaced_get_json}")" "spaced-path get path"
 
-spaced_set_json="$("${GX_BIN}" set --file "${spacedfile}" --text $'digraph G {\n  b -> c\n}\n' --json)"
-assert_eq "2" "$(jq -r '.revision' <<<"${spaced_set_json}")" "spaced-path set revision"
+spaced_set_json="$(api_set "${spacedfile_canonical}" $'digraph G {\n  b -> c\n}\n' cli)"
+assert_eq "2" "$(jq -r '.document.revision' <<<"${spaced_set_json}")" "spaced-path set revision"
 
-"${GX_BIN}" unwatch "${spacedfile}" --json >/dev/null
+api_unwatch "${spacedfile_canonical}" >/dev/null
 rm -rf "${spacedir}"
 
 echo "release smoke passed"

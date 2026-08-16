@@ -19,7 +19,7 @@ env:
 
 jobs:
   rust-smoke:
-    name: Rust smoke (desktop + gx)
+    name: Rust smoke (desktop)
     runs-on: macos-latest
 
     steps:
@@ -40,9 +40,8 @@ jobs:
         working-directory: desktop/src-tauri
         run: cargo test --locked
 
-      - name: Check gx crate
-        working-directory: gx
-        run: cargo check --locked
+      # The gx crate is gone: gx is Scala now (D2) and its tests run under
+      # `sbt testFull` with the rest of the build.
 
   build-frontend:
     name: Build frontend bundle
@@ -143,9 +142,16 @@ jobs:
             exit 1
           fi
 
-      - name: Build gx release
-        working-directory: gx
-        run: cargo build --release --locked
+      - name: Set up scala-cli (for the gx native image)
+        uses: VirtusLab/scala-cli-setup@v1
+
+      - name: Put coursier bin dir on PATH
+        shell: bash
+        run: echo "$COURSIER_BIN_DIR" >> "$GITHUB_PATH"
+
+      - name: Build gx release (GraalVM native-image)
+        shell: bash
+        run: ./scripts/build-gx.sh
 
       - name: macOS runtime smoke (release binaries)
         if: runner.os == 'macOS'
@@ -168,7 +174,7 @@ jobs:
         run: xvfb-run --auto-servernum ./scripts/local-capabilities-disk-to-ui-smoke.sh
 
       # Blocking as of the path-decoding fix. This step used to carry
-      # continue-on-error for a defect where `gx get` returned exit 4 while
+      # continue-on-error for a defect where a URL-carried path returned 400 while
       # `watch` succeeded: the desktop decoded the `path` query parameter by
       # replacing '%2F' with '/' and nothing else, so a canonical Windows path
       # (whose \ : ? all need decoding) never matched the watch registry.
@@ -176,10 +182,27 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $gx = "gx/target/release/gx.exe"
+          # Drives the desktop's control API directly. gx is Scala now and
+          # speaks no HTTP (D2, D4), so routing the DESKTOP's publish gate
+          # through it would test a client we are replacing rather than the
+          # contract we are keeping.
           $desktop = "desktop/src-tauri/target/release/graph-explorer-desktop.exe"
-          if (-not (Test-Path $gx)) { throw "missing gx binary: $gx" }
+          $gx = "gx-cli/target/gx.exe"
           if (-not (Test-Path $desktop)) { throw "missing desktop binary: $desktop" }
+          if (-not (Test-Path $gx)) { throw "missing gx binary: $gx" }
+          $control = Join-Path $HOME ".graph-explorer/runtime/control.json"
+
+          function Invoke-Control($method, $path, $body) {
+            $c = Get-Content $control -Raw | ConvertFrom-Json
+            $headers = @{ Authorization = "Bearer $($c.token)" }
+            $uri = "http://127.0.0.1:$($c.port)$path"
+            if ($body) {
+              Invoke-RestMethod -Method $method -Uri $uri -Headers $headers `
+                -ContentType 'application/json' -Body ($body | ConvertTo-Json -Compress)
+            } else {
+              Invoke-RestMethod -Method $method -Uri $uri -Headers $headers
+            }
+          }
 
           Get-Process graph-explorer-desktop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           Remove-Item "$HOME/.graph-explorer/runtime/control.json" -ErrorAction SilentlyContinue
@@ -188,13 +211,11 @@ jobs:
           try {
             $ready = $false
             for ($i = 0; $i -lt 120; $i++) {
-              $statusJson = & $gx status --json 2>$null
-              if ($LASTEXITCODE -eq 0 -and $statusJson) {
-                $status = $statusJson | ConvertFrom-Json
-                if ($status.running -eq $true) {
-                  $ready = $true
-                  break
-                }
+              if (Test-Path $control) {
+                try {
+                  $status = Invoke-Control GET "/v1/status" $null
+                  if ($status.running -eq $true) { $ready = $true; break }
+                } catch { }
               }
               Start-Sleep -Milliseconds 250
             }
@@ -207,17 +228,35 @@ jobs:
           }
           "@ | Set-Content -Path $tmp -NoNewline
 
-            & $gx watch $tmp --json | Out-Null
-            if ($LASTEXITCODE -ne 0) { throw "watch failed with exit code $LASTEXITCODE" }
-            & $gx get --file $tmp --json | Out-Null
-            if ($LASTEXITCODE -ne 0) { throw "get failed with exit code $LASTEXITCODE" }
-            & $gx set --file $tmp --text "digraph G {`n  b -> c`n}`n" --json | Out-Null
-            if ($LASTEXITCODE -ne 0) { throw "set failed with exit code $LASTEXITCODE" }
-            & $gx set --file $tmp --text "digraph G {`n  stale -> write`n}`n" --base-revision 1 --json | Out-Null
-            $staleExit = $LASTEXITCODE
-            if ($staleExit -ne 5) { throw "stale write should exit 5, got $staleExit" }
-            & $gx unwatch $tmp --json | Out-Null
-            if ($LASTEXITCODE -ne 0) { throw "unwatch failed with exit code $LASTEXITCODE" }
+            # A Windows path exercises every character the URL-carried `path`
+            # of GET /v1/document has to survive: the drive colon, backslash
+            # separators, and any \?\ prefix. That combination is what blocked
+            # Windows in v1.
+            $watch = Invoke-Control POST "/v1/watch" @{ path = $tmp; openInUi = $true }
+            if ($watch.watch.revision -ne 1) { throw "watch revision: $($watch.watch.revision)" }
+
+            $encoded = [uri]::EscapeDataString($tmp)
+            $doc = Invoke-Control GET "/v1/document?path=$encoded" $null
+            if ($doc.document.revision -ne 1) { throw "get revision: $($doc.document.revision)" }
+
+            $put = Invoke-Control PUT "/v1/document" `
+              @{ path = $tmp; text = "digraph G {`n  b -> c`n}`n"; baseRevision = 1; source = "cli" }
+            if ($put.document.revision -ne 2) { throw "set revision: $($put.document.revision)" }
+
+            $stale = $null
+            try {
+              Invoke-Control PUT "/v1/document" `
+                @{ path = $tmp; text = "digraph G {`n  stale`n}`n"; baseRevision = 1; source = "cli" }
+            } catch { $stale = $_.Exception.Response.StatusCode.value__ }
+            if ($stale -ne 409) { throw "stale write should be 409, got $stale" }
+
+            $unwatch = Invoke-Control POST "/v1/unwatch" @{ path = $tmp }
+            if ($unwatch.removed -ne $true) { throw "unwatch did not remove the watch" }
+
+            # And that the shipped gx binary runs at all, headless.
+            & $gx status | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "gx status failed with exit code $LASTEXITCODE" }
+
             Remove-Item $tmp -ErrorAction SilentlyContinue
           }
           finally {
@@ -233,4 +272,4 @@ jobs:
           if-no-files-found: error
           path: |
             desktop/src-tauri/target/release/graph-explorer-desktop*
-            gx/target/release/gx*
+            gx-cli/target/gx*

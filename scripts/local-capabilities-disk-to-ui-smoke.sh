@@ -28,8 +28,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
-GX_BIN="${ROOT_DIR}/gx/target/release/gx"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/release/graph-explorer-desktop"
+
+# shellcheck source=scripts/lib/control-api.sh
+source "${ROOT_DIR}/scripts/lib/control-api.sh"
 
 SAMPLES="${LC2T5_SAMPLES:-15}"
 MEDIAN_BUDGET_MS="${LC2T5_MEDIAN_BUDGET_MS:-300}"
@@ -60,11 +62,6 @@ require_cmd jq
 require_cmd mktemp
 require_cmd python3
 
-if [[ ! -x "${GX_BIN}" ]]; then
-  echo "missing release gx binary at ${GX_BIN}" >&2
-  exit 1
-fi
-
 if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "missing release desktop binary at ${DESKTOP_BIN}" >&2
   exit 1
@@ -80,8 +77,7 @@ desktop_pid=$!
 echo "waiting for desktop control API..."
 ready=0
 for _ in $(seq 1 120); do
-  status_json="$("${GX_BIN}" status --json || true)"
-  running="$(jq -r '.running // false' <<<"${status_json}")"
+  running="$(control_ready && echo true || echo false)"
   if [[ "${running}" == "true" && -f "${RUNTIME_FILE}" ]]; then
     ready=1
     break
@@ -97,7 +93,7 @@ fi
 tmpfile="$(mktemp /tmp/gx-disk-to-ui-XXXXXX.dot)"
 printf 'digraph G {\n  n0 -> n0\n}\n' > "${tmpfile}"
 
-watch_json="$("${GX_BIN}" watch "${tmpfile}" --json)"
+watch_json="$(api_watch "${tmpfile}")"
 last_revision="$(jq -r '.revision' <<<"${watch_json}")"
 echo "watch established at revision ${last_revision}; running ${SAMPLES} samples (budget ${MEDIAN_BUDGET_MS}ms median)"
 
@@ -200,6 +196,6 @@ PY
 sample_status=$?
 set -e
 
-"${GX_BIN}" unwatch "${tmpfile}" --json >/dev/null 2>&1 || true
+api_unwatch "${tmpfile}" >/dev/null 2>&1 || true
 
 exit "${sample_status}"

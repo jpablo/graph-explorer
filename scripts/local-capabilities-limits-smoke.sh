@@ -4,8 +4,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
-GX_BIN="${ROOT_DIR}/gx/target/debug/gx"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/debug/graph-explorer-desktop"
+
+# shellcheck source=scripts/lib/control-api.sh
+source "${ROOT_DIR}/scripts/lib/control-api.sh"
 
 desktop_pid=""
 
@@ -36,11 +38,7 @@ assert_eq() {
 
 wait_for_desktop() {
   for _ in $(seq 1 120); do
-    local status_json
-    status_json="$("${GX_BIN}" status --json || true)"
-    local running
-    running="$(jq -r '.running // false' <<<"${status_json}")"
-    if [[ "${running}" == "true" && -f "${RUNTIME_FILE}" ]]; then
+    if control_ready; then
       return 0
     fi
     sleep 0.25
@@ -71,11 +69,6 @@ start_desktop() {
 require_cmd jq
 require_cmd curl
 require_cmd mktemp
-
-if [[ ! -x "${GX_BIN}" ]]; then
-  echo "building gx binary..."
-  (cd "${ROOT_DIR}/gx" && cargo build)
-fi
 
 if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "building desktop binary..."

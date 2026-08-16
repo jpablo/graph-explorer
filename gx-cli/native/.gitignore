@@ -1,0 +1,3 @@
+# scala-cli build output from scripts/build-gx.sh
+.scala-build/
+.bsp/
