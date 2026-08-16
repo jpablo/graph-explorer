@@ -52,6 +52,20 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // Perhaps the solution is to make sure the focus is not lost when clicking on the arrow?
 //    onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
+    // ⌘V / Ctrl+V, bound as the browser's own PASTE EVENT rather than as a
+    // keyboard shortcut in `handleKeyDown`. Three things fall out of that:
+    //   - the text arrives ON the event, so there is no clipboard-read
+    //     permission prompt — the gesture IS the grant;
+    //   - Edit ▸ Paste and Linux middle-click paste come along free;
+    //   - the browser dispatches `paste` to the FOCUSED element, so pasting
+    //     into the source editor still means "insert at the cursor" and never
+    //     reaches this handler.
+    // Consuming the keydown instead would suppress this event entirely, which
+    // is why Commands.handleKeyDown deliberately lets the chord through.
+    onPaste.preventDefault --> { ev =>
+      val text = Option(ev.clipboardData).map(_.getData("text/plain")).getOrElse("")
+      state.pasteDiagramFromGesture(text)
+    },
     // The canvas CONSUMES the wheel gesture (it pans/zooms a transform, the page
     // never scrolls), so it must preventDefault — without it the browser sees an
     // unconsumed horizontal scroll chaining to an unscrollable viewport, and

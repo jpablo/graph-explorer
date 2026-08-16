@@ -18,8 +18,13 @@ case class Shortcut(
     alt:   Boolean = false,
     ctrl:  Boolean = false
 ):
+  /** Modifiers first, then the key — the order every keyboard shortcut is
+    * written in, and the order they are pressed in. This used to lead with the
+    * key ("n + Shift", "v + Meta"), which reads as a sequence rather than a
+    * chord.
+    */
   def toList: List[String] =
-    List((key, true), (KeyValue.Shift, shift), (KeyValue.Meta, meta), (KeyValue.Alt, alt), (KeyValue.Control, ctrl))
+    List((KeyValue.Control, ctrl), (KeyValue.Alt, alt), (KeyValue.Shift, shift), (KeyValue.Meta, meta), (key, true))
       .collect { case (str, true) => str }
 
 object Command:
@@ -508,14 +513,21 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Delete all currently hidden nodes, arrows, and groups")
     )
 
-    /** Deliberately shortcut-less: it replaces the WHOLE document, and every
-      * free letter is one stray keypress away from doing that by accident.
-      * ⌘V belongs to the editor, where pasting means inserting at the cursor.
+    /** The shortcut here is a LABEL, not a binding: ⌘V reaches the canvas as the
+      * browser's own paste event (see CanvasContainer), which carries the text
+      * and needs no clipboard permission. `handleKeyDown` must therefore let the
+      * chord through untouched — consuming it would suppress that event — so
+      * this entry never goes through `byShortcut` dispatch. It is declared so
+      * the menu and the palette can advertise the gesture.
+      *
+      * No bare letter, either: this replaces the WHOLE document, and every free
+      * letter is one stray keypress away from doing that by accident.
       */
     val pasteDiagram = Command(
       "Paste diagram",
       () => state.pasteDiagram(),
       always,
+      shortcut = Some(Shortcut("v", meta = true)),
       description = Some("Replace the diagram with the DOT or Mermaid source on the clipboard")
     )
 
@@ -749,6 +761,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val predecessors = "Predecessors"
     val view         = "View"
     val document     = "Document"
+    val importFrom   = "Import"
     val exportAs     = "Export"
     val zoom         = "Zoom"
     val undoRedo     = "Undo/Redo"
@@ -761,7 +774,6 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     common -> List(
       all.newNode,
       all.newBackwardsNode,
-      all.pasteDiagram,
       all.changeProjectName,
       all.moveToGroup,
       routerCmds.createProject,
@@ -847,6 +859,9 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.changeProjectName,
       routerCmds.createProject
     ),
+    importFrom -> List(
+      all.pasteDiagram
+    ),
     exportAs -> List(
       all.copyAsSVG,
       all.exportAsSVG,
@@ -885,9 +900,10 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   object sections:
     val add      = byHeader(headers.add)
     val select   = byHeader(headers.select)
-    val actions  = byHeader(headers.selection) ++ byHeader(headers.view) ++
+    val actions    = byHeader(headers.selection) ++ byHeader(headers.view) ++
       byHeader(headers.successors) ++ byHeader(headers.predecessors)
-    val exportAs = byHeader(headers.exportAs)
+    val importFrom = byHeader(headers.importFrom)
+    val exportAs   = byHeader(headers.exportAs)
 
   // Normalize shortcut matching to reduce layout-specific hacks:
   //  - Letters: compare case-insensitively by lowercasing the key, but keep `shift` to allow distinct bindings (e.g., b vs B).
@@ -918,6 +934,17 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       else
         state.infoBus.emit("Desktop save is unavailable in this mode")
       return
+
+    // ⌘V / Ctrl+V is advertised by `pasteDiagram` but deliberately NOT dispatched
+    // here. The canvas listens for the browser's own `paste` event instead
+    // (CanvasContainer), which arrives carrying the clipboard text — no
+    // permission prompt — and also covers Edit ▸ Paste and middle-click paste.
+    // That event is the DEFAULT ACTION of this keydown, so handling the chord
+    // (which ends in preventDefault below) would suppress the very thing that
+    // does the work. Leave it alone. CommandsShortcutSpec pins this.
+    val isPasteShortcut =
+      ev.key.equalsIgnoreCase("v") && (ev.metaKey || ev.ctrlKey) && !ev.altKey
+    if isPasteShortcut then return
 
     val sh = normalizeShortcut(Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey))
     // A shortcut only fires — and only CONSUMES the key — when its command is

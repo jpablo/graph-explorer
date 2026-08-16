@@ -7,8 +7,13 @@ package org.jpablo.graphexplorer.viewer.backends
   * that fence's info string (` ```mermaid `) is a stronger statement of the
   * language than anything [[DiagramFormat.detect]] can infer from the body,
   * which sees only backticks and gives up on DOT.
+  *
+  * `declared` records whether `format` was READ off the text (its own grammar,
+  * or a fence naming it) or merely fallen back to. Callers pick their own
+  * threshold: an explicit "Paste diagram" is a request and takes the fallback,
+  * a reflexive ⌘V does not — see `ImportOps.pasteDiagramFromGesture`.
   */
-final case class PastedDiagram(source: String, format: DiagramFormat) derives CanEqual
+final case class PastedDiagram(source: String, format: DiagramFormat, declared: Boolean) derives CanEqual
 
 object PastedDiagram:
 
@@ -41,7 +46,12 @@ object PastedDiagram:
     val text         = raw.replace("\r\n", "\n").replace("\r", "\n")
     val (body, hint) = unfence(text)
     Option.when(body.trim.nonEmpty):
-      PastedDiagram(body, hint.getOrElse(DiagramFormat.detect(body)))
+      val fromBody = DiagramFormat.declared(body)
+      PastedDiagram(
+        source = body,
+        format = hint.orElse(fromBody).getOrElse(DiagramFormat.DOT),
+        declared = hint.orElse(fromBody).isDefined
+      )
 
   /** The first fenced block's contents and declared language, or the text
     * verbatim when it carries no fence.

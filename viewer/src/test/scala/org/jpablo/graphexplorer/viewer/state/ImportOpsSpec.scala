@@ -85,6 +85,31 @@ class ImportOpsSpec extends FunSuite with TestHelpers:
       yield ()
     }
 
+  test("the paste GESTURE acts only on text that declares a language"):
+    withGraphvizAsync { graphviz =>
+      val dot   = "digraph G {\n  a -> b\n}"
+      val state = stateWithClipboard("paste-gesture", Future.failed(ClipboardUnavailable), graphviz)
+
+      var infos = List.empty[String]
+      state.infoBus.events.foreach(msg => infos = msg :: infos)
+
+      // The hazard this strictness exists for: "Copy selection as SVG" is bound
+      // to `c`, one key away from ⌘V on the same canvas. `detect` would call an
+      // SVG blob DOT and replace the diagram with something that cannot parse.
+      val svg   = """<svg width="100" height="100"><g id="graph0"><title>G</title></g></svg>"""
+      val before = state.sourceText.now()
+      state.pasteDiagramFromGesture(svg)
+
+      afterMicrotasks {
+        assertEquals(state.sourceText.now(), before, "an SVG blob must not replace the diagram")
+        assertEquals(infos, List("The clipboard holds no DOT or Mermaid diagram"))
+
+        // A real diagram still goes through, fence and all.
+        state.pasteDiagramFromGesture(s"```dot\n$dot\n```")
+        assertEquals(state.sourceText.now(), dot)
+      }
+    }
+
   test("an empty clipboard leaves the diagram alone"):
     withGraphvizAsync { graphviz =>
       val state  = stateWithClipboard("paste-empty", Future.successful("   \n  "), graphviz)

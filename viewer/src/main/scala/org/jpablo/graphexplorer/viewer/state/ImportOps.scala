@@ -51,10 +51,26 @@ trait ImportOps:
     readText().onComplete:
       case Success(raw) =>
         PastedDiagram.from(raw) match
-          case Some(pasted) =>
-            replaceSource(pasted.source, pasted.format)
-            infoBus.emit(s"Pasted ${pasted.format.displayName} diagram from the clipboard")
-          case None =>
-            infoBus.emit("Nothing to paste: the clipboard holds no text")
+          case Some(pasted) => applyPaste(pasted)
+          case None         => infoBus.emit("Nothing to paste: the clipboard holds no text")
       case Failure(err) =>
         errorBus.emit(s"Could not read the clipboard: ${err.getMessage}")
+
+  /** The same replacement, driven by the user's own paste GESTURE (⌘V on the
+    * canvas), which hands the text over with the event.
+    *
+    * Stricter than [[pasteDiagram]], deliberately: it acts only on text that
+    * DECLARES a language. The explicit command is a request, so `detect`'s DOT
+    * fallback is the right answer there even for a bare fragment. ⌘V is reflex,
+    * and this very app puts things on the clipboard that are not diagrams —
+    * "Copy selection as SVG" sits on `c`, one key away — which the fallback
+    * would accept as DOT and then fail to parse, over the user's work.
+    */
+  def pasteDiagramFromGesture(raw: String): Unit =
+    PastedDiagram.from(raw).filter(_.declared) match
+      case Some(pasted) => applyPaste(pasted)
+      case None         => infoBus.emit("The clipboard holds no DOT or Mermaid diagram")
+
+  private def applyPaste(pasted: PastedDiagram): Unit =
+    replaceSource(pasted.source, pasted.format)
+    infoBus.emit(s"Pasted ${pasted.format.displayName} diagram from the clipboard")

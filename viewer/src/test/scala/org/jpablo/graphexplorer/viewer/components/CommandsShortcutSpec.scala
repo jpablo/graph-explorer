@@ -70,6 +70,39 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
       afterMicrotasks(())
     }
 
+  test("Cmd/Ctrl+V is left for the browser's paste event, not consumed here"):
+    withGraphvizAsync { graphviz =>
+      given Owner = unsafeWindowOwner
+      val state    = ViewerState(ProjectId("paste-passthrough-spec"), graphviz)
+      val commands = Commands(state, RouterCommands(Router()))
+
+      // `pasteDiagram` advertises ⌘V so the menus can show it, which puts it in
+      // `byShortcut`. Dispatching it here would preventDefault, and the default
+      // action of this keydown IS the paste event the canvas listens for — the
+      // gesture would stop working, and the clipboard-permission prompt would
+      // come back with it.
+      def press(meta: Boolean, ctrl: Boolean) =
+        var prevented = false
+        val event = js.Dynamic
+          .literal(
+            key = "v",
+            code = "KeyV",
+            metaKey = meta,
+            ctrlKey = ctrl,
+            altKey = false,
+            shiftKey = false,
+            preventDefault = (() => prevented = true): js.Function0[Unit],
+            stopPropagation = (() => ()): js.Function0[Unit]
+          )
+          .asInstanceOf[dom.KeyboardEvent]
+        commands.handleKeyDown(event)
+        prevented
+
+      assert(!press(meta = true, ctrl = false), "Cmd+V must reach the browser")
+      assert(!press(meta = false, ctrl = true), "Ctrl+V must reach the browser")
+      afterMicrotasks(())
+    }
+
   test("no two commands share a shortcut (byShortcut would silently drop one)"):
     withGraphvizAsync { graphviz =>
       given Owner = unsafeWindowOwner

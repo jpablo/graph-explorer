@@ -143,13 +143,21 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         onClickHandler = _ --> (action => action())
       ),
       // Actions absorbs the old "Copy as" menu: exporting IS an action, and two
-      // top-level menus for it was one of the junk-drawer symptoms.
+      // top-level menus for it was one of the junk-drawer symptoms. Import sits
+      // in the same menu for the same reason, in its own group ABOVE export —
+      // it is the mirror of it, and the pair reads as the document's two ends.
+      // Not in "Add", which is additive: this replaces the whole document.
       Dropdown(
         title = span("Actions"),
         options = {
-          val actionsWithExport: List[Command[?] | Sep.type] =
-            sections.actions ++ (Sep :: sections.exportAs)
-          filteredMenu(actionsWithExport*)
+          // Built with List.concat rather than chained `++`: inferring across two
+          // `Sep :: …` prepends widens the separator to MenuEntry[Nothing] and
+          // the union collapses. One expected type, applied to every part.
+          val importGroup: List[Command[?] | Sep.type] = Sep :: sections.importFrom
+          val exportGroup: List[Command[?] | Sep.type] = Sep :: sections.exportAs
+          val actionsWithClipboard: List[Command[?] | Sep.type] =
+            List.concat(sections.actions, importGroup, exportGroup)
+          filteredMenu(actionsWithClipboard*)
         },
         onClickHandler = _ --> (action => action())
       )
