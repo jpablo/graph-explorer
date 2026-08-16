@@ -601,7 +601,7 @@ fn handle_request(
                 text_response(StatusCode(401), "unauthorized")
             } else {
                 match parse_document_path_from_url(path) {
-                    Some(path) => match get_document_snapshot(watch_registry, &path) {
+                    Ok(path) => match get_document_snapshot(watch_registry, &path) {
                         Ok(snapshot) => {
                             #[derive(Serialize)]
                             struct GetDocumentResponse {
@@ -633,7 +633,7 @@ fn handle_request(
                             )
                         }
                     },
-                    None => {
+                    Err(err) => {
                         #[derive(Serialize)]
                         struct BadRequestBody {
                             ok: bool,
@@ -645,7 +645,7 @@ fn handle_request(
                             &BadRequestBody {
                                 ok: false,
                                 code: "INVALID_REQUEST",
-                                message: "missing query parameter: path".to_string(),
+                                message: err.to_string(),
                             },
                         )
                     }
@@ -918,18 +918,33 @@ fn parse_put_document_request(
     parse_json_request(request, max_body_bytes)
 }
 
-fn parse_document_path_from_url(url: &str) -> Option<String> {
-    let (_, query) = url.split_once('?')?;
-    query
+/// Extract and percent-decode the `path` query parameter.
+///
+/// `gx` sends the path through `urlencoding::encode`, which escapes everything
+/// outside the unreserved set. This decode is the exact inverse. An earlier
+/// version only replaced `%2F` with `/`, which happened to cover a plain POSIX
+/// path and nothing else: a space (`%20`) survived undecoded, and every
+/// separator of a canonical Windows path (`\` -> `%5C`, `:` -> `%3A`, and the
+/// `\\?\` verbatim prefix's `?` -> `%3F`) did too. The mangled string then
+/// missed the watch registry, so `watch` succeeded and `get` failed with
+/// "path is not currently watched" -> HTTP 400 -> `gx` exit 4. That was the
+/// Windows blocker; it reproduces on macOS with any path containing a space.
+///
+/// Splitting on `&` and `=` happens *before* decoding, so an encoded separator
+/// inside a filename (`%26`, `%3D`) stays part of the value.
+fn parse_document_path_from_url(url: &str) -> Result<String> {
+    let query = url
+        .split_once('?')
+        .map(|(_, query)| query)
+        .ok_or_else(|| anyhow::anyhow!("missing query parameter: path"))?;
+    let raw = query
         .split('&')
         .filter_map(|entry| entry.split_once('='))
-        .find_map(|(key, value)| {
-            if key == "path" {
-                Some(value.replace("%2F", "/"))
-            } else {
-                None
-            }
-        })
+        .find_map(|(key, value)| if key == "path" { Some(value) } else { None })
+        .ok_or_else(|| anyhow::anyhow!("missing query parameter: path"))?;
+    urlencoding::decode(raw)
+        .map(|decoded| decoded.into_owned())
+        .map_err(|err| anyhow::anyhow!("path query parameter is not valid percent-encoded UTF-8: {err}"))
 }
 
 fn get_document_snapshot(watch_registry: &WatchRegistry, path: &str) -> Result<DocumentSnapshot> {
@@ -1505,4 +1520,94 @@ fn set_owner_only_permissions(path: &Path) -> Result<()> {
 #[cfg(not(unix))]
 fn set_owner_only_permissions(_path: &Path) -> Result<()> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parsed(url: &str) -> String {
+        parse_document_path_from_url(url).expect("expected a decodable path")
+    }
+
+    #[test]
+    fn decodes_a_posix_path() {
+        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fdiagram.dot"), "/tmp/diagram.dot");
+    }
+
+    /// The regression that reproduces the Windows blocker on any platform:
+    /// a space encodes to `%20`, which the old `%2F`-only replacement missed.
+    #[test]
+    fn decodes_a_path_containing_a_space() {
+        assert_eq!(
+            parsed("/v1/document?path=%2Ftmp%2Fwith%20space.dot"),
+            "/tmp/with space.dot"
+        );
+    }
+
+    /// What `fs::canonicalize` returns on Windows: a verbatim `\\?\` path whose
+    /// every separator needs decoding.
+    #[test]
+    fn decodes_a_windows_verbatim_path() {
+        assert_eq!(
+            parsed("/v1/document?path=%5C%5C%3F%5CC%3A%5CUsers%5Crunneradmin%5CAppData%5CLocal%5CTemp%5Cgx.dot"),
+            r"\\?\C:\Users\runneradmin\AppData\Local\Temp\gx.dot"
+        );
+    }
+
+    #[test]
+    fn accepts_lowercase_hex_escapes() {
+        assert_eq!(parsed("/v1/document?path=%2ftmp%2fa.dot"), "/tmp/a.dot");
+    }
+
+    /// `gx` percent-encodes rather than form-encodes, so `+` is a literal
+    /// character in a filename and must not become a space.
+    #[test]
+    fn leaves_a_plus_sign_alone() {
+        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fa+b.dot"), "/tmp/a+b.dot");
+    }
+
+    /// Separators are split before decoding, so encoded ones stay in the value.
+    #[test]
+    fn keeps_encoded_separators_inside_the_value() {
+        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fa%26b%3Dc.dot"), "/tmp/a&b=c.dot");
+    }
+
+    #[test]
+    fn finds_path_among_other_parameters() {
+        assert_eq!(
+            parsed("/v1/document?other=1&path=%2Ftmp%2Fa.dot&more=2"),
+            "/tmp/a.dot"
+        );
+    }
+
+    /// Whatever `gx` encodes, this decodes — the two crates are inverses.
+    #[test]
+    fn round_trips_what_gx_encodes() {
+        for path in [
+            "/tmp/diagram.dot",
+            "/tmp/with space.dot",
+            "/Users/jp/My Projects/a&b.dot",
+            r"\\?\C:\Users\runneradmin\AppData\Local\Temp\gx.dot",
+            "/tmp/ünïcode-Ø.dot",
+        ] {
+            let url = format!("/v1/document?path={}", urlencoding::encode(path));
+            assert_eq!(parsed(&url), path);
+        }
+    }
+
+    #[test]
+    fn rejects_a_url_without_a_query() {
+        assert!(parse_document_path_from_url("/v1/document").is_err());
+    }
+
+    #[test]
+    fn rejects_a_query_without_a_path_parameter() {
+        assert!(parse_document_path_from_url("/v1/document?other=1").is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_percent_encoding() {
+        assert!(parse_document_path_from_url("/v1/document?path=%FF%FE").is_err());
+    }
 }

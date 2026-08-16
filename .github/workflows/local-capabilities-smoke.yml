@@ -32,9 +32,13 @@ jobs:
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Check desktop crate
+      # `test` rather than `check`: the desktop's query-parameter decoding is
+      # covered by unit tests (including Windows-shaped paths, which no
+      # macOS/Linux runtime smoke can exercise), and a check-only job would
+      # never run them.
+      - name: Test desktop crate
         working-directory: desktop/src-tauri
-        run: cargo check --locked
+        run: cargo test --locked
 
       - name: Check gx crate
         working-directory: gx
@@ -152,8 +156,9 @@ jobs:
         run: xvfb-run --auto-servernum ./scripts/local-capabilities-release-smoke.sh
 
       # LC2-T5: external file edit must reach the UI push boundary in <=300ms
-      # median. Windows is excluded while its path bug is parked (the script
-      # uses gx watch/get and would hit the same defect).
+      # median. Windows is excluded because the harness is a bash script
+      # (mktemp/pkill/jq), not because of the path defect it used to hit; the
+      # Windows runtime smoke below covers the same watch/get/set path.
       - name: macOS disk->UI smoke (LC2-T5)
         if: runner.os == 'macOS'
         run: ./scripts/local-capabilities-disk-to-ui-smoke.sh
@@ -162,14 +167,13 @@ jobs:
         if: runner.os == 'Linux'
         run: xvfb-run --auto-servernum ./scripts/local-capabilities-disk-to-ui-smoke.sh
 
-      # Non-blocking: the Windows desktop binary builds correctly, but the
-      # runtime smoke hits a known gx/desktop path-normalization bug on Windows
-      # (gx get -> exit 4 EXIT_INVALID_PATH_OR_PERMISSION while watch succeeds).
-      # Tracked as a residual risk in docs/local-capabilities-v1-go-no-go.md.
-      # Remove continue-on-error once the Windows path bug is fixed.
+      # Blocking as of the path-decoding fix. This step used to carry
+      # continue-on-error for a defect where `gx get` returned exit 4 while
+      # `watch` succeeded: the desktop decoded the `path` query parameter by
+      # replacing '%2F' with '/' and nothing else, so a canonical Windows path
+      # (whose \ : ? all need decoding) never matched the watch registry.
       - name: Windows runtime smoke (release binaries)
         if: runner.os == 'Windows'
-        continue-on-error: true
         shell: pwsh
         run: |
           $gx = "gx/target/release/gx.exe"

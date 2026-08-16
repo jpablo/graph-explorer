@@ -1,7 +1,32 @@
 # Local Capabilities v1 Go/No-Go Review
 
-Last updated: 2026-05-17
-Decision status: **Conditional No-Go** (one known Windows runtime defect)
+Last updated: 2026-08-15
+Decision status: **Go for macOS and Linux. Windows: defect fixed, awaiting its
+first green CI run** (the gate is now blocking, so that run is the evidence)
+
+> 2026-08-15 update: the Windows path defect is **fixed**. Root cause was not
+> path normalization at all — it was URL decoding.
+> `parse_document_path_from_url` decoded the `path` query parameter by
+> replacing `%2F` with `/` and nothing else. That happens to cover a plain
+> POSIX path, which is why macOS and Linux passed; it covers nothing else. A
+> canonical Windows path needs `\` (`%5C`), `:` (`%3A`) and the `\\?\` verbatim
+> prefix's `?` (`%3F`) decoded, so the string that reached the watch-registry
+> lookup was still percent-encoded, missed every key, and returned
+> "path is not currently watched" -> HTTP 400 -> `gx` exit 4. `watch` and `set`
+> pass their paths in a JSON body, never through a URL, which is exactly why
+> `watch` succeeded and `get` failed.
+>
+> The defect was never Windows-specific: it reproduces on macOS with any path
+> containing a space (`%20`). `GET /v1/document` now percent-decodes properly
+> via `urlencoding::decode` — the exact inverse of the `urlencoding::encode`
+> that `gx` uses. Covered by 11 unit tests in `desktop/src-tauri/src/main.rs`
+> (POSIX, spaces, Windows verbatim paths, lowercase hex, literal `+`, encoded
+> separators, and a gx-encode/desktop-decode round trip) and by a permanent
+> spaced-path case in `scripts/local-capabilities-release-smoke.sh`.
+>
+> Both Windows smoke steps (`local-capabilities-smoke.yml`,
+> `release-binaries.yml`) have had `continue-on-error` removed and are now
+> publish gates.
 
 > 2026-05-17 update: the original macOS evidence below was produced by a
 > desktop binary built without `tauri/custom-protocol`, i.e. a dev build that
@@ -52,21 +77,22 @@ CI (`.github/workflows/local-capabilities-smoke.yml`), production builds
 - cross-platform packaging smoke status:
   - macOS desktop binary validated in runtime flow
   - Linux desktop binary validated in runtime flow
-  - Windows desktop binary builds as production, but its runtime smoke fails
-    on a known path-normalization defect (see Risks); the Windows smoke step
-    is marked `continue-on-error` until that bug is fixed
+  - Windows: the defect that failed its runtime smoke is fixed and the step is
+    now blocking, but no Windows run has executed against the fix yet. The fix
+    is verified by unit tests covering Windows-shaped paths and by an
+    equivalent end-to-end reproduction on macOS (a path containing a space
+    fails identically before the fix, passes after). Dispatch
+    `local-capabilities-smoke.yml` before the next tag to confirm on a real
+    Windows runner.
 - browser-driven interactive desktop automation remains limited:
   - command-path and API-path are covered
   - full GUI automation coverage is still optional hardening, not blocking correctness of protocol path
 
 ## Risks
 
-- **Observed (Windows): path-normalization defect.** `gx watch <tmp>` succeeds
-  but `gx get --file <tmp>` returns exit `4` (`EXIT_INVALID_PATH_OR_PERMISSION`)
-  on `windows-latest`. The path accepted at watch time is rejected at get time
-  — likely `%TEMP%` short/long name, drive-letter case, or `\` vs `/`
-  canonicalization differing between watch registration and get lookup/policy.
-  Blocks Windows runtime use until fixed.
+- ~~**Observed (Windows): path-normalization defect.**~~ Fixed 2026-08-15; see
+  the update at the top. It was URL decoding in `GET /v1/document`, not path
+  normalization — normalization was consistent on both sides all along.
 - Operational requirement: `npm install` must run before `npm run build` and
   before `sbt test` (the viewer's Scala.js tests are esbuild-bundled from
   node_modules). No sbt task installs node deps itself.
@@ -77,8 +103,9 @@ CI (`.github/workflows/local-capabilities-smoke.yml`), production builds
 
 Go for macOS and Linux v1 (production desktop + runtime validated in CI).
 
-No-go for Windows **until the path-normalization defect above is fixed** and
-the Windows runtime smoke is restored to blocking (remove `continue-on-error`).
+Windows: the blocking defect is fixed and its smoke step is blocking again.
+Promote to Go once that step has passed once on `windows-latest` — dispatch
+`local-capabilities-smoke.yml` to get that evidence without cutting a tag.
 
 Known limitations regardless of platform:
 

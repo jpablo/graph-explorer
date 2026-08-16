@@ -1,6 +1,6 @@
 # Local Capabilities v1 Implementation Plan
 
-Last updated: 2026-03-01
+Last updated: 2026-08-15
 Related architecture:
 - `docs/local-capabilities-v1-architecture.md`
 
@@ -30,7 +30,8 @@ Ship a v1 local-capabilities stack for Graph Explorer with:
 
 Current phase: `Phase 5`
 Current focus: `LC5-T2`
-Resume from: `LC5-T2 - complete Linux/Windows packaging smoke to unblock go/no-go`
+Resume from: `LC5-T2 - dispatch local-capabilities-smoke.yml for a green Windows
+runtime smoke against the path-decoding fix, then close LC5-T4`
 
 ## Proposed Repository Layout
 
@@ -90,7 +91,7 @@ Notes:
 | LC4-T3 | WS6 | Add request limits (payload size, local rate limiting) | ✅ | LC1-T2 | Oversized/abusive requests rejected safely | Added configurable limits (`GX_MAX_REQUEST_BODY_BYTES`, `GX_RATE_LIMIT_MAX_REQUESTS`, `GX_RATE_LIMIT_WINDOW_MS`) with `413 PAYLOAD_TOO_LARGE` and `429 RATE_LIMITED` responses | `scripts/local-capabilities-limits-smoke.sh` passed; phase3/policy smoke scripts remained green afterward |
 | LC4-T4 | WS6 | Add structured local audit log (watch/add/write/conflict) | ✅ | LC2-T1, LC3-T3 | Log entries include timestamp, action, path, source | Added append-only JSONL audit log at `~/.graph-explorer/runtime/audit.log.jsonl` with events for `watch.added`, `watch.removed`, `watch.rejected`, `document.written`, `document.conflict`, and rate-limit rejections | Content bodies are not logged (metadata-only records) |
 | LC5-T1 | WS7 | Regression pass: `sbt test`, desktop+CLI tests, `npm run build` | ✅ | LC3-T6, LC4-T4 | Full validation suite green | `sbt test` passed; smoke scripts `local-capabilities-phase3-smoke.sh`, `local-capabilities-policy-smoke.sh`, `local-capabilities-limits-smoke.sh` passed; `npm run build` passed | Build emitted known non-blocking chunk-size warnings |
-| LC5-T2 | WS7 | Packaging smoke test for macOS/Linux/Windows desktop binaries | in_progress | LC5-T1 | Build artifacts run and connect to `gx` | Added release packaging matrix in `.github/workflows/local-capabilities-smoke.yml` for macOS/Linux/Windows (`cargo build --release --locked`) plus OS-specific runtime smoke steps (macOS/Linux via release smoke script, Windows via PowerShell flow) | Await first CI matrix execution to confirm Linux/Windows runtime smoke outcomes |
+| LC5-T2 | WS7 | Packaging smoke test for macOS/Linux/Windows desktop binaries | in_progress | LC5-T1 | Build artifacts run and connect to `gx` | macOS/Linux runtime smoke green in CI. Windows blocker fixed 2026-08-15 (URL decoding in `GET /v1/document`, not path normalization) and its smoke step is blocking again in both workflows; local evidence = 11 desktop unit tests + all four smoke scripts green against release binaries | Awaiting one green Windows run to close; dispatch `local-capabilities-smoke.yml` |
 | LC5-T3 | WS7 | Docs/user guide updates (desktop install + CLI quickstart) | ✅ | LC5-T2 | Users can complete first watch/edit flow from docs | Added `docs/local-capabilities-v1-quickstart.md` with release-binary setup, first watch/edit flow, policy env options, audit log location, and troubleshooting | Includes conflict, auth, payload, and rate-limit troubleshooting paths |
 | LC5-T4 | WS7 | v1 release checklist and go/no-go review | in_progress | LC5-T1, LC5-T2, LC5-T3 | Risks and residual gaps documented | Added `docs/local-capabilities-v1-go-no-go.md` with conditional no-go decision and explicit residual risk inventory | Final go/no-go blocked on LC5-T2 cross-platform packaging smoke |
 
@@ -243,3 +244,4 @@ flowchart TD
 | 2026-03-01 | Added end-user local capabilities quickstart and troubleshooting guide | LC5-T3 (✅) | Created `docs/local-capabilities-v1-quickstart.md` covering build/install, first watch/edit flow, policy controls, audit logs, and common failure recovery | LC5-T4 |
 | 2026-03-01 | Drafted go/no-go review with validated scope, explicit residual risks, and release recommendation | LC5-T4 (in progress) | Created `docs/local-capabilities-v1-go-no-go.md` with conditional no-go pending cross-platform packaging smoke completion | LC5-T2 |
 | 2026-03-01 | Added cross-platform release packaging CI matrix and reusable release runtime smoke script | LC5-T2 (in progress) | Updated `.github/workflows/local-capabilities-smoke.yml` with macOS/Linux/Windows release build matrix + runtime smoke steps per OS; `scripts/local-capabilities-release-smoke.sh` passes locally | LC5-T2 |
+| 2026-08-15 | Fixed the Windows blocker: `GET /v1/document` decoded its `path` query parameter by replacing `%2F` only, so anything else escaped (a space, and every separator of a canonical Windows path) never matched the watch registry. Now decodes with `urlencoding::decode`, the inverse of gx's encode. Made both Windows smoke steps blocking; added a Rust job to `ci.yml`, which is the only workflow that runs on `viewer` | LC5-T2 (in progress), LC5-T4 (in progress) | Reproduced end-to-end on macOS with a spaced path (`watch` exit 0, `get` exit 4) and confirmed exit 0 after the fix; 11 new desktop unit tests pass; release-binary runs of the release/phase3/policy/limits smoke scripts all pass; disk->UI median 74ms (budget 300ms) | LC5-T2 - green Windows runtime smoke |

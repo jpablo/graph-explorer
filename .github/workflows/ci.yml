@@ -97,6 +97,38 @@ jobs:
           sbt -J-Xmx2G "viewer/fullLinkJS"
           npm run build
 
+  # The desktop/gx crates ship in every release, but nothing verified them on
+  # this branch: local-capabilities-smoke.yml watches `dev`, `release` and
+  # `codex/**` — none of which exist here — so its Rust job only ever ran by
+  # manual dispatch, and release-binaries.yml first compiles them when a tag is
+  # already pushed. Same disease this workflow was created to cure, one
+  # directory over. macOS runner to match that workflow's Rust job: the desktop
+  # crate links webkit2gtk on Linux and would need an apt step here.
+  rust:
+    name: Rust tests (desktop + gx)
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            desktop/src-tauri
+            gx
+
+      # Covers the control server's URL decoding, including the Windows-shaped
+      # paths that no macOS/Linux runtime smoke can reach.
+      - name: Test desktop crate
+        working-directory: desktop/src-tauri
+        run: cargo test --locked
+
+      - name: Check gx crate
+        working-directory: gx
+        run: cargo check --locked
+
   # Submits the sbt dependency graph to GitHub, which is what makes Dependabot
   # alerts work for Scala dependencies — without it, GitHub only sees this
   # repo's npm and cargo manifests and every JVM dependency is invisible to

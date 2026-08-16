@@ -164,13 +164,12 @@ jobs:
         if: runner.os == 'Linux'
         run: xvfb-run --auto-servernum ./scripts/local-capabilities-disk-to-ui-smoke.sh
 
-      # Non-blocking, mirroring local-capabilities-smoke.yml: the Windows
-      # binary builds correctly but the runtime smoke hits a known, parked
-      # gx/desktop path-normalization bug. Blocking here would block every
-      # release. Remove continue-on-error once the Windows path bug is fixed.
+      # Blocking as of the path-decoding fix, mirroring
+      # local-capabilities-smoke.yml. `fail-fast: false` above keeps a Windows
+      # failure from withholding the macOS and Linux assets: this gate decides
+      # whether the *Windows* binaries get published, nothing else.
       - name: Windows runtime smoke (release binaries)
         if: runner.os == 'Windows'
-        continue-on-error: true
         shell: pwsh
         run: |
           $gx = "gx/target/release/gx.exe"
