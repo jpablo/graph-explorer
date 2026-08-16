@@ -47,12 +47,12 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      # ScalablyTyped facades are generated in-build during viewer/fullLinkJS
-      # from node_modules, so `npm install` MUST run before the sbt task.
+      # JS library facades are hand-written and checked in, so the Scala.js
+      # compile needs nothing from node_modules; `npm run build` below does.
       - name: Install npm modules
         run: npm install
 
-      - name: Compile Scala.js (optimized, generates ScalablyTyped facades)
+      - name: Compile Scala.js (optimized)
         run: sbt -J-Xmx2G viewer/fullLinkJS
 
       - name: Build frontend bundle

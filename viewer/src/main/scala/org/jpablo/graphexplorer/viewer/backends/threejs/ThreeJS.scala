@@ -7,8 +7,8 @@ import scala.scalajs.js.annotation.*
 import scala.scalajs.js.typedarray.Float32Array
 
 // Hand-written facade for the (small) subset of three.js the 3D canvas binds to.
-// `three` is deliberately in build.sbt's stIgnore: letting ScalablyTyped convert
-// its full .d.ts surface would be a large, slow codegen for a handful of classes.
+// A generated (ScalablyTyped-style) conversion of three's full .d.ts surface
+// would be a large, slow codegen for a handful of classes.
 // https://threejs.org/docs/
 
 @js.native

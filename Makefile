@@ -10,7 +10,7 @@ dev-serve:
 	npm run dev
 
 test:
-	sbt test
+	sbt testFull
 
 build:
 	sbt "viewer/fullLinkJS"

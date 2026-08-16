@@ -35,8 +35,12 @@ npm run build
 ### Testing
 
 ```bash
-sbt test
+sbt testFull
 ```
+
+Note: under **sbt 2**, `test` is the *incremental* task (sbt 1's `testQuick`, now
+an alias for it) and runs only what failed before or whose dependencies changed.
+`testFull` is the one that runs everything.
 
 ## Architecture
 
@@ -95,7 +99,7 @@ The application uses **Laminar's reactive streams** with **QuickLens** for immut
 - Test files use the `*Spec` suffix convention
 - When running tests in the "shared" module, prefer the JVM version: `sbt --client "sharedJVM/testOnly <TestName>"`
 - Tests are located in `shared/src/test/scala/` and `viewer/src/test/scala/` directories
-- Use `sbt test` to run all tests or `sbt <module>/test` for specific modules
+- Use `sbt testFull` to run all tests or `sbt <module>/testFull` for specific modules (`test` is incremental under sbt 2)
 
 ## Code Style Guidelines
 

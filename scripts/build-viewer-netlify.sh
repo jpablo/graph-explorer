@@ -21,16 +21,25 @@ if ! java -version 2>&1 | grep -q '"17\.'; then
   exit 1
 fi
 
-sdk install sbt 1.9.7
-sdk use sbt 1.9.7
+# This installs the sbt *launcher* only; the launcher reads
+# project/build.properties and downloads the sbt the build actually asks for
+# (2.0.6). A 1.11.x launcher is new enough to bootstrap sbt 2.x — the previous
+# 1.9.7 pin is not, and would die on the version handshake. Same pruning
+# hazard as the JDK above, so check just as loudly.
+sdk install sbt 1.11.4
+sdk use sbt 1.11.4
 
-curl -fL "https://github.com/coursier/launchers/raw/master/cs-x86_64-pc-linux.gz" | gzip -d > cs
-chmod +x cs
-
-./cs install stc
-export PATH="$PATH:/opt/buildhome/.local/share/coursier/bin"
-stc --ignoredLibs node @codemirror/view @codemirror/lang-javascript @viz-js/viz @codemirror/commands jsdom @viz-js/lang-dot codemirror
-
+# NOTE the subshell: `sbt --script-version` inside a project directory starts
+# the thin client and blocks forever instead of printing a version. Ask from a
+# scratch dir, where the launcher just answers and exits.
+launcher_version="$(cd /tmp && sbt --script-version 2>&1)"
+echo "sbt launcher: $launcher_version"
+if ! echo "$launcher_version" | grep -q '^1\.11\.'; then
+  echo "ERROR: expected the sbt 1.11.x launcher, got the above." >&2
+  echo "       Has sdkman pruned 1.11.4? Any 1.11+ launcher will do; it only" >&2
+  echo "       needs to be able to bootstrap the sbt 2.x in build.properties." >&2
+  exit 1
+fi
 
 git fetch --force --unshallow --tags || git fetch --force --depth=10000 --tags
 

@@ -1,9 +1,8 @@
-import org.scalajs.linker.interface.ModuleSplitStyle
 import sbt.Test
 
-val scala3Version    = "3.7.1"
-val scalametaVersion = "4.8.2"
-val laminarVersion   = "17.2.1"
+val scala3Version                      = "3.7.1"
+val scalametaVersion                   = "4.8.2"
+val laminarVersion                     = "17.2.1"
 lazy val buildLocalCapabilitiesRelease = taskKey[Unit]("Build release binaries for graph-explorer-desktop and gx")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
@@ -11,7 +10,11 @@ ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.o
 ThisBuild / organization      := "org.jpablo"
 ThisBuild / scalaVersion      := scala3Version
 ThisBuild / semanticdbVersion := scalametaVersion
-ThisBuild / scalacOptions ++= // Scala 3.x options
+// sbt 2: bare settings are "common settings" injected into every subproject.
+// (ThisBuild-scoping these would now double-append them alongside the
+// project-level `scalacOptions ++=` below, and -Werror turns the resulting
+// "flag set repeatedly" warnings into errors.)
+scalacOptions ++= // Scala 3.x options
   Seq(
     "-Wsafe-init",
     "-language:implicitConversions",
@@ -41,15 +44,15 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
     buildInfoKeys            := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage         := "buildinfo",
     libraryDependencies ++= Seq(
-      "com.lihaoyi"                %%% "upickle"                        % "4.2.1",
-      "com.lihaoyi"                %%% "upickle-implicits-named-tuples" % "4.2.1",
-      "com.lihaoyi"                %%% "pprint"                         % "0.9.0",
-      "com.lihaoyi"                %%% "sourcecode"                     % "0.4.2",
-      "com.softwaremill.quicklens" %%% "quicklens"                      % "1.9.0",
-      "org.scala-lang.modules"     %%% "scala-parser-combinators"       % "2.4.0",
-      "com.lihaoyi"                %%% "fastparse"                      % "3.1.1",
-      "org.scalameta"              %%% "munit"                          % "1.0.0" % Test,
-      "org.scalameta"              %%% "munit-scalacheck"               % "1.0.0" % Test
+      "com.lihaoyi"                %% "upickle"                        % "4.2.1",
+      "com.lihaoyi"                %% "upickle-implicits-named-tuples" % "4.2.1",
+      "com.lihaoyi"                %% "pprint"                         % "0.9.0",
+      "com.lihaoyi"                %% "sourcecode"                     % "0.4.2",
+      "com.softwaremill.quicklens" %% "quicklens"                      % "1.9.0",
+      "org.scala-lang.modules"     %% "scala-parser-combinators"       % "2.4.0",
+      "com.lihaoyi"                %% "fastparse"                      % "3.1.1",
+      "org.scalameta"              %% "munit"                          % "1.0.0" % Test,
+      "org.scalameta"              %% "munit-scalacheck"               % "1.0.0" % Test
     ),
     scalacOptions ++= Seq(
       "-explain",
@@ -61,7 +64,7 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
     // JS-specific settings
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "2.8.0"
+      "org.scala-js" %% "scalajs-dom" % "2.8.0"
     )
   )
 
@@ -75,10 +78,10 @@ lazy val graphviz = crossProject(JSPlatform, JVMPlatform)
     name                     := "graphviz",
     Test / parallelExecution := false,
     libraryDependencies ++= Seq(
-      "com.lihaoyi"   %%% "fastparse"        % "3.1.1",
-      "org.scalameta" %%% "munit"            % "1.0.0" % Test,
-      "org.scalameta" %%% "munit-scalacheck" % "1.0.0" % Test,
-      "com.lihaoyi"   %%% "ujson"            % "4.2.1" % Test // M7 output gate
+      "com.lihaoyi"   %% "fastparse"        % "3.1.1",
+      "org.scalameta" %% "munit"            % "1.0.0" % Test,
+      "org.scalameta" %% "munit-scalacheck" % "1.0.0" % Test,
+      "com.lihaoyi"   %% "ujson"            % "4.2.1" % Test // M7 output gate
     ),
     // The fastparse front-end still trips pure-function inference. `-Xfatal-warnings`
     // came off with it (M0 tech-debt, PORT.md §6) and is back: the parser no longer
@@ -97,7 +100,6 @@ lazy val viewer =
     .in(file("viewer"))
     .enablePlugins(ScalaJSPlugin, DynVerPlugin, BuildInfoPlugin)
     .dependsOn(shared.js, graphviz.js) // M8: pure-Scala graphviz backend (flagged)
-    .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
@@ -114,53 +116,33 @@ lazy val viewer =
 //          .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
           .withSourceMap(true)
       },
-      // Point ScalablyTyped at the already-installed node_modules. Do NOT run
-      // `npm install` here: every viewer sbt task evaluates this, and when the
-      // build is driven by `npm run build` -> @scala-js/vite-plugin-scalajs ->
-      // sbt, a nested `npm install` rewrites node_modules out from under the
-      // running vite process. Dev/CI install deps explicitly before building.
-      externalNpm := baseDirectory.value / "..",
-      // Only generate facades for the libraries the viewer actually binds to.
-      // The rest of package.json `dependencies` are JS-only / build-only / a
-      // local `file:` dep with no TypeScript types, so ignore them.
-      stIgnore ++= List(
-        "node",
-        "dot-parser",
-        "@scala-js/vite-plugin-scalajs",
-        "mermaid",
-        // three ships its own (huge) .d.ts surface; the viewer binds to a
-        // hand-written narrow facade instead (backends/threejs/ThreeJS.scala).
-        "three",
-        "uuid"
-      ),
+      // JS library facades are hand-written for the narrow surfaces the viewer
+      // binds to: components/codeMirror/CodeMirrorFacade.scala and
+      // backends/threejs/ThreeJS.scala. (ScalablyTyped's sbt-converter has no
+      // sbt 2.x release, so the generated-facade plugin was dropped in the
+      // sbt 2 migration.)
       libraryDependencies ++= Seq(
-        "com.raquo" %%% "laminar" % laminarVersion,
-//        "com.raquo"                  %%% "waypoint"    % "8.0.0",
-        "com.softwaremill.quicklens"   %%% "quicklens"   % "1.9.0",
-        "com.softwaremill.macwire"     %%% "macros"      % "2.6.4" % "provided",
-        "io.laminext"                  %%% "fetch"       % "0.17.0",
-        "org.scala-js"                 %%% "scalajs-dom" % "2.8.0",
-        "com.lihaoyi"                  %%% "upickle"     % "4.2.1",
-        "com.lihaoyi"                  %%% "pprint"      % "0.9.0",
-        "com.softwaremill.magnolia1_3" %%% "magnolia"    % "1.3.8",
-//        "com.github.sbt"             %%% "dynver"           % "5.1.0",
-        "com.microsoft.playwright" % "playwright"       % "1.50.0" % Test,
-        "com.microsoft.playwright" % "driver-bundle"    % "1.50.0" % Test,
-        "org.seleniumhq.selenium"  % "selenium-java"    % "4.29.0" % Test,
-        "org.scalameta"          %%% "munit"            % "1.0.0"  % Test,
-        "org.scalameta"          %%% "munit-scalacheck" % "1.0.0"  % Test
-        // ScalablyTyped facades for codemirror/jsdom/viz-js are generated at
-        // build time by ScalablyTypedConverterExternalNpmPlugin (enabled above)
-        // from node_modules + the project's pinned sbt-converter. No pinned
-        // content hashes -- local and CI each generate against the project's
-        // own Scala.js, so they are reproducible by construction.
+        "com.raquo" %% "laminar" % laminarVersion,
+//        "com.raquo"                  %% "waypoint"    % "8.0.0",
+        "com.softwaremill.quicklens"   %% "quicklens"   % "1.9.0",
+        "com.softwaremill.macwire"     %% "macros"      % "2.6.4" % "provided",
+        "io.laminext"                  %% "fetch"       % "0.17.0",
+        "org.scala-js"                 %% "scalajs-dom" % "2.8.0",
+        "com.lihaoyi"                  %% "upickle"     % "4.2.1",
+        "com.lihaoyi"                  %% "pprint"      % "0.9.0",
+        "com.softwaremill.magnolia1_3" %% "magnolia"    % "1.3.8",
+//        "com.github.sbt"             %% "dynver"           % "5.1.0",
+        "org.scalameta" %% "munit"            % "1.0.0" % Test,
+        "org.scalameta" %% "munit-scalacheck" % "1.0.0" % Test
       ),
-      excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat_sjs1"),
+      excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat"),
       // https://www.scala-js.org/doc/project/js-environments.html
       // Playwright runs tests in a real headless browser (full SVG/DOM support).
       // esbuild bundles the Scala.js test output to resolve npm bare imports.
-      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chromium", headless = true, showLogs = true),
-      Test / jsEnvInput := {
+      // (Def.uncached: sbt 2 caches task results by default and JSEnv / jsenv.Input
+      // have no JsonFormat; these are also side-effecting by nature.)
+      Test / jsEnv := Def.uncached(new jsenv.playwright.PWEnv(browserName = "chromium", headless = true, showLogs = true)),
+      Test / jsEnvInput := Def.uncached {
         val prevInput = (Test / jsEnvInput).value
         val bundleDir = (Test / crossTarget).value / "test-bundled"
         bundleDir.mkdirs()
@@ -169,8 +151,11 @@ lazy val viewer =
             val outFile = bundleDir / path.getFileName.toString
             import scala.sys.process._
             val cmd = Seq(
-              "npx", "esbuild", path.toAbsolutePath.toString,
-              "--bundle", "--format=esm",
+              "npx",
+              "esbuild",
+              path.toAbsolutePath.toString,
+              "--bundle",
+              "--format=esm",
               s"--outfile=${outFile.getAbsolutePath}"
             )
             val exitCode = Process(cmd, baseDirectory.value / "..").!
@@ -178,7 +163,7 @@ lazy val viewer =
             org.scalajs.jsenv.Input.ESModule(outFile.toPath)
           case other => other
         }
-      },
+      }
 //      testFrameworks += new TestFramework("munit.Framework")
     )
 
@@ -189,7 +174,7 @@ lazy val root =
     .settings(
       name := "graph-explorer",
       welcomeMessage,
-      buildLocalCapabilitiesRelease := {
+      buildLocalCapabilitiesRelease := Def.uncached {
         val log  = streams.value.log
         val base = baseDirectory.value
 
@@ -215,10 +200,10 @@ lazy val root =
         // (http://localhost:5173) instead of the embedded frontendDist, so the
         // window is blank unless a vite dev server happens to be running. The
         // Tauri CLI adds this feature automatically; a bare `cargo build` does not.
-        // Install node deps first: ScalablyTyped (ExternalNpm) reads
-        // node_modules during the sbt fullLinkJS that `npm run build` triggers,
-        // and the `externalNpm` setting no longer auto-installs. This makes the
-        // task self-sufficient on a clean checkout.
+        // Install node deps first: vite and the esbuild step in
+        // viewer's Test / jsEnvInput both resolve from node_modules, and no sbt
+        // task auto-installs them. This makes the task self-sufficient on a
+        // clean checkout.
         run(Seq("npm", "install", "--no-audit", "--no-fund"), base)
         run(Seq("npm", "run", "build"), base)
         forceRecompile(base / "desktop" / "src-tauri" / "src" / "main.rs")

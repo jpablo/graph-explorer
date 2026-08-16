@@ -1,17 +1,10 @@
 package org.jpablo.graphexplorer.viewer.components.codeMirror
 
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import typings.codemirrorState.anon.{Dispatch, From}
-import typings.codemirrorState.mod.{Compartment, Extension, Transaction, TransactionSpec}
 
 import scala.scalajs.js
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.Mods
-import typings.codemirror.mod as codemirror
-import typings.codemirrorView.mod.{EditorView, EditorViewConfig, ViewUpdate, keymap}
-import typings.vizJsLangDot.mod.dot
-import typings.codemirrorCommands.mod.indentWithTab
-import typings.codemirrorCommands.mod.{redo, undo}
 
 def CodeMirror(state: ViewerState, mods: Mods*) =
   // Create a local EventBus for debouncing text updates
@@ -26,11 +19,11 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
   def wrapExtension(enabled: Boolean): Extension =
     if enabled then EditorView.lineWrapping else js.Array[Any]()
 
-  lazy val extensions =
+  lazy val baseExtensions =
     js.Array[Any](
       codemirror.basicSetup,
-      keymap.of(js.Array(indentWithTab)),
-      dot(),
+      keymap.of(js.Array(commands.indentWithTab)),
+      vizJsLangDot.dot(),
       wrapping.of(wrapExtension(state.wrapSourceLines.now())),
       EditorView.updateListener.of(updateSource(_))
     )
@@ -45,40 +38,41 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
     mods,
     onMountCallback: ctx =>
       import ctx.owner
-      
+
       // Set up debounced stream that updates the state
       textUpdates.events
 //        .debounce(100) // TODO: Make this configurable or dynamic.
         .foreach { text =>
           state.sourceText.set(text)
         }
-      
+
       // Editor -> source
-      val editorView = codemirror.EditorView(
-        EditorViewConfig()
-          .setDoc(state.sourceText.now())
-          .setParent(ctx.thisNode.ref)
-          .setExtensions(extensions)
-      )
+      val editorView = new EditorView(new EditorViewConfig {
+        doc        = state.sourceText.now()
+        parent     = ctx.thisNode.ref
+        extensions = baseExtensions
+      })
 
       for wrap <- state.wrapSourceLines.signal.changes do
-        editorView.dispatch(
-          TransactionSpec().setEffects(wrapping.reconfigure(wrapExtension(wrap)))
-        )
+        editorView.dispatch(new TransactionSpec {
+          effects = wrapping.reconfigure(wrapExtension(wrap))
+        })
 
       for _ <- state.undoEvent.events do
-        undo(Dispatch(editorView.dispatch, editorView.state))
+        commands.undo(editorView)
 
       for _ <- state.redoEvent.events do
-        redo(Dispatch(editorView.dispatch, editorView.state))
+        commands.redo(editorView)
 
       // Source -> editor
       for newSource <- state.sourceText.signal.distinct do
         val existingSource = editorView.state.doc.toString
         if newSource != existingSource then
-          editorView.dispatch(
-            TransactionSpec().setChanges(
-              From(0).setTo(existingSource.length).setInsert(newSource)
-            )
-          )
+          editorView.dispatch(new TransactionSpec {
+            changes = new ChangeSpec {
+              from   = 0
+              to     = existingSource.length
+              insert = newSource
+            }
+          })
   )

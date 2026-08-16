@@ -51,8 +51,11 @@ Run these and stop if any fails.
 
 1. **Clean tree.** `git status --short` must be empty. A dirty tree makes `dynver` stamp the
    build `…+YYYYMMDD-HHMM`, which is how a "release" build ends up self-identifying as a dev build.
-2. **Full suite green — locally.** `sbt --client test`
-   Expect **1685** tests: `381 + 100 + 810 + 394`, `Failed 0` on each line.
+2. **Full suite green — locally.** `sbt --client testFull`
+   `testFull`, never `test`: under sbt 2 `test` only re-runs what failed last time or
+   whose dependencies changed, so it can report green having run almost nothing.
+   Expect **1784** tests: `439 + 426 + 810 + 109` (sharedJVM, sharedJS, graphvizJVM,
+   viewer; graphvizJS has none), `Failed 0` on each line.
    (`shared` cross-compiles, so a test added there raises TWO of those tallies.)
    Pipe to `grep -E "Passed: Total|\[error\]"` rather than `tail` — `tail` keeps only the last
    module's tally, which looks exactly like a suite that ran one module and passed.
@@ -226,7 +229,7 @@ tag (above), or the smoke workflows — never a throwaway tag, which would publi
 
 - Latest tag as of this writing: `v0.6.22`.
 - Version flows: `sbt-dynver` → `sbt-buildinfo` (`buildInfoKeys := Seq(name, version, scalaVersion, sbtVersion)`) → console banner.
-- `Makefile`: `make test` (`sbt test`), `make build` (`sbt "viewer/fullLinkJS"` + `npm run build`).
+- `Makefile`: `make test` (`sbt testFull`), `make build` (`sbt "viewer/fullLinkJS"` + `npm run build`).
 - All GitHub workflows pin **JDK 17**; the Netlify script matches deliberately so the site is built like the binaries.
 - `ci.yml` (added v0.6.21) is the default-branch gate: suite + optimized frontend build on push/PR to `viewer`, plus `workflow_dispatch`. It replaced `dev.yml`, which watched a non-existent `dev` branch and had therefore never run.
 - `release.yml` **was deleted** in v0.6.22. If you find a reference to it, it is stale. It was broken four ways at once — watched a `release` branch that does not exist, called `scripts/build-package.sh` (deleted 2025-04-28), uploaded `backend/target/universal/*.zip` from a `backend` module removed when the zio-http server was dropped, and used the retired `actions/upload-artifact@v2`. `release-binaries.yml` is what cuts binaries.

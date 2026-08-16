@@ -137,7 +137,7 @@ viewer) and the JVM (the entire test suite).
 ## Running the tests
 
 ```bash
-sbt --client graphvizJVM/test                              # full oracle suite
+sbt --client graphvizJVM/testFull                          # full oracle suite
 sbt --client "graphvizJVM/testOnly *CorpusByteExactSpec"   # the corpus gate
 sbt --client "graphvizJVM/testOnly *ExamplesByteExactSpec" # shipped examples
 ```

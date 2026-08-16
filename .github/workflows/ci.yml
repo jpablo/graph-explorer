@@ -73,16 +73,21 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      # MUST precede any sbt task: ScalablyTyped generates its facades in-build
-      # from node_modules, so the viewer does not compile without them.
+      # MUST precede `sbt testFull`: the viewer's Scala.js tests are bundled with
+      # esbuild from node_modules before Playwright loads them, and no sbt task
+      # installs node deps itself. (`npm run build` below needs them too.)
       - name: Install npm modules
         run: npm install
 
       # First, because it is the cheap signal. A graphviz corpus failure here
       # is a real regression, never a rebaseline: that module is a byte-exact
       # transcription of the dot engine.
+      # testFull, not test: under sbt 2 `test` is the incremental task (what sbt
+      # 1 called testQuick, now an alias for it) and only runs what failed
+      # before or whose dependencies changed. A cold CI checkout makes the two
+      # equivalent today, but a gate should not depend on the cache being empty.
       - name: Run tests
-        run: sbt -J-Xmx2G test
+        run: sbt -J-Xmx2G testFull
 
       # Then the build the release depends on, reusing the compilation above.
       # fullLinkJS breakage is otherwise invisible until a tag is already

@@ -3,7 +3,7 @@
 ## Build/Test Commands
 - `sbt --client "~viewer/fastLinkJS"` - Scala.js hot reload for frontend
 - `npm run dev` - Vite development server  
-- `sbt --client test` - Run all tests
+- `sbt --client testFull` - Run all tests (sbt 2's `test` is incremental only)
 - `sbt --client "sharedJVM/testOnly <TestName>"` - Run single test (prefer JVM version)
 - `sbt --client "viewer/testOnly <TestName>"` - Run single frontend test
 - `sbt --client projects` - List all SBT modules
