@@ -68,12 +68,23 @@ jobs:
 
       - name: Verify the toolchain
         # Fail here, with a legible message, rather than 90 seconds into the
-        # gate script.
+        # gate script. Coursier installs `scala-cli.bat` on Windows and git-bash
+        # resolves a bare name to `.exe` but never to `.bat`, so both spellings
+        # have to be tried — the gate script does the same.
         shell: bash
         run: |
           sbt --version 2>/dev/null | tail -1 || true
-          scala-cli version --cli-version
           python3 --version
+          for c in scala-cli scala-cli.bat; do
+            if command -v "$c" >/dev/null 2>&1; then
+              echo "scala-cli found as: $c ($(command -v "$c"))"
+              "$c" version --cli-version
+              exit 0
+            fi
+          done
+          echo "scala-cli not found. COURSIER_BIN_DIR=${COURSIER_BIN_DIR:-unset}"
+          [ -n "${COURSIER_BIN_DIR:-}" ] && ls -A "$COURSIER_BIN_DIR"
+          exit 1
 
       - name: Report runner capacity
         # Peak build RSS against available memory is the number D2.1 flagged as

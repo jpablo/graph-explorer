@@ -26,6 +26,22 @@ STARTUP_BUDGET_MS=20
 
 echo "=== P0: native-image gate on $(uname -s) $(uname -m) ==="
 
+# --- 0. locate scala-cli ----------------------------------------------------
+# Coursier installs `scala-cli.bat` on Windows, and git-bash resolves a bare
+# name to `.exe` but never to `.bat` — so `scala-cli` is "command not found"
+# even with its directory correctly on PATH.
+SCALA_CLI=""
+for candidate in scala-cli scala-cli.bat; do
+  if command -v "$candidate" >/dev/null 2>&1; then SCALA_CLI="$candidate"; break; fi
+done
+if [ -z "$SCALA_CLI" ]; then
+  echo "FAIL: scala-cli not on PATH (tried: scala-cli, scala-cli.bat)"
+  echo "  COURSIER_BIN_DIR=${COURSIER_BIN_DIR:-unset}"
+  [ -n "${COURSIER_BIN_DIR:-}" ] && ls -A "$COURSIER_BIN_DIR" 2>/dev/null | sed 's/^/    /'
+  exit 1
+fi
+echo "--- scala-cli: $SCALA_CLI ($(command -v "$SCALA_CLI"))"
+
 # --- 1. classpath -----------------------------------------------------------
 # sbt 2's `export`/`show` emit ${OUT}/${CSR_CACHE} placeholders whose expansion
 # differs per runner, so a build task writes literal paths instead.
@@ -58,7 +74,7 @@ EXPECTED=$(tr "$SEP" '\n' < "$CP_FILE" | grep -c .)
 # which everything linking shared/ inherits (D2.1).
 echo "--- building native image (scala-cli fetches GraalVM on first run)"
 BUILD_START=$(python3 -c 'import time; print(time.time())')
-(cd "$SPIKE" && scala-cli --power package GxSpike.scala \
+(cd "$SPIKE" && "$SCALA_CLI" --power package GxSpike.scala \
   --scala 3.7.1 -O -experimental \
   "${JAR_ARGS[@]}" \
   --native-image -o gx-spike -f) 2>&1 | tee "$BUILD_LOG"
