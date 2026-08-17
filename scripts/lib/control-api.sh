@@ -101,7 +101,15 @@ _jq() {
 # Response frame on stdout; outcome via `api_last_status`. Never fails the
 # caller's `set -e`, so a script can assert on a rejection deliberately.
 _api_call() {
-  local method="$1" params="${2:-{\}}"
+  local method="$1" params="${2:-}"
+  # Spelled out rather than `${2:-{\}}`. That expansion means "default to {}" on
+  # bash 5 and keeps the backslash on bash 3.2, which is what the macOS runner
+  # has — so `status` (the only caller that omits params) sent the literal `{\}`,
+  # python's json.loads threw, and the traceback went to the /dev/null below.
+  # The gate reported "error" for a live socket and could not tell a dead one
+  # from a refusal. Nothing about it was visible locally.
+  [[ -n "${params}" ]] || params='{}'
+
   control_load || {
     printf '%s' "unreachable" > "${API_STATUS_FILE}"
     : > "${API_STATUS_FILE}.body"

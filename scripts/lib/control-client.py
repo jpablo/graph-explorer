@@ -73,7 +73,15 @@ def main(argv):
         return 2
     method = positional[0]
     if len(positional) > 1 and positional[1].strip():
-        params = json.loads(positional[1])
+        # Exit 2, not an uncaught traceback. A malformed argument is a broken
+        # CALLER, which belongs with "could not reach the desktop" rather than
+        # with "the desktop said no" — and the caller redirects stderr, so an
+        # exception here died silently and reported itself as an error frame.
+        try:
+            params = json.loads(positional[1])
+        except ValueError as error:
+            print(f"params is not valid JSON: {error}: {positional[1]!r}", file=sys.stderr)
+            return 2
 
     path = socket_path(explicit_socket)
     if not path:

@@ -111,6 +111,16 @@ check "reserved chars"      "/a&b=c?d.dot"          "$(roundtrip '/a&b=c?d.dot')
 check "quotes/backslashes"  '/a"b\c.dot'            "$(roundtrip '/a"b\c.dot')"
 check "an embedded newline" "$(printf '/a\nb.dot')" "$(roundtrip "$(printf '/a\nb.dot')")"
 
+# A call that omits params must still send a valid JSON object.
+#
+# This is the case CI found and this file did not: `status` is the only caller
+# that defaults, the default was written `${2:-{\}}`, and that expansion keeps
+# the backslash on bash 3.2 (the macOS runner) while producing `{}` on bash 5
+# (a laptop). The old check only asked whether the call SUCCEEDED, which is a
+# property the bug happened to break in a way that looked like "no desktop".
+# Asserting the frame's content instead makes it fail on any bash.
+check "a defaulted params object is valid JSON" "{}" "$(api_status | jq -c '.result')"
+
 check "a live socket is ready"  "0"  "$(control_ready && echo 0 || echo 1)"
 
 # --- the outcome channel -----------------------------------------------------
