@@ -94,11 +94,10 @@ tmpfile="$(mktemp /tmp/gx-disk-to-ui-XXXXXX.dot)"
 printf 'digraph G {\n  n0 -> n0\n}\n' > "${tmpfile}"
 
 watch_json="$(api_watch "${tmpfile}")"
-last_revision="$(jq -r '.watch.revision' <<<"${watch_json}")"
+last_revision="$(jq -r '.result.revision' <<<"${watch_json}")"
 echo "watch established at revision ${last_revision}; running ${SAMPLES} samples (budget ${MEDIAN_BUDGET_MS}ms median)"
 
-api_port="$(jq -r '.port' "${RUNTIME_FILE}")"
-api_token="$(jq -r '.token' "${RUNTIME_FILE}")"
+api_socket="$(jq -r '.socket' "${RUNTIME_FILE}")"
 
 # Everything below the rename is timed, so nothing below the rename may fork. Failure is
 # captured rather than propagated so the watch is released either way -- the old loop
@@ -107,36 +106,54 @@ set +e
 LC2T5_SAMPLES="${SAMPLES}" \
 LC2T5_MEDIAN_BUDGET_MS="${MEDIAN_BUDGET_MS}" \
 LC2T5_SAMPLE_TIMEOUT_MS="${PER_SAMPLE_TIMEOUT_MS}" \
-python3 - "${tmpfile}" "${api_port}" "${api_token}" "${last_revision}" <<'PY'
-import http.client
+python3 - "${tmpfile}" "${api_socket}" "${last_revision}" <<'PY'
 import json
 import os
+import socket
 import sys
 import time
-from urllib.parse import quote
 
-path, port, token, start_revision = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+path, sock_path, start_revision = sys.argv[1], sys.argv[2], sys.argv[3]
 samples_n = int(os.environ["LC2T5_SAMPLES"])
 budget_ms = int(os.environ["LC2T5_MEDIAN_BUDGET_MS"])
 timeout_s = int(os.environ["LC2T5_SAMPLE_TIMEOUT_MS"]) / 1000.0
 
-# The desktop only decodes %2F in the ?path= query, so quoting the whole path is safe.
-doc_path = "/v1/document?path=" + quote(path, safe="")
-headers = {"Authorization": "Bearer " + token}
+# The path travels as a JSON string. The quoting this used to do -- and the
+# desktop's matching decode -- are gone with the URLs (D4).
+request_id = 0
 conn = None
+buffered = b""
 
 
 def poll_revision():
-    """Current revision, or None. One connection is kept alive across polls: a TCP
-    handshake per poll is small next to a fork, but it is still harness, not signal."""
-    global conn
+    """Current revision, or None.
+
+    One connection is kept alive across polls, which matters more here than it
+    did over TCP: this loop's whole job is measuring disk->UI latency, so any
+    per-poll setup lands inside the number being reported. A unix socket has no
+    handshake to pay for at all.
+    """
+    global conn, buffered, request_id
     for _ in range(2):
         try:
             if conn is None:
-                conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
-            conn.request("GET", doc_path, headers=headers)
-            body = conn.getresponse().read()  # drain, or the connection cannot be reused
-            return (json.loads(body).get("document") or {}).get("revision")
+                conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                conn.settimeout(2)
+                conn.connect(sock_path)
+                buffered = b""
+            request_id += 1
+            frame = json.dumps(
+                {"id": request_id, "method": "get-document", "params": {"path": path}}
+            )
+            conn.sendall((frame + "\n").encode("utf-8"))
+            while b"\n" not in buffered:
+                chunk = conn.recv(65536)
+                if not chunk:
+                    raise OSError("desktop closed the control channel")
+                buffered += chunk
+            line, _, buffered = buffered.partition(b"\n")
+            response = json.loads(line.decode("utf-8"))
+            return ((response.get("result") or {}).get("document") or {}).get("revision")
         except Exception:
             if conn is not None:
                 try:

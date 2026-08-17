@@ -186,39 +186,74 @@ jobs:
         if: runner.os == 'Linux'
         run: xvfb-run --auto-servernum ./scripts/local-capabilities-disk-to-ui-smoke.sh
 
-      # Blocking as of the path-decoding fix. This step used to carry
-      # continue-on-error for a defect where a URL-carried path returned 400 while
-      # `watch` succeeded: the desktop decoded the `path` query parameter by
-      # replacing '%2F' with '/' and nothing else, so a canonical Windows path
-      # (whose \ : ? all need decoding) never matched the watch registry.
+      # Blocking. This step used to carry continue-on-error for a defect where a
+      # URL-carried path returned 400 while `watch` succeeded: the desktop
+      # decoded the `path` query parameter by replacing '%2F' with '/' and
+      # nothing else, so a canonical Windows path (whose \ : ? all need
+      # decoding) never matched the watch registry. Since P5 there are no URLs
+      # to decode -- the path is a JSON string on a unix socket (D4) -- but the
+      # Windows case is kept because it is the platform where AF_UNIX is newest.
       - name: Windows runtime smoke (release binaries)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # Drives the desktop's control API directly. gx is Scala now and
-          # speaks no HTTP (D2, D4), so routing the DESKTOP's publish gate
-          # through it would test a client we are replacing rather than the
-          # contract we are keeping.
+          # Drives the desktop's control channel directly, rather than through
+          # `gx`: this is the DESKTOP's publish gate, and routing it through the
+          # reference client would test one client's view of the contract
+          # instead of the contract.
+          #
+          # .NET speaks AF_UNIX natively (UnixDomainSocketEndPoint), which is
+          # the third independent client of this protocol after the Rust server
+          # and the Scala `gx` -- and the reason P5 chose one transport for all
+          # platforms instead of D4's named pipe on Windows.
           $desktop = "desktop/src-tauri/target/release/graph-explorer-desktop.exe"
           $gx = "gx-cli/target/gx.exe"
           if (-not (Test-Path $desktop)) { throw "missing desktop binary: $desktop" }
           if (-not (Test-Path $gx)) { throw "missing gx binary: $gx" }
           $control = Join-Path $HOME ".graph-explorer/runtime/control.json"
 
-          function Invoke-Control($method, $path, $body) {
+          $script:rpcId = 0
+          function Invoke-Control($method, $params) {
             $c = Get-Content $control -Raw | ConvertFrom-Json
-            $headers = @{ Authorization = "Bearer $($c.token)" }
-            $uri = "http://127.0.0.1:$($c.port)$path"
-            if ($body) {
-              Invoke-RestMethod -Method $method -Uri $uri -Headers $headers `
-                -ContentType 'application/json' -Body ($body | ConvertTo-Json -Compress)
-            } else {
-              Invoke-RestMethod -Method $method -Uri $uri -Headers $headers
+            if (-not $c.socket) { throw "no socket recorded in $control" }
+
+            $client = New-Object System.Net.Sockets.Socket(
+              [System.Net.Sockets.AddressFamily]::Unix,
+              [System.Net.Sockets.SocketType]::Stream,
+              [System.Net.Sockets.ProtocolType]::Unspecified)
+            try {
+              # A stale socket file outlives a crashed desktop, so connecting is
+              # the only thing that proves one is there.
+              $client.Connect((New-Object System.Net.Sockets.UnixDomainSocketEndPoint($c.socket)))
+
+              $script:rpcId++
+              $frame = @{ id = $script:rpcId; method = $method; params = $params } |
+                ConvertTo-Json -Compress -Depth 6
+              # UTF-8 named explicitly: Windows' default charset is
+              # windows-1252, and under D1 the bytes ARE the revision (V-16).
+              $bytes = [System.Text.Encoding]::UTF8.GetBytes($frame + "`n")
+              [void]$client.Send($bytes)
+
+              # Frames are newline-delimited; accumulate then decode ONCE, since
+              # a recv can split mid-character.
+              $buffer = New-Object System.Collections.Generic.List[byte]
+              $chunk = New-Object byte[] 65536
+              while ($buffer -notcontains 10) {
+                $n = $client.Receive($chunk)
+                if ($n -le 0) { break }
+                $buffer.AddRange($chunk[0..($n - 1)])
+              }
+              $newline = $buffer.IndexOf([byte]10)
+              if ($newline -lt 0) { throw "no response frame for '$method'" }
+              $line = [System.Text.Encoding]::UTF8.GetString($buffer.GetRange(0, $newline).ToArray())
+              return $line | ConvertFrom-Json
             }
+            finally { $client.Dispose() }
           }
 
           Get-Process graph-explorer-desktop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           Remove-Item "$HOME/.graph-explorer/runtime/control.json" -ErrorAction SilentlyContinue
+          Remove-Item "$HOME/.graph-explorer/runtime/control.sock" -ErrorAction SilentlyContinue
 
           $desktopProc = Start-Process -FilePath $desktop -PassThru
           try {
@@ -226,13 +261,19 @@ jobs:
             for ($i = 0; $i -lt 120; $i++) {
               if (Test-Path $control) {
                 try {
-                  $status = Invoke-Control GET "/v1/status" $null
-                  if ($status.running -eq $true) { $ready = $true; break }
+                  $status = Invoke-Control "status" @{}
+                  if ($status.ok -and $status.result.running) { $ready = $true; break }
                 } catch { }
               }
               Start-Sleep -Milliseconds 250
             }
-            if (-not $ready) { throw "desktop control API did not become ready" }
+            if (-not $ready) { throw "desktop control channel did not become ready" }
+
+            # The credential is gone from the design (D4), and this is the file
+            # that used to carry it.
+            $raw = Get-Content $control -Raw | ConvertFrom-Json
+            if ($raw.PSObject.Properties.Name -contains "token") { throw "runtime file still carries a token" }
+            if ($raw.PSObject.Properties.Name -contains "port") { throw "runtime file still carries a port" }
 
             $tmp = Join-Path $env:TEMP ("gx-release-smoke-" + [guid]::NewGuid().ToString("N") + ".dot")
             @"
@@ -241,34 +282,41 @@ jobs:
           }
           "@ | Set-Content -Path $tmp -NoNewline
 
-            # A Windows path exercises every character the URL-carried `path`
-            # of GET /v1/document has to survive: the drive colon, backslash
-            # separators, and any \?\ prefix. That combination is what blocked
-            # Windows in v1.
-            $watch = Invoke-Control POST "/v1/watch" @{ path = $tmp; openInUi = $true }
-            if ($watch.watch.revision -ne 1) { throw "watch revision: $($watch.watch.revision)" }
+            # A Windows path is still the interesting case: the drive colon,
+            # backslash separators, and any \?\ prefix. It used to be
+            # interesting because a URL had to survive them; it is interesting
+            # now because this is where the path crosses two languages' idea of
+            # a JSON string.
+            $watch = Invoke-Control "watch" @{ path = $tmp }
+            if (-not $watch.ok) { throw "watch failed: $($watch.error.message)" }
+            if ($watch.result.revision -ne 1) { throw "watch revision: $($watch.result.revision)" }
 
-            $encoded = [uri]::EscapeDataString($tmp)
-            $doc = Invoke-Control GET "/v1/document?path=$encoded" $null
-            if ($doc.document.revision -ne 1) { throw "get revision: $($doc.document.revision)" }
+            $doc = Invoke-Control "get-document" @{ path = $tmp }
+            if ($doc.result.document.revision -ne 1) { throw "get revision: $($doc.result.document.revision)" }
+            if ($doc.result.document.path -ne $tmp) { throw "path came back changed: $($doc.result.document.path)" }
 
-            $put = Invoke-Control PUT "/v1/document" `
+            $put = Invoke-Control "put-document" `
               @{ path = $tmp; text = "digraph G {`n  b -> c`n}`n"; baseRevision = 1; source = "cli" }
-            if ($put.document.revision -ne 2) { throw "set revision: $($put.document.revision)" }
+            if ($put.result.document.revision -ne 2) { throw "set revision: $($put.result.document.revision)" }
 
-            $stale = $null
-            try {
-              Invoke-Control PUT "/v1/document" `
-                @{ path = $tmp; text = "digraph G {`n  stale`n}`n"; baseRevision = 1; source = "cli" }
-            } catch { $stale = $_.Exception.Response.StatusCode.value__ }
-            if ($stale -ne 409) { throw "stale write should be 409, got $stale" }
+            # A conflict is an error FRAME now, not an HTTP status. It is also
+            # not an exception: the desktop answered.
+            $stale = Invoke-Control "put-document" `
+              @{ path = $tmp; text = "digraph G {`n  stale`n}`n"; baseRevision = 1; source = "cli" }
+            if ($stale.ok) { throw "a stale write should have been refused" }
+            if ($stale.error.code -ne "DOCUMENT_CONFLICT") { throw "stale write code: $($stale.error.code)" }
+            if ($stale.error.currentRevision -ne 2) { throw "stale currentRevision: $($stale.error.currentRevision)" }
 
-            $unwatch = Invoke-Control POST "/v1/unwatch" @{ path = $tmp }
-            if ($unwatch.removed -ne $true) { throw "unwatch did not remove the watch" }
+            $unwatch = Invoke-Control "unwatch" @{ path = $tmp }
+            if ($unwatch.result.removed -ne $true) { throw "unwatch did not remove the watch" }
 
-            # And that the shipped gx binary runs at all, headless.
+            # And that the shipped gx binary runs at all, headless -- plus that
+            # its own socket client reaches the same desktop this step just did.
             & $gx status | Out-Null
             if ($LASTEXITCODE -ne 0) { throw "gx status failed with exit code $LASTEXITCODE" }
+
+            & $gx open $tmp | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "gx open failed with exit code $LASTEXITCODE" }
 
             Remove-Item $tmp -ErrorAction SilentlyContinue
           }

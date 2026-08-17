@@ -5,22 +5,25 @@ use std::env;
 use std::fs;
 use std::fs::OpenOptions;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::Read;
-use std::io::Write;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine as _;
-use rand::TryRngCore;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
-use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
+
+// AF_UNIX on every platform, rather than D4's "unix socket / named pipe".
+// Windows has supported AF_UNIX since 1803, and one transport means ONE client
+// implementation in `gx` instead of two that can drift — the same class of risk
+// V-13 exists to contain. `uds_windows` mirrors the std API, so the only
+// difference between platforms is this import.
+#[cfg(unix)]
+use std::os::unix::net::{UnixListener, UnixStream};
+#[cfg(windows)]
+use uds_windows::{UnixListener, UnixStream};
 
 /// The app icon, embedded in the binary (this build is unbundled, so there is
 /// no .app/.icns for macOS to read).
@@ -64,9 +67,10 @@ fn health() -> &'static str {
 /// Everything a Tauri command is allowed to reach.
 ///
 /// Note what is *absent*: `ControlFile`. The webview's three verbs (D3) cannot
-/// leak the control token because they cannot see it — V-11 is a property of
-/// this struct's shape, not of the care taken at each call site. The HTTP
-/// server keeps its own `&ControlFile`; the two paths share only the registries.
+/// leak a credential because they cannot see one — V-11 was a property of this
+/// struct's shape before P5, and since P5 there is no credential anywhere to
+/// leak. `ConnectionContext` is the socket's equivalent; the two share only the
+/// registries.
 #[derive(Clone)]
 struct IpcState {
     access_policy: AccessPolicy,
@@ -171,11 +175,17 @@ fn list_documents(state: tauri::State<'_, IpcState>) -> Vec<WatchDescriptor> {
     watched_items(&state.watch_registry)
 }
 
+/// What a client needs to find the desktop.
+///
+/// v1 carried a `port` and a `token`. Both are gone (D4): there is no port to
+/// connect to, and the socket's own permissions decide who may speak to it, so
+/// there is no credential left to hand out, leak, or rotate. `socket` is here
+/// so a client never has to reconstruct the path — it is discovered, not
+/// derived.
 #[derive(Debug, Clone, Serialize)]
 struct ControlFile {
     pid: u32,
-    port: u16,
-    token: String,
+    socket: String,
     version: String,
 }
 
@@ -233,7 +243,10 @@ struct WatchController {
 }
 
 fn main() {
-    let control = write_runtime_file().expect("failed to write control runtime file");
+    // Written before the socket is bound so a client that finds the file and
+    // then fails to connect learns something true: the desktop is starting, or
+    // it died. The file alone never proved liveness — now `connect` does.
+    write_runtime_file().expect("failed to write control runtime file");
     let access_policy = load_access_policy().expect("failed to load access policy");
     let request_limits = load_request_limits().expect("failed to load request limits");
     let audit_logger = init_audit_logger().expect("failed to initialize audit logger");
@@ -245,8 +258,10 @@ fn main() {
     let watch_controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
     let recent_write_hashes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
 
-    // The registries are Arcs, so IPC and HTTP operate on the same state — two
-    // front doors, one house. Only the HTTP door has a lock that needs a key.
+    // The registries are Arcs, so the webview's IPC verbs and the socket's RPC
+    // operate on the same state — two front doors, one house. Neither carries a
+    // credential now: the webview is gated by an enumerated command list (D3),
+    // the socket by its file permissions (D4).
     let ipc_state = IpcState {
         access_policy: access_policy.clone(),
         audit_logger: audit_logger.clone(),
@@ -257,7 +272,6 @@ fn main() {
 
     tauri::Builder::default()
         .setup({
-            let control = control.clone();
             let access_policy = access_policy.clone();
             let request_limits = request_limits.clone();
             let audit_logger = audit_logger.clone();
@@ -269,7 +283,6 @@ fn main() {
                 app.manage(ipc_state);
 
                 spawn_control_server(
-                    control.clone(),
                     access_policy.clone(),
                     request_limits.clone(),
                     audit_logger.clone(),
@@ -507,8 +520,7 @@ fn write_runtime_file() -> Result<ControlFile> {
 
     let control = ControlFile {
         pid: std::process::id(),
-        port: find_open_port()?,
-        token: generate_token()?,
+        socket: control_socket_path()?.to_string_lossy().to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     };
 
@@ -539,55 +551,27 @@ fn runtime_dir_path() -> Result<PathBuf> {
     Ok(home_dir.join(".graph-explorer").join("runtime"))
 }
 
-fn find_open_port() -> Result<u16> {
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-    let listener = TcpListener::bind(addr).context("failed to bind temporary loopback socket")?;
-    let port = listener
-        .local_addr()
-        .context("failed to read local socket address")?
-        .port();
-    Ok(port)
+fn control_socket_path() -> Result<PathBuf> {
+    Ok(runtime_dir_path()?.join("control.sock"))
 }
 
-fn generate_token() -> Result<String> {
-    let mut bytes = [0_u8; 32];
-    rand::rngs::OsRng
-        .try_fill_bytes(&mut bytes)
-        .map_err(|err| anyhow::anyhow!("failed to generate random token: {err}"))?;
-    Ok(URL_SAFE_NO_PAD.encode(bytes))
-}
+/// A unix socket address is a fixed-size struct: `sun_path` is 104 bytes on
+/// macOS and 108 on Linux, and a longer path fails at `bind` with a bare
+/// `EINVAL`. Home directories are usually short enough, but a CI runner or a
+/// containerized `$HOME` need not be — so the limit is checked where it can be
+/// explained rather than discovered as an unexplained startup failure.
+const MAX_SOCKET_PATH_BYTES: usize = 100;
 
-fn spawn_control_server(
-    control: ControlFile,
-    access_policy: AccessPolicy,
-    request_limits: RequestLimits,
-    audit_logger: AuditLogger,
-    rate_limiter: RequestRateLimiter,
-    watch_registry: WatchRegistry,
-    watch_controllers: WatchControllers,
-    recent_write_hashes: RecentWriteHashes,
-    app_handle: tauri::AppHandle,
-) -> Result<JoinHandle<()>> {
-    let addr = format!("127.0.0.1:{}", control.port);
-    let server = Server::http(&addr)
-        .map_err(|err| anyhow::anyhow!("failed to bind local control server on {addr}: {err}"))?;
-    let handle = std::thread::spawn(move || {
-        for request in server.incoming_requests() {
-            handle_request(
-                request,
-                &control,
-                &access_policy,
-                &request_limits,
-                &audit_logger,
-                &rate_limiter,
-                &watch_registry,
-                &watch_controllers,
-                &recent_write_hashes,
-                &app_handle,
-            );
-        }
-    });
-    Ok(handle)
+fn check_socket_path_length(path: &Path) -> Result<()> {
+    let len = path.as_os_str().to_string_lossy().as_bytes().len();
+    if len > MAX_SOCKET_PATH_BYTES {
+        return Err(anyhow::anyhow!(
+            "control socket path is {len} bytes, over the {MAX_SOCKET_PATH_BYTES}-byte limit \
+             a unix socket address allows: {}",
+            path.display()
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -604,6 +588,15 @@ struct WatchRequest {
 
 #[derive(Debug, Deserialize)]
 struct UnwatchRequest {
+    path: String,
+}
+
+/// A path, and nothing else. In v1 this travelled as a URL query parameter and
+/// had to be percent-decoded on arrival — the decode that handled `%2F` and
+/// nothing else, so a space or any Windows separator survived mangled and the
+/// lookup missed. As a JSON string there is no encoding step to get wrong.
+#[derive(Debug, Deserialize)]
+struct DocumentRefRequest {
     path: String,
 }
 
@@ -639,20 +632,245 @@ struct DocumentChangedEventPayload {
     revision: Option<u64>,
 }
 
-fn handle_request(
-    mut request: Request,
-    control: &ControlFile,
-    access_policy: &AccessPolicy,
-    request_limits: &RequestLimits,
-    audit_logger: &AuditLogger,
-    rate_limiter: &RequestRateLimiter,
-    watch_registry: &WatchRegistry,
-    watch_controllers: &WatchControllers,
-    recent_write_hashes: &RecentWriteHashes,
-    app_handle: &tauri::AppHandle,
-) {
-    if !rate_limiter.allow() {
-        audit_logger.log_event(
+/// The control channel: a unix socket carrying newline-delimited JSON frames.
+///
+/// v1 was loopback HTTP with a bearer token. The token existed because a TCP
+/// port is reachable by every process on the machine, so something had to
+/// distinguish callers — and the credential then had to be handed to the
+/// webview, which is what D3 spent a phase undoing. A unix socket moves that
+/// decision to the OS: the socket is 0600 in a per-user directory, so the
+/// permission check happens at `connect` and there is no secret to hold.
+///
+/// Two consequences worth naming, because they retire whole classes of bug:
+///
+/// - **A webview cannot `fetch()` a unix socket.** D3 stops relying on the page
+///   to behave and becomes a property of the transport.
+/// - **There are no URLs.** The percent-decoding hazard that produced the
+///   Windows blocker (a path with a space, or any canonical Windows path,
+///   arriving mangled) cannot recur: a path is a JSON string.
+fn spawn_control_server(
+    access_policy: AccessPolicy,
+    request_limits: RequestLimits,
+    audit_logger: AuditLogger,
+    rate_limiter: RequestRateLimiter,
+    watch_registry: WatchRegistry,
+    watch_controllers: WatchControllers,
+    recent_write_hashes: RecentWriteHashes,
+    app_handle: tauri::AppHandle,
+) -> Result<JoinHandle<()>> {
+    let socket_path = control_socket_path()?;
+    check_socket_path_length(&socket_path)?;
+
+    // A socket file outlives the process that made it, so a crashed desktop
+    // leaves one behind. Removing it before binding is what makes a restart
+    // work; a client that connects to the stale one gets ECONNREFUSED, which
+    // is a better liveness signal than the file's existence.
+    let _ = fs::remove_file(&socket_path);
+
+    let listener = UnixListener::bind(&socket_path).with_context(|| {
+        format!(
+            "failed to bind control socket at {}",
+            socket_path.display()
+        )
+    })?;
+    set_owner_only_permissions(&socket_path)?;
+
+    let handle = std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let stream = match stream {
+                Ok(stream) => stream,
+                Err(err) => {
+                    eprintln!("control socket accept failed: {err}");
+                    continue;
+                }
+            };
+
+            // A thread per connection, because a connection is long-lived: a
+            // client may hold one open and issue many requests. Handling them
+            // on the accept loop would let one idle client block every other.
+            let context = ConnectionContext {
+                access_policy: access_policy.clone(),
+                request_limits: request_limits.clone(),
+                audit_logger: audit_logger.clone(),
+                rate_limiter: rate_limiter.clone(),
+                watch_registry: watch_registry.clone(),
+                watch_controllers: watch_controllers.clone(),
+                recent_write_hashes: recent_write_hashes.clone(),
+                app_handle: app_handle.clone(),
+            };
+            std::thread::spawn(move || {
+                if let Err(err) = serve_connection(stream, &context) {
+                    eprintln!("control connection ended: {err}");
+                }
+            });
+        }
+    });
+    Ok(handle)
+}
+
+#[derive(Clone)]
+struct ConnectionContext {
+    access_policy: AccessPolicy,
+    request_limits: RequestLimits,
+    audit_logger: AuditLogger,
+    rate_limiter: RequestRateLimiter,
+    watch_registry: WatchRegistry,
+    watch_controllers: WatchControllers,
+    recent_write_hashes: RecentWriteHashes,
+    app_handle: tauri::AppHandle,
+}
+
+/// One request per line, one response per line, in order. JSON strings cannot
+/// contain a raw newline, so the line IS the frame — no length prefix, and a
+/// human can read the traffic.
+fn serve_connection(stream: UnixStream, context: &ConnectionContext) -> Result<()> {
+    let mut writer = stream.try_clone().context("failed to clone control stream")?;
+    let reader = BufReader::new(stream);
+
+    for line in reader.split(b'\n') {
+        let line = line.context("failed to read control frame")?;
+        if line.len() > context.request_limits.max_body_bytes {
+            let response = RpcResponse::failure(
+                None,
+                "PAYLOAD_TOO_LARGE",
+                format!(
+                    "request frame is {} bytes (max {})",
+                    line.len(),
+                    context.request_limits.max_body_bytes
+                ),
+            );
+            write_frame(&mut writer, &response)?;
+            // The frame boundary is now untrustworthy — a body that overran the
+            // limit may have been truncated mid-object — so the connection ends
+            // rather than trying to resynchronize.
+            return Ok(());
+        }
+
+        // V-16: the wire is UTF-8, named. A platform-default decode would make
+        // an accented path a different path on Windows.
+        let text = match String::from_utf8(line) {
+            Ok(text) => text,
+            Err(err) => {
+                let response =
+                    RpcResponse::failure(None, "INVALID_REQUEST", format!("frame is not UTF-8: {err}"));
+                write_frame(&mut writer, &response)?;
+                continue;
+            }
+        };
+        if text.trim().is_empty() {
+            continue;
+        }
+
+        let response = dispatch_frame(&text, context);
+        write_frame(&mut writer, &response)?;
+    }
+    Ok(())
+}
+
+fn write_frame(writer: &mut UnixStream, response: &RpcResponse) -> Result<()> {
+    let mut line = serde_json::to_vec(response).unwrap_or_else(|_| {
+        br#"{"ok":false,"error":{"code":"INTERNAL","message":"serialization-error"}}"#.to_vec()
+    });
+    line.push(b'\n');
+    writer.write_all(&line).context("failed to write control frame")?;
+    writer.flush().context("failed to flush control frame")?;
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+struct RpcRequest {
+    /// Echoed back so a client that pipelines can match answers to questions.
+    #[serde(default)]
+    id: Option<serde_json::Value>,
+    method: String,
+    #[serde(default)]
+    params: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+struct RpcResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<serde_json::Value>,
+    ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<RpcError>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RpcError {
+    code: String,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_revision: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attempted_base_revision: Option<u64>,
+}
+
+impl RpcResponse {
+    fn success(id: Option<serde_json::Value>, result: serde_json::Value) -> Self {
+        Self {
+            id,
+            ok: true,
+            result: Some(result),
+            error: None,
+        }
+    }
+
+    fn failure(
+        id: Option<serde_json::Value>,
+        code: &str,
+        message: impl std::fmt::Display,
+    ) -> Self {
+        Self {
+            id,
+            ok: false,
+            result: None,
+            error: Some(RpcError {
+                code: code.to_string(),
+                message: message.to_string(),
+                current_revision: None,
+                attempted_base_revision: None,
+            }),
+        }
+    }
+
+    fn conflict(
+        id: Option<serde_json::Value>,
+        current_revision: u64,
+        attempted_base_revision: u64,
+    ) -> Self {
+        Self {
+            id,
+            ok: false,
+            result: None,
+            error: Some(RpcError {
+                code: "DOCUMENT_CONFLICT".to_string(),
+                message: "file changed on disk since it was loaded".to_string(),
+                current_revision: Some(current_revision),
+                attempted_base_revision: Some(attempted_base_revision),
+            }),
+        }
+    }
+}
+
+fn dispatch_frame(text: &str, context: &ConnectionContext) -> RpcResponse {
+    let request: RpcRequest = match serde_json::from_str(text) {
+        Ok(request) => request,
+        Err(err) => {
+            return RpcResponse::failure(None, "INVALID_REQUEST", format!("malformed frame: {err}"))
+        }
+    };
+    let id = request.id.clone();
+
+    // The rate limit survives the transport change, with a narrower job. It is
+    // no longer a defence against other processes — the socket's permissions
+    // are that — but a runaway agent in a loop is exactly the mistake D6 says
+    // guardrails are for.
+    if !context.rate_limiter.allow() {
+        context.audit_logger.log_event(
             "request.rate_limited",
             None,
             None,
@@ -660,342 +878,193 @@ fn handle_request(
             None,
             Some("local request rate limit exceeded"),
         );
-        #[derive(Serialize)]
-        struct RateLimitedBody {
-            ok: bool,
-            code: &'static str,
-            message: &'static str,
-        }
-        let response = json_response(
-            StatusCode(429),
-            &RateLimitedBody {
-                ok: false,
-                code: "RATE_LIMITED",
-                message: "local request rate limit exceeded",
-            },
-        );
-        if let Err(err) = request.respond(response) {
-            eprintln!("control server response error: {err}");
-        }
-        return;
+        return RpcResponse::failure(id, "RATE_LIMITED", "local request rate limit exceeded");
     }
 
-    let request_url = request.url().to_string();
-    let response = match (request.method(), request_url.as_str()) {
-        (&Method::Get, "/v1/status") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                #[derive(Serialize)]
-                struct StatusBody {
-                    ok: bool,
-                    running: bool,
-                    version: String,
-                    pid: u32,
-                    port: u16,
-                    watches: Vec<WatchDescriptor>,
-                    #[serde(rename = "allowedRoots")]
-                    allowed_roots: Vec<String>,
-                    #[serde(rename = "deniedRoots")]
-                    denied_roots: Vec<String>,
-                    #[serde(rename = "maxBodyBytes")]
-                    max_body_bytes: usize,
-                    #[serde(rename = "rateLimitMaxRequests")]
-                    rate_limit_max_requests: usize,
-                    #[serde(rename = "rateLimitWindowMs")]
-                    rate_limit_window_ms: u64,
-                }
+    dispatch_method(id, &request.method, request.params, context)
+}
 
-                let watches = watched_items(watch_registry);
-                let allowed_roots = configured_allowed_roots(access_policy);
-                let denied_roots = configured_denied_roots(access_policy);
-                json_response(
-                    StatusCode(200),
-                    &StatusBody {
-                        ok: true,
-                        running: true,
-                        version: control.version.clone(),
-                        pid: control.pid,
-                        port: control.port,
-                        watches,
-                        allowed_roots,
-                        denied_roots,
-                        max_body_bytes: request_limits.max_body_bytes,
-                        rate_limit_max_requests: request_limits.rate_limit_max_requests,
-                        rate_limit_window_ms: request_limits.rate_limit_window.as_millis() as u64,
-                    },
-                )
-            }
-        }
-        (&Method::Get, path) if path.starts_with("/v1/document") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_document_path_from_url(path) {
-                    Ok(path) => match get_document_snapshot(watch_registry, &path) {
-                        Ok(snapshot) => {
-                            #[derive(Serialize)]
-                            struct GetDocumentResponse {
-                                ok: bool,
-                                document: DocumentSnapshot,
-                            }
-                            json_response(
-                                StatusCode(200),
-                                &GetDocumentResponse {
-                                    ok: true,
-                                    document: snapshot,
-                                },
-                            )
-                        }
-                        Err(err) => {
-                            #[derive(Serialize)]
-                            struct GetDocumentError {
-                                ok: bool,
-                                code: &'static str,
-                                message: String,
-                            }
-                            json_response(
-                                StatusCode(400),
-                                &GetDocumentError {
-                                    ok: false,
-                                    code: "DOCUMENT_READ_FAILED",
-                                    message: err.to_string(),
-                                },
-                            )
-                        }
-                    },
-                    Err(err) => {
-                        #[derive(Serialize)]
-                        struct BadRequestBody {
-                            ok: bool,
-                            code: &'static str,
-                            message: String,
-                        }
-                        json_response(
-                            StatusCode(400),
-                            &BadRequestBody {
-                                ok: false,
-                                code: "INVALID_REQUEST",
-                                message: err.to_string(),
-                            },
-                        )
-                    }
-                }
-            }
-        }
-        (&Method::Put, "/v1/document") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_put_document_request(&mut request, request_limits.max_body_bytes) {
-                    Ok(payload) => match put_document_snapshot(
-                        watch_registry,
-                        recent_write_hashes,
-                        audit_logger,
-                        &|event| emit_document_changed_event(app_handle, event),
-                        payload,
-                    ) {
-                        Ok(snapshot) => {
-                            #[derive(Serialize)]
-                            struct PutDocumentResponse {
-                                ok: bool,
-                                document: DocumentSnapshot,
-                            }
-                            json_response(
-                                StatusCode(200),
-                                &PutDocumentResponse {
-                                    ok: true,
-                                    document: snapshot,
-                                },
-                            )
-                        }
-                        Err(PutDocumentError::Conflict {
-                            current_revision,
-                            attempted_base_revision,
-                        }) => {
-                            #[derive(Serialize)]
-                            struct ConflictBody {
-                                ok: bool,
-                                code: &'static str,
-                                #[serde(rename = "currentRevision")]
-                                current_revision: u64,
-                                #[serde(rename = "attemptedBaseRevision")]
-                                attempted_base_revision: u64,
-                            }
-                            json_response(
-                                StatusCode(409),
-                                &ConflictBody {
-                                    ok: false,
-                                    code: "DOCUMENT_CONFLICT",
-                                    current_revision,
-                                    attempted_base_revision,
-                                },
-                            )
-                        }
-                        Err(PutDocumentError::Other(err)) => {
-                            #[derive(Serialize)]
-                            struct PutDocumentErrorBody {
-                                ok: bool,
-                                code: &'static str,
-                                message: String,
-                            }
-                            json_response(
-                                StatusCode(400),
-                                &PutDocumentErrorBody {
-                                    ok: false,
-                                    code: "DOCUMENT_WRITE_FAILED",
-                                    message: err.to_string(),
-                                },
-                            )
-                        }
-                    },
-                    Err(err) => request_parse_error_response(err),
-                }
-            }
-        }
-        (&Method::Post, "/v1/watch") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_watch_request(&mut request, request_limits.max_body_bytes) {
-                    Ok(payload) => match add_watch(
-                        access_policy,
-                        watch_registry,
-                        watch_controllers,
-                        recent_write_hashes,
-                        audit_logger,
-                        app_handle,
-                        &payload.path,
-                        "api",
-                    ) {
-                        Ok(watch) => {
-                            #[derive(Serialize)]
-                            struct WatchResponse {
-                                ok: bool,
-                                watch: WatchDescriptor,
-                            }
-                            json_response(StatusCode(200), &WatchResponse { ok: true, watch })
-                        }
-                        Err(err) => {
-                            audit_logger.log_event(
-                                "watch.rejected",
-                                Some(&payload.path),
-                                Some("api"),
-                                "rejected",
-                                None,
-                                Some(&err.to_string()),
-                            );
-                            #[derive(Serialize)]
-                            struct WatchErrorBody {
-                                ok: bool,
-                                code: &'static str,
-                                message: String,
-                            }
-                            json_response(
-                                StatusCode(400),
-                                &WatchErrorBody {
-                                    ok: false,
-                                    code: "WATCH_FAILED",
-                                    message: err.to_string(),
-                                },
-                            )
-                        }
-                    },
-                    Err(err) => request_parse_error_response(err),
-                }
-            }
-        }
-        (&Method::Post, "/v1/unwatch") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_unwatch_request(&mut request, request_limits.max_body_bytes) {
-                    Ok(payload) => {
-                        match remove_watch(
-                            watch_registry,
-                            watch_controllers,
-                            audit_logger,
-                            &payload.path,
-                        ) {
-                            Ok(removed) => {
-                                #[derive(Serialize)]
-                                struct UnwatchResponse {
-                                    ok: bool,
-                                    removed: bool,
-                                }
-                                json_response(
-                                    StatusCode(200),
-                                    &UnwatchResponse { ok: true, removed },
-                                )
-                            }
-                            Err(err) => {
-                                #[derive(Serialize)]
-                                struct UnwatchErrorBody {
-                                    ok: bool,
-                                    code: &'static str,
-                                    message: String,
-                                }
-                                json_response(
-                                    StatusCode(400),
-                                    &UnwatchErrorBody {
-                                        ok: false,
-                                        code: "UNWATCH_FAILED",
-                                        message: err.to_string(),
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    Err(err) => request_parse_error_response(err),
-                }
-            }
-        }
-        (&Method::Post, "/v1/push-text") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_push_text_request(&mut request, request_limits.max_body_bytes) {
-                    Ok(payload) => {
-                        let event_payload = DocumentChangedEventPayload {
-                            text: payload.text,
-                            path: None,
-                            revision: None,
-                        };
-                        match emit_document_changed_event(app_handle, &event_payload) {
-                            Ok(()) => {
-                                #[derive(Serialize)]
-                                struct PushOkBody {
-                                    ok: bool,
-                                }
-                                json_response(StatusCode(200), &PushOkBody { ok: true })
-                            }
-                            Err(err) => {
-                                #[derive(Serialize)]
-                                struct PushErrorBody {
-                                    ok: bool,
-                                    code: &'static str,
-                                    message: String,
-                                }
-                                json_response(
-                                    StatusCode(500),
-                                    &PushErrorBody {
-                                        ok: false,
-                                        code: "PUSH_FAILED",
-                                        message: err.to_string(),
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    Err(err) => request_parse_error_response(err),
-                }
-            }
-        }
-        _ => text_response(StatusCode(404), "not found"),
-    };
+fn dispatch_method(
+    id: Option<serde_json::Value>,
+    method: &str,
+    params: serde_json::Value,
+    context: &ConnectionContext,
+) -> RpcResponse {
+    match method {
+        "status" => match serde_json::to_value(status_body(context)) {
+            Ok(value) => RpcResponse::success(id, value),
+            Err(err) => RpcResponse::failure(id, "INTERNAL", err),
+        },
 
-    if let Err(err) = request.respond(response) {
-        eprintln!("control server response error: {err}");
+        "watch" | "show" => {
+            let request: WatchRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            // `show` is `watch` plus a window: the session tier (D7.2) is not a
+            // different document operation, it is the same one with the view
+            // brought forward. Sharing the path is what keeps `gx open` and a
+            // UI open from drifting into two behaviours.
+            let source = if method == "show" { "open" } else { "api" };
+            match add_watch(
+                &context.access_policy,
+                &context.watch_registry,
+                &context.watch_controllers,
+                &context.recent_write_hashes,
+                &context.audit_logger,
+                &context.app_handle,
+                &request.path,
+                source,
+            ) {
+                Ok(watch) => {
+                    let mut focused = true;
+                    if method == "show" {
+                        focused = focus_main_window(&context.app_handle);
+                    }
+                    match serde_json::to_value(&watch) {
+                        Ok(mut value) => {
+                            if let Some(object) = value.as_object_mut() {
+                                object.insert("focused".to_string(), serde_json::Value::Bool(focused));
+                            }
+                            RpcResponse::success(id, value)
+                        }
+                        Err(err) => RpcResponse::failure(id, "INTERNAL", err),
+                    }
+                }
+                Err(err) => {
+                    context.audit_logger.log_event(
+                        "watch.rejected",
+                        Some(&request.path),
+                        Some(source),
+                        "rejected",
+                        None,
+                        Some(&err.to_string()),
+                    );
+                    RpcResponse::failure(id, "WATCH_FAILED", err)
+                }
+            }
+        }
+
+        "unwatch" => {
+            let request: UnwatchRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            match remove_watch(
+                &context.watch_registry,
+                &context.watch_controllers,
+                &context.audit_logger,
+                &request.path,
+            ) {
+                Ok(removed) => RpcResponse::success(id, serde_json::json!({ "removed": removed })),
+                Err(err) => RpcResponse::failure(id, "UNWATCH_FAILED", err),
+            }
+        }
+
+        "get-document" => {
+            let request: DocumentRefRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            match get_document_snapshot(&context.watch_registry, &request.path) {
+                Ok(snapshot) => match serde_json::to_value(snapshot) {
+                    Ok(value) => RpcResponse::success(id, serde_json::json!({ "document": value })),
+                    Err(err) => RpcResponse::failure(id, "INTERNAL", err),
+                },
+                Err(err) => RpcResponse::failure(id, "DOCUMENT_READ_FAILED", err),
+            }
+        }
+
+        "put-document" => {
+            let request: PutDocumentRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            let app_handle = context.app_handle.clone();
+            match put_document_snapshot(
+                &context.watch_registry,
+                &context.recent_write_hashes,
+                &context.audit_logger,
+                &|payload| emit_document_changed_event(&app_handle, payload),
+                request,
+            ) {
+                Ok(snapshot) => match serde_json::to_value(snapshot) {
+                    Ok(value) => RpcResponse::success(id, serde_json::json!({ "document": value })),
+                    Err(err) => RpcResponse::failure(id, "INTERNAL", err),
+                },
+                Err(PutDocumentError::Conflict {
+                    current_revision,
+                    attempted_base_revision,
+                }) => RpcResponse::conflict(id, current_revision, attempted_base_revision),
+                Err(PutDocumentError::Other(err)) => {
+                    RpcResponse::failure(id, "DOCUMENT_WRITE_FAILED", err)
+                }
+            }
+        }
+
+        "push-text" => {
+            let request: PushTextRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            let payload = DocumentChangedEventPayload {
+                text: request.text,
+                path: None,
+                revision: None,
+            };
+            match emit_document_changed_event(&context.app_handle, &payload) {
+                Ok(()) => RpcResponse::success(id, serde_json::json!({ "pushed": true })),
+                Err(err) => RpcResponse::failure(id, "PUSH_FAILED", err),
+            }
+        }
+
+        other => RpcResponse::failure(id, "UNKNOWN_METHOD", format!("unknown method '{other}'")),
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StatusBody {
+    running: bool,
+    version: String,
+    pid: u32,
+    socket: String,
+    watches: Vec<WatchDescriptor>,
+    allowed_roots: Vec<String>,
+    denied_roots: Vec<String>,
+    max_body_bytes: usize,
+    rate_limit_max_requests: usize,
+    rate_limit_window_ms: u64,
+}
+
+fn status_body(context: &ConnectionContext) -> StatusBody {
+    StatusBody {
+        running: true,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        pid: std::process::id(),
+        socket: control_socket_path()
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_default(),
+        watches: watched_items(&context.watch_registry),
+        allowed_roots: configured_allowed_roots(&context.access_policy),
+        denied_roots: configured_denied_roots(&context.access_policy),
+        max_body_bytes: context.request_limits.max_body_bytes,
+        rate_limit_max_requests: context.request_limits.rate_limit_max_requests,
+        rate_limit_window_ms: context.request_limits.rate_limit_window.as_millis() as u64,
+    }
+}
+
+/// `show` has to produce a *visible* diagram, so it raises the window. Reported
+/// rather than assumed: a headless or minimized desktop still watched the file,
+/// and `gx open` should say which of the two happened.
+fn focus_main_window(app_handle: &tauri::AppHandle) -> bool {
+    match app_handle.get_webview_window("main") {
+        Some(window) => {
+            let _ = window.unminimize();
+            let _ = window.show();
+            window.set_focus().is_ok()
+        }
+        None => false,
     }
 }
 
@@ -1027,50 +1096,6 @@ fn configured_denied_roots(access_policy: &AccessPolicy) -> Vec<String> {
         .iter()
         .map(|root| root.to_string_lossy().to_string())
         .collect()
-}
-
-fn parse_watch_request(request: &mut Request, max_body_bytes: usize) -> Result<WatchRequest> {
-    parse_json_request(request, max_body_bytes)
-}
-
-fn parse_unwatch_request(request: &mut Request, max_body_bytes: usize) -> Result<UnwatchRequest> {
-    parse_json_request(request, max_body_bytes)
-}
-
-fn parse_put_document_request(
-    request: &mut Request,
-    max_body_bytes: usize,
-) -> Result<PutDocumentRequest> {
-    parse_json_request(request, max_body_bytes)
-}
-
-/// Extract and percent-decode the `path` query parameter.
-///
-/// `gx` sends the path through `urlencoding::encode`, which escapes everything
-/// outside the unreserved set. This decode is the exact inverse. An earlier
-/// version only replaced `%2F` with `/`, which happened to cover a plain POSIX
-/// path and nothing else: a space (`%20`) survived undecoded, and every
-/// separator of a canonical Windows path (`\` -> `%5C`, `:` -> `%3A`, and the
-/// `\\?\` verbatim prefix's `?` -> `%3F`) did too. The mangled string then
-/// missed the watch registry, so `watch` succeeded and `get` failed with
-/// "path is not currently watched" -> HTTP 400 -> `gx` exit 4. That was the
-/// Windows blocker; it reproduces on macOS with any path containing a space.
-///
-/// Splitting on `&` and `=` happens *before* decoding, so an encoded separator
-/// inside a filename (`%26`, `%3D`) stays part of the value.
-fn parse_document_path_from_url(url: &str) -> Result<String> {
-    let query = url
-        .split_once('?')
-        .map(|(_, query)| query)
-        .ok_or_else(|| anyhow::anyhow!("missing query parameter: path"))?;
-    let raw = query
-        .split('&')
-        .filter_map(|entry| entry.split_once('='))
-        .find_map(|(key, value)| if key == "path" { Some(value) } else { None })
-        .ok_or_else(|| anyhow::anyhow!("missing query parameter: path"))?;
-    urlencoding::decode(raw)
-        .map(|decoded| decoded.into_owned())
-        .map_err(|err| anyhow::anyhow!("path query parameter is not valid percent-encoded UTF-8: {err}"))
 }
 
 fn get_document_snapshot(watch_registry: &WatchRegistry, path: &str) -> Result<DocumentSnapshot> {
@@ -1493,62 +1518,6 @@ fn hash_string(value: &str) -> u64 {
     hasher.finish()
 }
 
-fn parse_push_text_request(
-    request: &mut Request,
-    max_body_bytes: usize,
-) -> Result<PushTextRequest> {
-    parse_json_request(request, max_body_bytes)
-}
-
-fn parse_json_request<T: DeserializeOwned>(
-    request: &mut Request,
-    max_body_bytes: usize,
-) -> Result<T> {
-    let mut body = Vec::new();
-    request
-        .as_reader()
-        .take((max_body_bytes + 1) as u64)
-        .read_to_end(&mut body)
-        .context("failed to read request body")?;
-    if body.len() > max_body_bytes {
-        return Err(anyhow::anyhow!(
-            "request body too large (max {} bytes)",
-            max_body_bytes
-        ));
-    }
-    serde_json::from_slice(&body).context("failed to parse JSON request body")
-}
-
-fn request_parse_error_response(err: anyhow::Error) -> Response<std::io::Cursor<Vec<u8>>> {
-    #[derive(Serialize)]
-    struct RequestErrorBody {
-        ok: bool,
-        code: &'static str,
-        message: String,
-    }
-
-    let message = err.to_string();
-    if message.contains("request body too large") {
-        json_response(
-            StatusCode(413),
-            &RequestErrorBody {
-                ok: false,
-                code: "PAYLOAD_TOO_LARGE",
-                message,
-            },
-        )
-    } else {
-        json_response(
-            StatusCode(400),
-            &RequestErrorBody {
-                ok: false,
-                code: "INVALID_REQUEST",
-                message,
-            },
-        )
-    }
-}
-
 /// The exact string injected into the page. Separated from the emit so V-11 can
 /// assert on the artifact the untrusted principal actually receives, rather than
 /// on the struct we believe produces it.
@@ -1581,58 +1550,6 @@ fn emit_document_changed_event(
     Ok(())
 }
 
-fn is_authorized(request: &Request, token: &str) -> bool {
-    request
-        .headers()
-        .iter()
-        .find(|header| header.field.equiv("Authorization"))
-        .and_then(|header| header.value.as_str().strip_prefix("Bearer "))
-        .map(|value| value == token)
-        .unwrap_or(false)
-}
-
-// `Access-Control-Allow-Origin: *` used to live here, and it existed for one
-// reason: the webview reached this server by cross-origin fetch
-// (tauri://localhost -> http://127.0.0.1:<port>), and a PUT carrying an
-// Authorization header is a non-simple request whose preflight would otherwise
-// 404. Under D3 the page uses IPC and never fetches, so the header goes away
-// with the thing that required it — the remaining clients (`gx`, the smoke
-// gates, curl) are not browsers and send no preflight. A browser tab on any
-// origin can no longer even attempt a request it might have been handed a
-// token for.
-
-fn json_response<T: Serialize>(
-    status: StatusCode,
-    payload: &T,
-) -> Response<std::io::Cursor<Vec<u8>>> {
-    let json = serde_json::to_vec(payload)
-        .unwrap_or_else(|_| b"{\"ok\":false,\"message\":\"serialization-error\"}".to_vec());
-    let headers = vec![
-        Header::from_bytes("Content-Type", "application/json; charset=utf-8")
-            .expect("valid static header"),
-    ];
-    Response::new(
-        status,
-        headers,
-        std::io::Cursor::new(json.clone()),
-        Some(json.len()),
-        None,
-    )
-}
-
-fn text_response(status: StatusCode, body: &str) -> Response<std::io::Cursor<Vec<u8>>> {
-    let bytes = body.as_bytes().to_vec();
-    let headers = vec![Header::from_bytes("Content-Type", "text/plain; charset=utf-8")
-        .expect("valid static header")];
-    Response::new(
-        status,
-        headers,
-        std::io::Cursor::new(bytes.clone()),
-        Some(bytes.len()),
-        None,
-    )
-}
-
 #[cfg(unix)]
 fn set_owner_only_permissions(path: &Path) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
@@ -1655,89 +1572,103 @@ fn set_owner_only_permissions(_path: &Path) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn parsed(url: &str) -> String {
-        parse_document_path_from_url(url).expect("expected a decodable path")
-    }
+    /// The paths that broke v1, now crossing the boundary they actually cross.
+    ///
+    /// These replace eleven percent-decoding tests. The decoder they guarded is
+    /// deleted — there are no URLs on a socket — but the property is the same
+    /// one and still worth pinning: a path arrives byte-identical to the way it
+    /// was sent, whatever is in it. What changed is that JSON does the escaping,
+    /// and JSON is not a thing this codebase implements.
+    const AWKWARD_PATHS: [&str; 6] = [
+        "/tmp/diagram.dot",
+        "/tmp/with space.dot",
+        "/Users/jp/My Projects/a&b.dot",
+        r"\\?\C:\Users\runneradmin\AppData\Local\Temp\gx.dot",
+        "/tmp/ünïcode-Ø.dot",
+        "/tmp/quote\"and\\backslash.dot",
+    ];
 
     #[test]
-    fn decodes_a_posix_path() {
-        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fdiagram.dot"), "/tmp/diagram.dot");
-    }
+    fn a_path_survives_the_frame_intact() {
+        for path in AWKWARD_PATHS {
+            let frame = serde_json::json!({
+                "id": 1, "method": "get-document", "params": { "path": path }
+            })
+            .to_string();
 
-    /// The regression that reproduces the Windows blocker on any platform:
-    /// a space encodes to `%20`, which the old `%2F`-only replacement missed.
-    #[test]
-    fn decodes_a_path_containing_a_space() {
-        assert_eq!(
-            parsed("/v1/document?path=%2Ftmp%2Fwith%20space.dot"),
-            "/tmp/with space.dot"
-        );
-    }
+            // A frame is a LINE, so an embedded newline would desynchronize the
+            // stream. JSON escapes it; this asserts that rather than assuming it.
+            assert!(!frame.contains('\n'), "frame must be a single line: {frame}");
 
-    /// What `fs::canonicalize` returns on Windows: a verbatim `\\?\` path whose
-    /// every separator needs decoding.
-    #[test]
-    fn decodes_a_windows_verbatim_path() {
-        assert_eq!(
-            parsed("/v1/document?path=%5C%5C%3F%5CC%3A%5CUsers%5Crunneradmin%5CAppData%5CLocal%5CTemp%5Cgx.dot"),
-            r"\\?\C:\Users\runneradmin\AppData\Local\Temp\gx.dot"
-        );
-    }
-
-    #[test]
-    fn accepts_lowercase_hex_escapes() {
-        assert_eq!(parsed("/v1/document?path=%2ftmp%2fa.dot"), "/tmp/a.dot");
-    }
-
-    /// `gx` percent-encodes rather than form-encodes, so `+` is a literal
-    /// character in a filename and must not become a space.
-    #[test]
-    fn leaves_a_plus_sign_alone() {
-        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fa+b.dot"), "/tmp/a+b.dot");
-    }
-
-    /// Separators are split before decoding, so encoded ones stay in the value.
-    #[test]
-    fn keeps_encoded_separators_inside_the_value() {
-        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fa%26b%3Dc.dot"), "/tmp/a&b=c.dot");
-    }
-
-    #[test]
-    fn finds_path_among_other_parameters() {
-        assert_eq!(
-            parsed("/v1/document?other=1&path=%2Ftmp%2Fa.dot&more=2"),
-            "/tmp/a.dot"
-        );
-    }
-
-    /// Whatever `gx` encodes, this decodes — the two crates are inverses.
-    #[test]
-    fn round_trips_what_gx_encodes() {
-        for path in [
-            "/tmp/diagram.dot",
-            "/tmp/with space.dot",
-            "/Users/jp/My Projects/a&b.dot",
-            r"\\?\C:\Users\runneradmin\AppData\Local\Temp\gx.dot",
-            "/tmp/ünïcode-Ø.dot",
-        ] {
-            let url = format!("/v1/document?path={}", urlencoding::encode(path));
-            assert_eq!(parsed(&url), path);
+            let request: RpcRequest = serde_json::from_str(&frame).expect("parseable frame");
+            let params: DocumentRefRequest =
+                serde_json::from_value(request.params).expect("parseable params");
+            assert_eq!(params.path, path);
         }
     }
 
     #[test]
-    fn rejects_a_url_without_a_query() {
-        assert!(parse_document_path_from_url("/v1/document").is_err());
+    fn a_response_frame_is_one_line_and_reports_its_id() {
+        let response = RpcResponse::success(
+            Some(serde_json::json!(7)),
+            serde_json::json!({ "text": "digraph {\n  a -> b\n}" }),
+        );
+        let line = serde_json::to_string(&response).expect("serializable");
+        assert!(!line.contains('\n'), "a response must be one line: {line}");
+        assert!(line.contains("\"id\":7"), "the id must come back: {line}");
+        assert!(line.contains("\"ok\":true"));
     }
 
     #[test]
-    fn rejects_a_query_without_a_path_parameter() {
-        assert!(parse_document_path_from_url("/v1/document?other=1").is_err());
+    fn a_conflict_reports_both_revisions() {
+        let response = RpcResponse::conflict(Some(serde_json::json!(1)), 5, 2);
+        let value = serde_json::to_value(&response).expect("serializable");
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["error"]["code"], serde_json::json!("DOCUMENT_CONFLICT"));
+        assert_eq!(value["error"]["currentRevision"], serde_json::json!(5));
+        assert_eq!(value["error"]["attemptedBaseRevision"], serde_json::json!(2));
+    }
+
+    /// A malformed frame must not kill the connection or the desktop: the
+    /// client gets an error and the stream stays usable.
+    #[test]
+    fn a_malformed_frame_becomes_an_error_response() {
+        let response = RpcResponse::failure(None, "INVALID_REQUEST", "malformed frame");
+        let value = serde_json::to_value(&response).expect("serializable");
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["error"]["code"], serde_json::json!("INVALID_REQUEST"));
+        // No id came in, so none goes out — rather than inventing one.
+        assert!(value.get("id").is_none());
+    }
+
+    /// The runtime file is what every client reads first. If a credential ever
+    /// reappears in it, this fails.
+    #[test]
+    fn the_runtime_file_carries_no_credential() {
+        let control = ControlFile {
+            pid: 42,
+            socket: "/home/u/.graph-explorer/runtime/control.sock".to_string(),
+            version: "0.1.0".to_string(),
+        };
+        let json = serde_json::to_value(control).expect("serializable");
+        let keys: Vec<&str> = json
+            .as_object()
+            .expect("an object")
+            .keys()
+            .map(|k| k.as_str())
+            .collect();
+        assert_eq!(keys, vec!["pid", "socket", "version"]);
     }
 
     #[test]
-    fn rejects_invalid_percent_encoding() {
-        assert!(parse_document_path_from_url("/v1/document?path=%FF%FE").is_err());
+    fn an_over_long_socket_path_is_refused_with_an_explanation() {
+        let long = PathBuf::from(format!("/{}/control.sock", "x".repeat(120)));
+        let err = check_socket_path_length(&long).expect_err("should be refused");
+        assert!(
+            err.to_string().contains("unix socket address"),
+            "the error should say WHY: {err}"
+        );
+        assert!(check_socket_path_length(Path::new("/tmp/a/control.sock")).is_ok());
     }
 
     fn sample_event_payload() -> DocumentChangedEventPayload {

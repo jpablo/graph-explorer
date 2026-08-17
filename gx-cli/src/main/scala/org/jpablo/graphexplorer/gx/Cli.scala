@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.gx
 
 import org.jpablo.graphexplorer.gxcore.fs.*
 import org.jpablo.graphexplorer.gxcore.model.*
+import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 
 import java.nio.file.{Path, Paths}
 import scala.util.control.NonFatal
@@ -95,7 +96,14 @@ object Cli:
   private def status(args: Args, env: CliEnv): Int =
     val diagrams = env.store.list()
     val bound    = diagrams.count(_.isBound)
-    val running  = env.desktopRunning()
+
+    // One question, not two. v1 asked "is it running?" and then asked the
+    // desktop separately; a single `status` call answers both, and answers the
+    // first one the only way that means anything — by connecting.
+    val desktop = env.rpc("status", ujson.Obj()).toOption.flatMap(_.objOpt)
+    val running = desktop.isDefined
+    val watches = desktop.flatMap(_.get("watches")).flatMap(_.arrOpt).map(_.size).getOrElse(0)
+
     if args.json then
       env.out(
         ujson.Obj(
@@ -103,13 +111,15 @@ object Cli:
           "library"        -> env.store.root.toString,
           "diagrams"       -> diagrams.size,
           "bound"          -> bound,
-          "desktopRunning" -> running
+          "desktopRunning" -> running,
+          "desktopWatches" -> watches
         ).render(indent = 2)
       )
     else
       env.out(s"library:  ${env.store.root}")
       env.out(s"diagrams: ${diagrams.size} ($bound bound)")
-      env.out(s"desktop:  ${if running then "running" else "not running (only `gx open` needs it)"}")
+      if running then env.out(s"desktop:  running ($watches open)")
+      else env.out("desktop:  not running (only `gx open` needs it)")
     ExitCode.Ok
 
   // ------------------------------------------------------------- import
@@ -459,19 +469,63 @@ object Cli:
 
   /** The one session-tier command (D7.2). It needs a live view, and there is no
     * live view without a window — a limit of the concept, not of the CLI.
+    *
+    * What it sends is `show`: watch the file AND raise the window. The desktop
+    * treats that as `watch` plus focus rather than a separate operation, so a
+    * diagram opened from the shell and one opened in the UI are the same state.
     */
   private def open(args: Args, env: CliEnv): Int =
     if args.positional.isEmpty then
       env.err("gx: open needs a diagram")
       ExitCode.Usage
-    else if !env.desktopRunning() then
-      env.err("gx: no desktop is running. Start Graph Explorer Desktop, then retry.")
-      env.err("gx: (every other gx command works without it)")
-      ExitCode.NeedsDesktop
     else
-      // The channel itself is P5. Failing honestly beats pretending to succeed.
-      env.err("gx: `open` is not wired up yet (the control channel lands in P5)")
-      ExitCode.NeedsDesktop
+      // Resolved BEFORE the desktop is consulted: a typo'd name should say so,
+      // not blame a missing window.
+      pathToShow(args, env) match
+        case Left(code) => code
+        case Right(path) =>
+          env.rpc("show", ujson.Obj("path" -> path.toString)) match
+            case Right(result) =>
+              val focused = result.objOpt.flatMap(_.get("focused")).flatMap(_.boolOpt).getOrElse(true)
+              if args.json then
+                env.out(ujson.Obj("path" -> path.toString, "focused" -> focused).render(indent = 2))
+              else
+                env.out(s"showing ${path}")
+                // A desktop can be running with no window on screen. Saying so
+                // beats reporting success for something the user cannot see.
+                if !focused then env.err("gx: the desktop is running but has no window to raise")
+              ExitCode.Ok
+
+            case Left(ChannelError.NoDesktop(detail)) =>
+              env.err("gx: no desktop is running. Start Graph Explorer Desktop, then retry.")
+              env.err("gx: (every other gx command works without it)")
+              env.err(s"gx: ($detail)")
+              ExitCode.NeedsDesktop
+
+            case Left(ChannelError.Rpc(code, message, _)) =>
+              env.err(s"gx: the desktop refused to open it ($code): $message")
+              ExitCode.InvalidPathOrPolicy
+
+            case Left(ChannelError.Io(message)) =>
+              env.err(s"gx: control channel error: $message")
+              ExitCode.Unknown
+
+  /** `open` takes the same references every other command does — an id, a name,
+    * or a path — but the desktop only understands files, so a library diagram
+    * has to resolve to the origin it is bound to.
+    */
+  private def pathToShow(args: Args, env: CliEnv): Either[Int, Path] =
+    val ref = args.positional.head
+    findInLibrary(ref, env) match
+      case Some(d) =>
+        d.binding.flatMap(_.origin.filePath).map(Paths.get(_)) match
+          case Some(path) => Right(path)
+          case None =>
+            env.err(s"gx: '${d.name}' is not bound to a file, so there is nothing to open")
+            env.err(s"gx: bind it first:  gx bind ${d.id.value} <path>")
+            Left(ExitCode.InvalidPathOrPolicy)
+      case None =>
+        checkPolicy(env.cwd.resolve(ref), env).left.map(identity)
 
   // ---------------------------------------------------------- resolution
 

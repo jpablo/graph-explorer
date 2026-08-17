@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.gx
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.fs.{AccessPolicy, Audit, Documents}
+import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 import org.jpablo.graphexplorer.gxcore.store.LibraryStore
 
 import java.nio.file.{Files, Path}
@@ -28,7 +29,15 @@ class CliSpec extends FunSuite:
         * actually watching. Injected rather than done beforehand: a change made
         * before the loop starts is part of the initial state, not an event.
         */
-      duringWatch: () => Unit = () => ()
+      duringWatch: () => Unit = () => (),
+
+      /** The desktop's answer, if there is a desktop. Injected as a function so
+        * the session tier can be tested without a socket — which is the point
+        * of CliEnv taking its world as a parameter (D4's channel is an
+        * implementation detail `Cli` never sees).
+        */
+      answer: (String, ujson.Obj) => Either[ChannelError, ujson.Value] =
+        (_, _) => Left(ChannelError.NoDesktop("no desktop in this test"))
   ):
     val out                = StringBuilder()
     val err                = StringBuilder()
@@ -36,6 +45,9 @@ class CliSpec extends FunSuite:
     private var watchTicks = 0
     val store: LibraryStore = LibraryStore(dir.resolve("library"))
     store.initialize()
+
+    /** Every (method, params) pair the CLI sent, in order. */
+    val sent = scala.collection.mutable.ArrayBuffer.empty[(String, ujson.Obj)]
 
     val env: CliEnv = CliEnv(
       store = store,
@@ -47,6 +59,9 @@ class CliSpec extends FunSuite:
       stdin = () => stdinText,
       now = () => { clock += 1; clock },
       desktopRunning = () => desktop,
+      rpc = (method, params) =>
+        sent += ((method, params))
+        answer(method, params),
       // A few polls: one to observe the change, one for it to settle past the
       // debounce, and a margin.
       keepWatching = () => { watchTicks += 1; watchTicks <= 4 },
@@ -302,6 +317,82 @@ class CliSpec extends FunSuite:
     assertEquals(r("open", "anything"), ExitCode.NeedsDesktop)
     assert(r.stderr.contains("no desktop is running"), r.stderr)
     assert(r.stderr.contains("every other gx command works without it"), r.stderr)
+  }
+
+  /** P3 left `open` reporting NeedsDesktop even when one WAS running, because
+    * there was no channel to ask. There is one now (D4).
+    */
+  tmp.test("open sends `show` with the file's path") { dir =>
+    val f = dot(dir, "arch.dot")
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("path" -> f.toString, "focused" -> true)))
+
+    assertEquals(r("open", "arch.dot"), ExitCode.Ok, r.stderr)
+    assertEquals(r.sent.size, 1)
+    val (method, params) = r.sent.head
+    assertEquals(method, "show")
+    // The path is resolved against the user's cwd before it is sent: the
+    // desktop's working directory is an artifact of how it was launched.
+    assertEquals(params("path").str, f.toString)
+    assert(r.stdout.contains("showing"), r.stdout)
+  }
+
+  /** A library reference is not a path. The desktop only understands files, so
+    * `open my-diagram` has to resolve through the binding.
+    */
+  tmp.test("open resolves a library diagram to the file it is bound to") { dir =>
+    val f = dot(dir, "bound.dot")
+    val i = Run(dir)
+    assertEquals(i("import", "bound.dot"), ExitCode.Ok, i.stderr)
+
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
+    assertEquals(r("open", "bound"), ExitCode.Ok, r.stderr)
+    assertEquals(r.sent.head._2("path").str, f.toString)
+  }
+
+  tmp.test("open refuses a diagram with no origin, and says how to fix it") { dir =>
+    dot(dir, "detached.dot")
+    val i = Run(dir)
+    assertEquals(i("import", "detached.dot"), ExitCode.Ok, i.stderr)
+    assertEquals(i("unbind", "detached"), ExitCode.Ok, i.stderr)
+
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
+    assertEquals(r("open", "detached"), ExitCode.InvalidPathOrPolicy, r.stdout)
+    assert(r.stderr.contains("not bound to a file"), r.stderr)
+    assert(r.stderr.contains("gx bind"), r.stderr)
+    // And it never asked the desktop: there was nothing to ask about.
+    assert(r.sent.isEmpty, s"should not have called the desktop: ${r.sent}")
+  }
+
+  /** A desktop can be up with no window on screen. `show` reports which
+    * happened rather than claiming a success the user cannot see.
+    */
+  tmp.test("open says so when there was no window to raise") { dir =>
+    dot(dir, "arch.dot")
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> false)))
+    assertEquals(r("open", "arch.dot"), ExitCode.Ok, r.stderr)
+    assert(r.stderr.contains("no window to raise"), r.stderr)
+  }
+
+  tmp.test("a desktop that refuses the path reports the desktop's reason") { dir =>
+    dot(dir, "arch.dot")
+    val r = Run(
+      dir,
+      answer = (_, _) =>
+        Left(ChannelError.Rpc("WATCH_FAILED", "path is blocked by denylist", ujson.Obj()))
+    )
+    assertEquals(r("open", "arch.dot"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("blocked by denylist"), r.stderr)
+  }
+
+  tmp.test("status reports what the desktop has open") { dir =>
+    val r = Run(
+      dir,
+      answer = (_, _) =>
+        Right(ujson.Obj("running" -> true, "watches" -> ujson.Arr(ujson.Obj("path" -> "/tmp/a.dot"))))
+    )
+    assertEquals(r("status"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains("running (1 open)"), r.stdout)
+    assertEquals(r.sent.head._1, "status")
   }
 
   // -------------------------------------------------------------- policy

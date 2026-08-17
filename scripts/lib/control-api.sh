@@ -1,37 +1,44 @@
 #!/usr/bin/env bash
 #
-# The desktop's control API, driven directly.
+# The desktop's control channel, driven directly.
 #
-# The smoke gates used to reach the desktop through the Rust `gx`, which made
-# the CLI load-bearing for the DESKTOP's test coverage. `gx` is now Scala and
-# speaks no HTTP (docs/desktop-gx-v2-architecture.md D2, D4), so the gates talk
-# to the API they are actually testing. That is the better arrangement anyway:
-# they now assert the contract rather than one client's view of it.
+# The gates used to reach the desktop through the Rust `gx`, which made the CLI
+# load-bearing for the DESKTOP's test coverage. They then spoke its loopback
+# HTTP API directly. Since P5 (docs/desktop-gx-v2-architecture.md D4) there is
+# no HTTP: the channel is a unix socket carrying one JSON object per line, and
+# the frames go through `control-client.py` because bash cannot open a unix
+# socket on its own.
 #
-# Every path that travels in a URL is encoded HERE and nowhere else. The brief's
-# §4 is explicit that a URL-carried path inherits v1's percent-decoding hazard —
-# the bug that survived five months because a hand-rolled decoder handled `%2F`
-# and nothing else, so a plain POSIX path worked and a path with a space did
-# not. One encoder, one place to get it right.
+# WHAT THIS FILE USED TO BE ABOUT, and no longer is: percent-encoding. v1
+# carried paths in a URL, and a hand-rolled decoder that handled `%2F` and
+# nothing else survived five months -- a plain POSIX path worked, a path with a
+# space did not, and every canonical Windows path was mangled. The encoder that
+# replaced it lived here so there was exactly one of it.
+#
+# There is now none of it. A path is a JSON string, and json.dumps is not a
+# thing this repository implements. The API_URI_ESCAPE helper, its MSYS
+# workaround, and the self-test that caught git-bash rewriting POSIX-looking
+# paths are all deleted, because the bug they contained cannot occur without a
+# URL. The awkward paths they guarded are now asserted in the desktop's own
+# `a_path_survives_the_frame_intact` test and in the framing self-test.
 #
 # Usage:
 #   source "${ROOT_DIR}/scripts/lib/control-api.sh"
 #   control_wait_ready 80 || exit 1
-#   body="$(api_watch "/abs/path.dot")"   # body on stdout
-#   api_last_status                        # "200" — survives the subshell
+#   body="$(api_watch "/abs/path.dot")"   # response frame on stdout
+#   api_last_status                        # "ok" | "error" | "unreachable"
 
 CONTROL_RUNTIME_FILE="${CONTROL_RUNTIME_FILE:-${HOME}/.graph-explorer/runtime/control.json}"
-CONTROL_PORT=""
-CONTROL_TOKEN=""
-CONTROL_BASE=""
+CONTROL_SOCKET=""
+CONTROL_CLIENT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/control-client.py"
 
-# The HTTP status goes through a FILE, not a variable.
+# The call's outcome goes through a FILE, not a variable.
 #
-# Every call site captures the response body with `$(api_watch ...)`, and a
-# command substitution is a subshell: a variable the function assigns there dies
-# with the child, so the parent read an empty string on every assertion. stdout
-# already carries the body, and a second return value cannot come back the same
-# way — a file is the channel that survives.
+# Every call site captures the response with `$(api_watch ...)`, and a command
+# substitution is a subshell: a variable the function assigns there dies with
+# the child, so the parent read an empty string on every assertion. stdout
+# already carries the frame, and a second return value cannot come back the same
+# way.
 #
 # Deliberately NOT cleaned up with a trap: this is a sourced library, and every
 # caller installs its own `trap cleanup EXIT` to kill the desktop it started. A
@@ -41,29 +48,33 @@ API_STATUS_FILE="$(mktemp "${TMPDIR:-/tmp}/gx-api-status-XXXXXX")"
 
 api_last_status() { cat "${API_STATUS_FILE}" 2>/dev/null || echo ""; }
 
-# Read port and token from the runtime file. Returns 1 if it is absent or
-# incomplete, which is the ordinary "no desktop yet" case, not an error.
+# Did the last call return an error FRAME (as opposed to failing to connect)?
+# The gates assert on both, and they are different things: a denied path is the
+# desktop answering, an unreachable socket is the desktop not being there.
+api_last_error_code() {
+  jq -r '.error.code // empty' < "${API_STATUS_FILE}.body" 2>/dev/null || echo ""
+}
+
+# Read the socket path from the runtime file. Returns 1 if it is absent, which
+# is the ordinary "no desktop yet" case, not an error.
 control_load() {
   # Plain `jq` on purpose: the runtime file is a real FILE argument, and MSYS's
   # path conversion is what turns `/c/Users/...` into something jq.exe can open.
-  # Only ARGUMENTS THAT ARE DATA need _jq.
   [[ -f "${CONTROL_RUNTIME_FILE}" ]] || return 1
-  CONTROL_PORT="$(jq -r '.port // empty' "${CONTROL_RUNTIME_FILE}" 2>/dev/null || true)"
-  CONTROL_TOKEN="$(jq -r '.token // empty' "${CONTROL_RUNTIME_FILE}" 2>/dev/null || true)"
-  [[ -n "${CONTROL_PORT}" && -n "${CONTROL_TOKEN}" ]] || return 1
-  CONTROL_BASE="http://127.0.0.1:${CONTROL_PORT}"
+  CONTROL_SOCKET="$(jq -r '.socket // empty' "${CONTROL_RUNTIME_FILE}" 2>/dev/null || true)"
+  [[ -n "${CONTROL_SOCKET}" ]] || return 1
   return 0
 }
 
-# Is the desktop actually answering? The runtime file outlives a crash, so its
-# presence proves nothing.
+# Is the desktop actually answering?
+#
+# The runtime file outlives a crash and so does the socket FILE, so neither
+# one's existence proves anything. Connecting does -- which is why this is a
+# real call rather than a stat.
 control_ready() {
   control_load || return 1
-  local code
-  code="$(curl -s -o /dev/null -w '%{http_code}' \
-    -H "Authorization: Bearer ${CONTROL_TOKEN}" \
-    "${CONTROL_BASE}/v1/status" || true)"
-  [[ "${code}" == "200" ]]
+  api_status >/dev/null 2>&1
+  [[ "$(api_last_status)" == "ok" ]]
 }
 
 control_wait_ready() {
@@ -72,7 +83,7 @@ control_wait_ready() {
     if control_ready; then return 0; fi
     sleep 0.25
   done
-  echo "desktop control API did not become ready" >&2
+  echo "desktop control channel did not become ready" >&2
   return 1
 }
 
@@ -80,80 +91,74 @@ control_wait_ready() {
 #
 # git-bash rewrites arguments that LOOK like POSIX paths into Windows paths
 # before handing them to a native Windows binary, and jq.exe is one: `/tmp/a.dot`
-# arrives as `C:/Users/RUNNER~1/AppData/Local/Temp/a.dot`. Windows-shaped paths
-# are left alone, so the gates would not have hit it today — the encoder would
-# simply have behaved differently on one platform, for one spelling of a path,
-# silently. That is the exact shape of the bug this file exists to prevent.
+# arrives as `C:/Users/RUNNER~1/AppData/Local/Temp/a.dot`. Only arguments that
+# are DATA need this; control_load above passes a real file and must not.
 _jq() {
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' jq "$@"
 }
 
-# Percent-encode for a query value. `@uri` escapes everything outside the
-# unreserved set, including `/`, `:`, `\` and spaces — which is exactly what the
-# desktop's decoder expects, and exactly what v1's did not handle.
-_api_uri_escape() {
-  _jq -rn --arg v "$1" '$v|@uri'
-}
-
-# $1 method, $2 path-with-query, $3 optional JSON body.
-# Body on stdout; HTTP code via `api_last_status`. Never fails the caller's
-# `set -e`, so a script can assert on a 4xx deliberately.
+# $1 method, $2 optional JSON params object.
+# Response frame on stdout; outcome via `api_last_status`. Never fails the
+# caller's `set -e`, so a script can assert on a rejection deliberately.
 _api_call() {
-  local method="$1" endpoint="$2" body="${3:-}"
+  local method="$1" params="${2:-{\}}"
   control_load || {
-    printf '%s' "000" > "${API_STATUS_FILE}"
+    printf '%s' "unreachable" > "${API_STATUS_FILE}"
+    : > "${API_STATUS_FILE}.body"
     echo "control runtime file unavailable" >&2
     return 1
   }
-  local out
-  out="$(mktemp "${TMPDIR:-/tmp}/gx-api-XXXXXX.json")"
-  local code
-  if [[ -n "${body}" ]]; then
-    code="$(curl -sS -o "${out}" -w '%{http_code}' \
-      -X "${method}" "${CONTROL_BASE}${endpoint}" \
-      -H "Authorization: Bearer ${CONTROL_TOKEN}" \
-      -H 'Content-Type: application/json' \
-      --data "${body}" || echo "000")"
-  else
-    code="$(curl -sS -o "${out}" -w '%{http_code}' \
-      -X "${method}" "${CONTROL_BASE}${endpoint}" \
-      -H "Authorization: Bearer ${CONTROL_TOKEN}" || echo "000")"
-  fi
-  printf '%s' "${code}" > "${API_STATUS_FILE}"
-  cat "${out}"
-  rm -f "${out}"
+
+  local body code
+  body="$(python3 "${CONTROL_CLIENT}" "${method}" "${params}" --socket "${CONTROL_SOCKET}" 2>/dev/null)"
+  code=$?
+
+  case "${code}" in
+    0) printf '%s' "ok" > "${API_STATUS_FILE}" ;;
+    1) printf '%s' "error" > "${API_STATUS_FILE}" ;;
+    *) printf '%s' "unreachable" > "${API_STATUS_FILE}" ;;
+  esac
+  printf '%s' "${body}" > "${API_STATUS_FILE}.body"
+  printf '%s' "${body}"
 }
 
-api_status() { _api_call GET /v1/status; }
+api_status() { _api_call status; }
 
-# `watch` and `unwatch` carry the path in a JSON BODY; `get` carries it in the
-# URL. That asymmetry is v1's, kept because it is what the desktop implements —
-# and it is the asymmetry that hid the decoding bug, which is why the URL form
-# has exactly one encoder above.
+# Every path now travels the same way -- as a JSON string in `params` -- so the
+# watch/get asymmetry that hid v1's decoding bug (body for one, URL for the
+# other) is gone with the URLs.
 api_watch() {
-  _api_call POST /v1/watch "$(_jq -n --arg path "$1" '{path: $path, openInUi: true}')"
+  _api_call watch "$(_jq -n --arg path "$1" '{path: $path}')"
+}
+
+api_show() {
+  _api_call show "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
 api_unwatch() {
-  _api_call POST /v1/unwatch "$(_jq -n --arg path "$1" '{path: $path}')"
+  _api_call unwatch "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
 api_get() {
-  _api_call GET "/v1/document?path=$(_api_uri_escape "$1")"
+  _api_call get-document "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
 # $1 path, $2 text, $3 baseRevision, $4 source (default "cli").
 api_put() {
-  _api_call PUT /v1/document "$(_jq -n \
+  _api_call put-document "$(_jq -n \
     --arg path "$1" --arg text "$2" --argjson baseRevision "$3" --arg source "${4:-cli}" \
     '{path: $path, text: $text, baseRevision: $baseRevision, source: $source}')"
 }
 
-# Fetch the current revision, then write against it — what `gx set` did when no
+api_push_text() {
+  _api_call push-text "$(_jq -n --arg text "$1" '{text: $text}')"
+}
+
+# Fetch the current revision, then write against it -- what `gx set` did when no
 # --base-revision was given.
 api_set() {
   local path="$1" text="$2" source="${3:-cli}" current
   current="$(api_get "${path}")"
-  [[ "$(api_last_status)" == "200" ]] || { echo "${current}"; return 0; }
-  api_put "${path}" "${text}" "$(jq -r '.document.revision' <<<"${current}")" "${source}"
+  [[ "$(api_last_status)" == "ok" ]] || { echo "${current}"; return 0; }
+  api_put "${path}" "${text}" "$(jq -r '.result.document.revision' <<<"${current}")" "${source}"
 }

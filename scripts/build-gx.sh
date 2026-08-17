@@ -55,6 +55,22 @@ EXPECTED=$(tr "${SEP}" '\n' < "${CP_FILE}" | grep -c .)
 echo "--- building native image (GraalVM ${GRAALVM_VERSION})"
 mkdir -p "$(dirname "${OUT}")" "${ROOT_DIR}/target"
 
+# Force the rebuild.
+#
+# The --jar entries are sbt's CLASS DIRECTORIES, and scala-cli's build cache
+# keys on Launch.scala plus the option list — the directory PATHS, not their
+# contents. So a change confined to gx-cli or gx-core leaves every input string
+# identical, the cache hits, and scala-cli reports "Wrote .../gx" over a binary
+# it did not rebuild. It happened during P5: `gx open` kept answering "the
+# control channel lands in P5" against a desktop that was already serving the
+# socket, and only the binary's mtime gave it away.
+#
+# This is the same failure the release script's `touch main.rs` exists for
+# (cargo will not re-embed a changed dist/ because no Rust source moved), and it
+# is worth the second or two: a `gx` that silently does not contain your change
+# is indistinguishable from a change that did not work.
+rm -rf "${LAUNCHER_DIR}/.scala-build"
+
 # --no-fallback is not optional. Without it, native-image answers un-configured
 # reflection (scala.Enumeration, reachable through the parser) by silently
 # emitting a FALLBACK IMAGE: a JVM launcher wearing the output filename. It runs,

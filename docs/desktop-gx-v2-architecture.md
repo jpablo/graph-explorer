@@ -607,9 +607,73 @@ than P4: `write_file_atomic` chmods every saved file to 0600
 (`main.rs`, `set_owner_only_permissions` on the target). `gx-core` fixed this
 in P1; the desktop's own writer has not.
 
-**P5 — Socket replaces HTTP (D4).** UDS/named pipe. Delete the token, the CORS
-headers, and the HTTP server. Retire `local-protocol/v1/schema.json`, including
-the SSE endpoint it advertises and nothing implements.
+**P5 — Socket replaces HTTP (D4). ✅ DONE.** The control channel is a unix
+socket carrying newline-delimited JSON. The token, the HTTP server, and four
+dependencies (`tiny_http`, `base64`, `rand`, `urlencoding`) are deleted;
+`local-protocol/v1/schema.json` is retired and `local-protocol/README.md` now
+describes what actually runs. `gx open` works, which is what P3 deferred.
+
+**AF_UNIX everywhere, not D4's "unix socket / named pipe".** Windows has
+supported AF_UNIX since 1803, and both the JDK and .NET expose it, so the
+two-transport design was answering a constraint that no longer exists. One
+transport means `gx` has ONE client implementation instead of two that can
+drift — the same class of risk V-13 exists to contain. The Rust side needs
+`uds_windows` (std does not expose AF_UNIX on Windows); that is the entire cost.
+
+**The spike, first, because P0's lesson applies.** Before any of this was built:
+a std `UnixListener` server against a native-image Scala client. It settled the
+one thing that could have invalidated the phase — `SocketChannel.open(UNIX)`
+survives `--no-fallback` — and three things that shaped it:
+
+| | measured |
+|---|---|
+| round-trip | 0.49 ms (process-spawn baseline 0.06 ms) |
+| socket mode at bind | `srw-------`; the OS *is* the authentication |
+| non-ASCII path in a frame | survives — there is no encoder to get wrong |
+| stale socket (crashed desktop) | `ECONNREFUSED`, a clean catchable "no desktop" |
+
+That last one changed a design detail. **Liveness is now answered by connecting,
+not by reading a pid.** A crashed desktop leaves both the runtime file and its
+socket behind, so neither one's existence means anything — `connect` is the only
+thing that distinguishes a running desktop from its remains.
+
+Three findings from building it:
+
+- **A protocol needs more than one implementation before you believe it.** The
+  request `id` went out as `"1"` — ujson maps `Long` to a *string*, because a
+  `Num` is a Double — so the client's own out-of-order check read it as a
+  number, found none, and silently matched nothing on every call. Nothing
+  failed. `--debug-protocol` printing both frames is what showed it, which is
+  the argument for having built that flag at all.
+- **scala-cli's build cache keys on the classpath's PATHS, not its contents.**
+  A change confined to Scala left every input string identical, so `build-gx.sh`
+  reported "Wrote .../gx" over a binary it had not rebuilt: `gx open` kept
+  answering "the control channel lands in P5" against a desktop already serving
+  the socket. The script now clears `.scala-build` first — the same failure the
+  release script's `touch main.rs` exists for.
+- **A unix socket address is a fixed-size struct** (104 bytes of `sun_path` on
+  macOS). A long `$HOME` fails at `bind` with a bare `EINVAL`, so the length is
+  checked where it can be explained.
+
+The eleven percent-decoding tests are gone with the decoder, but their property
+is not: the awkward paths (space, non-ASCII, Windows verbatim prefix, quotes,
+backslashes, and now an embedded newline — which would split one frame into two)
+are asserted at the new boundary, in the desktop's frame test and in the gates'
+self-test.
+
+**The gates moved with the transport, and stayed transport-direct.** They drive
+the socket through `scripts/lib/control-client.py` (macOS/Linux) and .NET's
+`UnixDomainSocketEndPoint` (the Windows runner) rather than through `gx` —
+routing the desktop's own gate through the reference client would test one
+client's view of the contract instead of the contract. That also gives the
+protocol three independent implementations, which is what made the `id` bug
+findable. All five gates pass; V-10's disk→UI median is 75 ms against a 300 ms
+budget (72 ms over HTTP — the same, within noise).
+
+**Not verified on Windows or Linux yet.** Everything above is macOS. The
+AF_UNIX-on-Windows claim, `uds_windows`, and the pwsh client are exercised only
+by the workflows, on push. That is the one place this phase is taking P0's
+lesson on credit rather than on evidence.
 
 **P6 — Command vocabulary (D7).** Name and serialize the command set over the
 existing `shared/` ops; route the UI through it; expose document and record
@@ -618,6 +682,11 @@ tiers via `gx`; expose the session tier over the socket.
 P1–P3 deliver the headless story. P4–P5 deliver the security story. P6 opens the
 RPC work. If everything stops after P3, `gx` is already fixed and nothing is
 worse than today.
+
+With P5 done, §2's table has no third row left to worry about: the webview holds
+no credential because there is no credential. What remains is P6 — and the one
+piece of P2 that P5 makes due, V-13's cross-language contract, now that `gx` and
+the desktop both speak about the same files over the same channel.
 
 ---
 

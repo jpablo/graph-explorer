@@ -60,7 +60,7 @@ assert_file_content_eq() {
 }
 
 require_cmd jq
-require_cmd curl
+require_cmd python3
 require_cmd mktemp
 
 if [[ ! -x "${DESKTOP_BIN}" ]]; then
@@ -77,8 +77,6 @@ fi
 
 echo "waiting for desktop control API..."
 control_wait_ready 80 || exit 1
-token="${CONTROL_TOKEN}"
-base_url="${CONTROL_BASE}"
 
 tmpfile="$(mktemp /tmp/gx-phase3-smoke-XXXXXX)"
 printf 'digraph G {\n  a -> b\n}\n' > "${tmpfile}"
@@ -86,69 +84,40 @@ canonical_path="$(cd "$(dirname "${tmpfile}")" && pwd -P)/$(basename "${tmpfile}
 
 echo "watching file: ${canonical_path}"
 watch_json="$(api_watch "${canonical_path}")"
-assert_eq "200" "$(api_last_status)" "watch status"
-watch_revision="$(jq -r '.watch.revision' <<<"${watch_json}")"
+assert_eq "ok" "$(api_last_status)" "watch status"
+watch_revision="$(jq -r '.result.revision' <<<"${watch_json}")"
 assert_eq "1" "${watch_revision}" "watch revision"
 
 get_initial="$(api_get "${canonical_path}")"
-assert_eq "200" "$(api_last_status)" "get status"
-initial_revision="$(jq -r '.document.revision' <<<"${get_initial}")"
+assert_eq "ok" "$(api_last_status)" "get status"
+initial_revision="$(jq -r '.result.document.revision' <<<"${get_initial}")"
 assert_eq "1" "${initial_revision}" "initial revision"
 
-echo "simulating UI write via /v1/document (source=ui)"
+echo "simulating a UI write over the control channel (source=ui)"
 ui_text=$'digraph G {\n  a -> c\n}\n'
-ui_payload="$(jq -n \
-  --arg path "${canonical_path}" \
-  --arg text "${ui_text}" \
-  --argjson baseRevision "${initial_revision}" \
-  '{path: $path, text: $text, baseRevision: $baseRevision, source: "ui"}'
-)"
-
-ui_response_file="$(mktemp /tmp/gx-phase3-ui-response-XXXXXX.json)"
-ui_status="$(
-  curl -sS -o "${ui_response_file}" -w '%{http_code}' \
-    -X PUT "${base_url}/v1/document" \
-    -H "Authorization: Bearer ${token}" \
-    -H 'Content-Type: application/json' \
-    --data "${ui_payload}"
-)"
-assert_eq "200" "${ui_status}" "ui write status"
-ui_revision="$(jq -r '.document.revision' "${ui_response_file}")"
+ui_json="$(api_put "${canonical_path}" "${ui_text}" "${initial_revision}" ui)"
+assert_eq "ok" "$(api_last_status)" "ui write status"
+ui_revision="$(jq -r '.result.document.revision' <<<"${ui_json}")"
 assert_eq "2" "${ui_revision}" "ui write revision"
-rm -f "${ui_response_file}"
 
 assert_file_content_eq "${ui_text}" "${canonical_path}" "ui write file content"
 
 echo "writing through the control API (source=cli)"
 cli_text=$'digraph G {\n  c -> d\n}\n'
 set_json="$(api_set "${canonical_path}" "${cli_text}" cli)"
-assert_eq "200" "$(api_last_status)" "cli write status"
-cli_revision="$(jq -r '.document.revision' <<<"${set_json}")"
+assert_eq "ok" "$(api_last_status)" "cli write status"
+cli_revision="$(jq -r '.result.document.revision' <<<"${set_json}")"
 assert_eq "3" "${cli_revision}" "cli write revision"
 assert_file_content_eq "${cli_text}" "${canonical_path}" "cli write file content"
 
 echo "validating stale revision conflict"
 stale_text=$'digraph G {\n  stale -> write\n}\n'
-stale_payload="$(jq -n \
-  --arg path "${canonical_path}" \
-  --arg text "${stale_text}" \
-  '{path: $path, text: $text, baseRevision: 2, source: "ui"}'
-)"
-
-stale_response_file="$(mktemp /tmp/gx-phase3-stale-response-XXXXXX.json)"
-stale_status="$(
-  curl -sS -o "${stale_response_file}" -w '%{http_code}' \
-    -X PUT "${base_url}/v1/document" \
-    -H "Authorization: Bearer ${token}" \
-    -H 'Content-Type: application/json' \
-    --data "${stale_payload}"
-)"
-assert_eq "409" "${stale_status}" "stale write status"
-stale_code="$(jq -r '.code' "${stale_response_file}")"
-assert_eq "DOCUMENT_CONFLICT" "${stale_code}" "stale write code"
-current_revision="$(jq -r '.currentRevision' "${stale_response_file}")"
-assert_eq "3" "${current_revision}" "stale current revision"
-rm -f "${stale_response_file}"
+stale_json="$(api_put "${canonical_path}" "${stale_text}" 2 ui)"
+# An error FRAME, not an unreachable channel: the desktop answered, and said no.
+assert_eq "error" "$(api_last_status)" "stale write outcome"
+assert_eq "DOCUMENT_CONFLICT" "$(jq -r '.error.code' <<<"${stale_json}")" "stale write code"
+assert_eq "3" "$(jq -r '.error.currentRevision' <<<"${stale_json}")" "stale current revision"
+assert_eq "2" "$(jq -r '.error.attemptedBaseRevision' <<<"${stale_json}")" "stale attempted base"
 
 assert_file_content_eq "${cli_text}" "${canonical_path}" "stale write did not overwrite"
 
