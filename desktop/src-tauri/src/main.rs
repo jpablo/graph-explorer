@@ -61,6 +61,116 @@ fn health() -> &'static str {
     "ok"
 }
 
+/// Everything a Tauri command is allowed to reach.
+///
+/// Note what is *absent*: `ControlFile`. The webview's three verbs (D3) cannot
+/// leak the control token because they cannot see it — V-11 is a property of
+/// this struct's shape, not of the care taken at each call site. The HTTP
+/// server keeps its own `&ControlFile`; the two paths share only the registries.
+#[derive(Clone)]
+struct IpcState {
+    access_policy: AccessPolicy,
+    audit_logger: AuditLogger,
+    watch_registry: WatchRegistry,
+    watch_controllers: WatchControllers,
+    recent_write_hashes: RecentWriteHashes,
+}
+
+/// The error shape a rejected `invoke()` delivers to the page. Serialized as
+/// the promise's rejection value, so the UI branches on `code`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IpcError {
+    code: &'static str,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_revision: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attempted_base_revision: Option<u64>,
+}
+
+impl IpcError {
+    fn new(code: &'static str, message: impl std::fmt::Display) -> Self {
+        Self {
+            code,
+            message: message.to_string(),
+            current_revision: None,
+            attempted_base_revision: None,
+        }
+    }
+}
+
+/// Open a diagram for the UI: apply policy, start watching, return the bytes.
+///
+/// Policy is enforced here exactly as it is for a socket client — the webview
+/// is an untrusted principal (§2), so its verbs are audited and checked rather
+/// than trusted.
+#[tauri::command(rename_all = "camelCase")]
+fn open_document(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, IpcState>,
+    path: String,
+) -> std::result::Result<DocumentSnapshot, IpcError> {
+    add_watch(
+        &state.access_policy,
+        &state.watch_registry,
+        &state.watch_controllers,
+        &state.recent_write_hashes,
+        &state.audit_logger,
+        &app,
+        &path,
+        "ui",
+    )
+    .map_err(|err| IpcError::new("WATCH_FAILED", err))?;
+
+    get_document_snapshot(&state.watch_registry, &path)
+        .map_err(|err| IpcError::new("DOCUMENT_READ_FAILED", err))
+}
+
+/// Compare-and-swap write from the UI. `baseRevision` is the revision the UI
+/// last saw; a mismatch is a conflict, not a clobber.
+#[tauri::command(rename_all = "camelCase")]
+fn save_document(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, IpcState>,
+    path: String,
+    text: String,
+    base_revision: u64,
+) -> std::result::Result<DocumentSnapshot, IpcError> {
+    let app_handle = app.clone();
+    put_document_snapshot(
+        &state.watch_registry,
+        &state.recent_write_hashes,
+        &state.audit_logger,
+        &|payload| emit_document_changed_event(&app_handle, payload),
+        PutDocumentRequest {
+            path,
+            text,
+            base_revision,
+            source: Some("ui".to_string()),
+        },
+    )
+    .map_err(|err| match err {
+        PutDocumentError::Conflict {
+            current_revision,
+            attempted_base_revision,
+        } => IpcError {
+            code: "DOCUMENT_CONFLICT",
+            message: "file changed on disk since it was loaded".to_string(),
+            current_revision: Some(current_revision),
+            attempted_base_revision: Some(attempted_base_revision),
+        },
+        PutDocumentError::Other(err) => IpcError::new("DOCUMENT_WRITE_FAILED", err),
+    })
+}
+
+/// What the desktop currently has open. The UI's view of its own documents no
+/// longer requires a status call against a credentialed HTTP endpoint.
+#[tauri::command]
+fn list_documents(state: tauri::State<'_, IpcState>) -> Vec<WatchDescriptor> {
+    watched_items(&state.watch_registry)
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct ControlFile {
     pid: u32,
@@ -135,6 +245,16 @@ fn main() {
     let watch_controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
     let recent_write_hashes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
 
+    // The registries are Arcs, so IPC and HTTP operate on the same state — two
+    // front doors, one house. Only the HTTP door has a lock that needs a key.
+    let ipc_state = IpcState {
+        access_policy: access_policy.clone(),
+        audit_logger: audit_logger.clone(),
+        watch_registry: watch_registry.clone(),
+        watch_controllers: watch_controllers.clone(),
+        recent_write_hashes: recent_write_hashes.clone(),
+    };
+
     tauri::Builder::default()
         .setup({
             let control = control.clone();
@@ -146,6 +266,8 @@ fn main() {
             let watch_controllers = watch_controllers.clone();
             let recent_write_hashes = recent_write_hashes.clone();
             move |app| {
+                app.manage(ipc_state);
+
                 spawn_control_server(
                     control.clone(),
                     access_policy.clone(),
@@ -173,7 +295,12 @@ fn main() {
                 Ok(())
             }
         })
-        .invoke_handler(tauri::generate_handler![health])
+        .invoke_handler(tauri::generate_handler![
+            health,
+            open_document,
+            save_document,
+            list_documents
+        ])
         .run(tauri::generate_context!())
         .expect("error while running graph explorer desktop");
 }
@@ -499,13 +626,17 @@ struct DocumentSnapshot {
     timestamp_ms: u64,
 }
 
+/// What the page is told when a document changes.
+///
+/// It used to carry `port` and `token` so the webview could `fetch()` back into
+/// the control server. Under D3 the page talks over IPC instead, so the payload
+/// is a pure document reference — the credential is not merely unused here, it
+/// is not present (V-11).
 #[derive(Debug, Serialize)]
 struct DocumentChangedEventPayload {
     text: String,
     path: Option<String>,
     revision: Option<u64>,
-    port: Option<u16>,
-    token: Option<String>,
 }
 
 fn handle_request(
@@ -658,11 +789,10 @@ fn handle_request(
             } else {
                 match parse_put_document_request(&mut request, request_limits.max_body_bytes) {
                     Ok(payload) => match put_document_snapshot(
-                        control,
                         watch_registry,
                         recent_write_hashes,
                         audit_logger,
-                        app_handle,
+                        &|event| emit_document_changed_event(app_handle, event),
                         payload,
                     ) {
                         Ok(snapshot) => {
@@ -729,7 +859,6 @@ fn handle_request(
             } else {
                 match parse_watch_request(&mut request, request_limits.max_body_bytes) {
                     Ok(payload) => match add_watch(
-                        control,
                         access_policy,
                         watch_registry,
                         watch_controllers,
@@ -737,6 +866,7 @@ fn handle_request(
                         audit_logger,
                         app_handle,
                         &payload.path,
+                        "api",
                     ) {
                         Ok(watch) => {
                             #[derive(Serialize)]
@@ -830,8 +960,6 @@ fn handle_request(
                             text: payload.text,
                             path: None,
                             revision: None,
-                            port: Some(control.port),
-                            token: Some(control.token.clone()),
                         };
                         match emit_document_changed_event(app_handle, &event_payload) {
                             Ok(()) => {
@@ -863,8 +991,6 @@ fn handle_request(
                 }
             }
         }
-        // CORS preflight for the in-app webview's cross-origin fetch.
-        (&Method::Options, _) => text_response(StatusCode(204), ""),
         _ => text_response(StatusCode(404), "not found"),
     };
 
@@ -975,12 +1101,15 @@ enum PutDocumentError {
     Other(anyhow::Error),
 }
 
+/// `notify` is a parameter rather than an `&AppHandle` for two reasons: the
+/// caller may be an IPC command or the HTTP server, and V-12 is about what
+/// happens when notification FAILS — which is only testable if a test can hand
+/// in a notifier that does.
 fn put_document_snapshot(
-    control: &ControlFile,
     watch_registry: &WatchRegistry,
     recent_write_hashes: &RecentWriteHashes,
     audit_logger: &AuditLogger,
-    app_handle: &tauri::AppHandle,
+    notify: &dyn Fn(&DocumentChangedEventPayload) -> Result<()>,
     payload: PutDocumentRequest,
 ) -> std::result::Result<DocumentSnapshot, PutDocumentError> {
     let normalized = normalize_path(&payload.path).map_err(PutDocumentError::Other)?;
@@ -1032,10 +1161,16 @@ fn put_document_snapshot(
         text: payload.text.clone(),
         path: Some(normalized.clone()),
         revision: Some(revision),
-        port: Some(control.port),
-        token: Some(control.token.clone()),
     };
-    emit_document_changed_event(app_handle, &event_payload).map_err(PutDocumentError::Other)?;
+
+    // V-12. The bytes are on disk and the revision has moved; a window that is
+    // gone (or one that refused the script) cannot un-write them. Reporting a
+    // failure here told the caller its save was lost when it was not — and `gx
+    // set` retried against a revision that had already advanced. The save is
+    // what succeeded, so the save is what we report; the notification failure
+    // is real and goes to the audit log, where the outcome is legible instead
+    // of inverted.
+    let notify_failure = notify(&event_payload).err();
 
     audit_logger.log_event(
         "document.written",
@@ -1043,7 +1178,10 @@ fn put_document_snapshot(
         Some(&source),
         "ok",
         Some(revision),
-        None,
+        notify_failure
+            .as_ref()
+            .map(|err| format!("write succeeded; UI notification failed: {err}"))
+            .as_deref(),
     );
 
     Ok(DocumentSnapshot {
@@ -1163,7 +1301,6 @@ fn infer_format_from_path(path: &str) -> String {
 }
 
 fn add_watch(
-    control: &ControlFile,
     access_policy: &AccessPolicy,
     watch_registry: &WatchRegistry,
     watch_controllers: &WatchControllers,
@@ -1171,6 +1308,7 @@ fn add_watch(
     audit_logger: &AuditLogger,
     app_handle: &tauri::AppHandle,
     path: &str,
+    source: &str,
 ) -> Result<WatchDescriptor> {
     let normalized = normalize_path(path)?;
     let normalized_path = PathBuf::from(&normalized);
@@ -1204,14 +1342,11 @@ fn add_watch(
             text,
             path: Some(watch.path.clone()),
             revision: Some(watch.revision),
-            port: Some(control.port),
-            token: Some(control.token.clone()),
         };
         let _ = emit_document_changed_event(app_handle, &initial_event);
     }
 
     let controller = spawn_watch_loop(
-        control.clone(),
         watch_registry.clone(),
         recent_write_hashes.clone(),
         app_handle.clone(),
@@ -1225,7 +1360,7 @@ fn add_watch(
     audit_logger.log_event(
         "watch.added",
         Some(&watch.path),
-        Some("api"),
+        Some(source),
         "ok",
         Some(watch.revision),
         None,
@@ -1272,7 +1407,6 @@ const WATCH_POLL_INTERVAL: Duration = Duration::from_millis(15);
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(50);
 
 fn spawn_watch_loop(
-    control: ControlFile,
     watch_registry: WatchRegistry,
     recent_write_hashes: RecentWriteHashes,
     app_handle: tauri::AppHandle,
@@ -1327,8 +1461,6 @@ fn spawn_watch_loop(
                                 text: text.clone(),
                                 path: Some(path.clone()),
                                 revision: Some(watch.revision),
-                                port: Some(control.port),
-                                token: Some(control.token.clone()),
                             };
                             if let Err(err) =
                                 emit_document_changed_event(&app_handle, &event_payload)
@@ -1417,17 +1549,24 @@ fn request_parse_error_response(err: anyhow::Error) -> Response<std::io::Cursor<
     }
 }
 
+/// The exact string injected into the page. Separated from the emit so V-11 can
+/// assert on the artifact the untrusted principal actually receives, rather than
+/// on the struct we believe produces it.
+fn document_changed_script(payload: &DocumentChangedEventPayload) -> Result<String> {
+    let payload_json =
+        serde_json::to_string(payload).context("failed to serialize event payload")?;
+    Ok(format!(
+        "window.dispatchEvent(new CustomEvent('ge:document.changed', {{ detail: {payload} }}));\
+         window.dispatchEvent(new CustomEvent('document.changed', {{ detail: {payload} }}));",
+        payload = payload_json
+    ))
+}
+
 fn emit_document_changed_event(
     app_handle: &tauri::AppHandle,
     payload: &DocumentChangedEventPayload,
 ) -> Result<()> {
-    let payload_json =
-        serde_json::to_string(payload).context("failed to serialize event payload")?;
-    let script = format!(
-        "window.dispatchEvent(new CustomEvent('ge:document.changed', {{ detail: {payload} }}));\
-         window.dispatchEvent(new CustomEvent('document.changed', {{ detail: {payload} }}));",
-        payload = payload_json
-    );
+    let script = document_changed_script(payload)?;
 
     let windows = app_handle.webview_windows();
     if windows.is_empty() {
@@ -1452,21 +1591,15 @@ fn is_authorized(request: &Request, token: &str) -> bool {
         .unwrap_or(false)
 }
 
-// The in-app webview reaches this server via a cross-origin fetch
-// (tauri://localhost -> http://127.0.0.1:<port>). A PUT with an
-// Authorization header is a non-simple request, so the webview sends a CORS
-// preflight; without these headers the preflight 404s and the browser blocks
-// the request ("TypeError: Load failed"). `*` is safe here: loopback control
-// server, bearer-token auth, no credentialed cookies.
-fn cors_headers() -> Vec<Header> {
-    vec![
-        Header::from_bytes("Access-Control-Allow-Origin", "*").expect("valid static header"),
-        Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
-            .expect("valid static header"),
-        Header::from_bytes("Access-Control-Allow-Headers", "Authorization, Content-Type")
-            .expect("valid static header"),
-    ]
-}
+// `Access-Control-Allow-Origin: *` used to live here, and it existed for one
+// reason: the webview reached this server by cross-origin fetch
+// (tauri://localhost -> http://127.0.0.1:<port>), and a PUT carrying an
+// Authorization header is a non-simple request whose preflight would otherwise
+// 404. Under D3 the page uses IPC and never fetches, so the header goes away
+// with the thing that required it — the remaining clients (`gx`, the smoke
+// gates, curl) are not browsers and send no preflight. A browser tab on any
+// origin can no longer even attempt a request it might have been handed a
+// token for.
 
 fn json_response<T: Serialize>(
     status: StatusCode,
@@ -1474,11 +1607,10 @@ fn json_response<T: Serialize>(
 ) -> Response<std::io::Cursor<Vec<u8>>> {
     let json = serde_json::to_vec(payload)
         .unwrap_or_else(|_| b"{\"ok\":false,\"message\":\"serialization-error\"}".to_vec());
-    let mut headers = cors_headers();
-    headers.push(
+    let headers = vec![
         Header::from_bytes("Content-Type", "application/json; charset=utf-8")
             .expect("valid static header"),
-    );
+    ];
     Response::new(
         status,
         headers,
@@ -1490,11 +1622,8 @@ fn json_response<T: Serialize>(
 
 fn text_response(status: StatusCode, body: &str) -> Response<std::io::Cursor<Vec<u8>>> {
     let bytes = body.as_bytes().to_vec();
-    let mut headers = cors_headers();
-    headers.push(
-        Header::from_bytes("Content-Type", "text/plain; charset=utf-8")
-            .expect("valid static header"),
-    );
+    let headers = vec![Header::from_bytes("Content-Type", "text/plain; charset=utf-8")
+        .expect("valid static header")];
     Response::new(
         status,
         headers,
@@ -1609,5 +1738,160 @@ mod tests {
     #[test]
     fn rejects_invalid_percent_encoding() {
         assert!(parse_document_path_from_url("/v1/document?path=%FF%FE").is_err());
+    }
+
+    fn sample_event_payload() -> DocumentChangedEventPayload {
+        DocumentChangedEventPayload {
+            text: "digraph { a -> b }".to_string(),
+            path: Some("/tmp/a.dot".to_string()),
+            revision: Some(7),
+        }
+    }
+
+    /// V-11, asserted on the artifact rather than the intent: this string is
+    /// literally what gets evaluated inside the untrusted webview.
+    #[test]
+    fn the_event_script_carries_no_credential() {
+        let script = document_changed_script(&sample_event_payload()).expect("serializable");
+        assert!(!script.contains("token"), "event script leaked a token field: {script}");
+        assert!(!script.contains("port"), "event script leaked a port field: {script}");
+        assert!(script.contains("digraph"), "event script lost its payload: {script}");
+    }
+
+    /// V-11, on the payload's own shape: the page is handed exactly a document
+    /// reference and nothing else.
+    #[test]
+    fn the_event_payload_has_exactly_the_document_fields() {
+        let json = serde_json::to_value(sample_event_payload()).expect("serializable");
+        // `serde_json::Value` keys a map by BTreeMap, so this is already sorted
+        // — the invariant is the SET of fields, not their order on the wire.
+        let keys: Vec<&str> = json
+            .as_object()
+            .expect("an object")
+            .keys()
+            .map(|key| key.as_str())
+            .collect();
+        assert_eq!(keys, vec!["path", "revision", "text"]);
+    }
+
+    fn temp_dir_for(test: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("gx-desktop-test-{test}-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        dir
+    }
+
+    /// V-12. A save whose window is gone still reached the disk, so it must
+    /// report success. Before this, `emit` failing turned an applied write into
+    /// an error, and the caller saw its own committed edit as lost.
+    #[test]
+    fn a_save_survives_a_failed_ui_notification() {
+        let dir = temp_dir_for("v12");
+        let file = dir.join("diagram.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        let path = file.to_string_lossy().to_string();
+        let normalized = normalize_path(&path).expect("normalizable");
+
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        registry.lock().expect("lock").insert(
+            normalized.clone(),
+            WatchDescriptor {
+                path: normalized.clone(),
+                format: "dot".to_string(),
+                revision: 1,
+            },
+        );
+        let recent_writes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let audit = AuditLogger {
+            file_path: dir.join("audit.jsonl"),
+            write_lock: Arc::new(Mutex::new(())),
+        };
+
+        let snapshot = put_document_snapshot(
+            &registry,
+            &recent_writes,
+            &audit,
+            // Exactly what `emit_document_changed_event` returns when the last
+            // window has closed.
+            &|_| Err(anyhow::anyhow!("no webview windows are available")),
+            PutDocumentRequest {
+                path: path.clone(),
+                text: "digraph { a -> b }".to_string(),
+                base_revision: 1,
+                source: Some("ui".to_string()),
+            },
+        )
+        .unwrap_or_else(|_| panic!("a written file must report success"));
+
+        assert_eq!(snapshot.revision, 2);
+        assert_eq!(
+            fs::read_to_string(&file).expect("readable"),
+            "digraph { a -> b }"
+        );
+
+        // The failure is not swallowed — it is recorded where an operator can
+        // find it.
+        let log = fs::read_to_string(dir.join("audit.jsonl")).expect("audit log");
+        assert!(
+            log.contains("UI notification failed"),
+            "the notification failure should be audited: {log}"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The other half of V-12: a genuinely stale base is still a conflict, and
+    /// still leaves the file untouched (V-01).
+    #[test]
+    fn a_stale_base_revision_is_still_rejected() {
+        let dir = temp_dir_for("v12-conflict");
+        let file = dir.join("diagram.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        let path = file.to_string_lossy().to_string();
+        let normalized = normalize_path(&path).expect("normalizable");
+
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        registry.lock().expect("lock").insert(
+            normalized.clone(),
+            WatchDescriptor {
+                path: normalized,
+                format: "dot".to_string(),
+                revision: 5,
+            },
+        );
+        let recent_writes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let audit = AuditLogger {
+            file_path: dir.join("audit.jsonl"),
+            write_lock: Arc::new(Mutex::new(())),
+        };
+
+        let result = put_document_snapshot(
+            &registry,
+            &recent_writes,
+            &audit,
+            &|_| Ok(()),
+            PutDocumentRequest {
+                path,
+                text: "clobbered".to_string(),
+                base_revision: 2,
+                source: Some("ui".to_string()),
+            },
+        );
+
+        match result {
+            Err(PutDocumentError::Conflict {
+                current_revision,
+                attempted_base_revision,
+            }) => {
+                assert_eq!(current_revision, 5);
+                assert_eq!(attempted_base_revision, 2);
+            }
+            _ => panic!("a stale base revision must conflict"),
+        }
+        assert_eq!(
+            fs::read_to_string(&file).expect("readable"),
+            "digraph { a }"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

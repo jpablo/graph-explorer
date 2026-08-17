@@ -559,8 +559,53 @@ stubbed self-test that runs without a desktop. All three platforms green.
 
 `gx open` reports `NeedsDesktop` and says the channel lands in P5. 
 
-**P4 — IPC bridge, token removed from the page (D3).** Tauri commands; strip
-`port`/`token` from event payloads; update `Viewer.scala`. V-11, V-12.
+**P4 — IPC bridge, token removed from the page (D3). ✅ DONE.** Three Tauri
+commands (`open_document`, `save_document`, `list_documents`); `port` and
+`token` are gone from the `document.changed` payload; the viewer's desktop
+bridge is extracted from `Viewer.scala` into `viewer/.../desktop/` and saves
+over IPC. V-11 and V-12 are asserted on both sides of the boundary.
+
+Three things the phase settled that the decision did not anticipate:
+
+- **V-11 came out structural rather than vigilant.** The commands take an
+  `IpcState` that does not contain `ControlFile` at all, so they *cannot* leak
+  the token — there is no path from a command to it. Stripping the credential
+  from the event payload then made `ControlFile` unnecessary in `add_watch` and
+  `spawn_watch_loop`, which had carried it for nothing else. The credential's
+  plumbing left with the credential.
+- **V-12 needed a seam, not a `let _ =`.** `put_document_snapshot` now takes
+  `notify: &dyn Fn(&DocumentChangedEventPayload) -> Result<()>` instead of an
+  `&AppHandle`. That is what makes "the window is gone" reachable from a unit
+  test — an `AppHandle` cannot be constructed in one, which is exactly why the
+  bug sat unasserted since v1. The write is what succeeded, so the write is
+  what is reported; the notification failure goes to the audit log rather than
+  inverting the outcome.
+- **`baseRevision` stays a `u64` here.** D3 writes the signature as
+  `base: ContentHash`, but P2 is deliberately half-done: the desktop still owns
+  its files and its integer counter, and the only client of that counter is the
+  webview, which gets it back from the same desktop. Nothing bridges the two
+  hash schemes yet, so V-13 is still not due. It comes due at P5/P6, when
+  `gx-core` and the desktop share files rather than one owning them.
+
+The CORS headers and the `OPTIONS` route are deleted with the fetch that
+required them. The HTTP server, its token, and `control.json` remain for `gx`
+and the smoke gates until P5.
+
+`withGlobalTauri` is now on, which is what lets the Scala.js page reach
+`invoke` without an npm dependency. It grants nothing: page JS can already
+reach `__TAURI_INTERNALS__.invoke`, and the capability set (`core:default`) is
+untouched. This is D3's own admission — IPC is not a sandbox — restated as a
+build flag.
+
+Only `save_document` has a caller today; `open_document` and `list_documents`
+are the enumerated surface P6 routes the command vocabulary through. The UI has
+no open-a-local-file gesture yet, so wiring them now would be inventing a
+feature, not finishing this one.
+
+Still outstanding on this path, and NOT fixed here because it is V-03 rather
+than P4: `write_file_atomic` chmods every saved file to 0600
+(`main.rs`, `set_owner_only_permissions` on the target). `gx-core` fixed this
+in P1; the desktop's own writer has not.
 
 **P5 — Socket replaces HTTP (D4).** UDS/named pipe. Delete the token, the CORS
 headers, and the HTTP server. Retire `local-protocol/v1/schema.json`, including
