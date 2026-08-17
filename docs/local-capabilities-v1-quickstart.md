@@ -1,5 +1,11 @@
 # Local Capabilities v1 Quickstart
 
+> **This describes v1.** `gx` has since been rewritten in Scala (see
+> `desktop-gx-v2-architecture.md` D2, D5): it no longer needs a running
+> desktop, and its commands take a diagram reference rather than
+> `--file`. The desktop half below is still accurate.
+
+
 Last updated: 2026-03-01
 
 This guide walks through the first end-to-end local workflow:
@@ -31,7 +37,7 @@ sbt viewer/fullLinkJS                                   # Scala.js -> viewer bun
 npm run build                                           # vite bundles it into dist/
 touch desktop/src-tauri/src/main.rs                     # force the re-embed (see note)
 (cd desktop/src-tauri && cargo build --release --locked --features tauri/custom-protocol)
-(cd gx && cargo build --release --locked)
+./scripts/build-gx.sh
 ```
 
 > **Note:** `--features tauri/custom-protocol` is **required** on the desktop
@@ -58,13 +64,13 @@ touch desktop/src-tauri/src/main.rs                     # force the re-embed (se
 Binaries:
 
 - desktop: `desktop/src-tauri/target/release/graph-explorer-desktop`
-- CLI: `gx/target/release/gx`
+- CLI: `gx-cli/target/gx`
 
 ## Start runtime and verify connectivity
 
 ```bash
 desktop/src-tauri/target/release/graph-explorer-desktop &
-gx/target/release/gx status --json
+gx-cli/target/gx status --json
 ```
 
 Expected: JSON response with `"running": true`.
@@ -84,14 +90,14 @@ digraph G {
 }
 EOF
 
-gx/target/release/gx watch /tmp/diagram.dot --json
-gx/target/release/gx get --file /tmp/diagram.dot --json
+gx-cli/target/gx watch /tmp/diagram.dot --json
+gx-cli/target/gx get --file /tmp/diagram.dot --json
 ```
 
 Update with revision-safe write:
 
 ```bash
-gx/target/release/gx set --file /tmp/diagram.dot --text $'digraph G {\n  b -> c\n}\n' --json
+gx-cli/target/gx set --file /tmp/diagram.dot --text $'digraph G {\n  b -> c\n}\n' --json
 ```
 
 If you attempt a stale revision, the CLI exits with code `5` (`DOCUMENT_CONFLICT`).
@@ -99,7 +105,7 @@ If you attempt a stale revision, the CLI exits with code `5` (`DOCUMENT_CONFLICT
 Stop watching:
 
 ```bash
-gx/target/release/gx unwatch /tmp/diagram.dot --json
+gx-cli/target/gx unwatch /tmp/diagram.dot --json
 ```
 
 ## Optional policy controls

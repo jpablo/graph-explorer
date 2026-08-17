@@ -1,8 +1,8 @@
 .PHONY: setup dev-compile dev-serve test build \
-        desktop-build desktop-run desktop-status desktop-watch
+        desktop-build desktop-run gx-build gx-status gx-watch
 
 DESKTOP_BIN  := desktop/src-tauri/target/release/graph-explorer-desktop
-GX           := gx/target/release/gx
+GX           := gx-cli/target/gx
 CONTROL_FILE := $(HOME)/.graph-explorer/runtime/control.json
 
 setup:
@@ -47,12 +47,25 @@ desktop-run: desktop-build
 	fi
 	$(DESKTOP_BIN)
 
-desktop-status:
-	@test -x $(GX) || { echo "gx is not built yet — run: make desktop-build" >&2; exit 2; }
-	@$(GX) status --json
+# --- gx ------------------------------------------------------------------
+#
+# gx is Scala compiled by GraalVM native-image (D2), not cargo. It no longer
+# needs a running desktop for anything except `gx open`, so these targets do not
+# depend on desktop-build.
 
-# make desktop-watch FILE=path/to/diagram.dot
-desktop-watch:
-	@test -n "$(FILE)" || { echo "usage: make desktop-watch FILE=path/to/diagram.dot" >&2; exit 2; }
-	@test -x $(GX) || { echo "gx is not built yet — run: make desktop-build" >&2; exit 2; }
+gx-build:
+	./scripts/build-gx.sh
+
+gx-status:
+	@test -x $(GX) || { echo "gx is not built yet — run: make gx-build" >&2; exit 2; }
+	@$(GX) status
+
+# make gx-watch FILE=path/to/diagram.dot
+#
+# Streams changes to stdout. Under v1 this registered a watch with the desktop
+# so the UI followed the file; pushing into a running UI comes back with the
+# control channel in P5.
+gx-watch:
+	@test -n "$(FILE)" || { echo "usage: make gx-watch FILE=path/to/diagram.dot" >&2; exit 2; }
+	@test -x $(GX) || { echo "gx is not built yet — run: make gx-build" >&2; exit 2; }
 	@$(GX) watch "$(FILE)" --json

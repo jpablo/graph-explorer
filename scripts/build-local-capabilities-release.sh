@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build the release `graph-explorer-desktop` and `gx` binaries locally.
+# Build the release `graph-explorer-desktop` (cargo) and `gx` (native-image) binaries locally.
 #
 # These steps are deliberately a shell script and NOT an sbt task. They used to
 # be `sbt buildLocalCapabilitiesRelease`, which could never work: it ran
@@ -21,7 +21,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
 DESKTOP_BIN="desktop/src-tauri/target/release/graph-explorer-desktop"
-GX_BIN="gx/target/release/gx"
+GX_BIN="gx-cli/target/gx"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
@@ -62,8 +62,10 @@ step "cargo build: desktop (release)"
 # The Tauri CLI adds the feature automatically; a bare `cargo build` does not.
 (cd desktop/src-tauri && cargo build --release --locked --features tauri/custom-protocol)
 
-step "cargo build: gx (release)"
-(cd gx && cargo build --release --locked)
+step "native-image: gx (release)"
+# gx is Scala now (D2), so this is GraalVM rather than cargo. The script asserts
+# it produced a real native binary and not a fallback JVM launcher.
+"${ROOT_DIR}/scripts/build-gx.sh" "${ROOT_DIR}/gx-cli/target/gx"
 
 step "verify this is a production build"
 # Assert the property that matters -- the frontend is EMBEDDED -- rather than

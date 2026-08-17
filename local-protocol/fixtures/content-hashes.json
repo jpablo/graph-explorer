@@ -1,0 +1,74 @@
+{
+  "$comment": [
+    "V-13: Scala and Rust must agree on canonicalization and the content hash.",
+    "These two things are the join key for the whole library (architecture doc",
+    "section 4), and they are the one contract written twice in two languages.",
+    "This file is the specification; both sides assert against it.",
+    "",
+    "SHA-256 over the file's BYTES. Not over decoded text: two processes can",
+    "agree on bytes without first agreeing on an encoding and a line-ending",
+    "convention. See gx-core's Hashing.ofBytes."
+  ],
+  "contentHashes": [
+    {
+      "name": "empty",
+      "text": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "why": "an empty file still has an identity; a missing file has none"
+    },
+    {
+      "name": "lf",
+      "text": "digraph G {\n  a -> b\n}\n",
+      "sha256": "177cccc9846661b00afa1da1ef81b46a5964b134f56d58ca2c6915dd04f364d1",
+      "why": "the ordinary case"
+    },
+    {
+      "name": "crlf",
+      "text": "digraph G {\r\n  a -> b\r\n}\r\n",
+      "sha256": "66c6fafdf3b263b790b1815d38e4b79e10bcbe8c94baac3f237ca9caf419519b",
+      "why": "V-04: the same text with CRLF is a DIFFERENT document, which is why writing LF into a CRLF file would change its identity without changing what the user typed"
+    },
+    {
+      "name": "no-trailing-newline",
+      "text": "digraph G { a -> b }",
+      "sha256": "19c9fb26b95530c8f87e2665c1a674b9c5dd4979b1b61a25700e02cb0c86eb39",
+      "why": "a final newline is part of the bytes, so it is part of the identity"
+    },
+    {
+      "name": "non-ascii",
+      "text": "digraph { \"ünïcode Ø\" -> café }",
+      "sha256": "e3c905b0b042a3bae7d13638d4cf5dd99a995c904460e779cf325da1d5889af4",
+      "why": "V-16: Windows decodes as windows-1252 by default, which would give these bytes a different hash on one platform with no edit having occurred"
+    },
+    {
+      "name": "emoji-astral",
+      "text": "digraph { \"a😀b\" }",
+      "sha256": "5d2c8f576bf361893f8d89588ab76b835966dda961f2b4543da65f860250b202",
+      "why": "a surrogate pair in Java, four UTF-8 bytes on the wire; the hash is over the bytes, so the two agree"
+    },
+    {
+      "name": "bom",
+      "text": "﻿digraph G { a }",
+      "sha256": "d716f6c4bc65685ca54add7bd4fe39561378da040d61d4be5b1b9cbb8673d583",
+      "why": "a BOM is content, not metadata: it changes the bytes and therefore the identity"
+    },
+    {
+      "name": "lone-cr",
+      "text": "a\rb",
+      "sha256": "af9081672dd5ef3247a30c2db5b0dafcc9bcf981a26aefb3c55d210d43fcc14e",
+      "why": "a bare CR is neither LF nor CRLF and must not be normalized away"
+    },
+    {
+      "name": "invalid-utf8",
+      "hexBytes": "fffe0000",
+      "sha256": "0b856f2a1ea6fe59346bec325dfe906bfa23babe05eb10ac9fe7f5b46196ae71",
+      "why": "not decodable as UTF-8; Rust's read_to_string would have replaced these bytes, silently changing the hash"
+    },
+    {
+      "name": "nul-byte",
+      "hexBytes": "6100620063",
+      "sha256": "8badde10c760e9b702defb4b5e225de79c515b1d2a5cfb000e140f3c6fbb5629",
+      "why": "a NUL is a legal byte in a file even where it is illegal in a path"
+    }
+  ]
+}

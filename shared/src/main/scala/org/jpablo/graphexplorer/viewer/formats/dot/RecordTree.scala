@@ -268,8 +268,35 @@ object RecordTree:
     while i < s.length do
       if s.charAt(i) == '\\' then
         if i + 1 < s.length then i += 2
-        else return s.dropRight(1) // lone backslash at the end
+        else return trimTrailingUnescapedSpaces(s.dropRight(1)) // lone backslash at the end
       else i += 1
     s
+
+  /** Drop trailing spaces that are not themselves escaped.
+    *
+    * Only reachable once a dangling backslash has been removed, and that is the
+    * point: removing it can expose a space that was unescaped all along, and
+    * leaf `text` is documented to hold unescaped spaces already trimmed. Without
+    * this, `"x \"` serializes to `"x "` and only a SECOND parse trims it to
+    * `"x"` — so `serialize ∘ parse` needed two passes to settle instead of one.
+    * A ScalaCheck seed found it; the literal case is pinned in RecordTreeSpec.
+    *
+    * Escape-aware so the trim stops at the text rather than eating into it. Via
+    * `parse` that guard is belt-and-braces — the engine has already normalized a
+    * trailing `\ ` by the time this runs — but the other caller escapes dialog
+    * text itself, and there a trailing escaped space is the user's to keep.
+    */
+  private def trimTrailingUnescapedSpaces(s: String): String =
+    var end = s.length
+    while end > 0 && s.charAt(end - 1) == ' ' && !isEscaped(s, end - 1) do end -= 1
+    s.substring(0, end)
+
+  private def isEscaped(s: String, index: Int): Boolean =
+    var backslashes = 0
+    var i           = index - 1
+    while i >= 0 && s.charAt(i) == '\\' do
+      backslashes += 1
+      i -= 1
+    backslashes % 2 == 1
 
 end RecordTree

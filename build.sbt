@@ -27,6 +27,37 @@ scalacOptions ++= // Scala 3.x options
     "-preview"
   )
 
+// P0 gate for the v2 redesign (docs/desktop-gx-v2-architecture.md D2): the
+// native-image spike needs sharedJVM's runtime classpath as literal paths.
+// sbt 2's `export` and `show` both emit ${OUT}/${CSR_CACHE} placeholders, whose
+// expansions differ across the three CI runners. Retire together with
+// spike/native-image once P0 is settled either way.
+// Writes to a fixed path rather than returning one: sbt 2 refuses to cache a
+// task whose result type is File/Path.
+lazy val nativeImageClasspath =
+  taskKey[Unit]("Write this project's runtime classpath to target/native-image-classpath.txt")
+
+// The Scala.js linker output directory, written to a file for the vite plugin.
+//
+// vite-scalajs.js used to recover it by scanning sbt's STDOUT for a line that
+// happened to be an existing directory. That works until sbt emits anything
+// else around the task result, and then it fails with "sbt printed no existing
+// directory" and a build that produced 0 modules.
+//
+// The trigger is a clock boundary, which is why it looked random: `viewer` uses
+// dynver + BuildInfo, and dynver's version carries a MINUTE-resolution
+// timestamp. An sbt invocation on the far side of a minute from the previous one
+// sees a changed version, regenerates BuildInfo, recompiles a source — and the
+// extra log traffic loses the task result line. CI passed at :43 and failed at
+// :54 on the same tree; Netlify hit it too.
+//
+// sbt's stdout is not an API. This is.
+lazy val scalaJSOutputDirFile =
+  taskKey[Unit]("Write fullLinkJS's output directory to target/scalajs-output-dir.txt")
+
+lazy val scalaJSFastOutputDirFile =
+  taskKey[Unit]("Write fastLinkJS's output directory to target/scalajs-fast-output-dir.txt")
+
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .enablePlugins(DynVerPlugin, BuildInfoPlugin)
@@ -59,6 +90,16 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
       "-Yimports:java.lang,scala,scala.Predef,com.softwaremill.quicklens"
     ),
     testFrameworks := Seq(new TestFramework("munit.Framework"))
+  ).jvmSettings(
+    nativeImageClasspath := Def.uncached {
+      // sbt 2 hands back xsbti.HashedVirtualFileRef, not File; fileConverter
+      // is what turns those back into real paths on disk.
+      val conv = fileConverter.value
+      val out  = (ThisBuild / baseDirectory).value / "target" / "native-image-classpath.txt"
+      val cp   = (Compile / fullClasspath).value.map(a => conv.toPath(a.data).toAbsolutePath.toString)
+      IO.write(out, cp.mkString(java.io.File.pathSeparator))
+      streams.value.log.info(s"wrote ${cp.length} classpath entries to $out")
+    }
   ).jsSettings(
     // JS-specific settings
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
@@ -94,14 +135,91 @@ lazy val graphviz = crossProject(JSPlatform, JVMPlatform)
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
   )
 
+// The local-capabilities engine: policy, documents, watching, the library store
+// and the audit log. See docs/desktop-gx-v2-architecture.md D2.2.
+//
+// CrossType.Full because the split is real, not incidental. `shared/` holds the
+// model — content hashes, origin URIs, sync modes and the three-hash
+// reconciliation — which the viewer needs and which touches no filesystem.
+// `jvm/` holds everything that does I/O, and has no business being linked into a
+// webview that D3 treats as an untrusted principal.
+lazy val gxCore = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Full)
+  .in(file("gx-core"))
+  .dependsOn(shared)
+  .settings(
+    name                     := "gx-core",
+    Test / parallelExecution := false,
+    libraryDependencies ++= Seq(
+      "org.scalameta" %% "munit"            % "1.0.0" % Test,
+      "org.scalameta" %% "munit-scalacheck" % "1.0.0" % Test
+    ),
+    testFrameworks := Seq(new TestFramework("munit.Framework"))
+  )
+  .jsSettings(
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
+  )
+
+// The `gx` command line, rewritten in Scala (D2). JVM-only: it is shipped as a
+// GraalVM native-image binary, and P0 measured a parse-only command at 3.5-9.0ms
+// cold across three platforms against the JVM jar's 512ms.
+//
+// Lives beside the Rust `gx/` rather than replacing it in place: the old binary
+// is still referenced by two workflows, six smoke scripts and the Makefile, so
+// retiring it is its own change once this one is proven.
+lazy val gxCli =
+  project
+    .in(file("gx-cli"))
+    .dependsOn(gxCore.jvm)
+    .settings(
+      name                     := "gx-cli",
+      Test / parallelExecution := false,
+      libraryDependencies ++= Seq(
+        "org.scalameta" %% "munit" % "1.0.0" % Test
+      ),
+      testFrameworks := Seq(new TestFramework("munit.Framework")),
+      nativeImageClasspath := Def.uncached {
+        val conv = fileConverter.value
+        val out  = (ThisBuild / baseDirectory).value / "target" / "gx-cli-classpath.txt"
+        val cp   = (Compile / fullClasspath).value.map(a => conv.toPath(a.data).toAbsolutePath.toString)
+        IO.write(out, cp.mkString(java.io.File.pathSeparator))
+        streams.value.log.info(s"wrote ${cp.length} classpath entries to $out")
+      }
+    )
+
 lazy val viewer =
   project
     .in(file("viewer"))
     .enablePlugins(ScalaJSPlugin, DynVerPlugin, BuildInfoPlugin)
-    .dependsOn(shared.js, graphviz.js) // M8: pure-Scala graphviz backend (flagged)
+    // gxCore.js is here for `gx-core/command` (D7.1): the command vocabulary has
+    // to be the SAME vocabulary the UI executes, or the RPC path and the menus
+    // become two implementations that drift. Only the shared half exists on JS —
+    // gx-core has no JS sources of its own — so this links the pure model and
+    // the commands, not the filesystem layer, which D3 keeps out of the webview.
+    .dependsOn(shared.js, graphviz.js, gxCore.js) // M8: pure-Scala graphviz backend (flagged)
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
+      // Both tasks still BUILD the output as a side effect, which is the reason
+      // the vite plugin calls sbt at all: dropping the call would make a build
+      // silently bundle whatever stale linker output was on disk.
+      // Def.uncached: the task's whole purpose is the file it writes, and sbt 2
+      // caches on inputs — so after a `target/` clean it would report success
+      // with no file on disk, and the build would fail claiming sbt never wrote
+      // it. Nothing here is expensive; the linking it depends on is cached on
+      // its own terms.
+      scalaJSOutputDirFile := Def.uncached {
+        val out = (ThisBuild / baseDirectory).value / "target" / "scalajs-output-dir.txt"
+        val dir = (Compile / fullLinkJSOutput).value
+        IO.write(out, dir.getAbsolutePath)
+        streams.value.log.info(s"wrote the Scala.js output directory to $out")
+      },
+      scalaJSFastOutputDirFile := Def.uncached {
+        val out = (ThisBuild / baseDirectory).value / "target" / "scalajs-fast-output-dir.txt"
+        val dir = (Compile / fastLinkJSOutput).value
+        IO.write(out, dir.getAbsolutePath)
+        streams.value.log.info(s"wrote the Scala.js output directory to $out")
+      },
       buildInfoOptions ++= Seq(BuildInfoOption.BuildTime, BuildInfoOption.ToMap),
       scalacOptions ++= Seq(
         "-explain",
@@ -169,7 +287,7 @@ lazy val viewer =
 lazy val root =
   project
     .in(file("."))
-    .aggregate(viewer, shared.js, shared.jvm, graphviz.js, graphviz.jvm)
+    .aggregate(viewer, shared.js, shared.jvm, graphviz.js, graphviz.jvm, gxCore.js, gxCore.jvm, gxCli)
     .settings(
       name := "graph-explorer",
       welcomeMessage

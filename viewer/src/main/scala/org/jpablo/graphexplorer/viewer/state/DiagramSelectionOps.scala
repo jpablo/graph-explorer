@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.mermaid.effectiveEdgeMarkers
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.extensions.in
+import org.jpablo.graphexplorer.gxcore.command.DocumentCommand
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
@@ -200,42 +201,48 @@ trait DiagramSelectionOps:
     def group() =
       createGroupMaybePrompt(now())
 
+    // Through the vocabulary, not straight to the op (D7.1). What the menu
+    // item does and what a socket client's `ungroup` does are now the same
+    // code path, which is the only way they stay the same operation.
     def ungroup() =
-      phases.fullGraphV.update(_.ungroupSelection(now()))
+      runDocumentCommand(DocumentCommand.Ungroup(now().ids.toSet))
 
     def combineIntoRecord() =
-      val currentSelection = now()
-      if currentSelection.nodeIds.nonEmpty then
-        phases.fullGraphV.update { graph =>
-          val newGraph = graph.combineIntoRecord(currentSelection.nodeIds)
-          // Select the newly created record node (it should be the newest node)
-          val newNodeIds = newGraph.nodeIds -- graph.nodeIds
-          if newNodeIds.nonEmpty then
-            set1(newNodeIds)
-          newGraph
-        }
+      val nodeIds = now().nodeIds
+      if nodeIds.nonEmpty then
+        // Selecting what the command created is a VIEW concern, so it stays
+        // here rather than in the command — the same operation run headless by
+        // `gx` has nothing to select.
+        runDocumentCommand(
+          DocumentCommand.CombineIntoRecord(nodeIds),
+          onApplied = (before, after) => selectNewNodes(before, after)
+        )
 
     def splitRecord() =
-      val currentSelection = now()
-      if currentSelection.nodeIds.size == 1 then
-        val nodeId = currentSelection.nodeIds.head
-        phases.fullGraphV.update { graph =>
-          if graph.isRecordNode(nodeId) then
-            val newGraph = graph.splitRecordNode(nodeId)
-            // Select the newly created nodes
-            val newNodeIds = newGraph.nodeIds -- graph.nodeIds
-            if newNodeIds.nonEmpty then
-              set1(newNodeIds)
-            newGraph
-          else
-            graph
-        }
+      val nodeIds = now().nodeIds
+      if nodeIds.size == 1 then
+        // The `isRecordNode` guard moved INTO the command, where a headless
+        // caller can also be told no. Here it comes back as a message rather
+        // than as a silent no-op.
+        runDocumentCommand(
+          DocumentCommand.SplitRecord(nodeIds.head),
+          onApplied = (before, after) => selectNewNodes(before, after)
+        )
 
     def transposeRecord() =
-      val currentSelection = now()
-      if currentSelection.nodeIds.size == 1 then
-        val nodeId = currentSelection.nodeIds.head
-        phases.fullGraphV.update(_.transposeRecord(nodeId))
+      val nodeIds = now().nodeIds
+      if nodeIds.size == 1 then
+        runDocumentCommand(DocumentCommand.TransposeRecord(nodeIds.head))
+
+    /** Select whatever the command brought into being.
+      *
+      * Shared by combine and split because both create nodes and both want the
+      * result selected; keeping it in one place is what stops the two from
+      * disagreeing about what "the new nodes" means.
+      */
+    private def selectNewNodes(before: ViewerGraph, after: ViewerGraph): Unit =
+      val created = after.nodeIds -- before.nodeIds
+      if created.nonEmpty then set1(created)
 
     def reverseArrowsStyle() =
       val mermaidMode = currentFormatNow() == DiagramFormat.Mermaid

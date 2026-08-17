@@ -105,7 +105,7 @@ jobs:
   # directory over. macOS runner to match that workflow's Rust job: the desktop
   # crate links webkit2gtk on Linux and would need an apt step here.
   rust:
-    name: Rust tests (desktop + gx)
+    name: Rust tests (desktop)
     runs-on: macos-latest
 
     steps:
@@ -117,7 +117,6 @@ jobs:
         with:
           workspaces: |
             desktop/src-tauri
-            gx
 
       # Covers the control server's URL decoding, including the Windows-shaped
       # paths that no macOS/Linux runtime smoke can reach.
@@ -125,9 +124,8 @@ jobs:
         working-directory: desktop/src-tauri
         run: cargo test --locked
 
-      - name: Check gx crate
-        working-directory: gx
-        run: cargo check --locked
+      # The gx crate is gone: gx is Scala now (D2), and its tests run under
+      # `sbt testFull` alongside the rest of the build.
 
   # Submits the sbt dependency graph to GitHub, which is what makes Dependabot
   # alerts work for Scala dependencies — without it, GitHub only sees this

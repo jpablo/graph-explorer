@@ -4,23 +4,25 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::OpenOptions;
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::Read;
-use std::io::Write;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine as _;
-use rand::TryRngCore;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
-use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
+
+// AF_UNIX on every platform, rather than D4's "unix socket / named pipe".
+// Windows has supported AF_UNIX since 1803, and one transport means ONE client
+// implementation in `gx` instead of two that can drift — the same class of risk
+// V-13 exists to contain. `uds_windows` mirrors the std API, so the only
+// difference between platforms is this import.
+#[cfg(unix)]
+use std::os::unix::net::{UnixListener, UnixStream};
+#[cfg(windows)]
+use uds_windows::{UnixListener, UnixStream};
 
 /// The app icon, embedded in the binary (this build is unbundled, so there is
 /// no .app/.icns for macOS to read).
@@ -61,11 +63,129 @@ fn health() -> &'static str {
     "ok"
 }
 
+/// Everything a Tauri command is allowed to reach.
+///
+/// Note what is *absent*: `ControlFile`. The webview's three verbs (D3) cannot
+/// leak a credential because they cannot see one — V-11 was a property of this
+/// struct's shape before P5, and since P5 there is no credential anywhere to
+/// leak. `ConnectionContext` is the socket's equivalent; the two share only the
+/// registries.
+#[derive(Clone)]
+struct IpcState {
+    access_policy: AccessPolicy,
+    pending_sessions: PendingSessions,
+    audit_logger: AuditLogger,
+    watch_registry: WatchRegistry,
+    watch_controllers: WatchControllers,
+    recent_write_hashes: RecentWriteHashes,
+}
+
+/// The error shape a rejected `invoke()` delivers to the page. Serialized as
+/// the promise's rejection value, so the UI branches on `code`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IpcError {
+    code: &'static str,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_revision: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attempted_base_revision: Option<u64>,
+}
+
+impl IpcError {
+    fn new(code: &'static str, message: impl std::fmt::Display) -> Self {
+        Self {
+            code,
+            message: message.to_string(),
+            current_revision: None,
+            attempted_base_revision: None,
+        }
+    }
+}
+
+/// Open a diagram for the UI: apply policy, start watching, return the bytes.
+///
+/// Policy is enforced here exactly as it is for a socket client — the webview
+/// is an untrusted principal (§2), so its verbs are audited and checked rather
+/// than trusted.
+#[tauri::command(rename_all = "camelCase")]
+fn open_document(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, IpcState>,
+    path: String,
+) -> std::result::Result<DocumentSnapshot, IpcError> {
+    add_watch(
+        &state.access_policy,
+        &state.watch_registry,
+        &state.watch_controllers,
+        &state.recent_write_hashes,
+        &state.audit_logger,
+        &app,
+        &path,
+        "ui",
+    )
+    .map_err(|err| IpcError::new("WATCH_FAILED", err))?;
+
+    get_document_snapshot(&state.watch_registry, &path)
+        .map_err(|err| IpcError::new("DOCUMENT_READ_FAILED", err))
+}
+
+/// Compare-and-swap write from the UI. `baseRevision` is the revision the UI
+/// last saw; a mismatch is a conflict, not a clobber.
+#[tauri::command(rename_all = "camelCase")]
+fn save_document(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, IpcState>,
+    path: String,
+    text: String,
+    base_revision: u64,
+) -> std::result::Result<DocumentSnapshot, IpcError> {
+    let app_handle = app.clone();
+    put_document_snapshot(
+        &state.watch_registry,
+        &state.recent_write_hashes,
+        &state.audit_logger,
+        &|payload| emit_document_changed_event(&app_handle, payload),
+        PutDocumentRequest {
+            path,
+            text,
+            base_revision,
+            source: Some("ui".to_string()),
+        },
+    )
+    .map_err(|err| match err {
+        PutDocumentError::Conflict {
+            current_revision,
+            attempted_base_revision,
+        } => IpcError {
+            code: "DOCUMENT_CONFLICT",
+            message: "file changed on disk since it was loaded".to_string(),
+            current_revision: Some(current_revision),
+            attempted_base_revision: Some(attempted_base_revision),
+        },
+        PutDocumentError::Other(err) => IpcError::new("DOCUMENT_WRITE_FAILED", err),
+    })
+}
+
+/// What the desktop currently has open. The UI's view of its own documents no
+/// longer requires a status call against a credentialed HTTP endpoint.
+#[tauri::command]
+fn list_documents(state: tauri::State<'_, IpcState>) -> Vec<WatchDescriptor> {
+    watched_items(&state.watch_registry)
+}
+
+/// What a client needs to find the desktop.
+///
+/// v1 carried a `port` and a `token`. Both are gone (D4): there is no port to
+/// connect to, and the socket's own permissions decide who may speak to it, so
+/// there is no credential left to hand out, leak, or rotate. `socket` is here
+/// so a client never has to reconstruct the path — it is discovered, not
+/// derived.
 #[derive(Debug, Clone, Serialize)]
 struct ControlFile {
     pid: u32,
-    port: u16,
-    token: String,
+    socket: String,
     version: String,
 }
 
@@ -78,7 +198,30 @@ struct WatchDescriptor {
 
 type WatchRegistry = Arc<Mutex<HashMap<String, WatchDescriptor>>>;
 type WatchControllers = Arc<Mutex<HashMap<String, WatchController>>>;
-type RecentWriteHashes = Arc<Mutex<HashMap<String, u64>>>;
+/// Path -> the content hash this process last wrote there.
+///
+/// A hex SHA-256 since V-13, not a u64: it is the same value `gx-core` computes
+/// for the same bytes, which is what lets the two sides talk about a document's
+/// identity at all.
+type RecentWriteHashes = Arc<Mutex<HashMap<String, String>>>;
+
+/// Session requests awaiting the page's answer, by id.
+///
+/// The session tier is the only one the shell cannot answer itself (D2.5: it
+/// knows nothing about diagrams), so a request is parked here while the webview
+/// runs it. The channel is how the socket thread waits without holding a lock.
+type PendingSessions = Arc<Mutex<HashMap<u64, std::sync::mpsc::Sender<SessionOutcome>>>>;
+
+#[derive(Debug, Clone)]
+struct SessionOutcome {
+    ok: bool,
+    result: serde_json::Value,
+    /// The page's own code, so "nothing is open" reaches the caller as
+    /// `NO_SESSION` rather than as a generic failure it would have to read the
+    /// prose to recognise.
+    code: String,
+    message: String,
+}
 
 #[derive(Debug, Clone)]
 struct AccessPolicy {
@@ -123,7 +266,10 @@ struct WatchController {
 }
 
 fn main() {
-    let control = write_runtime_file().expect("failed to write control runtime file");
+    // Written before the socket is bound so a client that finds the file and
+    // then fails to connect learns something true: the desktop is starting, or
+    // it died. The file alone never proved liveness — now `connect` does.
+    write_runtime_file().expect("failed to write control runtime file");
     let access_policy = load_access_policy().expect("failed to load access policy");
     let request_limits = load_request_limits().expect("failed to load request limits");
     let audit_logger = init_audit_logger().expect("failed to initialize audit logger");
@@ -134,10 +280,23 @@ fn main() {
     let watch_registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
     let watch_controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
     let recent_write_hashes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+    let pending_sessions: PendingSessions = Arc::new(Mutex::new(HashMap::new()));
+
+    // The registries are Arcs, so the webview's IPC verbs and the socket's RPC
+    // operate on the same state — two front doors, one house. Neither carries a
+    // credential now: the webview is gated by an enumerated command list (D3),
+    // the socket by its file permissions (D4).
+    let ipc_state = IpcState {
+        access_policy: access_policy.clone(),
+        pending_sessions: pending_sessions.clone(),
+        audit_logger: audit_logger.clone(),
+        watch_registry: watch_registry.clone(),
+        watch_controllers: watch_controllers.clone(),
+        recent_write_hashes: recent_write_hashes.clone(),
+    };
 
     tauri::Builder::default()
         .setup({
-            let control = control.clone();
             let access_policy = access_policy.clone();
             let request_limits = request_limits.clone();
             let audit_logger = audit_logger.clone();
@@ -146,9 +305,11 @@ fn main() {
             let watch_controllers = watch_controllers.clone();
             let recent_write_hashes = recent_write_hashes.clone();
             move |app| {
+                app.manage(ipc_state);
+
                 spawn_control_server(
-                    control.clone(),
                     access_policy.clone(),
+                    pending_sessions.clone(),
                     request_limits.clone(),
                     audit_logger.clone(),
                     rate_limiter.clone(),
@@ -173,7 +334,13 @@ fn main() {
                 Ok(())
             }
         })
-        .invoke_handler(tauri::generate_handler![health])
+        .invoke_handler(tauri::generate_handler![
+            health,
+            open_document,
+            save_document,
+            list_documents,
+            session_reply
+        ])
         .run(tauri::generate_context!())
         .expect("error while running graph explorer desktop");
 }
@@ -380,8 +547,7 @@ fn write_runtime_file() -> Result<ControlFile> {
 
     let control = ControlFile {
         pid: std::process::id(),
-        port: find_open_port()?,
-        token: generate_token()?,
+        socket: control_socket_path()?.to_string_lossy().to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     };
 
@@ -412,55 +578,27 @@ fn runtime_dir_path() -> Result<PathBuf> {
     Ok(home_dir.join(".graph-explorer").join("runtime"))
 }
 
-fn find_open_port() -> Result<u16> {
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-    let listener = TcpListener::bind(addr).context("failed to bind temporary loopback socket")?;
-    let port = listener
-        .local_addr()
-        .context("failed to read local socket address")?
-        .port();
-    Ok(port)
+fn control_socket_path() -> Result<PathBuf> {
+    Ok(runtime_dir_path()?.join("control.sock"))
 }
 
-fn generate_token() -> Result<String> {
-    let mut bytes = [0_u8; 32];
-    rand::rngs::OsRng
-        .try_fill_bytes(&mut bytes)
-        .map_err(|err| anyhow::anyhow!("failed to generate random token: {err}"))?;
-    Ok(URL_SAFE_NO_PAD.encode(bytes))
-}
+/// A unix socket address is a fixed-size struct: `sun_path` is 104 bytes on
+/// macOS and 108 on Linux, and a longer path fails at `bind` with a bare
+/// `EINVAL`. Home directories are usually short enough, but a CI runner or a
+/// containerized `$HOME` need not be — so the limit is checked where it can be
+/// explained rather than discovered as an unexplained startup failure.
+const MAX_SOCKET_PATH_BYTES: usize = 100;
 
-fn spawn_control_server(
-    control: ControlFile,
-    access_policy: AccessPolicy,
-    request_limits: RequestLimits,
-    audit_logger: AuditLogger,
-    rate_limiter: RequestRateLimiter,
-    watch_registry: WatchRegistry,
-    watch_controllers: WatchControllers,
-    recent_write_hashes: RecentWriteHashes,
-    app_handle: tauri::AppHandle,
-) -> Result<JoinHandle<()>> {
-    let addr = format!("127.0.0.1:{}", control.port);
-    let server = Server::http(&addr)
-        .map_err(|err| anyhow::anyhow!("failed to bind local control server on {addr}: {err}"))?;
-    let handle = std::thread::spawn(move || {
-        for request in server.incoming_requests() {
-            handle_request(
-                request,
-                &control,
-                &access_policy,
-                &request_limits,
-                &audit_logger,
-                &rate_limiter,
-                &watch_registry,
-                &watch_controllers,
-                &recent_write_hashes,
-                &app_handle,
-            );
-        }
-    });
-    Ok(handle)
+fn check_socket_path_length(path: &Path) -> Result<()> {
+    let len = path.as_os_str().to_string_lossy().as_bytes().len();
+    if len > MAX_SOCKET_PATH_BYTES {
+        return Err(anyhow::anyhow!(
+            "control socket path is {len} bytes, over the {MAX_SOCKET_PATH_BYTES}-byte limit \
+             a unix socket address allows: {}",
+            path.display()
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -477,6 +615,15 @@ struct WatchRequest {
 
 #[derive(Debug, Deserialize)]
 struct UnwatchRequest {
+    path: String,
+}
+
+/// A path, and nothing else. In v1 this travelled as a URL query parameter and
+/// had to be percent-decoded on arrival — the decode that handled `%2F` and
+/// nothing else, so a space or any Windows separator survived mangled and the
+/// lookup missed. As a JSON string there is no encoding step to get wrong.
+#[derive(Debug, Deserialize)]
+struct DocumentRefRequest {
     path: String,
 }
 
@@ -499,29 +646,261 @@ struct DocumentSnapshot {
     timestamp_ms: u64,
 }
 
+/// What the page is told when a document changes.
+///
+/// It used to carry `port` and `token` so the webview could `fetch()` back into
+/// the control server. Under D3 the page talks over IPC instead, so the payload
+/// is a pure document reference — the credential is not merely unused here, it
+/// is not present (V-11).
 #[derive(Debug, Serialize)]
 struct DocumentChangedEventPayload {
     text: String,
     path: Option<String>,
     revision: Option<u64>,
-    port: Option<u16>,
-    token: Option<String>,
 }
 
-fn handle_request(
-    mut request: Request,
-    control: &ControlFile,
-    access_policy: &AccessPolicy,
-    request_limits: &RequestLimits,
-    audit_logger: &AuditLogger,
-    rate_limiter: &RequestRateLimiter,
-    watch_registry: &WatchRegistry,
-    watch_controllers: &WatchControllers,
-    recent_write_hashes: &RecentWriteHashes,
-    app_handle: &tauri::AppHandle,
-) {
-    if !rate_limiter.allow() {
-        audit_logger.log_event(
+/// The control channel: a unix socket carrying newline-delimited JSON frames.
+///
+/// v1 was loopback HTTP with a bearer token. The token existed because a TCP
+/// port is reachable by every process on the machine, so something had to
+/// distinguish callers — and the credential then had to be handed to the
+/// webview, which is what D3 spent a phase undoing. A unix socket moves that
+/// decision to the OS: the socket is 0600 in a per-user directory, so the
+/// permission check happens at `connect` and there is no secret to hold.
+///
+/// Two consequences worth naming, because they retire whole classes of bug:
+///
+/// - **A webview cannot `fetch()` a unix socket.** D3 stops relying on the page
+///   to behave and becomes a property of the transport.
+/// - **There are no URLs.** The percent-decoding hazard that produced the
+///   Windows blocker (a path with a space, or any canonical Windows path,
+///   arriving mangled) cannot recur: a path is a JSON string.
+fn spawn_control_server(
+    access_policy: AccessPolicy,
+    pending_sessions: PendingSessions,
+    request_limits: RequestLimits,
+    audit_logger: AuditLogger,
+    rate_limiter: RequestRateLimiter,
+    watch_registry: WatchRegistry,
+    watch_controllers: WatchControllers,
+    recent_write_hashes: RecentWriteHashes,
+    app_handle: tauri::AppHandle,
+) -> Result<JoinHandle<()>> {
+    let socket_path = control_socket_path()?;
+    check_socket_path_length(&socket_path)?;
+
+    // A socket file outlives the process that made it, so a crashed desktop
+    // leaves one behind. Removing it before binding is what makes a restart
+    // work; a client that connects to the stale one gets ECONNREFUSED, which
+    // is a better liveness signal than the file's existence.
+    let _ = fs::remove_file(&socket_path);
+
+    let listener = UnixListener::bind(&socket_path).with_context(|| {
+        format!(
+            "failed to bind control socket at {}",
+            socket_path.display()
+        )
+    })?;
+    set_owner_only_permissions(&socket_path)?;
+
+    let handle = std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let stream = match stream {
+                Ok(stream) => stream,
+                Err(err) => {
+                    eprintln!("control socket accept failed: {err}");
+                    continue;
+                }
+            };
+
+            // A thread per connection, because a connection is long-lived: a
+            // client may hold one open and issue many requests. Handling them
+            // on the accept loop would let one idle client block every other.
+            let context = ConnectionContext {
+                access_policy: access_policy.clone(),
+                pending_sessions: pending_sessions.clone(),
+                request_limits: request_limits.clone(),
+                audit_logger: audit_logger.clone(),
+                rate_limiter: rate_limiter.clone(),
+                watch_registry: watch_registry.clone(),
+                watch_controllers: watch_controllers.clone(),
+                recent_write_hashes: recent_write_hashes.clone(),
+                app_handle: app_handle.clone(),
+            };
+            std::thread::spawn(move || {
+                if let Err(err) = serve_connection(stream, &context) {
+                    eprintln!("control connection ended: {err}");
+                }
+            });
+        }
+    });
+    Ok(handle)
+}
+
+#[derive(Clone)]
+struct ConnectionContext {
+    access_policy: AccessPolicy,
+    pending_sessions: PendingSessions,
+    request_limits: RequestLimits,
+    audit_logger: AuditLogger,
+    rate_limiter: RequestRateLimiter,
+    watch_registry: WatchRegistry,
+    watch_controllers: WatchControllers,
+    recent_write_hashes: RecentWriteHashes,
+    app_handle: tauri::AppHandle,
+}
+
+/// One request per line, one response per line, in order. JSON strings cannot
+/// contain a raw newline, so the line IS the frame — no length prefix, and a
+/// human can read the traffic.
+fn serve_connection(stream: UnixStream, context: &ConnectionContext) -> Result<()> {
+    let mut writer = stream.try_clone().context("failed to clone control stream")?;
+    let reader = BufReader::new(stream);
+
+    for line in reader.split(b'\n') {
+        let line = line.context("failed to read control frame")?;
+        if line.len() > context.request_limits.max_body_bytes {
+            let response = RpcResponse::failure(
+                None,
+                "PAYLOAD_TOO_LARGE",
+                format!(
+                    "request frame is {} bytes (max {})",
+                    line.len(),
+                    context.request_limits.max_body_bytes
+                ),
+            );
+            write_frame(&mut writer, &response)?;
+            // The frame boundary is now untrustworthy — a body that overran the
+            // limit may have been truncated mid-object — so the connection ends
+            // rather than trying to resynchronize.
+            return Ok(());
+        }
+
+        // V-16: the wire is UTF-8, named. A platform-default decode would make
+        // an accented path a different path on Windows.
+        let text = match String::from_utf8(line) {
+            Ok(text) => text,
+            Err(err) => {
+                let response =
+                    RpcResponse::failure(None, "INVALID_REQUEST", format!("frame is not UTF-8: {err}"));
+                write_frame(&mut writer, &response)?;
+                continue;
+            }
+        };
+        if text.trim().is_empty() {
+            continue;
+        }
+
+        let response = dispatch_frame(&text, context);
+        write_frame(&mut writer, &response)?;
+    }
+    Ok(())
+}
+
+fn write_frame(writer: &mut UnixStream, response: &RpcResponse) -> Result<()> {
+    let mut line = serde_json::to_vec(response).unwrap_or_else(|_| {
+        br#"{"ok":false,"error":{"code":"INTERNAL","message":"serialization-error"}}"#.to_vec()
+    });
+    line.push(b'\n');
+    writer.write_all(&line).context("failed to write control frame")?;
+    writer.flush().context("failed to flush control frame")?;
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+struct RpcRequest {
+    /// Echoed back so a client that pipelines can match answers to questions.
+    #[serde(default)]
+    id: Option<serde_json::Value>,
+    method: String,
+    #[serde(default)]
+    params: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+struct RpcResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<serde_json::Value>,
+    ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<RpcError>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RpcError {
+    code: String,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_revision: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attempted_base_revision: Option<u64>,
+}
+
+impl RpcResponse {
+    fn success(id: Option<serde_json::Value>, result: serde_json::Value) -> Self {
+        Self {
+            id,
+            ok: true,
+            result: Some(result),
+            error: None,
+        }
+    }
+
+    fn failure(
+        id: Option<serde_json::Value>,
+        code: &str,
+        message: impl std::fmt::Display,
+    ) -> Self {
+        Self {
+            id,
+            ok: false,
+            result: None,
+            error: Some(RpcError {
+                code: code.to_string(),
+                message: message.to_string(),
+                current_revision: None,
+                attempted_base_revision: None,
+            }),
+        }
+    }
+
+    fn conflict(
+        id: Option<serde_json::Value>,
+        current_revision: u64,
+        attempted_base_revision: u64,
+    ) -> Self {
+        Self {
+            id,
+            ok: false,
+            result: None,
+            error: Some(RpcError {
+                code: "DOCUMENT_CONFLICT".to_string(),
+                message: "file changed on disk since it was loaded".to_string(),
+                current_revision: Some(current_revision),
+                attempted_base_revision: Some(attempted_base_revision),
+            }),
+        }
+    }
+}
+
+fn dispatch_frame(text: &str, context: &ConnectionContext) -> RpcResponse {
+    let request: RpcRequest = match serde_json::from_str(text) {
+        Ok(request) => request,
+        Err(err) => {
+            return RpcResponse::failure(None, "INVALID_REQUEST", format!("malformed frame: {err}"))
+        }
+    };
+    let id = request.id.clone();
+
+    // The rate limit survives the transport change, with a narrower job. It is
+    // no longer a defence against other processes — the socket's permissions
+    // are that — but a runaway agent in a loop is exactly the mistake D6 says
+    // guardrails are for.
+    if !context.rate_limiter.allow() {
+        context.audit_logger.log_event(
             "request.rate_limited",
             None,
             None,
@@ -529,347 +908,322 @@ fn handle_request(
             None,
             Some("local request rate limit exceeded"),
         );
-        #[derive(Serialize)]
-        struct RateLimitedBody {
-            ok: bool,
-            code: &'static str,
-            message: &'static str,
-        }
-        let response = json_response(
-            StatusCode(429),
-            &RateLimitedBody {
-                ok: false,
-                code: "RATE_LIMITED",
-                message: "local request rate limit exceeded",
-            },
-        );
-        if let Err(err) = request.respond(response) {
-            eprintln!("control server response error: {err}");
-        }
-        return;
+        return RpcResponse::failure(id, "RATE_LIMITED", "local request rate limit exceeded");
     }
 
-    let request_url = request.url().to_string();
-    let response = match (request.method(), request_url.as_str()) {
-        (&Method::Get, "/v1/status") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                #[derive(Serialize)]
-                struct StatusBody {
-                    ok: bool,
-                    running: bool,
-                    version: String,
-                    pid: u32,
-                    port: u16,
-                    watches: Vec<WatchDescriptor>,
-                    #[serde(rename = "allowedRoots")]
-                    allowed_roots: Vec<String>,
-                    #[serde(rename = "deniedRoots")]
-                    denied_roots: Vec<String>,
-                    #[serde(rename = "maxBodyBytes")]
-                    max_body_bytes: usize,
-                    #[serde(rename = "rateLimitMaxRequests")]
-                    rate_limit_max_requests: usize,
-                    #[serde(rename = "rateLimitWindowMs")]
-                    rate_limit_window_ms: u64,
-                }
+    dispatch_method(id, &request.method, request.params, context)
+}
 
-                let watches = watched_items(watch_registry);
-                let allowed_roots = configured_allowed_roots(access_policy);
-                let denied_roots = configured_denied_roots(access_policy);
-                json_response(
-                    StatusCode(200),
-                    &StatusBody {
-                        ok: true,
-                        running: true,
-                        version: control.version.clone(),
-                        pid: control.pid,
-                        port: control.port,
-                        watches,
-                        allowed_roots,
-                        denied_roots,
-                        max_body_bytes: request_limits.max_body_bytes,
-                        rate_limit_max_requests: request_limits.rate_limit_max_requests,
-                        rate_limit_window_ms: request_limits.rate_limit_window.as_millis() as u64,
-                    },
-                )
-            }
-        }
-        (&Method::Get, path) if path.starts_with("/v1/document") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_document_path_from_url(path) {
-                    Ok(path) => match get_document_snapshot(watch_registry, &path) {
-                        Ok(snapshot) => {
-                            #[derive(Serialize)]
-                            struct GetDocumentResponse {
-                                ok: bool,
-                                document: DocumentSnapshot,
+fn dispatch_method(
+    id: Option<serde_json::Value>,
+    method: &str,
+    params: serde_json::Value,
+    context: &ConnectionContext,
+) -> RpcResponse {
+    match method {
+        "status" => match serde_json::to_value(status_body(context)) {
+            Ok(value) => RpcResponse::success(id, value),
+            Err(err) => RpcResponse::failure(id, "INTERNAL", err),
+        },
+
+        "watch" | "show" => {
+            let request: WatchRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            // `show` is `watch` plus a window: the session tier (D7.2) is not a
+            // different document operation, it is the same one with the view
+            // brought forward. Sharing the path is what keeps `gx open` and a
+            // UI open from drifting into two behaviours.
+            let source = if method == "show" { "open" } else { "api" };
+            match add_watch(
+                &context.access_policy,
+                &context.watch_registry,
+                &context.watch_controllers,
+                &context.recent_write_hashes,
+                &context.audit_logger,
+                &context.app_handle,
+                &request.path,
+                source,
+            ) {
+                Ok(watch) => {
+                    let mut focused = true;
+                    if method == "show" {
+                        focused = focus_main_window(&context.app_handle);
+                    }
+                    match serde_json::to_value(&watch) {
+                        Ok(mut value) => {
+                            if let Some(object) = value.as_object_mut() {
+                                object.insert("focused".to_string(), serde_json::Value::Bool(focused));
                             }
-                            json_response(
-                                StatusCode(200),
-                                &GetDocumentResponse {
-                                    ok: true,
-                                    document: snapshot,
-                                },
-                            )
+                            RpcResponse::success(id, value)
                         }
-                        Err(err) => {
-                            #[derive(Serialize)]
-                            struct GetDocumentError {
-                                ok: bool,
-                                code: &'static str,
-                                message: String,
-                            }
-                            json_response(
-                                StatusCode(400),
-                                &GetDocumentError {
-                                    ok: false,
-                                    code: "DOCUMENT_READ_FAILED",
-                                    message: err.to_string(),
-                                },
-                            )
-                        }
-                    },
-                    Err(err) => {
-                        #[derive(Serialize)]
-                        struct BadRequestBody {
-                            ok: bool,
-                            code: &'static str,
-                            message: String,
-                        }
-                        json_response(
-                            StatusCode(400),
-                            &BadRequestBody {
-                                ok: false,
-                                code: "INVALID_REQUEST",
-                                message: err.to_string(),
-                            },
-                        )
+                        Err(err) => RpcResponse::failure(id, "INTERNAL", err),
                     }
                 }
-            }
-        }
-        (&Method::Put, "/v1/document") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_put_document_request(&mut request, request_limits.max_body_bytes) {
-                    Ok(payload) => match put_document_snapshot(
-                        control,
-                        watch_registry,
-                        recent_write_hashes,
-                        audit_logger,
-                        app_handle,
-                        payload,
-                    ) {
-                        Ok(snapshot) => {
-                            #[derive(Serialize)]
-                            struct PutDocumentResponse {
-                                ok: bool,
-                                document: DocumentSnapshot,
-                            }
-                            json_response(
-                                StatusCode(200),
-                                &PutDocumentResponse {
-                                    ok: true,
-                                    document: snapshot,
-                                },
-                            )
-                        }
-                        Err(PutDocumentError::Conflict {
-                            current_revision,
-                            attempted_base_revision,
-                        }) => {
-                            #[derive(Serialize)]
-                            struct ConflictBody {
-                                ok: bool,
-                                code: &'static str,
-                                #[serde(rename = "currentRevision")]
-                                current_revision: u64,
-                                #[serde(rename = "attemptedBaseRevision")]
-                                attempted_base_revision: u64,
-                            }
-                            json_response(
-                                StatusCode(409),
-                                &ConflictBody {
-                                    ok: false,
-                                    code: "DOCUMENT_CONFLICT",
-                                    current_revision,
-                                    attempted_base_revision,
-                                },
-                            )
-                        }
-                        Err(PutDocumentError::Other(err)) => {
-                            #[derive(Serialize)]
-                            struct PutDocumentErrorBody {
-                                ok: bool,
-                                code: &'static str,
-                                message: String,
-                            }
-                            json_response(
-                                StatusCode(400),
-                                &PutDocumentErrorBody {
-                                    ok: false,
-                                    code: "DOCUMENT_WRITE_FAILED",
-                                    message: err.to_string(),
-                                },
-                            )
-                        }
-                    },
-                    Err(err) => request_parse_error_response(err),
+                Err(err) => {
+                    context.audit_logger.log_event(
+                        "watch.rejected",
+                        Some(&request.path),
+                        Some(source),
+                        "rejected",
+                        None,
+                        Some(&err.to_string()),
+                    );
+                    RpcResponse::failure(id, "WATCH_FAILED", err)
                 }
             }
         }
-        (&Method::Post, "/v1/watch") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_watch_request(&mut request, request_limits.max_body_bytes) {
-                    Ok(payload) => match add_watch(
-                        control,
-                        access_policy,
-                        watch_registry,
-                        watch_controllers,
-                        recent_write_hashes,
-                        audit_logger,
-                        app_handle,
-                        &payload.path,
-                    ) {
-                        Ok(watch) => {
-                            #[derive(Serialize)]
-                            struct WatchResponse {
-                                ok: bool,
-                                watch: WatchDescriptor,
-                            }
-                            json_response(StatusCode(200), &WatchResponse { ok: true, watch })
-                        }
-                        Err(err) => {
-                            audit_logger.log_event(
-                                "watch.rejected",
-                                Some(&payload.path),
-                                Some("api"),
-                                "rejected",
-                                None,
-                                Some(&err.to_string()),
-                            );
-                            #[derive(Serialize)]
-                            struct WatchErrorBody {
-                                ok: bool,
-                                code: &'static str,
-                                message: String,
-                            }
-                            json_response(
-                                StatusCode(400),
-                                &WatchErrorBody {
-                                    ok: false,
-                                    code: "WATCH_FAILED",
-                                    message: err.to_string(),
-                                },
-                            )
-                        }
-                    },
-                    Err(err) => request_parse_error_response(err),
+
+        "unwatch" => {
+            let request: UnwatchRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            match remove_watch(
+                &context.watch_registry,
+                &context.watch_controllers,
+                &context.audit_logger,
+                &request.path,
+            ) {
+                Ok(removed) => RpcResponse::success(id, serde_json::json!({ "removed": removed })),
+                Err(err) => RpcResponse::failure(id, "UNWATCH_FAILED", err),
+            }
+        }
+
+        "get-document" => {
+            let request: DocumentRefRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            match get_document_snapshot(&context.watch_registry, &request.path) {
+                Ok(snapshot) => match serde_json::to_value(snapshot) {
+                    Ok(value) => RpcResponse::success(id, serde_json::json!({ "document": value })),
+                    Err(err) => RpcResponse::failure(id, "INTERNAL", err),
+                },
+                Err(err) => RpcResponse::failure(id, "DOCUMENT_READ_FAILED", err),
+            }
+        }
+
+        "put-document" => {
+            let request: PutDocumentRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            let app_handle = context.app_handle.clone();
+            match put_document_snapshot(
+                &context.watch_registry,
+                &context.recent_write_hashes,
+                &context.audit_logger,
+                &|payload| emit_document_changed_event(&app_handle, payload),
+                request,
+            ) {
+                Ok(snapshot) => match serde_json::to_value(snapshot) {
+                    Ok(value) => RpcResponse::success(id, serde_json::json!({ "document": value })),
+                    Err(err) => RpcResponse::failure(id, "INTERNAL", err),
+                },
+                Err(PutDocumentError::Conflict {
+                    current_revision,
+                    attempted_base_revision,
+                }) => RpcResponse::conflict(id, current_revision, attempted_base_revision),
+                Err(PutDocumentError::Other(err)) => {
+                    RpcResponse::failure(id, "DOCUMENT_WRITE_FAILED", err)
                 }
             }
         }
-        (&Method::Post, "/v1/unwatch") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_unwatch_request(&mut request, request_limits.max_body_bytes) {
-                    Ok(payload) => {
-                        match remove_watch(
-                            watch_registry,
-                            watch_controllers,
-                            audit_logger,
-                            &payload.path,
-                        ) {
-                            Ok(removed) => {
-                                #[derive(Serialize)]
-                                struct UnwatchResponse {
-                                    ok: bool,
-                                    removed: bool,
-                                }
-                                json_response(
-                                    StatusCode(200),
-                                    &UnwatchResponse { ok: true, removed },
-                                )
-                            }
-                            Err(err) => {
-                                #[derive(Serialize)]
-                                struct UnwatchErrorBody {
-                                    ok: bool,
-                                    code: &'static str,
-                                    message: String,
-                                }
-                                json_response(
-                                    StatusCode(400),
-                                    &UnwatchErrorBody {
-                                        ok: false,
-                                        code: "UNWATCH_FAILED",
-                                        message: err.to_string(),
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    Err(err) => request_parse_error_response(err),
-                }
+
+        "push-text" => {
+            let request: PushTextRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+            let payload = DocumentChangedEventPayload {
+                text: request.text,
+                path: None,
+                revision: None,
+            };
+            match emit_document_changed_event(&context.app_handle, &payload) {
+                Ok(()) => RpcResponse::success(id, serde_json::json!({ "pushed": true })),
+                Err(err) => RpcResponse::failure(id, "PUSH_FAILED", err),
             }
         }
-        (&Method::Post, "/v1/push-text") => {
-            if !is_authorized(&request, &control.token) {
-                text_response(StatusCode(401), "unauthorized")
-            } else {
-                match parse_push_text_request(&mut request, request_limits.max_body_bytes) {
-                    Ok(payload) => {
-                        let event_payload = DocumentChangedEventPayload {
-                            text: payload.text,
-                            path: None,
-                            revision: None,
-                            port: Some(control.port),
-                            token: Some(control.token.clone()),
-                        };
-                        match emit_document_changed_event(app_handle, &event_payload) {
-                            Ok(()) => {
-                                #[derive(Serialize)]
-                                struct PushOkBody {
-                                    ok: bool,
-                                }
-                                json_response(StatusCode(200), &PushOkBody { ok: true })
-                            }
-                            Err(err) => {
-                                #[derive(Serialize)]
-                                struct PushErrorBody {
-                                    ok: bool,
-                                    code: &'static str,
-                                    message: String,
-                                }
-                                json_response(
-                                    StatusCode(500),
-                                    &PushErrorBody {
-                                        ok: false,
-                                        code: "PUSH_FAILED",
-                                        message: err.to_string(),
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    Err(err) => request_parse_error_response(err),
-                }
-            }
+
+        "session" => match run_session_command(context, params) {
+            Ok(value) => RpcResponse::success(id, value),
+            Err((code, message)) => RpcResponse::failure(id, code, message),
+        },
+
+        other => RpcResponse::failure(id, "UNKNOWN_METHOD", format!("unknown method '{other}'")),
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StatusBody {
+    running: bool,
+    version: String,
+    pid: u32,
+    socket: String,
+    watches: Vec<WatchDescriptor>,
+    allowed_roots: Vec<String>,
+    denied_roots: Vec<String>,
+    max_body_bytes: usize,
+    rate_limit_max_requests: usize,
+    rate_limit_window_ms: u64,
+}
+
+fn status_body(context: &ConnectionContext) -> StatusBody {
+    StatusBody {
+        running: true,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        pid: std::process::id(),
+        socket: control_socket_path()
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_default(),
+        watches: watched_items(&context.watch_registry),
+        allowed_roots: configured_allowed_roots(&context.access_policy),
+        denied_roots: configured_denied_roots(&context.access_policy),
+        max_body_bytes: context.request_limits.max_body_bytes,
+        rate_limit_max_requests: context.request_limits.rate_limit_max_requests,
+        rate_limit_window_ms: context.request_limits.rate_limit_window.as_millis() as u64,
+    }
+}
+
+/// How long to wait for the page to answer a session command.
+///
+/// Generous enough that a busy render does not look like a failure, short
+/// enough that a wedged page does not hang a socket client indefinitely — the
+/// failure mode that matters, since a CLI with no timeout is a CLI that has to
+/// be killed.
+const SESSION_TIMEOUT: Duration = Duration::from_secs(5);
+
+static SESSION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+/// Relay a session command to the webview and wait for its answer.
+///
+/// This is the one place the shell is a MIDDLEMAN rather than an implementer.
+/// D2.5 keeps it diagram-ignorant and D3 keeps the page capability-free, so a
+/// question about the live view has to cross both boundaries: the shell knows
+/// who asked and how to answer them, the page knows what the answer is.
+fn run_session_command(
+    context: &ConnectionContext,
+    params: serde_json::Value,
+) -> std::result::Result<serde_json::Value, (&'static str, String)> {
+    let command = params
+        .get("command")
+        .and_then(|v| v.as_str())
+        .ok_or(("INVALID_REQUEST", "a session call needs a 'command'".to_string()))?;
+
+    let id = SESSION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let (sender, receiver) = std::sync::mpsc::channel::<SessionOutcome>();
+
+    match context.pending_sessions.lock() {
+        Ok(mut pending) => {
+            pending.insert(id, sender);
         }
-        // CORS preflight for the in-app webview's cross-origin fetch.
-        (&Method::Options, _) => text_response(StatusCode(204), ""),
-        _ => text_response(StatusCode(404), "not found"),
+        Err(err) => return Err(("INTERNAL", format!("session registry lock poisoned: {err}"))),
+    }
+
+    // Registered BEFORE the page is told, so a reply that arrives immediately
+    // still finds somewhere to go.
+    let mut frame = params.clone();
+    if let Some(object) = frame.as_object_mut() {
+        object.insert("id".to_string(), serde_json::json!(id));
+    }
+    let script = match serde_json::to_string(&frame) {
+        Ok(json) => format!(
+            "window.dispatchEvent(new CustomEvent('ge:session.command', {{ detail: {json} }}));"
+        ),
+        Err(err) => {
+            forget_session(context, id);
+            return Err(("INTERNAL", err.to_string()));
+        }
     };
 
-    if let Err(err) = request.respond(response) {
-        eprintln!("control server response error: {err}");
+    let windows = context.app_handle.webview_windows();
+    if windows.is_empty() {
+        forget_session(context, id);
+        // The session tier's defining limit, reported as itself: there is no
+        // live view, so there is no answer — not an empty one.
+        return Err((
+            "NO_SESSION",
+            format!("'{command}' needs a window, and the desktop has none open"),
+        ));
+    }
+    for webview in windows.values() {
+        if let Err(err) = webview.eval(&script) {
+            forget_session(context, id);
+            return Err(("SESSION_FAILED", format!("could not reach the page: {err}")));
+        }
+    }
+
+    let outcome = receiver.recv_timeout(SESSION_TIMEOUT);
+    forget_session(context, id);
+
+    match outcome {
+        Ok(outcome) if outcome.ok => Ok(outcome.result),
+        Ok(outcome) => Err((
+            match outcome.code.as_str() {
+                "NO_SESSION" => "NO_SESSION",
+                "INVALID_REQUEST" => "INVALID_REQUEST",
+                _ => "SESSION_FAILED",
+            },
+            outcome.message,
+        )),
+        Err(_) => Err((
+            "SESSION_TIMEOUT",
+            format!("the page did not answer '{command}' within {SESSION_TIMEOUT:?}"),
+        )),
+    }
+}
+
+/// Drop a pending request whatever happened, so a timed-out or failed call does
+/// not leave an entry that a late reply could match.
+fn forget_session(context: &ConnectionContext, id: u64) {
+    if let Ok(mut pending) = context.pending_sessions.lock() {
+        pending.remove(&id);
+    }
+}
+
+/// The page's answer to a session command.
+///
+/// A Tauri command rather than anything the page can reach on its own: it can
+/// only ANSWER a question the shell asked, and an id nobody is waiting for is
+/// dropped. That keeps the inversion honest — the webview serves this tier
+/// without gaining the ability to initiate anything.
+#[tauri::command(rename_all = "camelCase")]
+fn session_reply(
+    state: tauri::State<'_, IpcState>,
+    id: u64,
+    ok: bool,
+    result: Option<serde_json::Value>,
+    code: Option<String>,
+    message: Option<String>,
+) {
+    let outcome = SessionOutcome {
+        ok,
+        result: result.unwrap_or(serde_json::Value::Null),
+        code: code.unwrap_or_else(|| "SESSION_FAILED".to_string()),
+        message: message.unwrap_or_else(|| "the page reported a failure".to_string()),
+    };
+    if let Ok(mut pending) = state.pending_sessions.lock() {
+        if let Some(sender) = pending.remove(&id) {
+            let _ = sender.send(outcome);
+        }
+    }
+}
+
+/// `show` has to produce a *visible* diagram, so it raises the window. Reported
+/// rather than assumed: a headless or minimized desktop still watched the file,
+/// and `gx open` should say which of the two happened.
+fn focus_main_window(app_handle: &tauri::AppHandle) -> bool {
+    match app_handle.get_webview_window("main") {
+        Some(window) => {
+            let _ = window.unminimize();
+            let _ = window.show();
+            window.set_focus().is_ok()
+        }
+        None => false,
     }
 }
 
@@ -903,50 +1257,6 @@ fn configured_denied_roots(access_policy: &AccessPolicy) -> Vec<String> {
         .collect()
 }
 
-fn parse_watch_request(request: &mut Request, max_body_bytes: usize) -> Result<WatchRequest> {
-    parse_json_request(request, max_body_bytes)
-}
-
-fn parse_unwatch_request(request: &mut Request, max_body_bytes: usize) -> Result<UnwatchRequest> {
-    parse_json_request(request, max_body_bytes)
-}
-
-fn parse_put_document_request(
-    request: &mut Request,
-    max_body_bytes: usize,
-) -> Result<PutDocumentRequest> {
-    parse_json_request(request, max_body_bytes)
-}
-
-/// Extract and percent-decode the `path` query parameter.
-///
-/// `gx` sends the path through `urlencoding::encode`, which escapes everything
-/// outside the unreserved set. This decode is the exact inverse. An earlier
-/// version only replaced `%2F` with `/`, which happened to cover a plain POSIX
-/// path and nothing else: a space (`%20`) survived undecoded, and every
-/// separator of a canonical Windows path (`\` -> `%5C`, `:` -> `%3A`, and the
-/// `\\?\` verbatim prefix's `?` -> `%3F`) did too. The mangled string then
-/// missed the watch registry, so `watch` succeeded and `get` failed with
-/// "path is not currently watched" -> HTTP 400 -> `gx` exit 4. That was the
-/// Windows blocker; it reproduces on macOS with any path containing a space.
-///
-/// Splitting on `&` and `=` happens *before* decoding, so an encoded separator
-/// inside a filename (`%26`, `%3D`) stays part of the value.
-fn parse_document_path_from_url(url: &str) -> Result<String> {
-    let query = url
-        .split_once('?')
-        .map(|(_, query)| query)
-        .ok_or_else(|| anyhow::anyhow!("missing query parameter: path"))?;
-    let raw = query
-        .split('&')
-        .filter_map(|entry| entry.split_once('='))
-        .find_map(|(key, value)| if key == "path" { Some(value) } else { None })
-        .ok_or_else(|| anyhow::anyhow!("missing query parameter: path"))?;
-    urlencoding::decode(raw)
-        .map(|decoded| decoded.into_owned())
-        .map_err(|err| anyhow::anyhow!("path query parameter is not valid percent-encoded UTF-8: {err}"))
-}
-
 fn get_document_snapshot(watch_registry: &WatchRegistry, path: &str) -> Result<DocumentSnapshot> {
     let normalized = normalize_path(path)?;
     let watch = watch_registry
@@ -975,12 +1285,15 @@ enum PutDocumentError {
     Other(anyhow::Error),
 }
 
+/// `notify` is a parameter rather than an `&AppHandle` for two reasons: the
+/// caller may be an IPC command or the HTTP server, and V-12 is about what
+/// happens when notification FAILS — which is only testable if a test can hand
+/// in a notifier that does.
 fn put_document_snapshot(
-    control: &ControlFile,
     watch_registry: &WatchRegistry,
     recent_write_hashes: &RecentWriteHashes,
     audit_logger: &AuditLogger,
-    app_handle: &tauri::AppHandle,
+    notify: &dyn Fn(&DocumentChangedEventPayload) -> Result<()>,
     payload: PutDocumentRequest,
 ) -> std::result::Result<DocumentSnapshot, PutDocumentError> {
     let normalized = normalize_path(&payload.path).map_err(PutDocumentError::Other)?;
@@ -1014,7 +1327,7 @@ fn put_document_snapshot(
     }
 
     write_file_atomic(&normalized, &payload.text).map_err(PutDocumentError::Other)?;
-    let content_hash = hash_string(&payload.text);
+    let content_hash = content_hash(payload.text.as_bytes());
     if let Ok(mut writes) = recent_write_hashes.lock() {
         writes.insert(normalized.clone(), content_hash);
     }
@@ -1032,10 +1345,16 @@ fn put_document_snapshot(
         text: payload.text.clone(),
         path: Some(normalized.clone()),
         revision: Some(revision),
-        port: Some(control.port),
-        token: Some(control.token.clone()),
     };
-    emit_document_changed_event(app_handle, &event_payload).map_err(PutDocumentError::Other)?;
+
+    // V-12. The bytes are on disk and the revision has moved; a window that is
+    // gone (or one that refused the script) cannot un-write them. Reporting a
+    // failure here told the caller its save was lost when it was not — and `gx
+    // set` retried against a revision that had already advanced. The save is
+    // what succeeded, so the save is what we report; the notification failure
+    // is real and goes to the audit log, where the outcome is legible instead
+    // of inverted.
+    let notify_failure = notify(&event_payload).err();
 
     audit_logger.log_event(
         "document.written",
@@ -1043,7 +1362,10 @@ fn put_document_snapshot(
         Some(&source),
         "ok",
         Some(revision),
-        None,
+        notify_failure
+            .as_ref()
+            .map(|err| format!("write succeeded; UI notification failed: {err}"))
+            .as_deref(),
     );
 
     Ok(DocumentSnapshot {
@@ -1068,12 +1390,85 @@ fn write_file_atomic(path: &str, text: &str) -> Result<()> {
             .unwrap_or("graph-explorer")
     );
     let temp_path = parent.join(temp_name);
+
+    // A stale temp from a crashed write would be REUSED by `fs::write`, which
+    // truncates rather than recreates — and keeps whatever mode it already had.
+    // That matters below, where the freshly created temp's mode is read as the
+    // umask probe.
+    let _ = fs::remove_file(&temp_path);
+
     fs::write(&temp_path, text)
         .with_context(|| format!("failed to write temporary file {}", temp_path.display()))?;
+
+    // What a new file should end up as: whatever the OS just gave the temp,
+    // which is `0666 & ~umask` — the user's own default, read rather than
+    // guessed. Captured BEFORE the temp is locked down below.
+    let created_mode = file_mode(&temp_path);
+
+    // Owner-only while it sits in the directory as a temp. This is a small
+    // window (the next two calls), and it is not a security boundary — the
+    // directory is the user's own — but a half-written diagram has no business
+    // being readable by anyone the finished one would not be.
     set_owner_only_permissions(&temp_path)?;
+
+    // V-03. The bits the target already has, applied to the temp so the RENAME
+    // carries them — rather than chmod'ing after the fact, which would leave a
+    // moment where the real file is 0600.
+    //
+    // v1 did not do this at all: it chmod'ed the target to 0600 on every save,
+    // so one save silently turned a group-readable diagram in a shared checkout
+    // into an owner-only one. Nobody asked for that and nobody would look for
+    // it. `gx-core` fixed the same bug in P1 (`AtomicFiles.write`); this is the
+    // desktop's own writer finally agreeing with it.
+    apply_intended_permissions(&target, &temp_path, created_mode)?;
+
     fs::rename(&temp_path, &target)
         .with_context(|| format!("failed to move temporary file into {}", target.display()))?;
-    set_owner_only_permissions(&target)?;
+    Ok(())
+}
+
+/// Permission bits only.
+///
+/// `mode()` returns the raw `st_mode`, file-type bits (`S_IFREG`) included.
+/// `chmod` happens to ignore those, so passing them through would work — and
+/// would be a fact about the platform rather than about the code. Masked to
+/// `0o7777` rather than `0o777` so setgid survives: on a shared group checkout
+/// it is the bit most likely to be deliberate, and V-03 says *the target's
+/// existing bits*, not most of them.
+#[cfg(unix)]
+fn file_mode(path: &Path) -> Option<u32> {
+    use std::os::unix::fs::PermissionsExt;
+    fs::metadata(path)
+        .ok()
+        .map(|meta| meta.permissions().mode() & 0o7777)
+}
+
+#[cfg(not(unix))]
+fn file_mode(_path: &Path) -> Option<u32> {
+    None
+}
+
+/// Give `temp` the mode the finished file should have: the target's, if it
+/// exists, and otherwise the umask default `created_mode` was probed from.
+///
+/// Best effort by design. A filesystem that cannot express POSIX bits must not
+/// fail a save over it — the write is the operation, the mode is a property of
+/// it.
+#[cfg(unix)]
+fn apply_intended_permissions(target: &Path, temp: &Path, created_mode: Option<u32>) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let intended = file_mode(target).or(created_mode);
+    if let Some(mode) = intended {
+        let _ = fs::set_permissions(temp, fs::Permissions::from_mode(mode));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn apply_intended_permissions(_target: &Path, _temp: &Path, _created_mode: Option<u32>) -> Result<()> {
+    // Windows has no POSIX bits to preserve, which is also why the Windows
+    // smoke gate does not assert this one.
     Ok(())
 }
 
@@ -1084,6 +1479,21 @@ fn current_time_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// V-13: canonicalization, matching `gx-core`'s `FileOrigins.canonicalize`
+/// rule for rule.
+///
+/// This and the content hash are the join key for the whole library (§4), and
+/// they are the one contract this codebase writes twice in two languages. The
+/// rules are specified in `local-protocol/fixtures/canonicalization.json`, which
+/// both test suites read.
+///
+/// What changed from v1's `canonicalize(...).unwrap_or(absolute)`: that fell
+/// back to the RAW absolute path whenever the target did not exist yet — and
+/// creating a file, or watching one a generator has not written, are ordinary.
+/// So `..` and unresolved symlinks survived into policy checks, and the same
+/// file had two identities depending on whether it happened to exist when it
+/// was first named. The brief called this "safe direction, but incidental
+/// rather than specified".
 fn normalize_path(path: &str) -> Result<String> {
     let input = PathBuf::from(path);
     let absolute = if input.is_absolute() {
@@ -1093,8 +1503,76 @@ fn normalize_path(path: &str) -> Result<String> {
             .context("failed to read current working directory")?
             .join(input)
     };
-    let normalized = fs::canonicalize(&absolute).unwrap_or(absolute);
-    Ok(normalized.to_string_lossy().to_string())
+
+    if let Ok(real) = fs::canonicalize(&absolute) {
+        return Ok(strip_verbatim_prefix(&real));
+    }
+
+    // It does not exist yet. Resolve the dot segments ourselves, then real-path
+    // the deepest ancestor that DOES exist and re-attach the rest, so a
+    // not-yet-created file still gets a stable identity.
+    let normalized = normalize_dot_segments(&absolute);
+    let mut ancestor = normalized.as_path();
+    loop {
+        match ancestor.parent() {
+            None => return Ok(strip_verbatim_prefix(&normalized)),
+            Some(parent) => {
+                if let Ok(real_parent) = fs::canonicalize(parent) {
+                    let rest = normalized
+                        .strip_prefix(parent)
+                        .unwrap_or_else(|_| Path::new(""));
+                    return Ok(strip_verbatim_prefix(&real_parent.join(rest)));
+                }
+                ancestor = parent;
+            }
+        }
+    }
+}
+
+/// Resolve `.` and `..` lexically.
+///
+/// Lexical is correct here precisely because the path does not exist: there is
+/// no symlink at the end to resolve, and the existing ancestor gets a real
+/// `canonicalize` afterwards.
+fn normalize_dot_segments(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                // Never pop past the root: `/..` is `/`, not an escape.
+                if !matches!(
+                    out.components().next_back(),
+                    None | Some(Component::RootDir) | Some(Component::Prefix(_))
+                ) {
+                    out.pop();
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Windows' `fs::canonicalize` returns a `\\?\C:\…` verbatim path; Java's
+/// `toRealPath` returns `C:\…`. Left alone, the same file would have two
+/// identities depending on which language named it — which is exactly the
+/// drift V-13 exists to prevent. Strip it here, where the divergence is.
+#[cfg(windows)]
+fn strip_verbatim_prefix(path: &Path) -> String {
+    let text = path.to_string_lossy().to_string();
+    // `\\?\UNC\server\share` is a UNC path; its non-verbatim spelling is
+    // `\\server\share`, so the prefix is replaced rather than removed.
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
+    text.strip_prefix(r"\\?\").unwrap_or(&text).to_string()
+}
+
+#[cfg(not(windows))]
+fn strip_verbatim_prefix(path: &Path) -> String {
+    path.to_string_lossy().to_string()
 }
 
 fn ensure_watch_target_is_file(path: &Path) -> Result<()> {
@@ -1163,7 +1641,6 @@ fn infer_format_from_path(path: &str) -> String {
 }
 
 fn add_watch(
-    control: &ControlFile,
     access_policy: &AccessPolicy,
     watch_registry: &WatchRegistry,
     watch_controllers: &WatchControllers,
@@ -1171,6 +1648,7 @@ fn add_watch(
     audit_logger: &AuditLogger,
     app_handle: &tauri::AppHandle,
     path: &str,
+    source: &str,
 ) -> Result<WatchDescriptor> {
     let normalized = normalize_path(path)?;
     let normalized_path = PathBuf::from(&normalized);
@@ -1204,14 +1682,11 @@ fn add_watch(
             text,
             path: Some(watch.path.clone()),
             revision: Some(watch.revision),
-            port: Some(control.port),
-            token: Some(control.token.clone()),
         };
         let _ = emit_document_changed_event(app_handle, &initial_event);
     }
 
     let controller = spawn_watch_loop(
-        control.clone(),
         watch_registry.clone(),
         recent_write_hashes.clone(),
         app_handle.clone(),
@@ -1225,7 +1700,7 @@ fn add_watch(
     audit_logger.log_event(
         "watch.added",
         Some(&watch.path),
-        Some("api"),
+        Some(source),
         "ok",
         Some(watch.revision),
         None,
@@ -1272,7 +1747,6 @@ const WATCH_POLL_INTERVAL: Duration = Duration::from_millis(15);
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(50);
 
 fn spawn_watch_loop(
-    control: ControlFile,
     watch_registry: WatchRegistry,
     recent_write_hashes: RecentWriteHashes,
     app_handle: tauri::AppHandle,
@@ -1280,23 +1754,28 @@ fn spawn_watch_loop(
 ) -> WatchController {
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     std::thread::spawn(move || {
-        let mut previous_hash: Option<u64> = hash_file_contents(&path).ok();
-        let mut pending: Option<(Instant, String, u64)> = None;
+        let mut previous_hash: Option<String> = hash_file_contents(&path).ok();
+        let mut pending: Option<(Instant, String, String)> = None;
 
         loop {
             if stop_rx.try_recv().is_ok() {
                 break;
             }
 
-            if let Ok(contents) = fs::read_to_string(&path) {
-                let current_hash = hash_string(&contents);
-                let pending_hash = pending.as_ref().map(|(_, _, hash)| *hash);
+            // Bytes, then decode — not `read_to_string`. The hash must be over
+            // what is on disk (V-13), and a file being written by an editor can
+            // momentarily hold a partial multi-byte character that a lossy
+            // decode would smooth over into a hash that never existed.
+            if let Ok(raw) = fs::read(&path) {
+                let current_hash = content_hash(&raw);
+                let contents = String::from_utf8_lossy(&raw).into_owned();
+                let pending_hash = pending.as_ref().map(|(_, _, hash)| hash.clone());
 
                 let is_self_write = recent_write_hashes
                     .lock()
                     .ok()
                     .and_then(|mut writes| {
-                        let matched = writes.get(&path).copied() == Some(current_hash);
+                        let matched = writes.get(&path) == Some(&current_hash);
                         if matched {
                             writes.remove(&path);
                             Some(true)
@@ -1307,13 +1786,15 @@ fn spawn_watch_loop(
                     .unwrap_or(false);
 
                 if is_self_write {
-                    previous_hash = Some(current_hash);
+                    previous_hash = Some(current_hash.clone());
                     pending = None;
                     std::thread::sleep(WATCH_POLL_INTERVAL);
                     continue;
                 }
 
-                if Some(current_hash) != previous_hash && Some(current_hash) != pending_hash {
+                if Some(&current_hash) != previous_hash.as_ref()
+                    && Some(&current_hash) != pending_hash.as_ref()
+                {
                     pending = Some((Instant::now(), contents, current_hash));
                 }
             }
@@ -1327,8 +1808,6 @@ fn spawn_watch_loop(
                                 text: text.clone(),
                                 path: Some(path.clone()),
                                 revision: Some(watch.revision),
-                                port: Some(control.port),
-                                token: Some(control.token.clone()),
                             };
                             if let Err(err) =
                                 emit_document_changed_event(&app_handle, &event_payload)
@@ -1337,7 +1816,7 @@ fn spawn_watch_loop(
                             }
                         }
                     }
-                    previous_hash = Some(*hash);
+                    previous_hash = Some(hash.clone());
                     pending = None;
                 }
             }
@@ -1349,85 +1828,49 @@ fn spawn_watch_loop(
     WatchController { stop_tx }
 }
 
-fn hash_file_contents(path: &str) -> Result<u64> {
-    let text = fs::read_to_string(path)
-        .with_context(|| format!("failed to read watched file {}", path))?;
-    Ok(hash_string(&text))
+fn hash_file_contents(path: &str) -> Result<String> {
+    let bytes =
+        fs::read(path).with_context(|| format!("failed to read watched file {}", path))?;
+    Ok(content_hash(&bytes))
 }
 
-fn hash_string(value: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    value.hash(&mut hasher);
-    hasher.finish()
-}
-
-fn parse_push_text_request(
-    request: &mut Request,
-    max_body_bytes: usize,
-) -> Result<PushTextRequest> {
-    parse_json_request(request, max_body_bytes)
-}
-
-fn parse_json_request<T: DeserializeOwned>(
-    request: &mut Request,
-    max_body_bytes: usize,
-) -> Result<T> {
-    let mut body = Vec::new();
-    request
-        .as_reader()
-        .take((max_body_bytes + 1) as u64)
-        .read_to_end(&mut body)
-        .context("failed to read request body")?;
-    if body.len() > max_body_bytes {
-        return Err(anyhow::anyhow!(
-            "request body too large (max {} bytes)",
-            max_body_bytes
-        ));
+/// V-13: the content hash, identical to `gx-core`'s `Hashing.ofBytes`.
+///
+/// Over the BYTES, and that is the whole point. The previous implementation
+/// hashed a `String` from `read_to_string`, which is a lossy UTF-8 decode: a
+/// file with bytes that do not decode had them silently replaced before
+/// hashing, so two different files could share a hash and a file could change
+/// without its hash moving. It was also `DefaultHasher` — SipHash, 64 bits,
+/// and documented as not stable across Rust releases, which makes it unfit for
+/// a value two programs compare.
+fn content_hash(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(bytes);
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        hex.push_str(&format!("{byte:02x}"));
     }
-    serde_json::from_slice(&body).context("failed to parse JSON request body")
+    hex
 }
 
-fn request_parse_error_response(err: anyhow::Error) -> Response<std::io::Cursor<Vec<u8>>> {
-    #[derive(Serialize)]
-    struct RequestErrorBody {
-        ok: bool,
-        code: &'static str,
-        message: String,
-    }
-
-    let message = err.to_string();
-    if message.contains("request body too large") {
-        json_response(
-            StatusCode(413),
-            &RequestErrorBody {
-                ok: false,
-                code: "PAYLOAD_TOO_LARGE",
-                message,
-            },
-        )
-    } else {
-        json_response(
-            StatusCode(400),
-            &RequestErrorBody {
-                ok: false,
-                code: "INVALID_REQUEST",
-                message,
-            },
-        )
-    }
+/// The exact string injected into the page. Separated from the emit so V-11 can
+/// assert on the artifact the untrusted principal actually receives, rather than
+/// on the struct we believe produces it.
+fn document_changed_script(payload: &DocumentChangedEventPayload) -> Result<String> {
+    let payload_json =
+        serde_json::to_string(payload).context("failed to serialize event payload")?;
+    Ok(format!(
+        "window.dispatchEvent(new CustomEvent('ge:document.changed', {{ detail: {payload} }}));\
+         window.dispatchEvent(new CustomEvent('document.changed', {{ detail: {payload} }}));",
+        payload = payload_json
+    ))
 }
 
 fn emit_document_changed_event(
     app_handle: &tauri::AppHandle,
     payload: &DocumentChangedEventPayload,
 ) -> Result<()> {
-    let payload_json =
-        serde_json::to_string(payload).context("failed to serialize event payload")?;
-    let script = format!(
-        "window.dispatchEvent(new CustomEvent('ge:document.changed', {{ detail: {payload} }}));\
-         window.dispatchEvent(new CustomEvent('document.changed', {{ detail: {payload} }}));",
-        payload = payload_json
-    );
+    let script = document_changed_script(payload)?;
 
     let windows = app_handle.webview_windows();
     if windows.is_empty() {
@@ -1440,68 +1883,6 @@ fn emit_document_changed_event(
             .map_err(|err| anyhow::anyhow!("failed to evaluate event script: {err}"))
     })?;
     Ok(())
-}
-
-fn is_authorized(request: &Request, token: &str) -> bool {
-    request
-        .headers()
-        .iter()
-        .find(|header| header.field.equiv("Authorization"))
-        .and_then(|header| header.value.as_str().strip_prefix("Bearer "))
-        .map(|value| value == token)
-        .unwrap_or(false)
-}
-
-// The in-app webview reaches this server via a cross-origin fetch
-// (tauri://localhost -> http://127.0.0.1:<port>). A PUT with an
-// Authorization header is a non-simple request, so the webview sends a CORS
-// preflight; without these headers the preflight 404s and the browser blocks
-// the request ("TypeError: Load failed"). `*` is safe here: loopback control
-// server, bearer-token auth, no credentialed cookies.
-fn cors_headers() -> Vec<Header> {
-    vec![
-        Header::from_bytes("Access-Control-Allow-Origin", "*").expect("valid static header"),
-        Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
-            .expect("valid static header"),
-        Header::from_bytes("Access-Control-Allow-Headers", "Authorization, Content-Type")
-            .expect("valid static header"),
-    ]
-}
-
-fn json_response<T: Serialize>(
-    status: StatusCode,
-    payload: &T,
-) -> Response<std::io::Cursor<Vec<u8>>> {
-    let json = serde_json::to_vec(payload)
-        .unwrap_or_else(|_| b"{\"ok\":false,\"message\":\"serialization-error\"}".to_vec());
-    let mut headers = cors_headers();
-    headers.push(
-        Header::from_bytes("Content-Type", "application/json; charset=utf-8")
-            .expect("valid static header"),
-    );
-    Response::new(
-        status,
-        headers,
-        std::io::Cursor::new(json.clone()),
-        Some(json.len()),
-        None,
-    )
-}
-
-fn text_response(status: StatusCode, body: &str) -> Response<std::io::Cursor<Vec<u8>>> {
-    let bytes = body.as_bytes().to_vec();
-    let mut headers = cors_headers();
-    headers.push(
-        Header::from_bytes("Content-Type", "text/plain; charset=utf-8")
-            .expect("valid static header"),
-    );
-    Response::new(
-        status,
-        headers,
-        std::io::Cursor::new(bytes.clone()),
-        Some(bytes.len()),
-        None,
-    )
 }
 
 #[cfg(unix)]
@@ -1526,88 +1907,510 @@ fn set_owner_only_permissions(_path: &Path) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn parsed(url: &str) -> String {
-        parse_document_path_from_url(url).expect("expected a decodable path")
-    }
+    /// The paths that broke v1, now crossing the boundary they actually cross.
+    ///
+    /// These replace eleven percent-decoding tests. The decoder they guarded is
+    /// deleted — there are no URLs on a socket — but the property is the same
+    /// one and still worth pinning: a path arrives byte-identical to the way it
+    /// was sent, whatever is in it. What changed is that JSON does the escaping,
+    /// and JSON is not a thing this codebase implements.
+    const AWKWARD_PATHS: [&str; 6] = [
+        "/tmp/diagram.dot",
+        "/tmp/with space.dot",
+        "/Users/jp/My Projects/a&b.dot",
+        r"\\?\C:\Users\runneradmin\AppData\Local\Temp\gx.dot",
+        "/tmp/ünïcode-Ø.dot",
+        "/tmp/quote\"and\\backslash.dot",
+    ];
 
     #[test]
-    fn decodes_a_posix_path() {
-        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fdiagram.dot"), "/tmp/diagram.dot");
-    }
+    fn a_path_survives_the_frame_intact() {
+        for path in AWKWARD_PATHS {
+            let frame = serde_json::json!({
+                "id": 1, "method": "get-document", "params": { "path": path }
+            })
+            .to_string();
 
-    /// The regression that reproduces the Windows blocker on any platform:
-    /// a space encodes to `%20`, which the old `%2F`-only replacement missed.
-    #[test]
-    fn decodes_a_path_containing_a_space() {
-        assert_eq!(
-            parsed("/v1/document?path=%2Ftmp%2Fwith%20space.dot"),
-            "/tmp/with space.dot"
-        );
-    }
+            // A frame is a LINE, so an embedded newline would desynchronize the
+            // stream. JSON escapes it; this asserts that rather than assuming it.
+            assert!(!frame.contains('\n'), "frame must be a single line: {frame}");
 
-    /// What `fs::canonicalize` returns on Windows: a verbatim `\\?\` path whose
-    /// every separator needs decoding.
-    #[test]
-    fn decodes_a_windows_verbatim_path() {
-        assert_eq!(
-            parsed("/v1/document?path=%5C%5C%3F%5CC%3A%5CUsers%5Crunneradmin%5CAppData%5CLocal%5CTemp%5Cgx.dot"),
-            r"\\?\C:\Users\runneradmin\AppData\Local\Temp\gx.dot"
-        );
-    }
-
-    #[test]
-    fn accepts_lowercase_hex_escapes() {
-        assert_eq!(parsed("/v1/document?path=%2ftmp%2fa.dot"), "/tmp/a.dot");
-    }
-
-    /// `gx` percent-encodes rather than form-encodes, so `+` is a literal
-    /// character in a filename and must not become a space.
-    #[test]
-    fn leaves_a_plus_sign_alone() {
-        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fa+b.dot"), "/tmp/a+b.dot");
-    }
-
-    /// Separators are split before decoding, so encoded ones stay in the value.
-    #[test]
-    fn keeps_encoded_separators_inside_the_value() {
-        assert_eq!(parsed("/v1/document?path=%2Ftmp%2Fa%26b%3Dc.dot"), "/tmp/a&b=c.dot");
-    }
-
-    #[test]
-    fn finds_path_among_other_parameters() {
-        assert_eq!(
-            parsed("/v1/document?other=1&path=%2Ftmp%2Fa.dot&more=2"),
-            "/tmp/a.dot"
-        );
-    }
-
-    /// Whatever `gx` encodes, this decodes — the two crates are inverses.
-    #[test]
-    fn round_trips_what_gx_encodes() {
-        for path in [
-            "/tmp/diagram.dot",
-            "/tmp/with space.dot",
-            "/Users/jp/My Projects/a&b.dot",
-            r"\\?\C:\Users\runneradmin\AppData\Local\Temp\gx.dot",
-            "/tmp/ünïcode-Ø.dot",
-        ] {
-            let url = format!("/v1/document?path={}", urlencoding::encode(path));
-            assert_eq!(parsed(&url), path);
+            let request: RpcRequest = serde_json::from_str(&frame).expect("parseable frame");
+            let params: DocumentRefRequest =
+                serde_json::from_value(request.params).expect("parseable params");
+            assert_eq!(params.path, path);
         }
     }
 
     #[test]
-    fn rejects_a_url_without_a_query() {
-        assert!(parse_document_path_from_url("/v1/document").is_err());
+    fn a_response_frame_is_one_line_and_reports_its_id() {
+        let response = RpcResponse::success(
+            Some(serde_json::json!(7)),
+            serde_json::json!({ "text": "digraph {\n  a -> b\n}" }),
+        );
+        let line = serde_json::to_string(&response).expect("serializable");
+        assert!(!line.contains('\n'), "a response must be one line: {line}");
+        assert!(line.contains("\"id\":7"), "the id must come back: {line}");
+        assert!(line.contains("\"ok\":true"));
     }
 
     #[test]
-    fn rejects_a_query_without_a_path_parameter() {
-        assert!(parse_document_path_from_url("/v1/document?other=1").is_err());
+    fn a_conflict_reports_both_revisions() {
+        let response = RpcResponse::conflict(Some(serde_json::json!(1)), 5, 2);
+        let value = serde_json::to_value(&response).expect("serializable");
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["error"]["code"], serde_json::json!("DOCUMENT_CONFLICT"));
+        assert_eq!(value["error"]["currentRevision"], serde_json::json!(5));
+        assert_eq!(value["error"]["attemptedBaseRevision"], serde_json::json!(2));
+    }
+
+    /// A malformed frame must not kill the connection or the desktop: the
+    /// client gets an error and the stream stays usable.
+    #[test]
+    fn a_malformed_frame_becomes_an_error_response() {
+        let response = RpcResponse::failure(None, "INVALID_REQUEST", "malformed frame");
+        let value = serde_json::to_value(&response).expect("serializable");
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["error"]["code"], serde_json::json!("INVALID_REQUEST"));
+        // No id came in, so none goes out — rather than inventing one.
+        assert!(value.get("id").is_none());
+    }
+
+    /// The runtime file is what every client reads first. If a credential ever
+    /// reappears in it, this fails.
+    #[test]
+    fn the_runtime_file_carries_no_credential() {
+        let control = ControlFile {
+            pid: 42,
+            socket: "/home/u/.graph-explorer/runtime/control.sock".to_string(),
+            version: "0.1.0".to_string(),
+        };
+        let json = serde_json::to_value(control).expect("serializable");
+        let keys: Vec<&str> = json
+            .as_object()
+            .expect("an object")
+            .keys()
+            .map(|k| k.as_str())
+            .collect();
+        assert_eq!(keys, vec!["pid", "socket", "version"]);
     }
 
     #[test]
-    fn rejects_invalid_percent_encoding() {
-        assert!(parse_document_path_from_url("/v1/document?path=%FF%FE").is_err());
+    fn an_over_long_socket_path_is_refused_with_an_explanation() {
+        let long = PathBuf::from(format!("/{}/control.sock", "x".repeat(120)));
+        let err = check_socket_path_length(&long).expect_err("should be refused");
+        assert!(
+            err.to_string().contains("unix socket address"),
+            "the error should say WHY: {err}"
+        );
+        assert!(check_socket_path_length(Path::new("/tmp/a/control.sock")).is_ok());
+    }
+
+    fn sample_event_payload() -> DocumentChangedEventPayload {
+        DocumentChangedEventPayload {
+            text: "digraph { a -> b }".to_string(),
+            path: Some("/tmp/a.dot".to_string()),
+            revision: Some(7),
+        }
+    }
+
+    /// V-11, asserted on the artifact rather than the intent: this string is
+    /// literally what gets evaluated inside the untrusted webview.
+    #[test]
+    fn the_event_script_carries_no_credential() {
+        let script = document_changed_script(&sample_event_payload()).expect("serializable");
+        assert!(!script.contains("token"), "event script leaked a token field: {script}");
+        assert!(!script.contains("port"), "event script leaked a port field: {script}");
+        assert!(script.contains("digraph"), "event script lost its payload: {script}");
+    }
+
+    /// V-11, on the payload's own shape: the page is handed exactly a document
+    /// reference and nothing else.
+    #[test]
+    fn the_event_payload_has_exactly_the_document_fields() {
+        let json = serde_json::to_value(sample_event_payload()).expect("serializable");
+        // `serde_json::Value` keys a map by BTreeMap, so this is already sorted
+        // — the invariant is the SET of fields, not their order on the wire.
+        let keys: Vec<&str> = json
+            .as_object()
+            .expect("an object")
+            .keys()
+            .map(|key| key.as_str())
+            .collect();
+        assert_eq!(keys, vec!["path", "revision", "text"]);
+    }
+
+    fn temp_dir_for(test: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("gx-desktop-test-{test}-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        dir
+    }
+
+    /// V-12. A save whose window is gone still reached the disk, so it must
+    /// report success. Before this, `emit` failing turned an applied write into
+    /// an error, and the caller saw its own committed edit as lost.
+    #[test]
+    fn a_save_survives_a_failed_ui_notification() {
+        let dir = temp_dir_for("v12");
+        let file = dir.join("diagram.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        let path = file.to_string_lossy().to_string();
+        let normalized = normalize_path(&path).expect("normalizable");
+
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        registry.lock().expect("lock").insert(
+            normalized.clone(),
+            WatchDescriptor {
+                path: normalized.clone(),
+                format: "dot".to_string(),
+                revision: 1,
+            },
+        );
+        let recent_writes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let audit = AuditLogger {
+            file_path: dir.join("audit.jsonl"),
+            write_lock: Arc::new(Mutex::new(())),
+        };
+
+        let snapshot = put_document_snapshot(
+            &registry,
+            &recent_writes,
+            &audit,
+            // Exactly what `emit_document_changed_event` returns when the last
+            // window has closed.
+            &|_| Err(anyhow::anyhow!("no webview windows are available")),
+            PutDocumentRequest {
+                path: path.clone(),
+                text: "digraph { a -> b }".to_string(),
+                base_revision: 1,
+                source: Some("ui".to_string()),
+            },
+        )
+        .unwrap_or_else(|_| panic!("a written file must report success"));
+
+        assert_eq!(snapshot.revision, 2);
+        assert_eq!(
+            fs::read_to_string(&file).expect("readable"),
+            "digraph { a -> b }"
+        );
+
+        // The failure is not swallowed — it is recorded where an operator can
+        // find it.
+        let log = fs::read_to_string(dir.join("audit.jsonl")).expect("audit log");
+        assert!(
+            log.contains("UI notification failed"),
+            "the notification failure should be audited: {log}"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    fn mode_of(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt;
+        fs::metadata(path).expect("metadata").permissions().mode() & 0o7777
+    }
+
+    /// V-03. v1 chmod'ed every file it wrote to 0600, so a single save turned a
+    /// group-readable diagram in a shared checkout into an owner-only one — a
+    /// change nobody asked for, and one you would only notice via someone
+    /// else's permission error.
+    #[cfg(unix)]
+    #[test]
+    fn a_write_preserves_the_targets_permission_bits() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = temp_dir_for("v03");
+        let file = dir.join("shared.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).expect("chmod 0644");
+
+        write_file_atomic(&file.to_string_lossy(), "digraph { a -> b }").expect("write");
+
+        assert_eq!(mode_of(&file), 0o644, "the target's bits must survive the save");
+        assert_eq!(
+            fs::read_to_string(&file).expect("readable"),
+            "digraph { a -> b }"
+        );
+
+        // A less common mode, so the test cannot pass by coincidentally matching
+        // the umask default.
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o664)).expect("chmod 0664");
+        write_file_atomic(&file.to_string_lossy(), "digraph { c }").expect("write");
+        assert_eq!(mode_of(&file), 0o664);
+
+        // setgid: the bit most likely to be deliberate on a shared checkout, and
+        // the one a `& 0o777` mask would quietly drop.
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o2664)).expect("chmod 2664");
+        if mode_of(&file) == 0o2664 {
+            write_file_atomic(&file.to_string_lossy(), "digraph { d }").expect("write");
+            assert_eq!(mode_of(&file), 0o2664, "setgid must survive the save");
+        }
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The other half of V-03, and the one a naive fix gets wrong: a file that
+    /// does not exist yet has no bits to preserve, so it must land on the
+    /// user's umask default — NOT on the temp file's owner-only mode, which
+    /// would be the same surprise wearing a different hat.
+    #[cfg(unix)]
+    #[test]
+    fn a_new_file_lands_on_the_umask_default() {
+        let dir = temp_dir_for("v03-new");
+
+        // The reference is what a plain write produces in this very directory,
+        // so the assertion holds under any umask the test happens to run with.
+        let reference = dir.join("reference.dot");
+        fs::write(&reference, "x").expect("reference file");
+
+        let created = dir.join("created.dot");
+        write_file_atomic(&created.to_string_lossy(), "digraph { a }").expect("write");
+
+        assert_eq!(mode_of(&created), mode_of(&reference));
+        assert_ne!(
+            mode_of(&created),
+            0o600,
+            "a new file must not inherit the temp file's owner-only mode"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A leftover temp from a crashed write must not decide the new file's
+    /// mode: `fs::write` truncates rather than recreates, so a stale 0600 temp
+    /// would have been silently reused as the umask probe.
+    #[cfg(unix)]
+    #[test]
+    fn a_stale_temp_file_does_not_infect_the_new_mode() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = temp_dir_for("v03-stale");
+        let target = dir.join("a.dot");
+        let stale = dir.join(".a.dot.tmp");
+        fs::write(&stale, "leftover").expect("stale temp");
+        fs::set_permissions(&stale, fs::Permissions::from_mode(0o600)).expect("chmod");
+
+        let reference = dir.join("reference.dot");
+        fs::write(&reference, "x").expect("reference file");
+
+        write_file_atomic(&target.to_string_lossy(), "digraph { a }").expect("write");
+
+        assert_eq!(mode_of(&target), mode_of(&reference));
+        assert!(!stale.exists(), "the temp must not be left beside the target");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // ----------------------------------------------------------- V-13
+    //
+    // The contract this codebase writes twice. Both suites read the SAME files,
+    // so "we wrote it twice and both are self-consistent" cannot pass for
+    // agreement — which is the failure mode §4 warns about.
+
+    fn fixture(name: &str) -> serde_json::Value {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../local-protocol/fixtures")
+            .join(name);
+        let text = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
+        serde_json::from_str(&text).expect("fixture is valid JSON")
+    }
+
+    #[test]
+    fn v13_content_hashes_match_the_shared_fixtures() {
+        let doc = fixture("content-hashes.json");
+        let cases = doc["contentHashes"].as_array().expect("an array");
+        assert!(cases.len() >= 8, "the fixture set should not have shrunk");
+
+        for case in cases {
+            let name = case["name"].as_str().expect("a name");
+            let bytes: Vec<u8> = match (case.get("text"), case.get("hexBytes")) {
+                (Some(text), _) => text.as_str().expect("text").as_bytes().to_vec(),
+                (_, Some(hex)) => {
+                    let hex = hex.as_str().expect("hexBytes");
+                    (0..hex.len())
+                        .step_by(2)
+                        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("hex byte"))
+                        .collect()
+                }
+                _ => panic!("fixture '{name}' has neither text nor hexBytes"),
+            };
+            assert_eq!(
+                content_hash(&bytes),
+                case["sha256"].as_str().expect("sha256"),
+                "content hash disagrees with the fixture for '{name}'"
+            );
+        }
+    }
+
+    /// Build a case's tree, canonicalize its input, compare to the expectation.
+    ///
+    /// Everything is expressed relative to a RESOLVED root: on macOS `/tmp` is a
+    /// symlink to `/private/tmp`, so an absolute expectation would be asserting
+    /// that rather than the rule under test.
+    #[test]
+    fn v13_canonicalization_matches_the_shared_fixtures() {
+        let doc = fixture("canonicalization.json");
+        let cases = doc["canonicalization"].as_array().expect("an array");
+        assert!(cases.len() >= 10, "the fixture set should not have shrunk");
+
+        let case_insensitive = filesystem_is_case_insensitive();
+
+        for (index, case) in cases.iter().enumerate() {
+            let name = case["name"].as_str().expect("a name");
+            let root = std::env::temp_dir().join(format!("gx-v13-{}-{index}", std::process::id()));
+            let _ = fs::remove_dir_all(&root);
+            fs::create_dir_all(&root).expect("root");
+            let root = fs::canonicalize(&root).expect("resolvable root");
+
+            let tree = &case["tree"];
+            for dir in tree["dirs"].as_array().unwrap_or(&vec![]) {
+                fs::create_dir_all(root.join(dir.as_str().expect("dir"))).expect("dir");
+            }
+            for file in tree["files"].as_array().unwrap_or(&vec![]) {
+                let path = root.join(file.as_str().expect("file"));
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent).expect("parent");
+                }
+                fs::write(&path, "digraph G { a }").expect("file");
+            }
+            let mut skipped = false;
+            for link in tree["symlinks"].as_array().unwrap_or(&vec![]) {
+                let from = root.join(link["link"].as_str().expect("link"));
+                if let Some(parent) = from.parent() {
+                    fs::create_dir_all(parent).expect("parent");
+                }
+                if make_symlink(link["target"].as_str().expect("target"), &from).is_err() {
+                    // Windows needs Developer Mode or elevation for symlinks.
+                    // Skipping is honest; silently passing would not be.
+                    eprintln!("v13: skipping '{name}' — cannot create symlinks here");
+                    skipped = true;
+                    break;
+                }
+            }
+            if skipped {
+                let _ = fs::remove_dir_all(&root);
+                continue;
+            }
+
+            let expected_rel = match (case.get("expectCaseInsensitive"), case_insensitive) {
+                (Some(alt), true) => alt.as_str().expect("expectCaseInsensitive"),
+                _ => case["expect"].as_str().expect("expect"),
+            };
+
+            let input = root.join(case["input"].as_str().expect("input"));
+            let actual = normalize_path(&input.to_string_lossy()).expect("canonicalizable");
+            let expected = strip_verbatim_prefix(&root.join(expected_rel));
+
+            assert_eq!(actual, expected, "canonicalization disagrees for '{name}'");
+            let _ = fs::remove_dir_all(&root);
+        }
+    }
+
+    /// Asked of the filesystem rather than of the OS name: a case-sensitive
+    /// volume on macOS exists, and D2.1b's whole lesson is about measuring the
+    /// thing rather than a proxy for it.
+    fn filesystem_is_case_insensitive() -> bool {
+        let dir = temp_dir_for("case-probe");
+        let lower = dir.join("probe.dot");
+        fs::write(&lower, "x").expect("probe");
+        let answer = dir.join("PROBE.DOT").exists();
+        let _ = fs::remove_dir_all(&dir);
+        answer
+    }
+
+    #[cfg(unix)]
+    fn make_symlink(target: &str, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+
+    #[cfg(windows)]
+    fn make_symlink(target: &str, link: &Path) -> std::io::Result<()> {
+        // The target may be a file or a directory and Windows needs to be told
+        // which; try the directory form first, since every case here that links
+        // to a file names it explicitly.
+        let resolved = link.parent().unwrap_or(Path::new(".")).join(target);
+        if resolved.is_dir() {
+            std::os::windows::fs::symlink_dir(target, link)
+        } else {
+            std::os::windows::fs::symlink_file(target, link)
+        }
+    }
+
+    /// The rule that had no test and the most consequence: an identity must not
+    /// depend on whether the file happened to exist when it was first named.
+    #[test]
+    fn v13_a_path_keeps_its_identity_across_creation() {
+        let dir = temp_dir_for("v13-identity");
+        let real = dir.join("real");
+        fs::create_dir_all(&real).expect("dir");
+        let file = real.join("later.dot");
+
+        let before = normalize_path(&file.to_string_lossy()).expect("before");
+        fs::write(&file, "digraph G { a }").expect("create");
+        let after = normalize_path(&file.to_string_lossy()).expect("after");
+
+        assert_eq!(
+            before, after,
+            "a path must name the same document before and after it exists"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The other half of V-12: a genuinely stale base is still a conflict, and
+    /// still leaves the file untouched (V-01).
+    #[test]
+    fn a_stale_base_revision_is_still_rejected() {
+        let dir = temp_dir_for("v12-conflict");
+        let file = dir.join("diagram.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        let path = file.to_string_lossy().to_string();
+        let normalized = normalize_path(&path).expect("normalizable");
+
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        registry.lock().expect("lock").insert(
+            normalized.clone(),
+            WatchDescriptor {
+                path: normalized,
+                format: "dot".to_string(),
+                revision: 5,
+            },
+        );
+        let recent_writes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let audit = AuditLogger {
+            file_path: dir.join("audit.jsonl"),
+            write_lock: Arc::new(Mutex::new(())),
+        };
+
+        let result = put_document_snapshot(
+            &registry,
+            &recent_writes,
+            &audit,
+            &|_| Ok(()),
+            PutDocumentRequest {
+                path,
+                text: "clobbered".to_string(),
+                base_revision: 2,
+                source: Some("ui".to_string()),
+            },
+        );
+
+        match result {
+            Err(PutDocumentError::Conflict {
+                current_revision,
+                attempted_base_revision,
+            }) => {
+                assert_eq!(current_revision, 5);
+                assert_eq!(attempted_base_revision, 2);
+            }
+            _ => panic!("a stale base revision must conflict"),
+        }
+        assert_eq!(
+            fs::read_to_string(&file).expect("readable"),
+            "digraph { a }"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

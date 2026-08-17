@@ -4,8 +4,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
-GX_BIN="${ROOT_DIR}/gx/target/debug/gx"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/debug/graph-explorer-desktop"
+
+# shellcheck source=scripts/lib/control-api.sh
+source "${ROOT_DIR}/scripts/lib/control-api.sh"
 
 desktop_pid=""
 
@@ -36,11 +38,7 @@ assert_eq() {
 
 wait_for_desktop() {
   for _ in $(seq 1 120); do
-    local status_json
-    status_json="$("${GX_BIN}" status --json || true)"
-    local running
-    running="$(jq -r '.running // false' <<<"${status_json}")"
-    if [[ "${running}" == "true" && -f "${RUNTIME_FILE}" ]]; then
+    if control_ready; then
       return 0
     fi
     sleep 0.25
@@ -69,13 +67,8 @@ start_desktop() {
 }
 
 require_cmd jq
-require_cmd curl
+require_cmd python3
 require_cmd mktemp
-
-if [[ ! -x "${GX_BIN}" ]]; then
-  echo "building gx binary..."
-  (cd "${ROOT_DIR}/gx" && cargo build)
-fi
 
 if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "building desktop binary..."
@@ -84,51 +77,38 @@ fi
 
 echo "checking payload-size limit"
 start_desktop 64 1000 10000
-port="$(jq -r '.port' "${RUNTIME_FILE}")"
-token="$(jq -r '.token' "${RUNTIME_FILE}")"
 big_text="$(printf 'x%.0s' {1..400})"
-payload="$(jq -n --arg text "${big_text}" '{text: $text}')"
-payload_response_file="$(mktemp /tmp/gx-limits-payload-XXXXXX.json)"
-payload_status="$(
-  curl -sS -o "${payload_response_file}" -w '%{http_code}' \
-    -X POST "http://127.0.0.1:${port}/v1/push-text" \
-    -H "Authorization: Bearer ${token}" \
-    -H 'Content-Type: application/json' \
-    --data "${payload}"
-)"
-assert_eq "413" "${payload_status}" "payload limit status"
-payload_code="$(jq -r '.code' "${payload_response_file}")"
-assert_eq "PAYLOAD_TOO_LARGE" "${payload_code}" "payload limit code"
-rm -f "${payload_response_file}"
+payload_json="$(api_push_text "${big_text}")"
+# An oversized FRAME now, not an oversized HTTP body: the limit moved with the
+# transport, and so did its enforcement point -- a frame over the cap is refused
+# before it is parsed, and the connection ends rather than trying to resynchronize
+# a stream whose boundaries are no longer trustworthy.
+assert_eq "error" "$(api_last_status)" "payload limit outcome"
+assert_eq "PAYLOAD_TOO_LARGE" "$(jq -r '.error.code' <<<"${payload_json}")" "payload limit code"
 
 kill "${desktop_pid}" >/dev/null 2>&1 || true
 wait "${desktop_pid}" >/dev/null 2>&1 || true
 desktop_pid=""
 
 echo "checking request-rate limit"
+# Still worth keeping, with a narrower job. The rate limit is no longer a
+# defence against other local processes -- the socket's 0600 mode is that -- but
+# a runaway agent in a loop is exactly the mistake D6 says guardrails catch.
 start_desktop 1048576 3 5000
-port="$(jq -r '.port' "${RUNTIME_FILE}")"
-token="$(jq -r '.token' "${RUNTIME_FILE}")"
 
-status_codes=()
-for i in 1 2 3 4; do
-  response_file="$(mktemp /tmp/gx-limits-rate-${i}-XXXXXX.json)"
-  code="$(
-    curl -sS -o "${response_file}" -w '%{http_code}' \
-      -H "Authorization: Bearer ${token}" \
-      "http://127.0.0.1:${port}/v1/status"
-  )"
-  status_codes+=("${code}")
-  if [[ "${code}" == "429" ]]; then
-    rate_code="$(jq -r '.code' "${response_file}")"
-    assert_eq "RATE_LIMITED" "${rate_code}" "rate-limit error code"
+outcomes=()
+for _ in 1 2 3 4; do
+  frame="$(api_status || true)"
+  if [[ "$(api_last_status)" == "error" ]]; then
+    outcomes+=("$(jq -r '.error.code' <<<"${frame}")")
+  else
+    outcomes+=("$(api_last_status)")
   fi
-  rm -f "${response_file}"
 done
 
-assert_eq "200" "${status_codes[0]}" "rate-limit request 1"
-assert_eq "200" "${status_codes[1]}" "rate-limit request 2"
-assert_eq "429" "${status_codes[2]}" "rate-limit request 3"
-assert_eq "429" "${status_codes[3]}" "rate-limit request 4"
+assert_eq "ok" "${outcomes[0]}" "rate-limit request 1"
+assert_eq "ok" "${outcomes[1]}" "rate-limit request 2"
+assert_eq "RATE_LIMITED" "${outcomes[2]}" "rate-limit request 3"
+assert_eq "RATE_LIMITED" "${outcomes[3]}" "rate-limit request 4"
 
 echo "limits smoke passed"

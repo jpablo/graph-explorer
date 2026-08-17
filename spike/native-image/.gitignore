@@ -1,0 +1,5 @@
+# Build output from scripts/native-image-spike.sh. The binary is ~26MB.
+gx-spike
+gx-spike.exe
+*.build_artifacts.txt
+.scala-build/

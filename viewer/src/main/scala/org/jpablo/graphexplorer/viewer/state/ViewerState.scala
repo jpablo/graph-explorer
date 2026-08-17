@@ -59,6 +59,7 @@ case class ViewerState(
     // ViewerState retained per project visit).
     using val owner: Owner = unsafeWindowOwner
 ) extends SvgTransformOps,
+      DocumentCommandRunner,
       DiagramSelectionOps,
       RecordCellOps,
       KeyboardNavOps,

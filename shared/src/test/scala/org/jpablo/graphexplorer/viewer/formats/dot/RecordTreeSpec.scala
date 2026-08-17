@@ -218,3 +218,27 @@ class RecordTreeSpec extends ScalaCheckSuite:
     forAll(genAnyLabel): label =>
       val once = RecordTree.serialize(RecordTree.parse(label))
       assertEquals(RecordTree.serialize(RecordTree.parse(once)), once)
+
+  /** The counterexample the property above found, pinned so it is checked on
+    * every run rather than whenever a seed happens to reach it.
+    *
+    * A dangling trailing backslash used to be dropped without re-trimming, so
+    * `"x \"` settled to `"x "` on the first pass and only reached `"x"` on the
+    * second. Leaf text is documented to carry unescaped spaces already trimmed,
+    * so the first pass was the one that was wrong.
+    */
+  test("a dangling trailing backslash settles in ONE pass"):
+    def once(s: String)  = RecordTree.serialize(RecordTree.parse(s))
+    def twice(s: String) = once(once(s))
+
+    for label <- List("x \\", "= \\", "a \\", "ab\\", "a|b \\", "a\\ \\") do
+      assertEquals(twice(label), once(label), s"not a fixed point after one pass: [$label]")
+
+    // The first pass now lands where the second used to.
+    assertEquals(once("x \\"), "x")
+    assertEquals(once("a|b \\"), "a | b")
+
+    // And the trim stops at the text, rather than eating into it: an interior
+    // escaped space is the user's and survives as a space.
+    assertEquals(once("a\\ b"), "a b")
+    assertEquals(once("a\\ b \\"), "a b")
