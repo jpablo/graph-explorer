@@ -236,16 +236,27 @@ jobs:
 
               # Frames are newline-delimited; accumulate then decode ONCE, since
               # a recv can split mid-character.
-              $buffer = New-Object System.Collections.Generic.List[byte]
+              #
+              # A MemoryStream, and no array slicing. `$chunk[0..($n-1)]` on a
+              # byte[] produces System.Object[] in PowerShell — not byte[] — and
+              # List[byte].AddRange rejects it. That cost a CI run, and it failed
+              # as "the desktop never came up" because the readiness loop
+              # swallowed the exception. Stream.Write(buffer, offset, count) has
+              # no coercion step to get wrong.
+              $stream = New-Object System.IO.MemoryStream
               $chunk = New-Object byte[] 65536
-              while ($buffer -notcontains 10) {
+              $bytes = $null
+              $newline = -1
+              while ($true) {
                 $n = $client.Receive($chunk)
                 if ($n -le 0) { break }
-                $buffer.AddRange($chunk[0..($n - 1)])
+                $stream.Write($chunk, 0, $n)
+                $bytes = $stream.ToArray()
+                $newline = [Array]::IndexOf([byte[]]$bytes, [byte]10)
+                if ($newline -ge 0) { break }
               }
-              $newline = $buffer.IndexOf([byte]10)
               if ($newline -lt 0) { throw "no response frame for '$method'" }
-              $line = [System.Text.Encoding]::UTF8.GetString($buffer.GetRange(0, $newline).ToArray())
+              $line = [System.Text.Encoding]::UTF8.GetString($bytes, 0, $newline)
               return $line | ConvertFrom-Json
             }
             finally { $client.Dispose() }

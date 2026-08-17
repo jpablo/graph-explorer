@@ -682,10 +682,36 @@ protocol three independent implementations, which is what made the `id` bug
 findable. All five gates pass; V-10's disk→UI median is 75 ms against a 300 ms
 budget (72 ms over HTTP — the same, within noise).
 
-**Not verified on Windows or Linux yet.** Everything above is macOS. The
-AF_UNIX-on-Windows claim, `uds_windows`, and the pwsh client are exercised only
-by the workflows, on push. That is the one place this phase is taking P0's
-lesson on credit rather than on evidence.
+**Cross-platform status: the transport holds on all three.** Linux and macOS
+pass the full gate — runtime smoke, disk→UI, native `gx`. On Windows the
+desktop **binds the socket and stays up**: the readiness probe reported
+`desktop exited : False` alongside a client-side type error, which is only
+possible if `uds_windows` bound successfully and the desktop was serving. D4's
+one-transport decision is therefore confirmed where it was least certain.
+
+Getting that answer took four CI runs, and three of them were spent on the
+gate rather than on the thing under test:
+
+| run | died at | actually wrong |
+|---|---|---|
+| 1 | self-test | `${2:-{\}}` — bash 3.2 keeps the backslash; only `status` defaulted |
+| 2 | self-test | CPython has no `AF_UNIX` on Windows (the OS does; the interpreter does not) |
+| 3 | runtime smoke | `catch { }` — a bind failure, a crash and a slow start were indistinguishable |
+| 4 | *reported the cause* | `$chunk[0..($n-1)]` on a `byte[]` yields `System.Object[]`; `List[byte].AddRange` rejects it |
+
+The pattern is worth naming because it repeated three times: **every failure was
+the harness discarding the evidence it existed to collect** — a swallowed
+traceback, a swallowed exception, an outcome code that mapped a client crash
+onto "the server said no". None of them were the socket. The instrumented run
+that finally printed the exit code, the runtime listing and the desktop's own
+output answered in one attempt what three attempts of guessing had not.
+
+Also worth recording: a plausible hypothesis was checked and discarded before
+being "fixed". P5 deleted `find_open_port`, which had been the only thing
+initializing Winsock, so `uds_windows` might have been calling `socket()` before
+`WSAStartup`. Reading the vendored crate showed it calls `init()` itself on the
+bind and connect paths. Patching on suspicion would have added a confusing no-op
+and left the real cause standing.
 
 **V-13 — the §4 contract, done between P5 and P6.** It came due exactly where
 §4 said it would, and it was **not merely a missing test**: the two sides
