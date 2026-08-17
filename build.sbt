@@ -37,6 +37,27 @@ scalacOptions ++= // Scala 3.x options
 lazy val nativeImageClasspath =
   taskKey[Unit]("Write this project's runtime classpath to target/native-image-classpath.txt")
 
+// The Scala.js linker output directory, written to a file for the vite plugin.
+//
+// vite-scalajs.js used to recover it by scanning sbt's STDOUT for a line that
+// happened to be an existing directory. That works until sbt emits anything
+// else around the task result, and then it fails with "sbt printed no existing
+// directory" and a build that produced 0 modules.
+//
+// The trigger is a clock boundary, which is why it looked random: `viewer` uses
+// dynver + BuildInfo, and dynver's version carries a MINUTE-resolution
+// timestamp. An sbt invocation on the far side of a minute from the previous one
+// sees a changed version, regenerates BuildInfo, recompiles a source — and the
+// extra log traffic loses the task result line. CI passed at :43 and failed at
+// :54 on the same tree; Netlify hit it too.
+//
+// sbt's stdout is not an API. This is.
+lazy val scalaJSOutputDirFile =
+  taskKey[Unit]("Write fullLinkJS's output directory to target/scalajs-output-dir.txt")
+
+lazy val scalaJSFastOutputDirFile =
+  taskKey[Unit]("Write fastLinkJS's output directory to target/scalajs-fast-output-dir.txt")
+
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .enablePlugins(DynVerPlugin, BuildInfoPlugin)
@@ -70,7 +91,7 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
     ),
     testFrameworks := Seq(new TestFramework("munit.Framework"))
   ).jvmSettings(
-    nativeImageClasspath := {
+    nativeImageClasspath := Def.uncached {
       // sbt 2 hands back xsbti.HashedVirtualFileRef, not File; fileConverter
       // is what turns those back into real paths on disk.
       val conv = fileConverter.value
@@ -157,7 +178,7 @@ lazy val gxCli =
         "org.scalameta" %% "munit" % "1.0.0" % Test
       ),
       testFrameworks := Seq(new TestFramework("munit.Framework")),
-      nativeImageClasspath := {
+      nativeImageClasspath := Def.uncached {
         val conv = fileConverter.value
         val out  = (ThisBuild / baseDirectory).value / "target" / "gx-cli-classpath.txt"
         val cp   = (Compile / fullClasspath).value.map(a => conv.toPath(a.data).toAbsolutePath.toString)
@@ -174,6 +195,26 @@ lazy val viewer =
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
+      // Both tasks still BUILD the output as a side effect, which is the reason
+      // the vite plugin calls sbt at all: dropping the call would make a build
+      // silently bundle whatever stale linker output was on disk.
+      // Def.uncached: the task's whole purpose is the file it writes, and sbt 2
+      // caches on inputs — so after a `target/` clean it would report success
+      // with no file on disk, and the build would fail claiming sbt never wrote
+      // it. Nothing here is expensive; the linking it depends on is cached on
+      // its own terms.
+      scalaJSOutputDirFile := Def.uncached {
+        val out = (ThisBuild / baseDirectory).value / "target" / "scalajs-output-dir.txt"
+        val dir = (Compile / fullLinkJSOutput).value
+        IO.write(out, dir.getAbsolutePath)
+        streams.value.log.info(s"wrote the Scala.js output directory to $out")
+      },
+      scalaJSFastOutputDirFile := Def.uncached {
+        val out = (ThisBuild / baseDirectory).value / "target" / "scalajs-fast-output-dir.txt"
+        val dir = (Compile / fastLinkJSOutput).value
+        IO.write(out, dir.getAbsolutePath)
+        streams.value.log.info(s"wrote the Scala.js output directory to $out")
+      },
       buildInfoOptions ++= Seq(BuildInfoOption.BuildTime, BuildInfoOption.ToMap),
       scalacOptions ++= Seq(
         "-explain",
