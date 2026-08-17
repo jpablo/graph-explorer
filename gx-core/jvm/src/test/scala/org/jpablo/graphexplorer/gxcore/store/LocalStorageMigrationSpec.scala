@@ -67,12 +67,30 @@ class LocalStorageMigrationSpec extends FunSuite:
     * have since changed, so parsing is lenient — and `$type` discriminators must
     * not arrive as element ids.
     */
-  tmp.test("view state is recovered leniently, without picking up type tags") { dir =>
+  /** The type tag is READ, not skipped.
+    *
+    * It used to be discarded, which left a bare `n1` that could not say whether
+    * a hidden node or a hidden group was meant — so two different elements
+    * sharing an id became one entry, and hiding either hid both. The record
+    * tier's `hide`/`unhide` are built on these strings, so the ambiguity had to
+    * go before they were.
+    */
+  tmp.test("view state keeps the element KIND, so a node and a group cannot collide") { dir =>
     val s = store(dir)
     LocalStorageMigration.migrate(directory("p1" -> "A"), _ => Some(payload("x")), s).fold(e => fail(e), identity)
     val meta = s.list().head.metadata
-    assertEquals(meta.hiddenElements, Set("n1"))
-    assertEquals(meta.collapsedGroups, Set("g1"))
+    assertEquals(meta.hiddenElements, Set("node:n1"))
+    assertEquals(meta.collapsedGroups, Set("group:g1"))
+  }
+
+  /** `collapsedGroups` are groups by construction, so the kind is known even
+    * when the old payload carried no tag at all.
+    */
+  tmp.test("an untagged collapsed group still gets its kind") { dir =>
+    val s = store(dir)
+    val untagged = """{"source":"digraph G {}","collapsedGroups":["g7"]}"""
+    LocalStorageMigration.migrate(directory("p1" -> "A"), _ => Some(untagged), s).fold(e => fail(e), identity)
+    assertEquals(s.list().head.metadata.collapsedGroups, Set("group:g7"))
   }
 
   tmp.test("a payload in an unrecognised shape still yields the diagram, minus view state") { dir =>

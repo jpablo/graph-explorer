@@ -761,8 +761,9 @@ hashes are the same value — but the desktop does not yet use one as its
 revision. That is D1's remaining half, and it is now a small change rather than
 a contract negotiation.
 
-**P6 — Command vocabulary (D7). ◐ Two of four parts done: the document tier is
-named, serializable, interpreted, executed by the UI, and exposed by `gx`.** `gx-core/command` holds `ElementRef`,
+**P6 — Command vocabulary (D7). ◐ Three of four parts done. Both headless tiers
+are named, serializable, interpreted and exposed by `gx`; the UI executes the
+document tier. Only the session tier is left.** `gx-core/command` holds `ElementRef`,
 `DocumentCommand` (twelve names), `CommandCodec`, and `DocumentCommands` — the
 interpreter, delegating to the `Ops` modules that already exist. Pure, in
 `gx-core/shared`, so all three hosts can link it.
@@ -832,11 +833,41 @@ Remaining in P6, in the order they should land:
    A mutation lands through the same `applyText` that `gx set` uses — same
    compare-and-swap, same mode rules, same audit line — so "the same edit"
    cannot mean two things depending on how it was expressed.
-3. **The record tier**, over the library store: `hide`, `collapse`, `tag`,
-   `move-to-folder`. Note D7.3 asserts the store IS the live state, with UI
-   edits debounced into the record continuously — that is asserted, not built,
-   and D8 still defers unsaved UI drafts. The two need reconciling before
-   headless mutation and live update are genuinely the same path.
+3. **The record tier. ✅ DONE** — `hide`, `unhide`, `unhide-all`, `collapse`,
+   `expand`, `expand-all`, `tag`, `untag`, `set-notes`, `move-to-folder`,
+   `rename-diagram`, `get-record`, over the library store. Reached the same way
+   as the document tier: `gx run <ref> <command>` dispatches on the name, since
+   which tier a name belongs to is a fact *about* the command rather than
+   something the caller should have to supply. `AnyCommand` is that join, and a
+   test asserts the two tiers' names do not overlap rather than assuming it.
+
+   The tier's defining property is asserted directly: **no record command
+   touches `text`**, so a hidden node or a folded cluster never conflicts with a
+   regenerating origin. Verified end to end too — `hide` and `tag` on a
+   Sync-mode diagram leave the origin file byte-identical.
+
+   **A latent bug had to be fixed first, and it is the interesting part.**
+   `DiagramMetadata.hiddenElements` is a `Set[String]`, and the migration filled
+   it by walking the old localStorage payload while *skipping* `$type` — so
+   `{"$type":"NodeId","value":"n1"}` became the bare string `n1`. A bare id
+   cannot say whether a hidden **node** or a hidden **group** was meant, so two
+   different elements sharing an id were one entry, and hiding either hid both.
+   `collapsedGroups` escaped only because its field name implies the kind.
+
+   The tag is the only place that information exists, so it is now read rather
+   than discarded, and the stored spelling is the `ElementRef` form the command
+   tier uses everywhere else (`node:n1`). This is the
+   `elementid-is-not-unique` hazard in the persistence layer, and building
+   `hide`/`unhide` on the ambiguous spelling would have made it permanent.
+
+   **D7.3 is still not true, and this phase did not make it true.** It asserts
+   the store IS the live state, with UI edits debounced into the record
+   continuously. The viewer still persists to `localStorage`; `gx-core`'s store
+   is written by migration and by `gx`. Until those are one store, a headless
+   `hide` does not show up in a running UI, and D7.3's "headless mutation and
+   live update are the same path" describes an intention rather than the code.
+   D8's deferred "unsaved UI drafts" is the other half of the same question.
+
 4. **The session tier over the socket**, extending the `show` verb P5 landed.
 
 P1–P3 deliver the headless story. P4–P5 deliver the security story. P6 opens the

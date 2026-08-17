@@ -537,6 +537,97 @@ class CliSpec extends FunSuite:
     assert(r.stderr.contains("mermaid"), r.stderr)
   }
 
+  // --------------------------------------------------------- record tier
+
+  tmp.test("run hide stores view state without touching the origin file") { dir =>
+    val f = dot(dir, "arch.dot", "digraph G {\n  a -> b\n}\n")
+    val before = Files.readString(f)
+    val i = Run(dir)
+    assertEquals(i("import", "arch.dot", "--mode", "sync"), ExitCode.Ok, i.stderr)
+
+    val r = Run(dir)
+    assertEquals(
+      r("run", "arch", "hide", "--params", """{"targets":["node:a"]}"""),
+      ExitCode.Ok,
+      r.stderr
+    )
+
+    assertEquals(r.store.list().head.metadata.hiddenElements, Set("node:a"))
+    // §5.3.1: metadata survives a pull precisely BECAUSE it never reaches the
+    // origin. Sync mode pushes text; it must not push a hidden node.
+    assertEquals(Files.readString(f), before, "hiding a node wrote to the origin")
+  }
+
+  tmp.test("run collapse and expand round-trip through the record") { dir =>
+    dot(dir, "c.dot")
+    val i = Run(dir)
+    assertEquals(i("import", "c.dot"), ExitCode.Ok, i.stderr)
+
+    val a = Run(dir)
+    assertEquals(a("run", "c", "collapse", "--params", """{"groups":["group:g1"]}"""), ExitCode.Ok, a.stderr)
+    assertEquals(a.store.list().head.metadata.collapsedGroups, Set("group:g1"))
+
+    val b = Run(dir)
+    assertEquals(b("run", "c", "expand-all"), ExitCode.Ok, b.stderr)
+    assertEquals(b.store.list().head.metadata.collapsedGroups, Set.empty[String])
+  }
+
+  tmp.test("run tag, move-to-folder and rename-diagram change the record") { dir =>
+    dot(dir, "t.dot")
+    val i = Run(dir)
+    assertEquals(i("import", "t.dot"), ExitCode.Ok, i.stderr)
+
+    val r = Run(dir)
+    assertEquals(r("run", "t", "tag", "--params", """{"tags":["infra","draft"]}"""), ExitCode.Ok, r.stderr)
+    assertEquals(r("run", "t", "move-to-folder", "--params", """{"folder":"/systems"}"""), ExitCode.Ok, r.stderr)
+    assertEquals(r("run", "t", "rename-diagram", "--params", """{"name":"Topology"}"""), ExitCode.Ok, r.stderr)
+
+    val d = r.store.list().head
+    assertEquals(d.metadata.tags, List("infra", "draft"))
+    assertEquals(d.folder.render, "/systems")
+    assertEquals(d.name, "Topology")
+  }
+
+  tmp.test("get-record answers with the stored metadata") { dir =>
+    dot(dir, "g.dot")
+    val i = Run(dir)
+    assertEquals(i("import", "g.dot"), ExitCode.Ok, i.stderr)
+    assertEquals(i("run", "g", "hide", "--params", """{"targets":["node:a"]}"""), ExitCode.Ok, i.stderr)
+
+    val r = Run(dir)
+    assertEquals(r("run", "g", "get-record", "--json"), ExitCode.Ok, r.stderr)
+    val answer = ujson.read(r.stdout)
+    assertEquals(answer("hidden").arr.map(_.str).toVector, Vector("node:a"))
+  }
+
+  /** A record tier command needs a RECORD, and a loose file does not have one.
+    * The message says how to get one rather than only that there is none.
+    */
+  tmp.test("a record command on an unimported file says to import it first") { dir =>
+    dot(dir, "loose.dot")
+    val r = Run(dir)
+    assertEquals(r("run", "loose.dot", "hide", "--params", """{"targets":["node:a"]}"""), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("no record"), r.stderr)
+    assert(r.stderr.contains("gx import"), r.stderr)
+  }
+
+  tmp.test("a blank rename is refused and the record keeps its name") { dir =>
+    dot(dir, "n.dot")
+    val i = Run(dir)
+    assertEquals(i("import", "n.dot"), ExitCode.Ok, i.stderr)
+
+    val r = Run(dir)
+    assertEquals(r("run", "n", "rename-diagram", "--params", """{"name":"  "}"""), ExitCode.InvalidPathOrPolicy)
+    assertEquals(r.store.list().head.name, "n")
+  }
+
+  tmp.test("run --list covers both headless tiers") { dir =>
+    val r = Run(dir)
+    assertEquals(r("run", "--list"), ExitCode.Ok)
+    assert(r.stdout.contains("set-attribute"), r.stdout) // document
+    assert(r.stdout.contains("move-to-folder"), r.stdout) // record
+  }
+
   // -------------------------------------------------------------- basics
 
   tmp.test("no arguments prints usage and exits non-zero") { dir =>

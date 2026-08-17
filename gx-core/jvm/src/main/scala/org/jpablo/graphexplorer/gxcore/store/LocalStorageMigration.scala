@@ -137,7 +137,9 @@ object LocalStorageMigration:
           binding = None,
           metadata = DiagramMetadata(
             hiddenElements = idsIn(o.get("hiddenElements")),
-            collapsedGroups = idsIn(o.get("collapsedGroups"))
+            // Groups by construction, so the kind is known even when the old
+            // payload carried no tag.
+            collapsedGroups = idsIn(o.get("collapsedGroups"), assume = Some("group"))
           ),
           createdAt = if project.createdAt > 0 then project.createdAt else nowMs,
           updatedAt = if project.lastModified > 0 then project.lastModified else nowMs
@@ -145,17 +147,39 @@ object LocalStorageMigration:
       )
     catch case NonFatal(e) => Left(s"could not parse the stored payload: $e")
 
-  /** Pull element ids out of whatever shape the old version wrote.
+  /** Pull element ids out of whatever shape the old version wrote, KEEPING the
+    * kind.
     *
     * Recursive and shape-agnostic on purpose: the payloads span several versions
     * of `ElementIds`, and a strict decoder would reject the older ones outright.
-    * `$type` discriminators are skipped so tags do not arrive as ids.
+    *
+    * What changed: `$type` used to be skipped outright, so
+    * `{"$type":"NodeId","value":"n1"}` became the bare string `n1` — and a bare
+    * id cannot say whether a hidden NODE or a hidden GROUP was meant. Two
+    * different elements sharing an id became one entry, and hiding either hid
+    * both. The tag is the only place that information exists, so it is now read
+    * rather than discarded, and the result is the `ElementRef` spelling the
+    * command tier uses everywhere else (`node:n1`).
+    *
+    * A payload with no tag at all still yields the bare string. That shape was
+    * never a real id — the lenient path exists so a corrupt entry costs the view
+    * state and not the diagram.
     */
-  private def idsIn(value: Option[ujson.Value]): Set[String] =
-    def walk(v: ujson.Value): Set[String] = v match
-      case ujson.Str(s)      => Set(s)
-      case ujson.Arr(items)  => items.iterator.flatMap(walk).toSet
+  private def idsIn(value: Option[ujson.Value], assume: Option[String] = None): Set[String] =
+    def kindOf(tag: String): Option[String] = tag match
+      case "NodeId"  => Some("node")
+      case "ArrowId" => Some("arrow")
+      case "GroupId" => Some("group")
+      case _         => None
+
+    def walk(v: ujson.Value, kind: Option[String]): Set[String] = v match
+      case ujson.Str(s)     => Set(kind.fold(s)(k => s"$k:$s"))
+      case ujson.Arr(items) => items.iterator.flatMap(walk(_, kind)).toSet
       case ujson.Obj(fields) =>
-        fields.iterator.filterNot((k, _) => k.startsWith("$")).flatMap((_, v) => walk(v)).toSet
+        val tagged = fields.get("$type").flatMap(_.strOpt).flatMap(kindOf).orElse(kind)
+        fields.iterator
+          .filterNot((k, _) => k.startsWith("$"))
+          .flatMap((_, v) => walk(v, tagged))
+          .toSet
       case _ => Set.empty
-    value.fold(Set.empty)(walk)
+    value.fold(Set.empty)(walk(_, assume))

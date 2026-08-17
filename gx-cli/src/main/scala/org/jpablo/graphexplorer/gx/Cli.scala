@@ -3,12 +3,15 @@ package org.jpablo.graphexplorer.gx
 import org.jpablo.graphexplorer.gxcore.fs.*
 import org.jpablo.graphexplorer.gxcore.model.*
 import org.jpablo.graphexplorer.gxcore.command.{
-  CommandCodec,
+  AnyCommand,
   CommandError,
   CommandResult,
   DiagramText,
   DocumentCommand,
-  DocumentCommands
+  DocumentCommands,
+  RecordCommand,
+  RecordCommands,
+  RecordResult
 }
 import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 
@@ -47,7 +50,7 @@ object Cli:
       |  gx unbind <ref>
       |  gx sync [<ref>] [--all] [--json]       reconcile with origins
       |  gx watch [<ref>...] [--all] [--json]   stream changes to stdout
-      |  gx run <ref> <command> [--params J]    run a document command / query
+      |  gx run <ref> <command> [--params J]    a document or record command
       |  gx open <ref>                          show it in the desktop
       |
       |  M = detached | pull | push | sync      (default: pull)
@@ -498,8 +501,8 @@ object Cli:
     if args.has("list") then
       // Discoverability is part of the vocabulary being a vocabulary: a name
       // nobody can enumerate is not addressable in any useful sense.
-      if args.json then env.out(ujson.Arr.from(DocumentCommand.names.map(ujson.Str(_))).render(indent = 2))
-      else DocumentCommand.names.foreach(env.out)
+      if args.json then env.out(ujson.Arr.from(AnyCommand.names.map(ujson.Str(_))).render(indent = 2))
+      else AnyCommand.names.foreach(env.out)
       ExitCode.Ok
     else
       (args.positionalAt(0), args.positionalAt(1)) match
@@ -507,10 +510,10 @@ object Cli:
           paramsFrom(args, env) match
             case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
             case Right(params) =>
-              CommandCodec.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
+              AnyCommand.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
                 case Left(CommandError.UnknownCommand(name)) =>
                   env.err(s"gx: unknown command '$name'")
-                  env.err(s"gx: try one of: ${DocumentCommand.names.mkString(", ")}")
+                  env.err(s"gx: try one of: ${AnyCommand.names.mkString(", ")}")
                   ExitCode.Usage
                 case Left(error) =>
                   env.err(s"gx: ${error.message}")
@@ -519,10 +522,50 @@ object Cli:
                   withTarget(args, env)(execute(_, command, args, env))
         case _ =>
           env.err("gx: run needs a diagram and a command")
-          env.err(s"gx: commands: ${DocumentCommand.names.mkString(", ")}")
+          env.err(s"gx: commands: ${AnyCommand.names.mkString(", ")}")
           ExitCode.Usage
 
-  private def execute(target: Target, command: DocumentCommand, args: Args, env: CliEnv): Int =
+  private def execute(target: Target, command: AnyCommand, args: Args, env: CliEnv): Int =
+    command match
+      case AnyCommand.Doc(c) => executeDocument(target, c, args, env)
+      case AnyCommand.Rec(c) => executeRecord(target, c, args, env)
+
+  /** The record tier operates on stored METADATA, so it needs a record — and a
+    * loose file on disk does not have one.
+    *
+    * Refused with the fix rather than with a shrug: `gx import` is what turns a
+    * path into something that can carry tags and hidden elements, and saying so
+    * is more useful than "not found".
+    */
+  private def executeRecord(target: Target, command: RecordCommand, args: Args, env: CliEnv): Int =
+    target match
+      case Target.OnDisk(path, _) =>
+        env.err(s"gx: '${path.getFileName}' is not in the library, so it has no record to change")
+        env.err(s"gx: import it first:  gx import ${path.getFileName}")
+        ExitCode.InvalidPathOrPolicy
+
+      case Target.InLibrary(d) =>
+        RecordCommands.run(d, command) match
+          case Left(error) =>
+            env.err(s"gx: ${error.message}")
+            ExitCode.InvalidPathOrPolicy
+
+          case Right(RecordResult.Answered(value)) =>
+            printAnswer(value, args, env)
+            ExitCode.Ok
+
+          case Right(RecordResult.Updated(updated)) =>
+            // Metadata only: the record is saved, and the ORIGIN is untouched
+            // whatever the sync mode says. That is §5.3.1's split doing its job
+            // — hiding a node must never make a regenerating origin conflict.
+            env.store.save(updated.copy(updatedAt = env.now())) match
+              case Left(e) => env.err(s"gx: $e"); ExitCode.Unknown
+              case Right(saved) =>
+                if args.json then env.out(summaryJson(saved).render(indent = 2))
+                else env.out(s"${saved.id.value}  ${command.name}")
+                ExitCode.Ok
+
+  private def executeDocument(target: Target, command: DocumentCommand, args: Args, env: CliEnv): Int =
     textOf(target, env) match
       case Left(code) => code
       case Right(text) =>
