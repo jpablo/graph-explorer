@@ -724,9 +724,54 @@ hashes are the same value — but the desktop does not yet use one as its
 revision. That is D1's remaining half, and it is now a small change rather than
 a contract negotiation.
 
-**P6 — Command vocabulary (D7).** Name and serialize the command set over the
-existing `shared/` ops; route the UI through it; expose document and record
-tiers via `gx`; expose the session tier over the socket.
+**P6 — Command vocabulary (D7). ◐ Started: the document tier is named,
+serializable and interpreted.** `gx-core/command` holds `ElementRef`,
+`DocumentCommand` (twelve names), `CommandCodec`, and `DocumentCommands` — the
+interpreter, delegating to the `Ops` modules that already exist. Pure, in
+`gx-core/shared`, so all three hosts can link it.
+
+Two things the phase settled early:
+
+- **Addressability was closer than D7.1 implies.** `ElementId` has carried a
+  prefixed spelling (`node:a`, `arrow:e1`, `group:g1`) and upickle codecs for
+  years, so no new identity scheme was needed — only the inverse for the sum
+  type, since each id had its own `fromSvg` and a caller had to know the kind
+  before it could parse. A wire reference works the other way round: the string
+  says which kind it is.
+- **The codec is hand-written, not derived.** A derived codec encodes the shape
+  of the Scala enum, so renaming a case or reordering a field would silently
+  change the protocol. These names are API — they appear in `gx`'s help, in the
+  audit log, and in every recorded command a replay would re-run.
+
+**A real hazard fell out of writing the tests.** `updateAttributes` treats an
+unknown id *asymmetrically*: arrows and groups are filtered out, but a node is
+**created** (`nodes.getOrElse(id, nodeWithDefaults(id))`). In the UI that never
+shows, because a selection only contains elements that exist. On a socket it
+shows immediately — one stale or mistyped `node:foo` from an agent silently adds
+a node to the user's diagram, and the reply says the command succeeded. So the
+command tier resolves every named reference before delegating and refuses the
+unknown ones, naming all of them. That is the only rule it adds over the ops,
+and it is the same thing the UI does by greying out a menu item — a socket
+client has no menu to grey out.
+
+The test that found it was written asserting the opposite. Worth remembering:
+`assertEquals(result.elements, graph.elements)` is a weak assertion that
+happened to be strong enough here.
+
+Remaining in P6, in the order they should land:
+
+1. **Route the UI through the vocabulary.** The largest piece and the most
+   regression surface: 89 `Command(...)` sites in `Commands.scala` call `Ops`
+   through closures. D7.1 is explicit that undo/redo, the audit log and replay
+   all fall out of this and none are cheap to retrofit.
+2. **Expose the document tier via `gx`** — `gx run <command> [json]` over a
+   file, headless.
+3. **The record tier**, over the library store: `hide`, `collapse`, `tag`,
+   `move-to-folder`. Note D7.3 asserts the store IS the live state, with UI
+   edits debounced into the record continuously — that is asserted, not built,
+   and D8 still defers unsaved UI drafts. The two need reconciling before
+   headless mutation and live update are genuinely the same path.
+4. **The session tier over the socket**, extending the `show` verb P5 landed.
 
 P1–P3 deliver the headless story. P4–P5 deliver the security story. P6 opens the
 RPC work. If everything stops after P3, `gx` is already fixed and nothing is
