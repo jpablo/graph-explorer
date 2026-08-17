@@ -11,6 +11,11 @@ anyhow = "1.0"
 dirs = "6.0.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# V-13. The content hash is the join key between this crate and gx-core, so it
+# has to be the SAME hash: SHA-256 over the file's bytes. The previous
+# `DefaultHasher` was a u64 SipHash over a lossily-decoded String — a different
+# algorithm, a different width, and explicitly not stable across Rust releases.
+sha2 = "0.10"
 tauri = { version = "2.1.1", features = ["image-png"] }
 
 # P5 deleted four dependencies along with the loopback HTTP server (D4):

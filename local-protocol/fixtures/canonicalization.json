@@ -1,0 +1,99 @@
+{
+  "$comment": [
+    "V-13, the other half: Scala and Rust must name the same file the same way.",
+    "",
+    "Each case builds a small tree under a fresh temp root, canonicalizes `input`",
+    "(relative to that root), and expects `expect` (also relative to the root,",
+    "after the root itself has been resolved). Expressing both sides relative to",
+    "a resolved root is what makes these assertions platform-independent: on",
+    "macOS /tmp is a symlink to /private/tmp, and an absolute expectation would",
+    "be testing that rather than the rule.",
+    "",
+    "Where a platform genuinely differs, the difference is WRITTEN DOWN rather",
+    "than discovered: `expectCaseInsensitive` applies on macOS and Windows,",
+    "`expect` on Linux. P0 established that the case-insensitive filesystem is",
+    "the majority case, not the edge case (D2.1b).",
+    "",
+    "The rules being pinned, from gx-core's FileOrigins.canonicalize:",
+    "  1. a relative path resolves against the caller's cwd, not the process's",
+    "  2. an existing path becomes its real path — symlinks resolved",
+    "  3. a path that does NOT exist yet still gets a stable identity: normalize",
+    "     it, then real-path the deepest ancestor that does exist and re-attach",
+    "     the remainder. v1's Rust instead fell back to the raw absolute path, so",
+    "     `..` and unresolved symlinks survived into policy checks",
+    "  4. on Windows the \\\\?\\ verbatim prefix is stripped, because Java's",
+    "     toRealPath does not produce one and the two sides must agree"
+  ],
+  "canonicalization": [
+    {
+      "name": "an existing file is itself",
+      "tree": { "files": ["a.dot"] },
+      "input": "a.dot",
+      "expect": "a.dot"
+    },
+    {
+      "name": "dot segments are resolved",
+      "tree": { "files": ["dir/a.dot"] },
+      "input": "dir/../dir/./a.dot",
+      "expect": "dir/a.dot"
+    },
+    {
+      "name": "a symlinked directory resolves to its target",
+      "tree": { "files": ["real/a.dot"], "symlinks": [{ "link": "link", "target": "real" }] },
+      "input": "link/a.dot",
+      "expect": "real/a.dot"
+    },
+    {
+      "name": "a symlinked file resolves to its target",
+      "tree": { "files": ["real/a.dot"], "symlinks": [{ "link": "alias.dot", "target": "real/a.dot" }] },
+      "input": "alias.dot",
+      "expect": "real/a.dot"
+    },
+    {
+      "name": "V-07: a symlink escaping upward is resolved before any policy check",
+      "$why": "this is the entire substance of V-07 — a link inside an allowed root pointing outside it is an allowed path naming a denied file, and only resolution first catches it",
+      "tree": { "files": ["outside/secret.dot"], "symlinks": [{ "link": "inside/escape", "target": "../outside" }] },
+      "input": "inside/escape/secret.dot",
+      "expect": "outside/secret.dot"
+    },
+    {
+      "name": "a file that does not exist yet still gets a stable identity",
+      "tree": { "files": ["dir/keep.dot"] },
+      "input": "dir/not-created-yet.dot",
+      "expect": "dir/not-created-yet.dot"
+    },
+    {
+      "name": "a not-yet-created file under a symlink resolves through it",
+      "$why": "the case v1's Rust got wrong: canonicalize fails on a missing file, and it fell back to the raw path with the symlink unresolved",
+      "tree": { "symlinks": [{ "link": "link", "target": "real" }], "dirs": ["real"] },
+      "input": "link/new.dot",
+      "expect": "real/new.dot"
+    },
+    {
+      "name": "dot segments in a not-yet-created path are still resolved",
+      "tree": { "dirs": ["dir"] },
+      "input": "dir/../dir/new.dot",
+      "expect": "dir/new.dot"
+    },
+    {
+      "name": "a path with a space",
+      "tree": { "files": ["with space.dot"] },
+      "input": "with space.dot",
+      "expect": "with space.dot"
+    },
+    {
+      "name": "a non-ASCII path",
+      "tree": { "files": ["ünïcode Ø.dot"] },
+      "input": "ünïcode Ø.dot",
+      "expect": "ünïcode Ø.dot"
+    },
+    {
+      "name": "a case variant follows the filesystem, and both languages follow it the same way",
+      "$why": "macOS and Windows report INSENSITIVE and resolve to the on-disk spelling; Linux is sensitive, so A.DOT is simply a different, not-yet-existing file",
+      "tree": { "files": ["a.dot"] },
+      "input": "A.DOT",
+      "expect": "A.DOT",
+      "expectCaseInsensitive": "a.dot"
+    }
+  ]
+}

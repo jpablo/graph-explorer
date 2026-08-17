@@ -492,7 +492,7 @@ they can be, as `gx-core` unit tests unless marked otherwise.
 | V-10 | Disk → UI median stays under 300ms (existing smoke harness, unchanged) |
 | V-11 | The webview holds no credential: no token in any IPC payload or event (integration) |
 | V-12 | A save whose UI window is gone reports its true outcome (fixed in `put_document_snapshot`) |
-| V-13 | Scala and Rust agree on canonicalization and content hash for a shared fixture set — spaces, non-ASCII, symlinks, case variants, Windows UNC (cross-language, the §4 contract) |
+| V-13 | Scala and Rust agree on canonicalization and content hash for a shared fixture set — spaces, non-ASCII, symlinks, case variants, Windows UNC (cross-language, the §4 contract). ✅ `local-protocol/fixtures/`, read by both suites |
 | V-14 | `gx` parse cost — cold start *minus* the machine's process-spawn baseline — stays under 20ms, at any graph size. Gated on the difference because the absolute is dominated by the host (D2.1a) |
 | V-15 | A document or record command issued by `gx` with no desktop running succeeds, and is reflected in the UI when a desktop is later started (D7.3) |
 | V-16 | Every read and write on the diagram path names UTF-8 explicitly. Windows reports `windows-1252` as its default charset, so a platform-default decode changes the bytes — and under D1 the bytes *are* the revision (see D2.1b) |
@@ -686,6 +686,43 @@ budget (72 ms over HTTP — the same, within noise).
 AF_UNIX-on-Windows claim, `uds_windows`, and the pwsh client are exercised only
 by the workflows, on push. That is the one place this phase is taking P0's
 lesson on credit rather than on evidence.
+
+**V-13 — the §4 contract, done between P5 and P6.** It came due exactly where
+§4 said it would, and it was **not merely a missing test**: the two sides
+disagreed in three ways, and every one of them was invisible because each was
+self-consistent.
+
+| | Scala (`gx-core`) | Rust (desktop), before |
+|---|---|---|
+| hash | SHA-256 over the file's **bytes** | `DefaultHasher` — SipHash, u64, over a *lossily decoded* String |
+| a path that does not exist yet | normalize, real-path the deepest existing ancestor, re-attach the rest | `canonicalize(…).unwrap_or(absolute)` — `..` and symlinks survived |
+| Windows shape | `C:\…` (`toRealPath`) | `\\?\C:\…` (`fs::canonicalize`) |
+
+Each was a different name for the same document. The hash one was the worst of
+the three: `DefaultHasher` is documented as unstable across Rust releases, so
+the desktop's idea of "has this file changed" could have moved under a
+toolchain upgrade — and hashing a lossy decode meant a file with undecodable
+bytes had them replaced *before* hashing, so it could change without its hash
+moving. Both are now `content_hash` = SHA-256 over bytes, which also retires a
+V-16 hazard in passing.
+
+`local-protocol/fixtures/` is the specification, and **both test suites read the
+same files** — so "we wrote it twice and both are self-consistent" cannot pass
+for agreement, which is the failure §4 names. Platform variance is written down
+(`expectCaseInsensitive` for the case-insensitive majority, per D2.1b) rather
+than discovered, and case sensitivity is probed from the filesystem rather than
+inferred from the OS name.
+
+Checked by restoring the old `normalize_path`: the fixtures fail, naming the
+case — *"a not-yet-created file under a symlink resolves through it"*. Disk→UI
+stays at a 72 ms median, so SHA-256 replacing SipHash costs nothing measurable
+on the watch path.
+
+Still open from P2, and now the only piece: the desktop counts revisions with an
+integer while `gx-core` uses the content hash. They no longer *disagree* — the
+hashes are the same value — but the desktop does not yet use one as its
+revision. That is D1's remaining half, and it is now a small change rather than
+a contract negotiation.
 
 **P6 — Command vocabulary (D7).** Name and serialize the command set over the
 existing `shared/` ops; route the UI through it; expose document and record

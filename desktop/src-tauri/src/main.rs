@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::OpenOptions;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -198,7 +197,12 @@ struct WatchDescriptor {
 
 type WatchRegistry = Arc<Mutex<HashMap<String, WatchDescriptor>>>;
 type WatchControllers = Arc<Mutex<HashMap<String, WatchController>>>;
-type RecentWriteHashes = Arc<Mutex<HashMap<String, u64>>>;
+/// Path -> the content hash this process last wrote there.
+///
+/// A hex SHA-256 since V-13, not a u64: it is the same value `gx-core` computes
+/// for the same bytes, which is what lets the two sides talk about a document's
+/// identity at all.
+type RecentWriteHashes = Arc<Mutex<HashMap<String, String>>>;
 
 #[derive(Debug, Clone)]
 struct AccessPolicy {
@@ -1168,7 +1172,7 @@ fn put_document_snapshot(
     }
 
     write_file_atomic(&normalized, &payload.text).map_err(PutDocumentError::Other)?;
-    let content_hash = hash_string(&payload.text);
+    let content_hash = content_hash(payload.text.as_bytes());
     if let Ok(mut writes) = recent_write_hashes.lock() {
         writes.insert(normalized.clone(), content_hash);
     }
@@ -1320,6 +1324,21 @@ fn current_time_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// V-13: canonicalization, matching `gx-core`'s `FileOrigins.canonicalize`
+/// rule for rule.
+///
+/// This and the content hash are the join key for the whole library (§4), and
+/// they are the one contract this codebase writes twice in two languages. The
+/// rules are specified in `local-protocol/fixtures/canonicalization.json`, which
+/// both test suites read.
+///
+/// What changed from v1's `canonicalize(...).unwrap_or(absolute)`: that fell
+/// back to the RAW absolute path whenever the target did not exist yet — and
+/// creating a file, or watching one a generator has not written, are ordinary.
+/// So `..` and unresolved symlinks survived into policy checks, and the same
+/// file had two identities depending on whether it happened to exist when it
+/// was first named. The brief called this "safe direction, but incidental
+/// rather than specified".
 fn normalize_path(path: &str) -> Result<String> {
     let input = PathBuf::from(path);
     let absolute = if input.is_absolute() {
@@ -1329,8 +1348,76 @@ fn normalize_path(path: &str) -> Result<String> {
             .context("failed to read current working directory")?
             .join(input)
     };
-    let normalized = fs::canonicalize(&absolute).unwrap_or(absolute);
-    Ok(normalized.to_string_lossy().to_string())
+
+    if let Ok(real) = fs::canonicalize(&absolute) {
+        return Ok(strip_verbatim_prefix(&real));
+    }
+
+    // It does not exist yet. Resolve the dot segments ourselves, then real-path
+    // the deepest ancestor that DOES exist and re-attach the rest, so a
+    // not-yet-created file still gets a stable identity.
+    let normalized = normalize_dot_segments(&absolute);
+    let mut ancestor = normalized.as_path();
+    loop {
+        match ancestor.parent() {
+            None => return Ok(strip_verbatim_prefix(&normalized)),
+            Some(parent) => {
+                if let Ok(real_parent) = fs::canonicalize(parent) {
+                    let rest = normalized
+                        .strip_prefix(parent)
+                        .unwrap_or_else(|_| Path::new(""));
+                    return Ok(strip_verbatim_prefix(&real_parent.join(rest)));
+                }
+                ancestor = parent;
+            }
+        }
+    }
+}
+
+/// Resolve `.` and `..` lexically.
+///
+/// Lexical is correct here precisely because the path does not exist: there is
+/// no symlink at the end to resolve, and the existing ancestor gets a real
+/// `canonicalize` afterwards.
+fn normalize_dot_segments(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                // Never pop past the root: `/..` is `/`, not an escape.
+                if !matches!(
+                    out.components().next_back(),
+                    None | Some(Component::RootDir) | Some(Component::Prefix(_))
+                ) {
+                    out.pop();
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Windows' `fs::canonicalize` returns a `\\?\C:\…` verbatim path; Java's
+/// `toRealPath` returns `C:\…`. Left alone, the same file would have two
+/// identities depending on which language named it — which is exactly the
+/// drift V-13 exists to prevent. Strip it here, where the divergence is.
+#[cfg(windows)]
+fn strip_verbatim_prefix(path: &Path) -> String {
+    let text = path.to_string_lossy().to_string();
+    // `\\?\UNC\server\share` is a UNC path; its non-verbatim spelling is
+    // `\\server\share`, so the prefix is replaced rather than removed.
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
+    text.strip_prefix(r"\\?\").unwrap_or(&text).to_string()
+}
+
+#[cfg(not(windows))]
+fn strip_verbatim_prefix(path: &Path) -> String {
+    path.to_string_lossy().to_string()
 }
 
 fn ensure_watch_target_is_file(path: &Path) -> Result<()> {
@@ -1512,23 +1599,28 @@ fn spawn_watch_loop(
 ) -> WatchController {
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     std::thread::spawn(move || {
-        let mut previous_hash: Option<u64> = hash_file_contents(&path).ok();
-        let mut pending: Option<(Instant, String, u64)> = None;
+        let mut previous_hash: Option<String> = hash_file_contents(&path).ok();
+        let mut pending: Option<(Instant, String, String)> = None;
 
         loop {
             if stop_rx.try_recv().is_ok() {
                 break;
             }
 
-            if let Ok(contents) = fs::read_to_string(&path) {
-                let current_hash = hash_string(&contents);
-                let pending_hash = pending.as_ref().map(|(_, _, hash)| *hash);
+            // Bytes, then decode — not `read_to_string`. The hash must be over
+            // what is on disk (V-13), and a file being written by an editor can
+            // momentarily hold a partial multi-byte character that a lossy
+            // decode would smooth over into a hash that never existed.
+            if let Ok(raw) = fs::read(&path) {
+                let current_hash = content_hash(&raw);
+                let contents = String::from_utf8_lossy(&raw).into_owned();
+                let pending_hash = pending.as_ref().map(|(_, _, hash)| hash.clone());
 
                 let is_self_write = recent_write_hashes
                     .lock()
                     .ok()
                     .and_then(|mut writes| {
-                        let matched = writes.get(&path).copied() == Some(current_hash);
+                        let matched = writes.get(&path) == Some(&current_hash);
                         if matched {
                             writes.remove(&path);
                             Some(true)
@@ -1539,13 +1631,15 @@ fn spawn_watch_loop(
                     .unwrap_or(false);
 
                 if is_self_write {
-                    previous_hash = Some(current_hash);
+                    previous_hash = Some(current_hash.clone());
                     pending = None;
                     std::thread::sleep(WATCH_POLL_INTERVAL);
                     continue;
                 }
 
-                if Some(current_hash) != previous_hash && Some(current_hash) != pending_hash {
+                if Some(&current_hash) != previous_hash.as_ref()
+                    && Some(&current_hash) != pending_hash.as_ref()
+                {
                     pending = Some((Instant::now(), contents, current_hash));
                 }
             }
@@ -1567,7 +1661,7 @@ fn spawn_watch_loop(
                             }
                         }
                     }
-                    previous_hash = Some(*hash);
+                    previous_hash = Some(hash.clone());
                     pending = None;
                 }
             }
@@ -1579,16 +1673,29 @@ fn spawn_watch_loop(
     WatchController { stop_tx }
 }
 
-fn hash_file_contents(path: &str) -> Result<u64> {
-    let text = fs::read_to_string(path)
-        .with_context(|| format!("failed to read watched file {}", path))?;
-    Ok(hash_string(&text))
+fn hash_file_contents(path: &str) -> Result<String> {
+    let bytes =
+        fs::read(path).with_context(|| format!("failed to read watched file {}", path))?;
+    Ok(content_hash(&bytes))
 }
 
-fn hash_string(value: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    value.hash(&mut hasher);
-    hasher.finish()
+/// V-13: the content hash, identical to `gx-core`'s `Hashing.ofBytes`.
+///
+/// Over the BYTES, and that is the whole point. The previous implementation
+/// hashed a `String` from `read_to_string`, which is a lossy UTF-8 decode: a
+/// file with bytes that do not decode had them silently replaced before
+/// hashing, so two different files could share a hash and a file could change
+/// without its hash moving. It was also `DefaultHasher` — SipHash, 64 bits,
+/// and documented as not stable across Rust releases, which makes it unfit for
+/// a value two programs compare.
+fn content_hash(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(bytes);
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        hex.push_str(&format!("{byte:02x}"));
+    }
+    hex
 }
 
 /// The exact string injected into the page. Separated from the emit so V-11 can
@@ -1937,6 +2044,162 @@ mod tests {
         assert_eq!(mode_of(&target), mode_of(&reference));
         assert!(!stale.exists(), "the temp must not be left beside the target");
 
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // ----------------------------------------------------------- V-13
+    //
+    // The contract this codebase writes twice. Both suites read the SAME files,
+    // so "we wrote it twice and both are self-consistent" cannot pass for
+    // agreement — which is the failure mode §4 warns about.
+
+    fn fixture(name: &str) -> serde_json::Value {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../local-protocol/fixtures")
+            .join(name);
+        let text = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
+        serde_json::from_str(&text).expect("fixture is valid JSON")
+    }
+
+    #[test]
+    fn v13_content_hashes_match_the_shared_fixtures() {
+        let doc = fixture("content-hashes.json");
+        let cases = doc["contentHashes"].as_array().expect("an array");
+        assert!(cases.len() >= 8, "the fixture set should not have shrunk");
+
+        for case in cases {
+            let name = case["name"].as_str().expect("a name");
+            let bytes: Vec<u8> = match (case.get("text"), case.get("hexBytes")) {
+                (Some(text), _) => text.as_str().expect("text").as_bytes().to_vec(),
+                (_, Some(hex)) => {
+                    let hex = hex.as_str().expect("hexBytes");
+                    (0..hex.len())
+                        .step_by(2)
+                        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("hex byte"))
+                        .collect()
+                }
+                _ => panic!("fixture '{name}' has neither text nor hexBytes"),
+            };
+            assert_eq!(
+                content_hash(&bytes),
+                case["sha256"].as_str().expect("sha256"),
+                "content hash disagrees with the fixture for '{name}'"
+            );
+        }
+    }
+
+    /// Build a case's tree, canonicalize its input, compare to the expectation.
+    ///
+    /// Everything is expressed relative to a RESOLVED root: on macOS `/tmp` is a
+    /// symlink to `/private/tmp`, so an absolute expectation would be asserting
+    /// that rather than the rule under test.
+    #[test]
+    fn v13_canonicalization_matches_the_shared_fixtures() {
+        let doc = fixture("canonicalization.json");
+        let cases = doc["canonicalization"].as_array().expect("an array");
+        assert!(cases.len() >= 10, "the fixture set should not have shrunk");
+
+        let case_insensitive = filesystem_is_case_insensitive();
+
+        for (index, case) in cases.iter().enumerate() {
+            let name = case["name"].as_str().expect("a name");
+            let root = std::env::temp_dir().join(format!("gx-v13-{}-{index}", std::process::id()));
+            let _ = fs::remove_dir_all(&root);
+            fs::create_dir_all(&root).expect("root");
+            let root = fs::canonicalize(&root).expect("resolvable root");
+
+            let tree = &case["tree"];
+            for dir in tree["dirs"].as_array().unwrap_or(&vec![]) {
+                fs::create_dir_all(root.join(dir.as_str().expect("dir"))).expect("dir");
+            }
+            for file in tree["files"].as_array().unwrap_or(&vec![]) {
+                let path = root.join(file.as_str().expect("file"));
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent).expect("parent");
+                }
+                fs::write(&path, "digraph G { a }").expect("file");
+            }
+            let mut skipped = false;
+            for link in tree["symlinks"].as_array().unwrap_or(&vec![]) {
+                let from = root.join(link["link"].as_str().expect("link"));
+                if let Some(parent) = from.parent() {
+                    fs::create_dir_all(parent).expect("parent");
+                }
+                if make_symlink(link["target"].as_str().expect("target"), &from).is_err() {
+                    // Windows needs Developer Mode or elevation for symlinks.
+                    // Skipping is honest; silently passing would not be.
+                    eprintln!("v13: skipping '{name}' — cannot create symlinks here");
+                    skipped = true;
+                    break;
+                }
+            }
+            if skipped {
+                let _ = fs::remove_dir_all(&root);
+                continue;
+            }
+
+            let expected_rel = match (case.get("expectCaseInsensitive"), case_insensitive) {
+                (Some(alt), true) => alt.as_str().expect("expectCaseInsensitive"),
+                _ => case["expect"].as_str().expect("expect"),
+            };
+
+            let input = root.join(case["input"].as_str().expect("input"));
+            let actual = normalize_path(&input.to_string_lossy()).expect("canonicalizable");
+            let expected = strip_verbatim_prefix(&root.join(expected_rel));
+
+            assert_eq!(actual, expected, "canonicalization disagrees for '{name}'");
+            let _ = fs::remove_dir_all(&root);
+        }
+    }
+
+    /// Asked of the filesystem rather than of the OS name: a case-sensitive
+    /// volume on macOS exists, and D2.1b's whole lesson is about measuring the
+    /// thing rather than a proxy for it.
+    fn filesystem_is_case_insensitive() -> bool {
+        let dir = temp_dir_for("case-probe");
+        let lower = dir.join("probe.dot");
+        fs::write(&lower, "x").expect("probe");
+        let answer = dir.join("PROBE.DOT").exists();
+        let _ = fs::remove_dir_all(&dir);
+        answer
+    }
+
+    #[cfg(unix)]
+    fn make_symlink(target: &str, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+
+    #[cfg(windows)]
+    fn make_symlink(target: &str, link: &Path) -> std::io::Result<()> {
+        // The target may be a file or a directory and Windows needs to be told
+        // which; try the directory form first, since every case here that links
+        // to a file names it explicitly.
+        let resolved = link.parent().unwrap_or(Path::new(".")).join(target);
+        if resolved.is_dir() {
+            std::os::windows::fs::symlink_dir(target, link)
+        } else {
+            std::os::windows::fs::symlink_file(target, link)
+        }
+    }
+
+    /// The rule that had no test and the most consequence: an identity must not
+    /// depend on whether the file happened to exist when it was first named.
+    #[test]
+    fn v13_a_path_keeps_its_identity_across_creation() {
+        let dir = temp_dir_for("v13-identity");
+        let real = dir.join("real");
+        fs::create_dir_all(&real).expect("dir");
+        let file = real.join("later.dot");
+
+        let before = normalize_path(&file.to_string_lossy()).expect("before");
+        fs::write(&file, "digraph G { a }").expect("create");
+        let after = normalize_path(&file.to_string_lossy()).expect("after");
+
+        assert_eq!(
+            before, after,
+            "a path must name the same document before and after it exists"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
