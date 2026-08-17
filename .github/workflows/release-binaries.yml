@@ -145,6 +145,12 @@ jobs:
       - name: Set up scala-cli (for the gx native image)
         uses: VirtusLab/scala-cli-setup@v1
 
+      # sbt too: this job only ever set up Rust, because building gx used to be
+      # `cargo build`. scripts/build-gx.sh asks sbt for the classpath first.
+      # (scala-cli-setup already provides the JDK it runs on.)
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+
       - name: Put coursier bin dir on PATH
         # The setup action installs into COURSIER_BIN_DIR but does not export it
         # to later steps on every runner.
