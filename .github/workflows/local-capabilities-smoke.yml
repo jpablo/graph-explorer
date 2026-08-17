@@ -155,6 +155,13 @@ jobs:
         shell: bash
         run: echo "$COURSIER_BIN_DIR" >> "$GITHUB_PATH"
 
+      # A second of stubbed checks before the expensive gates. The helper's
+      # status channel broke silently once and cost two CI cycles to find,
+      # because nothing could exercise it without a built desktop.
+      - name: Control-API helper self-test
+        shell: bash
+        run: ./scripts/lib/control-api-selftest.sh
+
       - name: Build gx release (GraalVM native-image)
         shell: bash
         run: ./scripts/build-gx.sh

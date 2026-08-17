@@ -67,23 +67,23 @@ printf 'digraph G {\n  a -> b\n}\n' > "${tmpfile}"
 tmpfile_canonical="$(cd "$(dirname "${tmpfile}")" && pwd -P)/$(basename "${tmpfile}")"
 
 status_json="$(api_status)"
-assert_eq "200" "${API_HTTP_STATUS}" "release status code"
+assert_eq "200" "$(api_last_status)" "release status code"
 assert_eq "true" "$(jq -r '.running' <<<"${status_json}")" "release status running"
 
 watch_json="$(api_watch "${tmpfile_canonical}")"
-assert_eq "200" "${API_HTTP_STATUS}" "release watch status"
+assert_eq "200" "$(api_last_status)" "release watch status"
 assert_eq "1" "$(jq -r '.watch.revision' <<<"${watch_json}")" "release watch revision"
 
 get_json="$(api_get "${tmpfile_canonical}")"
-assert_eq "200" "${API_HTTP_STATUS}" "release get status"
+assert_eq "200" "$(api_last_status)" "release get status"
 assert_eq "1" "$(jq -r '.document.revision' <<<"${get_json}")" "release get revision"
 
 set_json="$(api_set "${tmpfile_canonical}" $'digraph G {\n  b -> c\n}\n' cli)"
-assert_eq "200" "${API_HTTP_STATUS}" "release set status"
+assert_eq "200" "$(api_last_status)" "release set status"
 assert_eq "2" "$(jq -r '.document.revision' <<<"${set_json}")" "release set revision"
 
 stale_json="$(api_put "${tmpfile_canonical}" $'digraph G {\n  stale -> write\n}\n' 1 cli)"
-assert_eq "409" "${API_HTTP_STATUS}" "release stale write status"
+assert_eq "409" "$(api_last_status)" "release stale write status"
 assert_eq "DOCUMENT_CONFLICT" "$(jq -r '.code' <<<"${stale_json}")" "release stale write code"
 
 unwatch_json="$(api_unwatch "${tmpfile_canonical}")"
@@ -105,11 +105,11 @@ printf 'digraph G {\n  a -> b\n}\n' > "${spacedfile}"
 spacedfile_canonical="$(cd "${spacedir}" && pwd -P)/with space.dot"
 
 spaced_watch_json="$(api_watch "${spacedfile_canonical}")"
-assert_eq "200" "${API_HTTP_STATUS}" "spaced-path watch status"
+assert_eq "200" "$(api_last_status)" "spaced-path watch status"
 assert_eq "1" "$(jq -r '.watch.revision' <<<"${spaced_watch_json}")" "spaced-path watch revision"
 
 spaced_get_json="$(api_get "${spacedfile_canonical}")"
-assert_eq "200" "${API_HTTP_STATUS}" "spaced-path get status"
+assert_eq "200" "$(api_last_status)" "spaced-path get status"
 assert_eq "1" "$(jq -r '.document.revision' <<<"${spaced_get_json}")" "spaced-path get revision"
 assert_eq "${spacedfile_canonical}" "$(jq -r '.document.path' <<<"${spaced_get_json}")" "spaced-path get path"
 

@@ -17,13 +17,29 @@
 # Usage:
 #   source "${ROOT_DIR}/scripts/lib/control-api.sh"
 #   control_wait_ready 80 || exit 1
-#   api_watch "/abs/path.dot"        # body on stdout, code in $API_HTTP_STATUS
+#   body="$(api_watch "/abs/path.dot")"   # body on stdout
+#   api_last_status                        # "200" — survives the subshell
 
 CONTROL_RUNTIME_FILE="${CONTROL_RUNTIME_FILE:-${HOME}/.graph-explorer/runtime/control.json}"
 CONTROL_PORT=""
 CONTROL_TOKEN=""
 CONTROL_BASE=""
-API_HTTP_STATUS=""
+
+# The HTTP status goes through a FILE, not a variable.
+#
+# Every call site captures the response body with `$(api_watch ...)`, and a
+# command substitution is a subshell: a variable the function assigns there dies
+# with the child, so the parent read an empty string on every assertion. stdout
+# already carries the body, and a second return value cannot come back the same
+# way — a file is the channel that survives.
+#
+# Deliberately NOT cleaned up with a trap: this is a sourced library, and every
+# caller installs its own `trap cleanup EXIT` to kill the desktop it started. A
+# trap here would silently replace theirs, trading a stray temp file for a
+# leaked desktop process.
+API_STATUS_FILE="$(mktemp "${TMPDIR:-/tmp}/gx-api-status-XXXXXX")"
+
+api_last_status() { cat "${API_STATUS_FILE}" 2>/dev/null || echo ""; }
 
 # Read port and token from the runtime file. Returns 1 if it is absent or
 # incomplete, which is the ordinary "no desktop yet" case, not an error.
@@ -65,24 +81,30 @@ _api_uri_escape() {
 }
 
 # $1 method, $2 path-with-query, $3 optional JSON body.
-# Body on stdout; HTTP code in $API_HTTP_STATUS. Never fails the caller's
+# Body on stdout; HTTP code via `api_last_status`. Never fails the caller's
 # `set -e`, so a script can assert on a 4xx deliberately.
 _api_call() {
   local method="$1" endpoint="$2" body="${3:-}"
-  control_load || { echo "control runtime file unavailable" >&2; return 1; }
+  control_load || {
+    printf '%s' "000" > "${API_STATUS_FILE}"
+    echo "control runtime file unavailable" >&2
+    return 1
+  }
   local out
   out="$(mktemp "${TMPDIR:-/tmp}/gx-api-XXXXXX.json")"
+  local code
   if [[ -n "${body}" ]]; then
-    API_HTTP_STATUS="$(curl -sS -o "${out}" -w '%{http_code}' \
+    code="$(curl -sS -o "${out}" -w '%{http_code}' \
       -X "${method}" "${CONTROL_BASE}${endpoint}" \
       -H "Authorization: Bearer ${CONTROL_TOKEN}" \
       -H 'Content-Type: application/json' \
       --data "${body}" || echo "000")"
   else
-    API_HTTP_STATUS="$(curl -sS -o "${out}" -w '%{http_code}' \
+    code="$(curl -sS -o "${out}" -w '%{http_code}' \
       -X "${method}" "${CONTROL_BASE}${endpoint}" \
       -H "Authorization: Bearer ${CONTROL_TOKEN}" || echo "000")"
   fi
+  printf '%s' "${code}" > "${API_STATUS_FILE}"
   cat "${out}"
   rm -f "${out}"
 }
@@ -117,6 +139,6 @@ api_put() {
 api_set() {
   local path="$1" text="$2" source="${3:-cli}" current
   current="$(api_get "${path}")"
-  [[ "${API_HTTP_STATUS}" == "200" ]] || { echo "${current}"; return 0; }
+  [[ "$(api_last_status)" == "200" ]] || { echo "${current}"; return 0; }
   api_put "${path}" "${text}" "$(jq -r '.document.revision' <<<"${current}")" "${source}"
 }

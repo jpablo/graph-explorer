@@ -91,7 +91,7 @@ assert_eq "${expected_allowed_root}" "${allowed_root_from_status}" "status allow
 
 echo "watch allowed path"
 allowed_json="$(api_watch "$(cd "${allowed_dir}" && pwd -P)/ok.dot")"
-assert_eq "200" "${API_HTTP_STATUS}" "allowed watch status"
+assert_eq "200" "$(api_last_status)" "allowed watch status"
 
 # The old gate also asserted that `gx` mapped this refusal to exit 4 with code
 # INVALID_REQUEST. That was a test of the CLI's error mapping, not of the

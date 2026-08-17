@@ -86,12 +86,12 @@ canonical_path="$(cd "$(dirname "${tmpfile}")" && pwd -P)/$(basename "${tmpfile}
 
 echo "watching file: ${canonical_path}"
 watch_json="$(api_watch "${canonical_path}")"
-assert_eq "200" "${API_HTTP_STATUS}" "watch status"
+assert_eq "200" "$(api_last_status)" "watch status"
 watch_revision="$(jq -r '.watch.revision' <<<"${watch_json}")"
 assert_eq "1" "${watch_revision}" "watch revision"
 
 get_initial="$(api_get "${canonical_path}")"
-assert_eq "200" "${API_HTTP_STATUS}" "get status"
+assert_eq "200" "$(api_last_status)" "get status"
 initial_revision="$(jq -r '.document.revision' <<<"${get_initial}")"
 assert_eq "1" "${initial_revision}" "initial revision"
 
@@ -122,7 +122,7 @@ assert_file_content_eq "${ui_text}" "${canonical_path}" "ui write file content"
 echo "writing through the control API (source=cli)"
 cli_text=$'digraph G {\n  c -> d\n}\n'
 set_json="$(api_set "${canonical_path}" "${cli_text}" cli)"
-assert_eq "200" "${API_HTTP_STATUS}" "cli write status"
+assert_eq "200" "$(api_last_status)" "cli write status"
 cli_revision="$(jq -r '.document.revision' <<<"${set_json}")"
 assert_eq "3" "${cli_revision}" "cli write revision"
 assert_file_content_eq "${cli_text}" "${canonical_path}" "cli write file content"
