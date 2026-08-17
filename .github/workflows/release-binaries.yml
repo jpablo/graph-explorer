@@ -255,19 +255,54 @@ jobs:
           Remove-Item "$HOME/.graph-explorer/runtime/control.json" -ErrorAction SilentlyContinue
           Remove-Item "$HOME/.graph-explorer/runtime/control.sock" -ErrorAction SilentlyContinue
 
-          $desktopProc = Start-Process -FilePath $desktop -PassThru
+          # The desktop's own output is captured, because the previous run failed
+          # here with "did not become ready" and NOTHING else: the readiness loop
+          # swallowed every exception, so a bind failure, a crash and a slow
+          # start were indistinguishable. Same lesson as the helper's
+          # `2>/dev/null` — the evidence was being discarded by the thing whose
+          # job was to report it.
+          $outLog = Join-Path $env:TEMP "gx-desktop-out.log"
+          $errLog = Join-Path $env:TEMP "gx-desktop-err.log"
+          $desktopProc = Start-Process -FilePath $desktop -PassThru `
+            -RedirectStandardOutput $outLog -RedirectStandardError $errLog
           try {
             $ready = $false
+            $lastError = "(never attempted)"
             for ($i = 0; $i -lt 120; $i++) {
+              # A dead process will never become ready. Waiting the full 30s for
+              # one that exited in the first 200ms tells you nothing.
+              if ($desktopProc.HasExited) { break }
               if (Test-Path $control) {
                 try {
                   $status = Invoke-Control "status" @{}
                   if ($status.ok -and $status.result.running) { $ready = $true; break }
-                } catch { }
+                  $lastError = "answered but not running: $($status | ConvertTo-Json -Compress)"
+                } catch { $lastError = $_.Exception.Message }
+              } else {
+                $lastError = "control file not written yet"
               }
               Start-Sleep -Milliseconds 250
             }
-            if (-not $ready) { throw "desktop control channel did not become ready" }
+            if (-not $ready) {
+              Write-Host "--- why the control channel never came up ---"
+              Write-Host "desktop exited : $($desktopProc.HasExited)"
+              if ($desktopProc.HasExited) { Write-Host "exit code      : $($desktopProc.ExitCode)" }
+              Write-Host "last error     : $lastError"
+              $runtimeDir = Join-Path $HOME ".graph-explorer/runtime"
+              Write-Host "runtime dir    : $runtimeDir"
+              if (Test-Path $runtimeDir) {
+                # Get-ChildItem rather than Test-Path on the socket: an AF_UNIX
+                # socket on Windows is a reparse point, and Test-Path's answer
+                # for one is not something to bet a diagnosis on.
+                Get-ChildItem $runtimeDir -Force | ForEach-Object { Write-Host "  $($_.Name)  $($_.Length)" }
+              } else { Write-Host "  (absent)" }
+              if (Test-Path $control) { Write-Host "control.json   : $(Get-Content $control -Raw)" }
+              foreach ($log in @($outLog, $errLog)) {
+                Write-Host "--- $log ---"
+                if (Test-Path $log) { Get-Content $log | ForEach-Object { Write-Host "  $_" } }
+              }
+              throw "desktop control channel did not become ready"
+            }
 
             # The credential is gone from the design (D4), and this is the file
             # that used to carry it.
