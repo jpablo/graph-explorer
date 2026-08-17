@@ -191,7 +191,12 @@ lazy val viewer =
   project
     .in(file("viewer"))
     .enablePlugins(ScalaJSPlugin, DynVerPlugin, BuildInfoPlugin)
-    .dependsOn(shared.js, graphviz.js) // M8: pure-Scala graphviz backend (flagged)
+    // gxCore.js is here for `gx-core/command` (D7.1): the command vocabulary has
+    // to be the SAME vocabulary the UI executes, or the RPC path and the menus
+    // become two implementations that drift. Only the shared half exists on JS —
+    // gx-core has no JS sources of its own — so this links the pure model and
+    // the commands, not the filesystem layer, which D3 keeps out of the webview.
+    .dependsOn(shared.js, graphviz.js, gxCore.js) // M8: pure-Scala graphviz backend (flagged)
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,

@@ -765,7 +765,28 @@ Remaining in P6, in the order they should land:
    through closures. D7.1 is explicit that undo/redo, the audit log and replay
    all fall out of this and none are cheap to retrofit.
 2. **Expose the document tier via `gx`** — `gx run <command> [json]` over a
-   file, headless.
+   file, headless. **Blocked on a gap D2.3 assumes is already closed.** D2.3
+   says "command and query implementations use the parser directly" rather than
+   taking the 91ms layout path. There is no such path: `DotParser.parse` yields
+   graphviz's own AST, and the only DOT→`ViewerGraph` converter in the tree
+   (`vizjs/simplegraph/toViewerGraph`) consumes `dot_json`, **which is produced
+   by a full `dot` layout**. The viewer never noticed because it renders
+   anyway; `gx` would notice immediately, since answering "what nodes exist"
+   would cost a layout.
+
+   Two ways out, and they differ a lot in size:
+
+   - **Write the layout-free path**: AST → `ViewerGraph`, covering attributes,
+     clusters, `node [...]`/`edge [...]` defaults and ports. It then has to
+     *agree* with the `dot_json` path or the UI and `gx` would read different
+     graphs from the same file — a V-13-shaped contract, needing the same
+     treatment (shared fixtures, both sides asserted), and the corpus is right
+     there to cross-test against.
+   - **Take the layout path for now**, and record that D2.3 is unmet. Correct
+     results, ~91ms on a 500-edge graph instead of ~8.5ms. Cheap and
+     reversible.
+
+   Not decided here.
 3. **The record tier**, over the library store: `hide`, `collapse`, `tag`,
    `move-to-folder`. Note D7.3 asserts the store IS the live state, with UI
    edits debounced into the record continuously — that is asserted, not built,
