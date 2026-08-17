@@ -538,13 +538,26 @@ library — the hazard `ProjectsStorage` already carries guards for.
 
 **P1 is complete.** 96 tests in `gx-core`; full build green at 1956.
 
-**P2 — Content-addressed revisions (D1).** BLAKE3 in place of the counter.
-Removes the watch-registry-as-store coupling; `gx get` works on unwatched paths.
-Cross-test the hash and canonicalization contract against the Rust side (§4).
+**P2 — Content-addressed revisions (D1). ◐ Half done, and the other half is
+not yet needed.** `gx-core` is content-addressed throughout (SHA-256, not
+BLAKE3 — see P1). The desktop still keeps v1's in-memory integer counter behind
+its HTTP API, and that is fine for now precisely because nothing bridges them:
+the Rust `gx` is retired, so no client speaks both. **V-13's cross-language
+contract test becomes necessary at P4/P5**, when the desktop starts sharing
+files with `gx-core` rather than owning them. 
 
-**P3 — `gx` rewritten in Scala (D2, D5).** File commands go through `gx-core`
-directly; `gx watch` gains a stdout change stream. Retire the Rust `gx`. V-09,
-V-13, V-14.
+**P3 — `gx` rewritten in Scala (D2, D5). ✅ DONE, and the Rust `gx` is
+retired.** Verified as a native binary on all three platforms: a parse-only
+command costs 3.5–9.0ms cold against the JVM jar's 512ms, and every command
+except `open` runs with no desktop.
+
+Retiring the Rust crate turned out to be five smoke gates, three workflows and
+the Makefile, because it was also the DESKTOP's only test client. The gates now
+drive the control API directly through `scripts/lib/control-api.sh` — one
+encoder for URL-carried paths, guarded by both the spaced-path case and a
+stubbed self-test that runs without a desktop. All three platforms green.
+
+`gx open` reports `NeedsDesktop` and says the channel lands in P5. 
 
 **P4 — IPC bridge, token removed from the page (D3).** Tauri commands; strip
 `port`/`token` from event payloads; update `Viewer.scala`. V-11, V-12.
