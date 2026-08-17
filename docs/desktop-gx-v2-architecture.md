@@ -682,33 +682,44 @@ protocol three independent implementations, which is what made the `id` bug
 findable. All five gates pass; V-10's disk→UI median is 75 ms against a 300 ms
 budget (72 ms over HTTP — the same, within noise).
 
-**Cross-platform status: the transport holds on all three.** Linux and macOS
-pass the full gate — runtime smoke, disk→UI, native `gx`. On Windows the
-desktop **binds the socket and stays up**: the readiness probe reported
-`desktop exited : False` alongside a client-side type error, which is only
-possible if `uds_windows` bound successfully and the desktop was serving. D4's
-one-transport decision is therefore confirmed where it was least certain.
+**✅ Verified on all three platforms.** Linux, macOS and Windows pass the full
+gate — runtime smoke, `gx open` over the socket, and (on the two that run it)
+disk→UI. D4's one-transport decision is confirmed exactly where it was least
+certain: `uds_windows` binds, and the frames cross.
 
-Getting that answer took four CI runs, and three of them were spent on the
-gate rather than on the thing under test:
+It took six CI runs, and **five were spent on the gate rather than on the thing
+under test**:
 
 | run | died at | actually wrong |
 |---|---|---|
 | 1 | self-test | `${2:-{\}}` — bash 3.2 keeps the backslash; only `status` defaulted |
 | 2 | self-test | CPython has no `AF_UNIX` on Windows (the OS does; the interpreter does not) |
 | 3 | runtime smoke | `catch { }` — a bind failure, a crash and a slow start were indistinguishable |
-| 4 | *reported the cause* | `$chunk[0..($n-1)]` on a `byte[]` yields `System.Object[]`; `List[byte].AddRange` rejects it |
+| 4 | *reported the cause* | `$chunk[0..($n-1)]` on a `byte[]` is `System.Object[]`; `List[byte].AddRange` rejects it |
+| 5 | assertion 4 of ~8 | the gate compared an **uncanonicalized input** to a **canonicalized output** |
+| 6 | — | green |
 
-The pattern is worth naming because it repeated three times: **every failure was
-the harness discarding the evidence it existed to collect** — a swallowed
-traceback, a swallowed exception, an outcome code that mapped a client crash
-onto "the server said no". None of them were the socket. The instrumented run
-that finally printed the exit code, the runtime listing and the desktop's own
-output answered in one attempt what three attempts of guessing had not.
+Two of those are worth keeping as findings rather than as history.
 
-Also worth recording: a plausible hypothesis was checked and discarded before
-being "fixed". P5 deleted `find_open_port`, which had been the only thing
-initializing Winsock, so `uds_windows` might have been calling `socket()` before
+**Every failure but the last was the harness discarding the evidence it existed
+to collect** — a swallowed traceback, a swallowed exception, an outcome code
+that mapped a client crash onto "the server said no". The one instrumented run
+that printed the exit code, the runtime listing and the desktop's own output
+answered in a single attempt what three attempts of guessing had not.
+
+**Run 5 was V-13 working, misread as a defect.** `$env:TEMP` on the runner is
+the 8.3 short name (`C:\Users\RUNNER~1\…`) and the desktop canonicalized it to
+the real one. The replacement assertion is stronger than the one it removed: it
+now checks that `watch` and `get-document` **resolve the same way** whatever
+spelling they were handed, and that the canonical spelling reaches the same
+registry entry as the short one — which is precisely what v1 broke, where
+`watch` succeeded and `get` returned 400 for five months. The runner's short
+name handed us a second spelling of one file, for free, on the platform where it
+mattered.
+
+Also recorded: a plausible hypothesis was checked and discarded rather than
+"fixed". P5 deleted `find_open_port`, which had been the only thing initializing
+Winsock, so `uds_windows` might have been calling `socket()` before
 `WSAStartup`. Reading the vendored crate showed it calls `init()` itself on the
 bind and connect paths. Patching on suspicion would have added a confusing no-op
 and left the real cause standing.
