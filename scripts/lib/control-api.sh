@@ -44,6 +44,9 @@ api_last_status() { cat "${API_STATUS_FILE}" 2>/dev/null || echo ""; }
 # Read port and token from the runtime file. Returns 1 if it is absent or
 # incomplete, which is the ordinary "no desktop yet" case, not an error.
 control_load() {
+  # Plain `jq` on purpose: the runtime file is a real FILE argument, and MSYS's
+  # path conversion is what turns `/c/Users/...` into something jq.exe can open.
+  # Only ARGUMENTS THAT ARE DATA need _jq.
   [[ -f "${CONTROL_RUNTIME_FILE}" ]] || return 1
   CONTROL_PORT="$(jq -r '.port // empty' "${CONTROL_RUNTIME_FILE}" 2>/dev/null || true)"
   CONTROL_TOKEN="$(jq -r '.token // empty' "${CONTROL_RUNTIME_FILE}" 2>/dev/null || true)"
@@ -73,11 +76,23 @@ control_wait_ready() {
   return 1
 }
 
+# jq, with MSYS path mangling turned off.
+#
+# git-bash rewrites arguments that LOOK like POSIX paths into Windows paths
+# before handing them to a native Windows binary, and jq.exe is one: `/tmp/a.dot`
+# arrives as `C:/Users/RUNNER~1/AppData/Local/Temp/a.dot`. Windows-shaped paths
+# are left alone, so the gates would not have hit it today — the encoder would
+# simply have behaved differently on one platform, for one spelling of a path,
+# silently. That is the exact shape of the bug this file exists to prevent.
+_jq() {
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' jq "$@"
+}
+
 # Percent-encode for a query value. `@uri` escapes everything outside the
 # unreserved set, including `/`, `:`, `\` and spaces — which is exactly what the
 # desktop's decoder expects, and exactly what v1's did not handle.
 _api_uri_escape() {
-  jq -rn --arg v "$1" '$v|@uri'
+  _jq -rn --arg v "$1" '$v|@uri'
 }
 
 # $1 method, $2 path-with-query, $3 optional JSON body.
@@ -116,11 +131,11 @@ api_status() { _api_call GET /v1/status; }
 # and it is the asymmetry that hid the decoding bug, which is why the URL form
 # has exactly one encoder above.
 api_watch() {
-  _api_call POST /v1/watch "$(jq -n --arg path "$1" '{path: $path, openInUi: true}')"
+  _api_call POST /v1/watch "$(_jq -n --arg path "$1" '{path: $path, openInUi: true}')"
 }
 
 api_unwatch() {
-  _api_call POST /v1/unwatch "$(jq -n --arg path "$1" '{path: $path}')"
+  _api_call POST /v1/unwatch "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
 api_get() {
@@ -129,7 +144,7 @@ api_get() {
 
 # $1 path, $2 text, $3 baseRevision, $4 source (default "cli").
 api_put() {
-  _api_call PUT /v1/document "$(jq -n \
+  _api_call PUT /v1/document "$(_jq -n \
     --arg path "$1" --arg text "$2" --argjson baseRevision "$3" --arg source "${4:-cli}" \
     '{path: $path, text: $text, baseRevision: $baseRevision, source: $source}')"
 }
