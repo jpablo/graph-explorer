@@ -2,6 +2,14 @@ package org.jpablo.graphexplorer.gx
 
 import org.jpablo.graphexplorer.gxcore.fs.*
 import org.jpablo.graphexplorer.gxcore.model.*
+import org.jpablo.graphexplorer.gxcore.command.{
+  CommandCodec,
+  CommandError,
+  CommandResult,
+  DiagramText,
+  DocumentCommand,
+  DocumentCommands
+}
 import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 
 import java.nio.file.{Path, Paths}
@@ -39,9 +47,11 @@ object Cli:
       |  gx unbind <ref>
       |  gx sync [<ref>] [--all] [--json]       reconcile with origins
       |  gx watch [<ref>...] [--all] [--json]   stream changes to stdout
+      |  gx run <ref> <command> [--params J]    run a document command / query
       |  gx open <ref>                          show it in the desktop
       |
       |  M = detached | pull | push | sync      (default: pull)
+      |  gx run --list                          the commands `run` accepts
       |
       |Everything except `open` works with no desktop running.
       |""".stripMargin
@@ -79,6 +89,7 @@ object Cli:
       case "unbind" => unbind(args, env)
       case "sync"   => sync(args, env)
       case "watch"  => watch(args, env)
+      case "run"    => runCommand(args, env)
       case "open"   => open(args, env)
       case other =>
         env.err(s"gx: unknown command '$other'\n")
@@ -224,43 +235,52 @@ object Cli:
     textFrom(args, env) match
       case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
       case Right(text) =>
-        withTarget(args, env): target =>
-          target match
-            case Target.OnDisk(path, _) => writeFile(path, text, args, env, source = "cli")
-            case Target.InLibrary(d) =>
-              val updated = d.copy(text = text, updatedAt = env.now())
-              d.binding.filter(b => b.mode.pushes) match
-                case None =>
-                  // Local-only by mode: Pull keeps UI/CLI edits in the store and
-                  // never writes them back (§5.3). Saving the record is the
-                  // whole operation, and the divergence it creates is reported
-                  // by `gx sync` rather than resolved behind the user's back.
-                  env.store.save(updated) match
-                    case Left(e)  => env.err(s"gx: $e"); ExitCode.Unknown
-                    case Right(_) => reportSet(updated, wroteOrigin = false, args, env); ExitCode.Ok
-                case Some(binding) =>
-                  binding.origin.filePath.map(Paths.get(_)) match
-                    case None =>
-                      env.err(s"gx: cannot write to ${binding.origin.value}")
-                      ExitCode.InvalidPathOrPolicy
-                    case Some(path) =>
-                      Documents.write(path, text, binding.baseHash) match
-                        case Left(DocumentError.Conflict(_, expected, actual)) =>
-                          conflict(path.toString, expected, actual, env)
-                        case Left(err) =>
-                          env.err(s"gx: ${describe(err)}")
-                          ExitCode.InvalidPathOrPolicy
-                        case Right(doc) =>
-                          val synced = updated.copy(
-                            text = doc.text,
-                            binding = Some(binding.copy(baseHash = doc.hash, lastSyncAt = env.now()))
-                          )
-                          env.store.save(synced) match
-                            case Left(e) => env.err(s"gx: $e"); ExitCode.Unknown
-                            case Right(_) =>
-                              env.audit.record(AuditEvent.Written(path.toString, doc.hash, "cli"))
-                              reportSet(synced, wroteOrigin = true, args, env)
-                              ExitCode.Ok
+        withTarget(args, env)(applyText(_, text, args, env, source = "cli"))
+
+  /** Write new text to whatever the reference turned out to mean.
+    *
+    * Shared by `set` and `run` rather than copied: a command that rewrites the
+    * diagram has to land the same way a hand-written `set` does — same
+    * compare-and-swap, same mode rules, same audit line — or "the same edit"
+    * would mean two different things depending on how it was expressed.
+    */
+  private def applyText(target: Target, text: String, args: Args, env: CliEnv, source: String): Int =
+    target match
+      case Target.OnDisk(path, _) => writeFile(path, text, args, env, source)
+      case Target.InLibrary(d) =>
+        val updated = d.copy(text = text, updatedAt = env.now())
+        d.binding.filter(b => b.mode.pushes) match
+          case None =>
+            // Local-only by mode: Pull keeps UI/CLI edits in the store and
+            // never writes them back (§5.3). Saving the record is the whole
+            // operation, and the divergence it creates is reported by
+            // `gx sync` rather than resolved behind the user's back.
+            env.store.save(updated) match
+              case Left(e)  => env.err(s"gx: $e"); ExitCode.Unknown
+              case Right(_) => reportSet(updated, wroteOrigin = false, args, env); ExitCode.Ok
+          case Some(binding) =>
+            binding.origin.filePath.map(Paths.get(_)) match
+              case None =>
+                env.err(s"gx: cannot write to ${binding.origin.value}")
+                ExitCode.InvalidPathOrPolicy
+              case Some(path) =>
+                Documents.write(path, text, binding.baseHash) match
+                  case Left(DocumentError.Conflict(_, expected, actual)) =>
+                    conflict(path.toString, expected, actual, env)
+                  case Left(err) =>
+                    env.err(s"gx: ${describe(err)}")
+                    ExitCode.InvalidPathOrPolicy
+                  case Right(doc) =>
+                    val synced = updated.copy(
+                      text = doc.text,
+                      binding = Some(binding.copy(baseHash = doc.hash, lastSyncAt = env.now()))
+                    )
+                    env.store.save(synced) match
+                      case Left(e) => env.err(s"gx: $e"); ExitCode.Unknown
+                      case Right(_) =>
+                        env.audit.record(AuditEvent.Written(path.toString, doc.hash, source))
+                        reportSet(synced, wroteOrigin = true, args, env)
+                        ExitCode.Ok
 
   private def writeFile(path: Path, text: String, args: Args, env: CliEnv, source: String): Int =
     checkPolicy(path, env) match
@@ -464,6 +484,124 @@ object Cli:
           .render()
       )
     else env.out(s"$kind\t${uri.value}")
+
+  // ---------------------------------------------------------------- run
+
+  /** The document tier over a file (D7.2), headless.
+    *
+    * The same vocabulary the UI executes — `gx-core/command` defines it once and
+    * this is the second of its three callers (D7.1). A mutation lands exactly
+    * the way `gx set` lands text, through `applyText`, so "the same edit"
+    * cannot mean two things depending on how it was expressed.
+    */
+  private def runCommand(args: Args, env: CliEnv): Int =
+    if args.has("list") then
+      // Discoverability is part of the vocabulary being a vocabulary: a name
+      // nobody can enumerate is not addressable in any useful sense.
+      if args.json then env.out(ujson.Arr.from(DocumentCommand.names.map(ujson.Str(_))).render(indent = 2))
+      else DocumentCommand.names.foreach(env.out)
+      ExitCode.Ok
+    else
+      (args.positionalAt(0), args.positionalAt(1)) match
+        case (Some(_), Some(commandName)) =>
+          paramsFrom(args, env) match
+            case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
+            case Right(params) =>
+              CommandCodec.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
+                case Left(CommandError.UnknownCommand(name)) =>
+                  env.err(s"gx: unknown command '$name'")
+                  env.err(s"gx: try one of: ${DocumentCommand.names.mkString(", ")}")
+                  ExitCode.Usage
+                case Left(error) =>
+                  env.err(s"gx: ${error.message}")
+                  ExitCode.Usage
+                case Right(command) =>
+                  withTarget(args, env)(execute(_, command, args, env))
+        case _ =>
+          env.err("gx: run needs a diagram and a command")
+          env.err(s"gx: commands: ${DocumentCommand.names.mkString(", ")}")
+          ExitCode.Usage
+
+  private def execute(target: Target, command: DocumentCommand, args: Args, env: CliEnv): Int =
+    textOf(target, env) match
+      case Left(code) => code
+      case Right(text) =>
+        DiagramText.parse(text) match
+          case Left(why) =>
+            env.err(s"gx: $why")
+            ExitCode.InvalidPathOrPolicy
+          case Right(graph) =>
+            DocumentCommands.run(graph, command) match
+              case Left(error) =>
+                // A refusal is the desktop-less equivalent of a greyed-out menu
+                // item, and exit 4 is what the CLI already uses for "this
+                // reference is not usable".
+                env.err(s"gx: ${error.message}")
+                ExitCode.InvalidPathOrPolicy
+
+              case Right(CommandResult.Answered(value)) =>
+                // A query never writes. This is the reason D4's channel is
+                // request/response at all — "list the nodes" has an answer, and
+                // no amount of watched state expresses one.
+                printAnswer(value, args, env)
+                ExitCode.Ok
+
+              case Right(CommandResult.Updated(updated)) =>
+                applyText(target, DiagramText.render(updated), args, env, source = "command")
+
+  /** JSON for a machine, columns for a person — the same split `ls` makes.
+    *
+    * A query's answer is a `ujson.Value` because it crosses a wire, but a human
+    * running `gx run x list-nodes` wants what `ls` gives them, not a JSON
+    * document to read past.
+    */
+  private def printAnswer(value: ujson.Value, args: Args, env: CliEnv): Unit =
+    val rows = value.arrOpt.toVector.flatten.flatMap(_.objOpt)
+    if args.json || rows.isEmpty || !rows.forall(_.contains("ref")) then
+      env.out(value.render(indent = 2))
+    else
+      for row <- rows do
+        val ref = row.get("ref").flatMap(_.strOpt).getOrElse("")
+        // `filterNot` rather than `- "ref"`: a ujson.Obj is backed by a MUTABLE
+        // map, whose `-` is deprecated because it mutates in place. Removing a
+        // key from the answer while printing it would be a fine way to make the
+        // JSON and column forms disagree about what a row contains.
+        val rest = row.toVector
+          .filterNot((k, _) => k == "ref")
+          // A null is the JSON form's way of saying "absent", and the column
+          // form should say it by leaving the column out — `label=null` on every
+          // unlabelled node is noise, and this listing is the one a person reads.
+          .filterNot((_, v) => v.isNull)
+          .map((k, v) => s"$k=${v.strOpt.getOrElse(v.render())}")
+        env.out(if rest.isEmpty then ref else f"$ref%-28s ${rest.mkString("  ")}")
+
+  private def textOf(target: Target, env: CliEnv): Either[Int, String] =
+    target match
+      case Target.InLibrary(d) => Right(d.text)
+      case Target.OnDisk(path, _) =>
+        Documents.read(path) match
+          case Right(doc) => Right(doc.text)
+          case Left(err) =>
+            env.err(s"gx: ${describe(err)}")
+            Left(ExitCode.InvalidPathOrPolicy)
+
+  /** Params as JSON, from a flag or from stdin.
+    *
+    * `--stdin` matches `gx set`'s convention, and it is not a nicety: a
+    * `set-attribute` carrying an HTML label, or a `group` over fifty nodes, is
+    * past what belongs on a command line and well past what a shell will quote
+    * correctly.
+    */
+  private def paramsFrom(args: Args, env: CliEnv): Either[String, ujson.Obj] =
+    val raw =
+      if args.has("stdin") then Some(env.stdin())
+      else args.value("params")
+    raw.map(_.trim).filter(_.nonEmpty) match
+      case None => Right(ujson.Obj())
+      case Some(text) =>
+        try
+          ujson.read(text).objOpt.map(ujson.Obj.from).toRight("params must be a JSON object")
+        catch case NonFatal(e) => Left(s"params is not valid JSON: ${e.getMessage}")
 
   // --------------------------------------------------------------- open
 

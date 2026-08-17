@@ -406,6 +406,137 @@ class CliSpec extends FunSuite:
     assert(r.stderr.contains("denied root"), r.stderr)
   }
 
+  // ----------------------------------------------------------------- run
+
+  /** The document tier, headless (D7.2). These are V-09's point restated for
+    * the command vocabulary: none of them needs a desktop.
+    */
+  tmp.test("run answers a query without touching the file") { dir =>
+    val f = dot(dir, "q.dot", "digraph G {\n  a -> b\n}\n")
+    val before = Files.readString(f)
+    val r = Run(dir)
+
+    assertEquals(r("run", "q.dot", "list-nodes", "--json"), ExitCode.Ok, r.stderr)
+    val answer = ujson.read(r.stdout).arr
+    assertEquals(answer.map(_("ref").str).toVector, Vector("node:a", "node:b"))
+    assertEquals(Files.readString(f), before, "a query must not rewrite the diagram")
+    assert(r.sent.isEmpty, "the document tier must not need the desktop")
+  }
+
+  tmp.test("run applies a mutation and writes it back") { dir =>
+    dot(dir, "m.dot", "digraph G {\n  a -> b\n}\n")
+    val r = Run(dir)
+    assertEquals(
+      r("run", "m.dot", "set-attribute", "--params",
+        """{"targets":["node:a"],"name":"color","value":"red"}"""),
+      ExitCode.Ok,
+      r.stderr
+    )
+    val text = Files.readString(dir.resolve("m.dot"))
+    assert(text.contains("color"), text)
+    assert(text.contains("red"), text)
+
+    // And the edit survives a re-read through the same path, which is the
+    // property that makes `run` composable at all.
+    val q = Run(dir)
+    assertEquals(q("run", "m.dot", "get-attributes", "--params", """{"targets":["node:a"]}"""), ExitCode.Ok, q.stderr)
+    assertEquals(ujson.read(q.stdout)("node:a")("color").str, "red")
+  }
+
+  tmp.test("run refuses an unknown command by name, and says what it knows") { dir =>
+    dot(dir, "u.dot")
+    val r = Run(dir)
+    assertEquals(r("run", "u.dot", "frobnicate"), ExitCode.Usage)
+    assert(r.stderr.contains("frobnicate"), r.stderr)
+    assert(r.stderr.contains("list-nodes"), s"should name the commands it does know: ${r.stderr}")
+  }
+
+  tmp.test("run refuses an element that does not exist, and leaves the file alone") { dir =>
+    val f = dot(dir, "g.dot", "digraph G {\n  a -> b\n}\n")
+    val before = Files.readString(f)
+    val r = Run(dir)
+    assertEquals(
+      r("run", "g.dot", "set-attribute", "--params",
+        """{"targets":["node:ghost"],"name":"color","value":"red"}"""),
+      ExitCode.InvalidPathOrPolicy
+    )
+    assert(r.stderr.contains("node:ghost"), r.stderr)
+    assertEquals(Files.readString(f), before)
+  }
+
+  tmp.test("run reads params from stdin, for arguments a shell would mangle") { dir =>
+    dot(dir, "s.dot", "digraph G {\n  a -> b\n}\n")
+    val r = Run(dir, stdinText = """{"targets":["node:a"],"name":"label","value":"a \"quoted\" label"}""")
+    assertEquals(r("run", "s.dot", "set-attribute", "--stdin"), ExitCode.Ok, r.stderr)
+    assert(Files.readString(dir.resolve("s.dot")).contains("quoted"), Files.readString(dir.resolve("s.dot")))
+  }
+
+  /** `--params` has to be REGISTERED as a value flag, not merely used as one.
+    *
+    * Args treats an unregistered `--flag` as a switch on purpose — so a typo
+    * becomes an unknown switch instead of silently eating the next argument.
+    * Forgetting to register `params` therefore turned the JSON into a
+    * positional and produced "missing required 'targets'", which reads like a
+    * caller error rather than a parser one.
+    */
+  tmp.test("--params carries its value rather than becoming a switch") { dir =>
+    dot(dir, "p.dot", "digraph G {\n  a -> b\n}\n")
+    val r = Run(dir)
+    assertEquals(r("run", "p.dot", "get-attributes", "--params", """{"targets":["node:a"]}"""), ExitCode.Ok, r.stderr)
+    assert(ujson.read(r.stdout).obj.contains("node:a"), r.stdout)
+  }
+
+  /** A mutation REWRITES the file in canonical form.
+    *
+    * Pinned rather than hidden, because it is the surprising part: `gx run`
+    * goes text → graph → text, so the output is the printer's spelling —
+    * quoted ids, explicit node statements — and comments and hand formatting do
+    * not survive. `sources-and-library-architecture.md` §5.3's surgical text
+    * edits are the fix; until then this is what a mutation costs, and a test
+    * saying so beats a user discovering it on a file they cared about.
+    */
+  tmp.test("a mutation rewrites the file in canonical form (comments do not survive)") { dir =>
+    dot(dir, "c.dot", "digraph G {\n  // a comment worth keeping\n  a -> b\n}\n")
+    val r = Run(dir)
+    assertEquals(
+      r("run", "c.dot", "set-attribute", "--params", """{"targets":["node:a"],"name":"color","value":"red"}"""),
+      ExitCode.Ok,
+      r.stderr
+    )
+    val text = Files.readString(dir.resolve("c.dot"))
+    assert(text.contains("color"), text)
+    assert(!text.contains("a comment worth keeping"), s"the round trip is lossy — that is the known cost: $text")
+  }
+
+  tmp.test("a query prints columns for a person and JSON for a machine") { dir =>
+    dot(dir, "o.dot", "digraph G {\n  a -> b\n}\n")
+    val plain = Run(dir)
+    assertEquals(plain("run", "o.dot", "list-nodes"), ExitCode.Ok, plain.stderr)
+    assert(plain.stdout.contains("node:a"), plain.stdout)
+    assert(!plain.stdout.contains("\"ref\""), s"the default should not be JSON: ${plain.stdout}")
+
+    val json = Run(dir)
+    assertEquals(json("run", "o.dot", "list-nodes", "--json"), ExitCode.Ok, json.stderr)
+    ujson.read(json.stdout)
+  }
+
+  tmp.test("run --list enumerates the vocabulary") { dir =>
+    val r = Run(dir)
+    assertEquals(r("run", "--list"), ExitCode.Ok)
+    assert(r.stdout.contains("set-attribute"), r.stdout)
+    assert(r.stdout.contains("list-nodes"), r.stdout)
+  }
+
+  tmp.test("run on a mermaid diagram refuses rather than reading it as DOT") { dir =>
+    // The mermaid converter needs a scan produced by mermaid.js, which gx has
+    // no way to run. Silently treating a .mmd as DOT would be the worse answer.
+    val f = dir.resolve("m.mmd")
+    Files.writeString(f, "flowchart TD\n  a --> b\n")
+    val r = Run(dir)
+    assertEquals(r("run", "m.mmd", "list-nodes"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("mermaid"), r.stderr)
+  }
+
   // -------------------------------------------------------------- basics
 
   tmp.test("no arguments prints usage and exits non-zero") { dir =>

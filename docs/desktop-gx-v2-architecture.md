@@ -761,8 +761,8 @@ hashes are the same value — but the desktop does not yet use one as its
 revision. That is D1's remaining half, and it is now a small change rather than
 a contract negotiation.
 
-**P6 — Command vocabulary (D7). ◐ Started: the document tier is named,
-serializable and interpreted.** `gx-core/command` holds `ElementRef`,
+**P6 — Command vocabulary (D7). ◐ Two of four parts done: the document tier is
+named, serializable, interpreted, executed by the UI, and exposed by `gx`.** `gx-core/command` holds `ElementRef`,
 `DocumentCommand` (twelve names), `CommandCodec`, and `DocumentCommands` — the
 interpreter, delegating to the `Ops` modules that already exist. Pure, in
 `gx-core/shared`, so all three hosts can link it.
@@ -801,29 +801,37 @@ Remaining in P6, in the order they should land:
    regression surface: 89 `Command(...)` sites in `Commands.scala` call `Ops`
    through closures. D7.1 is explicit that undo/redo, the audit log and replay
    all fall out of this and none are cheap to retrofit.
-2. **Expose the document tier via `gx`** — `gx run <command> [json]` over a
-   file, headless. **Blocked on a gap D2.3 assumes is already closed.** D2.3
-   says "command and query implementations use the parser directly" rather than
-   taking the 91ms layout path. There is no such path: `DotParser.parse` yields
+2. **Expose the document tier via `gx`. ✅ DONE** — `gx run <ref> <command>
+   [--params J | --stdin]`, plus `gx run --list`. Headless: none of it needs a
+   desktop.
+
+   **D2.3 is knowingly unmet, and this is where it is paid.** D2.3 says command
+   and query implementations use the parser directly rather than taking the
+   91ms layout path. There is no such path to take: `DotParser.parse` yields
    graphviz's own AST, and the only DOT→`ViewerGraph` converter in the tree
    (`vizjs/simplegraph/toViewerGraph`) consumes `dot_json`, **which is produced
-   by a full `dot` layout**. The viewer never noticed because it renders
-   anyway; `gx` would notice immediately, since answering "what nodes exist"
-   would cost a layout.
+   by a full `dot` layout**. The viewer never noticed because it lays out
+   anyway. Results are correct; a query costs ~91ms on a 500-edge graph where it
+   should cost ~9ms. Closing it means writing AST→`ViewerGraph` and then proving
+   it *agrees* with this path — a V-13-shaped contract, with the corpus
+   available to cross-test — and is worth doing when the 80ms starts to matter.
+   `DiagramText` is the one place that would change.
 
-   Two ways out, and they differ a lot in size:
+   **A mutation rewrites the file in canonical form.** The path is text → graph
+   → text, so the output is the printer's spelling — quoted ids, explicit node
+   statements — and comments and hand formatting do not survive.
+   `sources-and-library-architecture.md` §5.3's surgical text edits are the
+   real fix; D2 already names them as the reason `gx` needs the parser at all.
+   Pinned by a test that asserts a comment is lost, so nobody discovers it on a
+   file they cared about.
 
-   - **Write the layout-free path**: AST → `ViewerGraph`, covering attributes,
-     clusters, `node [...]`/`edge [...]` defaults and ports. It then has to
-     *agree* with the `dot_json` path or the UI and `gx` would read different
-     graphs from the same file — a V-13-shaped contract, needing the same
-     treatment (shared fixtures, both sides asserted), and the corpus is right
-     there to cross-test against.
-   - **Take the layout path for now**, and record that D2.3 is unmet. Correct
-     results, ~91ms on a 500-edge graph instead of ~8.5ms. Cheap and
-     reversible.
+   **Mermaid is refused, not mis-parsed.** Its converter needs a scan produced
+   by mermaid.js, which the viewer has and `gx` does not, so there is no Mermaid
+   parse on the JVM at all. Treating a `.mmd` as DOT would be the worse answer.
 
-   Not decided here.
+   A mutation lands through the same `applyText` that `gx set` uses — same
+   compare-and-swap, same mode rules, same audit line — so "the same edit"
+   cannot mean two things depending on how it was expressed.
 3. **The record tier**, over the library store: `hide`, `collapse`, `tag`,
    `move-to-folder`. Note D7.3 asserts the store IS the live state, with UI
    edits debounced into the record continuously — that is asserted, not built,

@@ -24,7 +24,7 @@ object Args:
     * the text and write nothing.
     */
   private val ValueFlags =
-    Set("mode", "folder", "name", "text", "base", "interval")
+    Set("mode", "folder", "name", "text", "base", "interval", "params")
 
   def parse(raw: Vector[String]): Either[String, Args] =
     def loop(
