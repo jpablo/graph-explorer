@@ -39,6 +39,31 @@ check() {
 
 echo "=== control-api self-test ==="
 
+# CPython does not expose AF_UNIX on Windows.
+#
+# Windows itself has supported it since 1803 — that is the whole basis of P5's
+# one-transport decision, and the desktop and `gx` both speak it there. It is
+# CPython specifically that has never surfaced the constant, so this file's
+# subject (control-client.py, used by the POSIX gates) cannot run on Windows at
+# all.
+#
+# That makes skipping honest rather than a dodge: on Windows the gates reach the
+# socket through .NET's UnixDomainSocketEndPoint in the pwsh runtime smoke, which
+# drives the same frames over the same socket with real Windows paths. The one
+# thing this file uniquely covers — the helper's own outcome plumbing — is bash
+# code that behaves the same everywhere, and its one platform-sensitive bug (the
+# `${2:-{\}}` default) is now asserted by content rather than by success.
+#
+# Loudly, and with a zero exit: a gate that quietly does nothing is worse than
+# one that is absent.
+if ! python3 -c "import socket; socket.AF_UNIX" >/dev/null 2>&1; then
+  echo "  SKIP  python3 has no AF_UNIX on this platform (Windows: CPython, not the OS)."
+  echo "        The socket is covered here by the pwsh runtime smoke, which uses .NET."
+  echo
+  echo "control-api self-test: SKIPPED"
+  exit 0
+fi
+
 # --- the framing, against a real socket --------------------------------------
 # A stub server that echoes the request back inside a success frame. Real
 # AF_UNIX, real newline framing, no desktop: this is what makes the awkward
