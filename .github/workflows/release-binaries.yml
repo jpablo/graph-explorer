@@ -337,9 +337,29 @@ jobs:
             if (-not $watch.ok) { throw "watch failed: $($watch.error.message)" }
             if ($watch.result.revision -ne 1) { throw "watch revision: $($watch.result.revision)" }
 
+            # The desktop answers with the CANONICAL path, which on this runner
+            # is not the one we sent: $env:TEMP is the 8.3 short name
+            # (C:\Users\RUNNER~1\...) and canonicalization resolves it to the
+            # real one (C:\Users\runneradmin\...). That is V-13 working, not a
+            # defect — so the assertion is that both calls RESOLVE THE SAME WAY,
+            # not that the desktop echoes back what it was handed.
+            $canonical = $watch.result.path
+            if (-not $canonical) { throw "watch did not report a path" }
+
             $doc = Invoke-Control "get-document" @{ path = $tmp }
             if ($doc.result.document.revision -ne 1) { throw "get revision: $($doc.result.document.revision)" }
-            if ($doc.result.document.path -ne $tmp) { throw "path came back changed: $($doc.result.document.path)" }
+            if ($doc.result.document.path -ne $canonical) {
+              throw "watch and get disagree: '$canonical' vs '$($doc.result.document.path)'"
+            }
+
+            # And the stronger form of the same property, which is the one v1
+            # actually broke: the CANONICAL spelling must reach the same registry
+            # entry as the short one. A mangled path is how `watch` succeeded and
+            # `get` returned 400 for five months.
+            $viaCanonical = Invoke-Control "get-document" @{ path = $canonical }
+            if ($viaCanonical.result.document.revision -ne 1) {
+              throw "the canonical path missed the watch registry: $($viaCanonical | ConvertTo-Json -Compress)"
+            }
 
             $put = Invoke-Control "put-document" `
               @{ path = $tmp; text = "digraph G {`n  b -> c`n}`n"; baseRevision = 1; source = "cli" }
