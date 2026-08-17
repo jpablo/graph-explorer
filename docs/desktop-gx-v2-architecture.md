@@ -482,7 +482,7 @@ they can be, as `gx-core` unit tests unless marked otherwise.
 |---|---|
 | V-01 | A write with a stale base hash is rejected, and the file on disk is unmodified |
 | V-02 | A write that succeeds is atomic: a concurrent reader sees old or new bytes, never partial |
-| V-03 | A write preserves the target's existing permission bits (fixes `main.rs:1076`) |
+| V-03 | A write preserves the target's existing permission bits (fixed in `gx-core`'s `AtomicFiles.write` and in the desktop's `write_file_atomic`) |
 | V-04 | A write preserves the file's dominant line ending |
 | V-05 | A self-write never produces a change notification |
 | V-06 | A deleted watched file produces an actionable event, not silence |
@@ -491,7 +491,7 @@ they can be, as `gx-core` unit tests unless marked otherwise.
 | V-09 | Every non-display `gx` command succeeds with no desktop running (integration) |
 | V-10 | Disk → UI median stays under 300ms (existing smoke harness, unchanged) |
 | V-11 | The webview holds no credential: no token in any IPC payload or event (integration) |
-| V-12 | A save whose UI window is gone reports its true outcome (fixes `main.rs:1038`) |
+| V-12 | A save whose UI window is gone reports its true outcome (fixed in `put_document_snapshot`) |
 | V-13 | Scala and Rust agree on canonicalization and content hash for a shared fixture set — spaces, non-ASCII, symlinks, case variants, Windows UNC (cross-language, the §4 contract) |
 | V-14 | `gx` parse cost — cold start *minus* the machine's process-spawn baseline — stays under 20ms, at any graph size. Gated on the difference because the absolute is dominated by the host (D2.1a) |
 | V-15 | A document or record command issued by `gx` with no desktop running succeeds, and is reflected in the UI when a desktop is later started (D7.3) |
@@ -602,10 +602,22 @@ are the enumerated surface P6 routes the command vocabulary through. The UI has
 no open-a-local-file gesture yet, so wiring them now would be inventing a
 feature, not finishing this one.
 
-Still outstanding on this path, and NOT fixed here because it is V-03 rather
-than P4: `write_file_atomic` chmods every saved file to 0600
-(`main.rs`, `set_owner_only_permissions` on the target). `gx-core` fixed this
-in P1; the desktop's own writer has not.
+**V-03, deferred out of P4 and since closed.** `write_file_atomic` chmod'ed
+every saved file to 0600, so one save turned a group-readable diagram in a
+shared checkout into an owner-only one. It is fixed the way `gx-core` fixed it
+in P1 — the temp file takes the target's bits *before* the rename, so the move
+carries them and there is no moment where the real file is 0600.
+
+Two halves, and the second is where a naive fix goes wrong. A file that does not
+exist yet has no bits to preserve, so it must land on the user's umask default
+rather than on the temp file's owner-only mode — which would be the same
+surprise wearing a different hat. The default is *read* rather than guessed: it
+is whatever mode the OS just gave the freshly created temp. That in turn is why
+a stale temp is removed first, since `fs::write` truncates rather than
+recreates and would otherwise hand back a crashed run's mode as the probe.
+
+All three cases fail if the old `set_owner_only_permissions(&target)` is put
+back, which is how they were checked.
 
 **P5 — Socket replaces HTTP (D4). ✅ DONE.** The control channel is a unix
 socket carrying newline-delimited JSON. The token, the HTTP server, and four

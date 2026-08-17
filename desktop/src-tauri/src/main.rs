@@ -1231,12 +1231,85 @@ fn write_file_atomic(path: &str, text: &str) -> Result<()> {
             .unwrap_or("graph-explorer")
     );
     let temp_path = parent.join(temp_name);
+
+    // A stale temp from a crashed write would be REUSED by `fs::write`, which
+    // truncates rather than recreates — and keeps whatever mode it already had.
+    // That matters below, where the freshly created temp's mode is read as the
+    // umask probe.
+    let _ = fs::remove_file(&temp_path);
+
     fs::write(&temp_path, text)
         .with_context(|| format!("failed to write temporary file {}", temp_path.display()))?;
+
+    // What a new file should end up as: whatever the OS just gave the temp,
+    // which is `0666 & ~umask` — the user's own default, read rather than
+    // guessed. Captured BEFORE the temp is locked down below.
+    let created_mode = file_mode(&temp_path);
+
+    // Owner-only while it sits in the directory as a temp. This is a small
+    // window (the next two calls), and it is not a security boundary — the
+    // directory is the user's own — but a half-written diagram has no business
+    // being readable by anyone the finished one would not be.
     set_owner_only_permissions(&temp_path)?;
+
+    // V-03. The bits the target already has, applied to the temp so the RENAME
+    // carries them — rather than chmod'ing after the fact, which would leave a
+    // moment where the real file is 0600.
+    //
+    // v1 did not do this at all: it chmod'ed the target to 0600 on every save,
+    // so one save silently turned a group-readable diagram in a shared checkout
+    // into an owner-only one. Nobody asked for that and nobody would look for
+    // it. `gx-core` fixed the same bug in P1 (`AtomicFiles.write`); this is the
+    // desktop's own writer finally agreeing with it.
+    apply_intended_permissions(&target, &temp_path, created_mode)?;
+
     fs::rename(&temp_path, &target)
         .with_context(|| format!("failed to move temporary file into {}", target.display()))?;
-    set_owner_only_permissions(&target)?;
+    Ok(())
+}
+
+/// Permission bits only.
+///
+/// `mode()` returns the raw `st_mode`, file-type bits (`S_IFREG`) included.
+/// `chmod` happens to ignore those, so passing them through would work — and
+/// would be a fact about the platform rather than about the code. Masked to
+/// `0o7777` rather than `0o777` so setgid survives: on a shared group checkout
+/// it is the bit most likely to be deliberate, and V-03 says *the target's
+/// existing bits*, not most of them.
+#[cfg(unix)]
+fn file_mode(path: &Path) -> Option<u32> {
+    use std::os::unix::fs::PermissionsExt;
+    fs::metadata(path)
+        .ok()
+        .map(|meta| meta.permissions().mode() & 0o7777)
+}
+
+#[cfg(not(unix))]
+fn file_mode(_path: &Path) -> Option<u32> {
+    None
+}
+
+/// Give `temp` the mode the finished file should have: the target's, if it
+/// exists, and otherwise the umask default `created_mode` was probed from.
+///
+/// Best effort by design. A filesystem that cannot express POSIX bits must not
+/// fail a save over it — the write is the operation, the mode is a property of
+/// it.
+#[cfg(unix)]
+fn apply_intended_permissions(target: &Path, temp: &Path, created_mode: Option<u32>) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let intended = file_mode(target).or(created_mode);
+    if let Some(mode) = intended {
+        let _ = fs::set_permissions(temp, fs::Permissions::from_mode(mode));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn apply_intended_permissions(_target: &Path, _temp: &Path, _created_mode: Option<u32>) -> Result<()> {
+    // Windows has no POSIX bits to preserve, which is also why the Windows
+    // smoke gate does not assert this one.
     Ok(())
 }
 
@@ -1766,6 +1839,103 @@ mod tests {
             log.contains("UI notification failed"),
             "the notification failure should be audited: {log}"
         );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    fn mode_of(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt;
+        fs::metadata(path).expect("metadata").permissions().mode() & 0o7777
+    }
+
+    /// V-03. v1 chmod'ed every file it wrote to 0600, so a single save turned a
+    /// group-readable diagram in a shared checkout into an owner-only one — a
+    /// change nobody asked for, and one you would only notice via someone
+    /// else's permission error.
+    #[cfg(unix)]
+    #[test]
+    fn a_write_preserves_the_targets_permission_bits() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = temp_dir_for("v03");
+        let file = dir.join("shared.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).expect("chmod 0644");
+
+        write_file_atomic(&file.to_string_lossy(), "digraph { a -> b }").expect("write");
+
+        assert_eq!(mode_of(&file), 0o644, "the target's bits must survive the save");
+        assert_eq!(
+            fs::read_to_string(&file).expect("readable"),
+            "digraph { a -> b }"
+        );
+
+        // A less common mode, so the test cannot pass by coincidentally matching
+        // the umask default.
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o664)).expect("chmod 0664");
+        write_file_atomic(&file.to_string_lossy(), "digraph { c }").expect("write");
+        assert_eq!(mode_of(&file), 0o664);
+
+        // setgid: the bit most likely to be deliberate on a shared checkout, and
+        // the one a `& 0o777` mask would quietly drop.
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o2664)).expect("chmod 2664");
+        if mode_of(&file) == 0o2664 {
+            write_file_atomic(&file.to_string_lossy(), "digraph { d }").expect("write");
+            assert_eq!(mode_of(&file), 0o2664, "setgid must survive the save");
+        }
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The other half of V-03, and the one a naive fix gets wrong: a file that
+    /// does not exist yet has no bits to preserve, so it must land on the
+    /// user's umask default — NOT on the temp file's owner-only mode, which
+    /// would be the same surprise wearing a different hat.
+    #[cfg(unix)]
+    #[test]
+    fn a_new_file_lands_on_the_umask_default() {
+        let dir = temp_dir_for("v03-new");
+
+        // The reference is what a plain write produces in this very directory,
+        // so the assertion holds under any umask the test happens to run with.
+        let reference = dir.join("reference.dot");
+        fs::write(&reference, "x").expect("reference file");
+
+        let created = dir.join("created.dot");
+        write_file_atomic(&created.to_string_lossy(), "digraph { a }").expect("write");
+
+        assert_eq!(mode_of(&created), mode_of(&reference));
+        assert_ne!(
+            mode_of(&created),
+            0o600,
+            "a new file must not inherit the temp file's owner-only mode"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A leftover temp from a crashed write must not decide the new file's
+    /// mode: `fs::write` truncates rather than recreates, so a stale 0600 temp
+    /// would have been silently reused as the umask probe.
+    #[cfg(unix)]
+    #[test]
+    fn a_stale_temp_file_does_not_infect_the_new_mode() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = temp_dir_for("v03-stale");
+        let target = dir.join("a.dot");
+        let stale = dir.join(".a.dot.tmp");
+        fs::write(&stale, "leftover").expect("stale temp");
+        fs::set_permissions(&stale, fs::Permissions::from_mode(0o600)).expect("chmod");
+
+        let reference = dir.join("reference.dot");
+        fs::write(&reference, "x").expect("reference file");
+
+        write_file_atomic(&target.to_string_lossy(), "digraph { a }").expect("write");
+
+        assert_eq!(mode_of(&target), mode_of(&reference));
+        assert!(!stale.exists(), "the temp must not be left beside the target");
 
         let _ = fs::remove_dir_all(&dir);
     }
