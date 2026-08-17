@@ -761,9 +761,11 @@ hashes are the same value — but the desktop does not yet use one as its
 revision. That is D1's remaining half, and it is now a small change rather than
 a contract negotiation.
 
-**P6 — Command vocabulary (D7). ◐ Three of four parts done. Both headless tiers
-are named, serializable, interpreted and exposed by `gx`; the UI executes the
-document tier. Only the session tier is left.** `gx-core/command` holds `ElementRef`,
+**P6 — Command vocabulary (D7). ✅ All three tiers done.** One vocabulary,
+defined once in `gx-core/command` over `shared/`'s ops, with three callers as
+D7.1 requires: the UI executes the document tier, `gx run` exposes both headless
+tiers, and `gx session` reaches the live view over the socket. A test asserts the
+three tiers' names are disjoint rather than assuming it. `gx-core/command` holds `ElementRef`,
 `DocumentCommand` (twelve names), `CommandCodec`, and `DocumentCommands` — the
 interpreter, delegating to the `Ops` modules that already exist. Pure, in
 `gx-core/shared`, so all three hosts can link it.
@@ -868,16 +870,43 @@ Remaining in P6, in the order they should land:
    live update are the same path" describes an intention rather than the code.
    D8's deferred "unsaved UI drafts" is the other half of the same question.
 
-4. **The session tier over the socket**, extending the `show` verb P5 landed.
+4. **The session tier. ✅ DONE** — `gx session <command>`: `select`,
+   `add-to-selection`, `clear-selection`, `reset-view`, `what-is-selected`.
 
-P1–P3 deliver the headless story. P4–P5 deliver the security story. P6 opens the
-RPC work. If everything stops after P3, `gx` is already fixed and nothing is
-worse than today.
+   **Structurally unlike the other two, and that is the interesting part.**
+   Document and Record commands are interpreted where they arrive. A session
+   command is *relayed*: the Rust shell holds the socket but knows nothing about
+   diagrams (D2.5), and the webview knows everything about them but holds no
+   capability (D3) — so the shell forwards the frame as a `ge:session.command`
+   event carrying a request id, waits, and the page answers through a
+   `session_reply` Tauri command that the shell correlates back to the socket
+   client. Five seconds, then `SESSION_TIMEOUT`.
 
-With P5 done, §2's table has no third row left to worry about: the webview holds
-no credential because there is no credential. What remains is P6 — and the one
-piece of P2 that P5 makes due, V-13's cross-language contract, now that `gx` and
-the desktop both speak about the same files over the same channel.
+   **This makes the webview a server, for one tier, without giving it
+   anything.** It answers a question its own host asked and returns a value —
+   strictly less than the ambient HTTP credential D3 removed, and it still
+   cannot initiate. §8's first open question ("does the display channel need to
+   be bidirectional?") is now answered yes, and by the thing that forced it:
+   `what-is-selected` has no answer any other way.
+
+   No `<ref>` argument, deliberately — a session command acts on what is *on
+   screen*, which the desktop already knows. Naming a diagram would be asking
+   about something that may not be the thing displayed.
+
+   **A bug the unit tests could not have found.** The listener was installed
+   inside `diagramView`, so with the app on its library route nothing was
+   listening: a client waited out the full five seconds to be told "the page did
+   not answer". True and useless — the real answer is "nothing is open", which
+   the page can give instantly, and only if it is listening. It now installs at
+   startup and answers in ~23 ms with `NO_SESSION`, which `gx` reports as exit 2
+   for the same reason "no desktop" is: the caller's next move is to open
+   something. Every unit test had a diagram, because a test that sets one up is
+   the natural one to write.
+
+   **Not verified with a diagram actually on screen.** The happy path needs the
+   GUI navigated to a diagram, which no headless gate can do — the same limit
+   P4's IPC bridge has. The refusal paths, the vocabulary, the codec and the
+   relay's timeout are covered; `select` against a live diagram is not.
 
 ---
 

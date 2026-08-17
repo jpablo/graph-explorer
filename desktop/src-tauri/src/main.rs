@@ -73,6 +73,7 @@ fn health() -> &'static str {
 #[derive(Clone)]
 struct IpcState {
     access_policy: AccessPolicy,
+    pending_sessions: PendingSessions,
     audit_logger: AuditLogger,
     watch_registry: WatchRegistry,
     watch_controllers: WatchControllers,
@@ -204,6 +205,24 @@ type WatchControllers = Arc<Mutex<HashMap<String, WatchController>>>;
 /// identity at all.
 type RecentWriteHashes = Arc<Mutex<HashMap<String, String>>>;
 
+/// Session requests awaiting the page's answer, by id.
+///
+/// The session tier is the only one the shell cannot answer itself (D2.5: it
+/// knows nothing about diagrams), so a request is parked here while the webview
+/// runs it. The channel is how the socket thread waits without holding a lock.
+type PendingSessions = Arc<Mutex<HashMap<u64, std::sync::mpsc::Sender<SessionOutcome>>>>;
+
+#[derive(Debug, Clone)]
+struct SessionOutcome {
+    ok: bool,
+    result: serde_json::Value,
+    /// The page's own code, so "nothing is open" reaches the caller as
+    /// `NO_SESSION` rather than as a generic failure it would have to read the
+    /// prose to recognise.
+    code: String,
+    message: String,
+}
+
 #[derive(Debug, Clone)]
 struct AccessPolicy {
     allowed_roots: Vec<PathBuf>,
@@ -261,6 +280,7 @@ fn main() {
     let watch_registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
     let watch_controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
     let recent_write_hashes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+    let pending_sessions: PendingSessions = Arc::new(Mutex::new(HashMap::new()));
 
     // The registries are Arcs, so the webview's IPC verbs and the socket's RPC
     // operate on the same state — two front doors, one house. Neither carries a
@@ -268,6 +288,7 @@ fn main() {
     // the socket by its file permissions (D4).
     let ipc_state = IpcState {
         access_policy: access_policy.clone(),
+        pending_sessions: pending_sessions.clone(),
         audit_logger: audit_logger.clone(),
         watch_registry: watch_registry.clone(),
         watch_controllers: watch_controllers.clone(),
@@ -288,6 +309,7 @@ fn main() {
 
                 spawn_control_server(
                     access_policy.clone(),
+                    pending_sessions.clone(),
                     request_limits.clone(),
                     audit_logger.clone(),
                     rate_limiter.clone(),
@@ -316,7 +338,8 @@ fn main() {
             health,
             open_document,
             save_document,
-            list_documents
+            list_documents,
+            session_reply
         ])
         .run(tauri::generate_context!())
         .expect("error while running graph explorer desktop");
@@ -654,6 +677,7 @@ struct DocumentChangedEventPayload {
 ///   arriving mangled) cannot recur: a path is a JSON string.
 fn spawn_control_server(
     access_policy: AccessPolicy,
+    pending_sessions: PendingSessions,
     request_limits: RequestLimits,
     audit_logger: AuditLogger,
     rate_limiter: RequestRateLimiter,
@@ -694,6 +718,7 @@ fn spawn_control_server(
             // on the accept loop would let one idle client block every other.
             let context = ConnectionContext {
                 access_policy: access_policy.clone(),
+                pending_sessions: pending_sessions.clone(),
                 request_limits: request_limits.clone(),
                 audit_logger: audit_logger.clone(),
                 rate_limiter: rate_limiter.clone(),
@@ -715,6 +740,7 @@ fn spawn_control_server(
 #[derive(Clone)]
 struct ConnectionContext {
     access_policy: AccessPolicy,
+    pending_sessions: PendingSessions,
     request_limits: RequestLimits,
     audit_logger: AuditLogger,
     rate_limiter: RequestRateLimiter,
@@ -1022,6 +1048,11 @@ fn dispatch_method(
             }
         }
 
+        "session" => match run_session_command(context, params) {
+            Ok(value) => RpcResponse::success(id, value),
+            Err((code, message)) => RpcResponse::failure(id, code, message),
+        },
+
         other => RpcResponse::failure(id, "UNKNOWN_METHOD", format!("unknown method '{other}'")),
     }
 }
@@ -1055,6 +1086,130 @@ fn status_body(context: &ConnectionContext) -> StatusBody {
         max_body_bytes: context.request_limits.max_body_bytes,
         rate_limit_max_requests: context.request_limits.rate_limit_max_requests,
         rate_limit_window_ms: context.request_limits.rate_limit_window.as_millis() as u64,
+    }
+}
+
+/// How long to wait for the page to answer a session command.
+///
+/// Generous enough that a busy render does not look like a failure, short
+/// enough that a wedged page does not hang a socket client indefinitely — the
+/// failure mode that matters, since a CLI with no timeout is a CLI that has to
+/// be killed.
+const SESSION_TIMEOUT: Duration = Duration::from_secs(5);
+
+static SESSION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+/// Relay a session command to the webview and wait for its answer.
+///
+/// This is the one place the shell is a MIDDLEMAN rather than an implementer.
+/// D2.5 keeps it diagram-ignorant and D3 keeps the page capability-free, so a
+/// question about the live view has to cross both boundaries: the shell knows
+/// who asked and how to answer them, the page knows what the answer is.
+fn run_session_command(
+    context: &ConnectionContext,
+    params: serde_json::Value,
+) -> std::result::Result<serde_json::Value, (&'static str, String)> {
+    let command = params
+        .get("command")
+        .and_then(|v| v.as_str())
+        .ok_or(("INVALID_REQUEST", "a session call needs a 'command'".to_string()))?;
+
+    let id = SESSION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let (sender, receiver) = std::sync::mpsc::channel::<SessionOutcome>();
+
+    match context.pending_sessions.lock() {
+        Ok(mut pending) => {
+            pending.insert(id, sender);
+        }
+        Err(err) => return Err(("INTERNAL", format!("session registry lock poisoned: {err}"))),
+    }
+
+    // Registered BEFORE the page is told, so a reply that arrives immediately
+    // still finds somewhere to go.
+    let mut frame = params.clone();
+    if let Some(object) = frame.as_object_mut() {
+        object.insert("id".to_string(), serde_json::json!(id));
+    }
+    let script = match serde_json::to_string(&frame) {
+        Ok(json) => format!(
+            "window.dispatchEvent(new CustomEvent('ge:session.command', {{ detail: {json} }}));"
+        ),
+        Err(err) => {
+            forget_session(context, id);
+            return Err(("INTERNAL", err.to_string()));
+        }
+    };
+
+    let windows = context.app_handle.webview_windows();
+    if windows.is_empty() {
+        forget_session(context, id);
+        // The session tier's defining limit, reported as itself: there is no
+        // live view, so there is no answer — not an empty one.
+        return Err((
+            "NO_SESSION",
+            format!("'{command}' needs a window, and the desktop has none open"),
+        ));
+    }
+    for webview in windows.values() {
+        if let Err(err) = webview.eval(&script) {
+            forget_session(context, id);
+            return Err(("SESSION_FAILED", format!("could not reach the page: {err}")));
+        }
+    }
+
+    let outcome = receiver.recv_timeout(SESSION_TIMEOUT);
+    forget_session(context, id);
+
+    match outcome {
+        Ok(outcome) if outcome.ok => Ok(outcome.result),
+        Ok(outcome) => Err((
+            match outcome.code.as_str() {
+                "NO_SESSION" => "NO_SESSION",
+                "INVALID_REQUEST" => "INVALID_REQUEST",
+                _ => "SESSION_FAILED",
+            },
+            outcome.message,
+        )),
+        Err(_) => Err((
+            "SESSION_TIMEOUT",
+            format!("the page did not answer '{command}' within {SESSION_TIMEOUT:?}"),
+        )),
+    }
+}
+
+/// Drop a pending request whatever happened, so a timed-out or failed call does
+/// not leave an entry that a late reply could match.
+fn forget_session(context: &ConnectionContext, id: u64) {
+    if let Ok(mut pending) = context.pending_sessions.lock() {
+        pending.remove(&id);
+    }
+}
+
+/// The page's answer to a session command.
+///
+/// A Tauri command rather than anything the page can reach on its own: it can
+/// only ANSWER a question the shell asked, and an id nobody is waiting for is
+/// dropped. That keeps the inversion honest — the webview serves this tier
+/// without gaining the ability to initiate anything.
+#[tauri::command(rename_all = "camelCase")]
+fn session_reply(
+    state: tauri::State<'_, IpcState>,
+    id: u64,
+    ok: bool,
+    result: Option<serde_json::Value>,
+    code: Option<String>,
+    message: Option<String>,
+) {
+    let outcome = SessionOutcome {
+        ok,
+        result: result.unwrap_or(serde_json::Value::Null),
+        code: code.unwrap_or_else(|| "SESSION_FAILED".to_string()),
+        message: message.unwrap_or_else(|| "the page reported a failure".to_string()),
+    };
+    if let Ok(mut pending) = state.pending_sessions.lock() {
+        if let Some(sender) = pending.remove(&id) {
+            let _ = sender.send(outcome);
+        }
     }
 }
 

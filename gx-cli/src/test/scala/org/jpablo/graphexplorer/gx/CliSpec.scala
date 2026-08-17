@@ -628,6 +628,58 @@ class CliSpec extends FunSuite:
     assert(r.stdout.contains("move-to-folder"), r.stdout) // record
   }
 
+  // -------------------------------------------------------- session tier
+
+  tmp.test("session sends the command and prints the query's answer") { dir =>
+    val r = Run(dir, answer = (_, _) => Right(ujson.Arr(ujson.Str("node:a"), ujson.Str("node:b"))))
+    assertEquals(r("session", "what-is-selected"), ExitCode.Ok, r.stderr)
+    assertEquals(r.sent.head._1, "session")
+    assertEquals(r.sent.head._2("command").str, "what-is-selected")
+    assert(r.stdout.contains("node:a"), r.stdout)
+  }
+
+  tmp.test("session select carries its targets") { dir =>
+    val r = Run(dir, answer = (_, _) => Right(ujson.Null))
+    assertEquals(r("session", "select", "--params", """{"targets":["node:a"]}"""), ExitCode.Ok, r.stderr)
+    assertEquals(r.sent.head._2("params")("targets").arr.map(_.str).toVector, Vector("node:a"))
+  }
+
+  tmp.test("an empty selection says so rather than printing nothing") { dir =>
+    val r = Run(dir, answer = (_, _) => Right(ujson.Arr()))
+    assertEquals(r("session", "what-is-selected"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains("nothing selected"), r.stdout)
+  }
+
+  tmp.test("session without a desktop exits 2, like open") { dir =>
+    val r = Run(dir)
+    assertEquals(r("session", "what-is-selected"), ExitCode.NeedsDesktop)
+    assert(r.stderr.contains("needs one"), r.stderr)
+  }
+
+  /** A desktop with no diagram on screen is the tier's defining limit, and the
+    * caller's next move is the same as for no desktop at all: open something.
+    */
+  tmp.test("a desktop with nothing open exits 2 as well") { dir =>
+    val r = Run(dir, answer = (_, _) =>
+      Left(ChannelError.Rpc("NO_SESSION", "'select' needs a window, and the desktop has none open", ujson.Obj()))
+    )
+    assertEquals(r("session", "select", "--params", """{"targets":["node:a"]}"""), ExitCode.NeedsDesktop)
+    assert(r.stderr.contains("needs a window"), r.stderr)
+  }
+
+  tmp.test("a headless command typed at `session` points at the right verb") { dir =>
+    val r = Run(dir)
+    assertEquals(r("session", "list-nodes"), ExitCode.Usage)
+    assert(r.stderr.contains("gx run"), s"should redirect to the headless verb: ${r.stderr}")
+  }
+
+  tmp.test("session --list enumerates the live-view commands only") { dir =>
+    val r = Run(dir)
+    assertEquals(r("session", "--list"), ExitCode.Ok)
+    assert(r.stdout.contains("what-is-selected"), r.stdout)
+    assert(!r.stdout.contains("set-attribute"), s"that is a headless command: ${r.stdout}")
+  }
+
   // -------------------------------------------------------------- basics
 
   tmp.test("no arguments prints usage and exits non-zero") { dir =>

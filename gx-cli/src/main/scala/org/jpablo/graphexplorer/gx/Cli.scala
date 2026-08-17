@@ -10,6 +10,8 @@ import org.jpablo.graphexplorer.gxcore.command.{
   DocumentCommand,
   DocumentCommands,
   RecordCommand,
+  SessionCodec,
+  SessionCommand,
   RecordCommands,
   RecordResult
 }
@@ -51,6 +53,7 @@ object Cli:
       |  gx sync [<ref>] [--all] [--json]       reconcile with origins
       |  gx watch [<ref>...] [--all] [--json]   stream changes to stdout
       |  gx run <ref> <command> [--params J]    a document or record command
+      |  gx session <command> [--params J]      act on the LIVE view (needs a desktop)
       |  gx open <ref>                          show it in the desktop
       |
       |  M = detached | pull | push | sync      (default: pull)
@@ -92,7 +95,8 @@ object Cli:
       case "unbind" => unbind(args, env)
       case "sync"   => sync(args, env)
       case "watch"  => watch(args, env)
-      case "run"    => runCommand(args, env)
+      case "run"     => runCommand(args, env)
+      case "session" => sessionCommand(args, env)
       case "open"   => open(args, env)
       case other =>
         env.err(s"gx: unknown command '$other'\n")
@@ -645,6 +649,80 @@ object Cli:
         try
           ujson.read(text).objOpt.map(ujson.Obj.from).toRight("params must be a JSON object")
         catch case NonFatal(e) => Left(s"params is not valid JSON: ${e.getMessage}")
+
+  // ------------------------------------------------------------ session
+
+  /** The session tier (D7.2): the live view, so a running desktop is required.
+    *
+    * No `<ref>` argument, and that is the tier's whole shape rather than an
+    * omission — a session command acts on what is ON SCREEN, and the desktop
+    * already knows what that is. Naming a diagram here would be asking a
+    * question about a thing that may not be the thing being displayed.
+    */
+  private def sessionCommand(args: Args, env: CliEnv): Int =
+    if args.has("list") then
+      if args.json then env.out(ujson.Arr.from(SessionCommand.names.map(ujson.Str(_))).render(indent = 2))
+      else SessionCommand.names.foreach(env.out)
+      ExitCode.Ok
+    else
+      args.positionalAt(0) match
+        case None =>
+          env.err("gx: session needs a command")
+          env.err(s"gx: commands: ${SessionCommand.names.mkString(", ")}")
+          ExitCode.Usage
+        case Some(commandName) =>
+          paramsFrom(args, env) match
+            case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
+            case Right(params) =>
+              SessionCodec.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
+                case Left(CommandError.UnknownCommand(name)) =>
+                  env.err(s"gx: unknown session command '$name'")
+                  // The tiers are separate verbs, so naming the other one is
+                  // the difference between a dead end and a next step.
+                  if AnyCommand.names.contains(name) then
+                    env.err(s"gx: '$name' is a headless command — try:  gx run <ref> $name")
+                  else env.err(s"gx: try one of: ${SessionCommand.names.mkString(", ")}")
+                  ExitCode.Usage
+
+                case Left(error) =>
+                  env.err(s"gx: ${error.message}")
+                  ExitCode.Usage
+
+                case Right(command) =>
+                  env.rpc("session", SessionCodec.encode(command)) match
+                    case Right(result) =>
+                      if command.isQuery then printSessionAnswer(result, args, env)
+                      else env.out(command.name)
+                      ExitCode.Ok
+
+                    case Left(ChannelError.NoDesktop(_)) =>
+                      env.err("gx: no desktop is running, and the session tier needs one.")
+                      env.err("gx: (every `gx run` command works without it)")
+                      ExitCode.NeedsDesktop
+
+                    case Left(ChannelError.Rpc(code, message, _)) =>
+                      // NO_SESSION is "a desktop, but nothing on screen" — the
+                      // tier's defining limit, and worth the same exit code as
+                      // no desktop at all, since the caller's next move is the
+                      // same: open something.
+                      if code == "NO_SESSION" then
+                        env.err(s"gx: $message")
+                        ExitCode.NeedsDesktop
+                      else
+                        env.err(s"gx: the desktop refused it ($code): $message")
+                        ExitCode.InvalidPathOrPolicy
+
+                    case Left(ChannelError.Io(message)) =>
+                      env.err(s"gx: control channel error: $message")
+                      ExitCode.Unknown
+
+  private def printSessionAnswer(result: ujson.Value, args: Args, env: CliEnv): Unit =
+    if args.json then env.out(result.render(indent = 2))
+    else
+      result.arrOpt match
+        case Some(items) if items.isEmpty => env.out("(nothing selected)")
+        case Some(items)                  => items.flatMap(_.strOpt).foreach(env.out)
+        case None                         => env.out(result.render(indent = 2))
 
   // --------------------------------------------------------------- open
 

@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.projects.{ProjectStorage, ProjectsDirectoryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
-import org.jpablo.graphexplorer.viewer.desktop.DesktopBridge
+import org.jpablo.graphexplorer.viewer.desktop.{DesktopBridge, SessionCommands}
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window, URLSearchParams}
@@ -90,6 +90,12 @@ object Viewer:
               val newId = ProjectStorage.createProjectDirectoryEntry(PersistedDiagramState.defaultProjectName)
               router.navigateTo(Route.ProjectDetail(newId.value, Some(dot)))
 
+    // Before any route is chosen: a session client asking "what is selected"
+    // while the app sits on its library page deserves "nothing is open", not a
+    // timeout (D7.2 — the session tier's limit is the absence of a view, and
+    // that is an answer).
+    SessionCommands.install()
+
     Graphviz.build().foreach: (graphviz: Graphviz) =>
       dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)
       printBanner()
@@ -128,6 +134,9 @@ object Viewer:
         // Similarly track the left panel visibility state between diagrams
         state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
         DesktopBridge.attach(state)
+        // The session tier answers from HERE (D7.2): a socket client's "what is
+        // selected" has no answer anywhere else.
+        SessionCommands.attach(state)
 
         TopLevel(state, router, Commands(state, routerCmds), exampleName.map(exampleBanner(_, state, routerCmds)))
           .amend(onUnmountCallback(_ => viewOwner.killSubscriptions()))

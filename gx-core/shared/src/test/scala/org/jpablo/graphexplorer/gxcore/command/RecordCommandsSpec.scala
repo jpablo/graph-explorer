@@ -171,6 +171,36 @@ class RecordCommandsSpec extends FunSuite:
     assert(hide.exists(_.tier.headless))
     assert(list.exists(_.tier.headless))
 
+  test("the session tier's names are distinct from both headless tiers"):
+    // Three tiers, one vocabulary: a name may belong to exactly one of them, or
+    // `gx run` and `gx session` would disagree about what the user meant.
+    val headless = DocumentCommand.names.toSet ++ RecordCommand.names.toSet
+    val shared   = headless intersect SessionCommand.names.toSet
+    assertEquals(shared, Set.empty[String], s"claimed by more than one tier: $shared")
+
+  test("the session tier is the only one that is not headless"):
+    assertEquals(SessionCommand.tier, Tier.Session)
+    assert(!SessionCommand.tier.headless)
+    assert(DocumentCommand.tier.headless && RecordCommand.tier.headless)
+
+  test("every session command round-trips through the wire form"):
+    val commands = Vector(
+      SessionCommand.Select(Set(NodeId("a"), GroupId("g"))),
+      SessionCommand.AddToSelection(Set(ArrowId("e1"))),
+      SessionCommand.ClearSelection,
+      SessionCommand.ResetView,
+      SessionCommand.WhatIsSelected
+    )
+    for command <- commands do
+      assertEquals(SessionCodec.decode(SessionCodec.encode(command)), Right(command), command.name)
+
+  test("a session command shares the frame shape of every other tier"):
+    // The page receives `{command, params}` exactly as the socket does — one
+    // envelope for the whole system, so there is no second format to learn.
+    val frame = SessionCodec.encode(SessionCommand.Select(Set(NodeId("a"))))
+    assertEquals(frame("command").str, "select")
+    assertEquals(frame("params")("targets").arr.map(_.str).toVector, Vector("node:a"))
+
   test("an unknown name is refused by the combined vocabulary too"):
     assertEquals(
       AnyCommand.decode(ujson.Obj("command" -> "frobnicate", "params" -> ujson.Obj())),

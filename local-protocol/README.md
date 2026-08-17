@@ -98,6 +98,18 @@ longer be trusted.
 | `get-document` | `path` | `document` | document |
 | `put-document` | `path`, `text`, `baseRevision`, `source` | `document` | document |
 | `push-text` | `text` | `pushed` | session |
+| `session` | `command`, `params` | whatever the page answers | **session** |
+
+`session` is the only method the shell does not answer itself. It relays the
+frame to the webview as a `ge:session.command` event carrying a request id, and
+the page answers through the `session_reply` Tauri command; the shell correlates
+the id and replies on the socket. Five seconds, then `SESSION_TIMEOUT`. The page
+can refuse with `NO_SESSION` — "a desktop, but nothing on screen" — which is the
+session tier's defining limit rather than an error.
+
+That inverts the webview's usual role: for this one tier it is a *server*. It
+gains nothing by it, since it can only answer a question the shell asked and
+cannot initiate anything.
 
 `show` is `watch` plus raising the window — the same operation, not a parallel
 one, which is what keeps a diagram opened from the shell and one opened in the
@@ -113,7 +125,8 @@ occur here.
 
 `INVALID_REQUEST`, `UNKNOWN_METHOD`, `RATE_LIMITED`, `PAYLOAD_TOO_LARGE`,
 `WATCH_FAILED`, `UNWATCH_FAILED`, `DOCUMENT_READ_FAILED`,
-`DOCUMENT_WRITE_FAILED`, `DOCUMENT_CONFLICT`, `PUSH_FAILED`, `INTERNAL`.
+`DOCUMENT_WRITE_FAILED`, `DOCUMENT_CONFLICT`, `PUSH_FAILED`, `NO_SESSION`,
+`SESSION_FAILED`, `SESSION_TIMEOUT`, `INTERNAL`.
 
 ## Implementations
 
