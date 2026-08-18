@@ -384,15 +384,40 @@ class CliSpec extends FunSuite:
     assert(r.stderr.contains("blocked by denylist"), r.stderr)
   }
 
-  tmp.test("status reports what the desktop has open") { dir =>
+  tmp.test("status says what the desktop is WATCHING, not what it has open") { dir =>
+    // The number is the desktop's watch registry. It was labelled "open",
+    // which reads as "your diagram is on screen" — and an imported diagram is
+    // in neither set, so that wording turned D7.3 into an apparent bug report.
     val r = Run(
       dir,
       answer = (_, _) =>
         Right(ujson.Obj("running" -> true, "watches" -> ujson.Arr(ujson.Obj("path" -> "/tmp/a.dot"))))
     )
     assertEquals(r("status"), ExitCode.Ok, r.stderr)
-    assert(r.stdout.contains("running (1 open)"), r.stdout)
+    assert(r.stdout.contains("running (watching 1 file)"), r.stdout)
+    assert(!r.stdout.contains("open)"), r.stdout)
     assertEquals(r.sent.head._1, "status")
+  }
+
+  tmp.test("a desktop watching nothing says so, and does not say 0") { dir =>
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("running" -> true, "watches" -> ujson.Arr())))
+    assertEquals(r("status"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains("running (watching nothing)"), r.stdout)
+  }
+
+  tmp.test("the plural is a plural") { dir =>
+    val r = Run(
+      dir,
+      answer = (_, _) =>
+        Right(
+          ujson.Obj(
+            "running" -> true,
+            "watches" -> ujson.Arr(ujson.Obj("path" -> "/tmp/a.dot"), ujson.Obj("path" -> "/tmp/b.dot"))
+          )
+        )
+    )
+    assertEquals(r("status"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains("running (watching 2 files)"), r.stdout)
   }
 
   // -------------------------------------------------------------- policy

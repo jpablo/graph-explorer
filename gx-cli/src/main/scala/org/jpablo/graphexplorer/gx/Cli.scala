@@ -136,9 +136,23 @@ object Cli:
     else
       env.out(s"library:  ${env.store.root}")
       env.out(s"diagrams: ${diagrams.size} ($bound bound)")
-      if running then env.out(s"desktop:  running ($watches open)")
+      // NOT "open". This counts the desktop's WATCH registry, which only
+      // `open_document` (the UI) and the `watch`/`show` RPC ever add to —
+      // `gx import` touches neither. Saying "1 open" right after an import
+      // told the reader the desktop had their diagram when it did not, which
+      // is the one thing the number cannot mean.
+      if running then env.out(s"desktop:  running (${watching(watches)})")
       else env.out("desktop:  not running (only `gx open` needs it)")
     ExitCode.Ok
+
+  /** What the desktop is following on disk, phrased so it cannot be misread as
+    * what the desktop is displaying. Those are different sets: a watched file
+    * need not be on screen, and D7.3 means an imported diagram is on neither.
+    */
+  private def watching(n: Int): String =
+    if n == 0 then "watching nothing"
+    else if n == 1 then "watching 1 file"
+    else s"watching $n files"
 
   // ------------------------------------------------------------- import
 
