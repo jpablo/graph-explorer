@@ -761,73 +761,6 @@ hashes are the same value — but the desktop does not yet use one as its
 revision. That is D1's remaining half, and it is now a small change rather than
 a contract negotiation.
 
-**P7 — The store is the live state (D7.3). ✅ DONE in the desktop.** `gx import`
-puts a diagram in the library the UI reads, and a headless `gx run hide` arrives
-as a hidden node — with no message sent, which is the decision's whole point.
-
-Four commands in the shell (`library_list/read/write/delete`) over
-`~/.graph-explorer/library/diagrams`, plus a poll that emits `ge:library.changed`
-when the directory moves for a reason the page did not cause. The shell moves
-RAW JSON and never parses a `Diagram`: the schema is gx-core's, linked into both
-`gx` and the page, and a Rust mirror of it would be a third implementation free
-to drift (V-13's lesson, applied before it could happen again). The id →
-file-name rule moved to `shared` as `DiagramFileName` for the same reason; the
-shell is instead given a question it can answer alone — can this name escape the
-directory?
-
-In the viewer, `DiagramLibrary` is the surface `ProjectStorage` **already had**
-— it compiled as an implementation with no changes at all, so the web path still
-runs its own code, guards included. `DesktopLibrary` mirrors the library in
-memory so reads stay synchronous, debounces writes (a file write per keystroke
-would rewrite the whole diagram through an IPC hop) and flushes on pagehide and
-blur, since batching is also a way to lose the last edits. A save merges onto
-the record **as it stands now**, so a `gx run tag` landing mid-edit survives.
-
-**V-15 is asserted**, in both halves: imported while the app was closed, and
-imported while it was open.
-
-**Verified in a real window** (2026-08-17, macOS). `gx import tmp/sbt-modules.dot`
-appeared in a running app; `gx open` raised it; then three `gx run hide/unhide`
-commands toggled a node on screen with nothing sent over the socket. The audit
-log is the receipt — one page re-read per command, each inside the 400ms poll,
-and **no write-back**:
-
-```
-22:37:10 unhide  ->  22:37:11.116  library.list
-22:37:17 hide    ->  22:37:17.179  library.list
-22:37:23 unhide  ->  22:37:23.248  library.list
-```
-
-That last column is what closed the loop no unit test could: the shell noticed a
-change it had not caused, the page re-read, and derived state (the "1 hidden"
-badge, the hidden-neighbour counts) re-derived itself from a record another
-process wrote.
-
-The same run also settled a hedge. The no-op write guard had been described as
-defensive; the audit log from the PREVIOUS build shows `library.list` at
-`22:22:16.491` followed by `library.write` at `22:22:16.905` — one debounce
-window later. The page was re-reading an external change and writing it straight
-back, bumping `updatedAt` on every `gx` command. The new build does not.
-Measuring beat reasoning about it.
-
-Two things this phase learned the hard way:
-
-- **The watcher echoed the page's own saves back at it, but only with two or
-  more diagrams.** It compared the whole directory signature against the
-  recent-write map and required every record to match, so an untouched
-  neighbour always dragged the answer to "external". Invisible with one
-  diagram. Extracting the decision out of the thread — the V-12 move, again —
-  is what exposed it.
-- **Real records omit their defaults.** upickle writes no key for a defaulted
-  field, so a real `metadata` carries only what was set.
-  `local-protocol/fixtures/library-record.json` is a record the actual CLI
-  produced, and both languages read it.
-
-What is still not true: the **web** library remains `localStorage`, necessarily
-— a browser has no disk and no `gx` to share one with. Migration is one-time and
-non-destructive, so a desktop user keeps a browser copy as a fallback and the
-two libraries diverge from that point on.
-
 **P6 — Command vocabulary (D7). ✅ All three tiers done.** One vocabulary,
 defined once in `gx-core/command` over `shared/`'s ops, with three callers as
 D7.1 requires: the UI executes the document tier, `gx run` exposes both headless
@@ -886,6 +819,9 @@ Remaining in P6, in the order they should land:
    it *agrees* with this path — a V-13-shaped contract, with the corpus
    available to cross-test — and is worth doing when the 80ms starts to matter.
    `DiagramText` is the one place that would change.
+
+   **Scoped as P8**, below, after P7 made it start to matter: headless commands
+   now reach a live window, so `gx run` is a plausible thing to call in a loop.
 
    **A mutation rewrites the file in canonical form.** The path is text → graph
    → text, so the output is the printer's spelling — quoted ids, explicit node
@@ -969,6 +905,157 @@ Remaining in P6, in the order they should land:
    GUI navigated to a diagram, which no headless gate can do — the same limit
    P4's IPC bridge has. The refusal paths, the vocabulary, the codec and the
    relay's timeout are covered; `select` against a live diagram is not.
+
+**P7 — The store is the live state (D7.3). ✅ DONE in the desktop.** `gx import`
+puts a diagram in the library the UI reads, and a headless `gx run hide` arrives
+as a hidden node — with no message sent, which is the decision's whole point.
+
+Four commands in the shell (`library_list/read/write/delete`) over
+`~/.graph-explorer/library/diagrams`, plus a poll that emits `ge:library.changed`
+when the directory moves for a reason the page did not cause. The shell moves
+RAW JSON and never parses a `Diagram`: the schema is gx-core's, linked into both
+`gx` and the page, and a Rust mirror of it would be a third implementation free
+to drift (V-13's lesson, applied before it could happen again). The id →
+file-name rule moved to `shared` as `DiagramFileName` for the same reason; the
+shell is instead given a question it can answer alone — can this name escape the
+directory?
+
+In the viewer, `DiagramLibrary` is the surface `ProjectStorage` **already had**
+— it compiled as an implementation with no changes at all, so the web path still
+runs its own code, guards included. `DesktopLibrary` mirrors the library in
+memory so reads stay synchronous, debounces writes (a file write per keystroke
+would rewrite the whole diagram through an IPC hop) and flushes on pagehide and
+blur, since batching is also a way to lose the last edits. A save merges onto
+the record **as it stands now**, so a `gx run tag` landing mid-edit survives.
+
+**V-15 is asserted**, in both halves: imported while the app was closed, and
+imported while it was open.
+
+**Verified in a real window** (2026-08-17, macOS). `gx import tmp/sbt-modules.dot`
+appeared in a running app; `gx open` raised it; then three `gx run hide/unhide`
+commands toggled a node on screen with nothing sent over the socket. The audit
+log is the receipt — one page re-read per command, each inside the 400ms poll,
+and **no write-back**:
+
+```
+22:37:10 unhide  ->  22:37:11.116  library.list
+22:37:17 hide    ->  22:37:17.179  library.list
+22:37:23 unhide  ->  22:37:23.248  library.list
+```
+
+That last column is what closed the loop no unit test could: the shell noticed a
+change it had not caused, the page re-read, and derived state (the "1 hidden"
+badge, the hidden-neighbour counts) re-derived itself from a record another
+process wrote.
+
+The same run also settled a hedge. The no-op write guard had been described as
+defensive; the audit log from the PREVIOUS build shows `library.list` at
+`22:22:16.491` followed by `library.write` at `22:22:16.905` — one debounce
+window later. The page was re-reading an external change and writing it straight
+back, bumping `updatedAt` on every `gx` command. The new build does not.
+Measuring beat reasoning about it.
+
+Two things this phase learned the hard way:
+
+- **The watcher echoed the page's own saves back at it, but only with two or
+  more diagrams.** It compared the whole directory signature against the
+  recent-write map and required every record to match, so an untouched
+  neighbour always dragged the answer to "external". Invisible with one
+  diagram. Extracting the decision out of the thread — the V-12 move, again —
+  is what exposed it.
+- **Real records omit their defaults.** upickle writes no key for a defaulted
+  field, so a real `metadata` carries only what was set.
+  `local-protocol/fixtures/library-record.json` is a record the actual CLI
+  produced, and both languages read it.
+
+What is still not true: the **web** library remains `localStorage`, necessarily
+— a browser has no disk and no `gx` to share one with. Migration is one-time and
+non-destructive, so a desktop user keeps a browser copy as a fallback and the
+two libraries diverge from that point on.
+
+**P8 — The layout-free parse path (D2.3). ◻ Scoped, not started.** D2.3 says
+command and query implementations use the parser directly. They do not: every
+`gx run` goes through `renderFormats(text, Seq("dot_json"))`, which runs a full
+`dot` layout to answer questions like "what nodes exist".
+
+Measured on `graphviz/corpus/191-scala-type-graph.dot` (1066 lines), JVM,
+JIT-warmed:
+
+```
+DotParser.parse only         2.69 ms
+renderFormats(dot_json)     70.93 ms
+```
+
+**~26×.** This mattered less when headless commands were bookkeeping. P7 made
+them reach a live window, so `gx run` is now a plausible thing to call in a
+loop — an agent hiding twenty nodes pays a second and a half for layout it
+discards.
+
+**The gap is a converter, not an algorithm.** `DotParser.parse` yields the DOT
+AST (`NodeStmt`, `EdgeStmt`, `AttrStmt`, `Assign`, `SubStmt`); `toViewerGraph`
+consumes `SimpleGraph`, which is dot_json — graphviz's output *after* it has
+resolved semantics and laid the graph out. What is missing is AST →
+`VizViewerGraphElements`. The back half already works layout-free:
+`expandAndExtractDefaultAttributes` is pure attribute manipulation.
+
+So layout is not the thing to reimplement. Graphviz's **semantic pass** is —
+the facts dot_json hands over already resolved, which the AST only implies:
+
+1. **the attribute cascade** — `AttrStmt(Graph|Node|Edge)` applies to everything
+   declared later in that scope and its children. The bulk of the work.
+2. **edge chains** — `a -> b -> c` is two edges
+3. **implicit nodes** — a node first mentioned inside an edge exists
+4. **cluster membership** — `memberships` and `arrowMemberships`
+5. **ports and compass** on edge ends
+6. **ordering** — below
+
+**The risk is ordering, not correctness.** Three hazards already recorded in
+this project converge here:
+
+- `agfstout` iterates by **(head-node sequence, edge sequence)**, not
+  declaration order — the assumption that produced the cluster mirrors
+- `_gvid` cluster order keeps fdp layouts identical across the DOT round trip
+- `Attributes.fromOrdered` preserves insertion order, which DOT serialization
+  depends on
+
+A fast path that produces the right *set* in the wrong *order* will quietly
+rewrite the user's file on the next `gx run set-attribute`. That is what the
+tests must be aimed at; a missing node would be the easy failure.
+
+**Verification: the corpus, which already exists.** 168 `.dot` files under
+`graphviz/corpus`, and an established byte-exact sweep habit. The agreement test
+is V-13's shape — two independent implementations, one contract, cross-checked
+on real data:
+
+> for every corpus file, `parseFast(text)` and `parseViaLayout(text)` yield the
+> same `ViewerGraph` once geometry (`pos`, `width`, `height`, `_gvid`) is
+> excluded — **and** `render()` of each is byte-identical DOT.
+
+The second clause is the one that catches ordering. Without it the test passes
+while the round trip corrupts files.
+
+**Phasing:**
+
+1. AST → `VizViewerGraphElements`; set-equality across the corpus. The
+   attribute cascade lives here and is most of the code.
+2. Ordering fidelity: byte-identical `render()` on all 168. Expect this to cost
+   more than it looks.
+3. Wire into `DiagramText`; keep the layout path behind an explicit
+   `--via-layout` for diffing.
+
+**Two decisions, made now rather than discovered later:**
+
+- **No silent fallback on disagreement.** Falling back to layout when the fast
+  path disagrees converts "the fast path is wrong" into "the fast path is
+  sometimes slow" — the harder bug to ever notice, and the same class of
+  self-concealing failure as a build script that reports success over a binary
+  it did not rebuild. Fail loudly; keep the old path reachable by flag.
+- **Mermaid stays refused.** Its converter needs a scan produced by mermaid.js,
+  a browser dependency `gx` does not have. Nothing here changes that.
+
+**One behaviour change to expect.** `get-attributes` currently returns
+`_gvid` — layout bookkeeping leaking into a query answer. The fast path has no
+`_gvid` to leak, which is more correct and still a visible difference.
 
 ---
 

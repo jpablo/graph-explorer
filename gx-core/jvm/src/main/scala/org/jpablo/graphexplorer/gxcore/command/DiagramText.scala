@@ -26,8 +26,13 @@ import scala.util.control.NonFatal
   * costs ~91ms on a large graph where it should cost ~9ms. Closing the gap means
   * writing AST→`ViewerGraph` and then proving it *agrees* with this path, or the
   * UI and `gx` would read different graphs from the same file — a V-13-shaped
-  * contract, with the corpus available to cross-test against. Worth doing when
-  * the 80ms starts to matter; not worth blocking the command tier on.
+  * contract, with the corpus available to cross-test against.
+  *
+  * Scoped as **P8** in `docs/desktop-gx-v2-architecture.md`, now that P7 made
+  * the cost start to matter — headless commands reach a live window, so this is
+  * a plausible thing to call in a loop. Measured there: 2.69ms parse-only
+  * against 70.93ms for the layout path on the largest corpus file, and the
+  * hazard that actually decides the work is ORDERING, not correctness.
   */
 object DiagramText:
 
