@@ -2110,6 +2110,12 @@ fn library_delete(
             ))
         }
     };
+    // So the watcher does not report our own delete back to us as news.
+    if removed {
+        if let Ok(mut hashes) = state.recent_write_hashes.lock() {
+            hashes.insert(path.to_string_lossy().to_string(), LIBRARY_DELETED.to_string());
+        }
+    }
     state.audit_logger.log_event(
         "library.delete",
         Some(&path.to_string_lossy()),
@@ -2121,6 +2127,9 @@ fn library_delete(
     Ok(removed)
 }
 
+/// One record's identity for change detection: name, size, mtime.
+type LibraryStamp = (String, u64, Option<std::time::SystemTime>);
+
 /// A fingerprint of the whole library directory: name, size and mtime per
 /// record.
 ///
@@ -2129,7 +2138,7 @@ fn library_delete(
 /// gain. A record whose bytes change without size or mtime changing is a
 /// filesystem with second-granularity timestamps rewriting a file within one
 /// second to the same length; the reconcile on the next real change covers it.
-fn library_signature(dir: &Path) -> Vec<(String, u64, Option<std::time::SystemTime>)> {
+fn library_signature(dir: &Path) -> Vec<LibraryStamp> {
     let Ok(listing) = fs::read_dir(dir) else {
         return Vec::new();
     };
@@ -2173,6 +2182,84 @@ fn emit_library_changed_event(app_handle: &tauri::AppHandle) {
 /// Polling rather than `notify` for the same reason the document watcher does:
 /// one mechanism, already proven on all three platforms, and a library is a
 /// handful of small files.
+/// Recorded instead of a hash when WE removed a record, so the watcher can
+/// tell our own delete from `gx` deleting something behind our back. A hash is
+/// hex, so this cannot collide with one.
+const LIBRARY_DELETED: &str = "<deleted>";
+
+/// Which records differ between two signatures — added, removed or edited.
+///
+/// Only these are worth asking about. The first version of this compared the
+/// WHOLE signature against the recent-write map, so a library with two
+/// diagrams could never suppress a self-write: the record we did not touch had
+/// no recorded hash and dragged the answer to "not ours".
+fn changed_records(previous: &[LibraryStamp], current: &[LibraryStamp]) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for (name, size, modified) in current {
+        match previous.iter().find(|(n, _, _)| n == name) {
+            Some((_, prev_size, prev_modified))
+                if prev_size == size && prev_modified == modified => {}
+            _ => names.push(name.clone()),
+        }
+    }
+    for (name, _, _) in previous {
+        if !current.iter().any(|(n, _, _)| n == name) {
+            names.push(name.clone());
+        }
+    }
+    names.sort();
+    names.dedup();
+    names
+}
+
+/// Is this change news to the page, or did the page cause it?
+///
+/// Separated from the loop deliberately. V-12 sat unasserted for a release
+/// because its logic took an `AppHandle`, which no unit test can build; a
+/// decision function takes a directory and a map, and can be run anywhere.
+///
+/// Consumes the matching entries: a recorded write explains exactly one
+/// observation, and leaving it in the map would suppress a later genuine
+/// change to the same record.
+fn library_change_is_news(
+    dir: &Path,
+    changed: &[String],
+    recent_write_hashes: &RecentWriteHashes,
+) -> bool {
+    if changed.is_empty() {
+        return false;
+    }
+    let Ok(mut hashes) = recent_write_hashes.lock() else {
+        // A poisoned lock means we cannot prove the change was ours. Telling
+        // the page about a change it already knows costs a redundant re-read;
+        // staying silent about one it does not know loses the update.
+        return true;
+    };
+
+    let mut news = false;
+    for name in changed {
+        let path = dir.join(name);
+        let key = path.to_string_lossy().to_string();
+        let recorded = hashes.get(&key).cloned();
+        let ours = match (recorded.as_deref(), fs::read(&path).ok()) {
+            (Some(LIBRARY_DELETED), None) => true,
+            (Some(known), Some(bytes)) => known == content_hash(&bytes),
+            _ => false,
+        };
+        if ours {
+            hashes.remove(&key);
+        } else {
+            news = true;
+        }
+    }
+    news
+}
+
+/// Poll the library directory and announce changes the page did not cause.
+///
+/// Polling rather than `notify` for the same reason the document watcher does:
+/// one mechanism, already proven on all three platforms, and a library is a
+/// handful of small files.
 fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: RecentWriteHashes) {
     std::thread::spawn(move || {
         let Ok(dir) = library_dir_path() else {
@@ -2184,33 +2271,10 @@ fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: Rece
         loop {
             std::thread::sleep(LIBRARY_POLL_INTERVAL);
             let current = library_signature(&dir);
-            if current == previous {
-                continue;
-            }
+            let changed = changed_records(&previous, &current);
             previous = current;
 
-            // Was this our own write? `library_write` records the bytes it
-            // wrote; if every changed record still matches one of those, the
-            // page already knows and telling it again would clobber what the
-            // user typed after saving.
-            let ours = match recent_write_hashes.lock() {
-                Ok(mut hashes) => {
-                    let mut all_ours = true;
-                    for (name, _, _) in &previous {
-                        let path = dir.join(name).to_string_lossy().to_string();
-                        match (hashes.get(&path), fs::read(dir.join(name)).ok()) {
-                            (Some(known), Some(bytes)) if *known == content_hash(&bytes) => {
-                                hashes.remove(&path);
-                            }
-                            _ => all_ours = false,
-                        }
-                    }
-                    all_ours
-                }
-                Err(_) => false,
-            };
-
-            if !ours {
+            if library_change_is_news(&dir, &changed, &recent_write_hashes) {
                 emit_library_changed_event(&app_handle);
             }
         }
@@ -2848,5 +2912,192 @@ mod tests {
         assert!(script.contains("ge:library.changed"), "{script}");
         assert!(!script.contains("detail"), "the event must carry no payload: {script}");
         assert!(!script.contains("json"), "{script}");
+    }
+
+    // ------------------------------------- D7.3 watcher: is it news?
+
+    fn hashes_of(pairs: &[(&Path, &str)]) -> RecentWriteHashes {
+        let map: HashMap<String, String> = pairs
+            .iter()
+            .map(|(p, h)| (p.to_string_lossy().to_string(), (*h).to_string()))
+            .collect();
+        Arc::new(Mutex::new(map))
+    }
+
+    #[test]
+    fn changed_records_notices_an_add_an_edit_and_a_removal() {
+        let t = std::time::SystemTime::UNIX_EPOCH;
+        let before = vec![
+            ("a.json".to_string(), 10, Some(t)),
+            ("b.json".to_string(), 10, Some(t)),
+        ];
+        let after = vec![
+            ("a.json".to_string(), 99, Some(t)), // edited
+            ("c.json".to_string(), 10, Some(t)), // added
+        ];                                        // b removed
+        assert_eq!(
+            changed_records(&before, &after),
+            vec!["a.json".to_string(), "b.json".to_string(), "c.json".to_string()]
+        );
+    }
+
+    #[test]
+    fn an_unchanged_library_is_not_news() {
+        let dir = temp_dir_for("news-none");
+        assert!(!library_change_is_news(&dir, &[], &hashes_of(&[])));
+    }
+
+    /// The case the user hit: `gx import` writes a record while the app is
+    /// running. Nothing recorded it, so the page has to be told.
+    #[test]
+    fn a_record_written_by_gx_is_news() {
+        let dir = temp_dir_for("news-external");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        fs::write(dir.join("imported.json"), "{\"id\":\"imported\"}").expect("write");
+
+        assert!(library_change_is_news(
+            &dir,
+            &["imported.json".to_string()],
+            &hashes_of(&[])
+        ));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The page's own save must not come back at it, or every edit would
+    /// re-enter the UI and fight whatever was typed next.
+    #[test]
+    fn our_own_write_is_not_news() {
+        let dir = temp_dir_for("news-ours");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let body = "{\"id\":\"mine\"}";
+        let file = dir.join("mine.json");
+        fs::write(&file, body).expect("write");
+
+        let hashes = hashes_of(&[(&file, &content_hash(body.as_bytes()))]);
+        assert!(!library_change_is_news(&dir, &["mine.json".to_string()], &hashes));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A change we did not cause reaches the page even when it arrives
+    /// alongside one we did.
+    #[test]
+    fn our_write_does_not_suppress_a_neighbours_change() {
+        let dir = temp_dir_for("news-neighbour");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let mine = dir.join("mine.json");
+        let theirs = dir.join("theirs.json");
+        fs::write(&mine, "{\"a\":1}").expect("mine");
+        fs::write(&theirs, "{\"b\":2}").expect("theirs");
+
+        let hashes = hashes_of(&[(&mine, &content_hash(b"{\"a\":1}"))]);
+        assert!(
+            library_change_is_news(
+                &dir,
+                &["mine.json".to_string(), "theirs.json".to_string()],
+                &hashes
+            ),
+            "a change we did not cause must still reach the page"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A recorded write explains exactly ONE observation. If the entry stayed,
+    /// the next genuine edit to that record would be silently swallowed.
+    #[test]
+    fn a_recorded_write_explains_one_change_only() {
+        let dir = temp_dir_for("news-once");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let file = dir.join("mine.json");
+        let body = "{\"v\":1}";
+        fs::write(&file, body).expect("write");
+        let hashes = hashes_of(&[(&file, &content_hash(body.as_bytes()))]);
+
+        assert!(!library_change_is_news(&dir, &["mine.json".to_string()], &hashes));
+        // Someone else edits the same record afterwards.
+        fs::write(&file, "{\"v\":2}").expect("edit");
+        assert!(
+            library_change_is_news(&dir, &["mine.json".to_string()], &hashes),
+            "the second change is news; the recorded write was already spent"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn our_own_delete_is_quiet_but_someone_elses_is_news() {
+        let dir = temp_dir_for("news-delete");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let gone = dir.join("gone.json");
+
+        let ours = hashes_of(&[(&gone, LIBRARY_DELETED)]);
+        assert!(!library_change_is_news(&dir, &["gone.json".to_string()], &ours));
+
+        assert!(
+            library_change_is_news(&dir, &["gone.json".to_string()], &hashes_of(&[])),
+            "a record removed by gx must reach the page"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// THE bug that extracting this function exposed, stated precisely.
+    ///
+    /// The first version compared the WHOLE signature against the recent-write
+    /// map and demanded every record match. A library with a second, untouched
+    /// diagram therefore had one record with no recorded hash, which dragged
+    /// the answer to "not ours" — so the page's own save echoed straight back
+    /// at it. The symptom is over-notification, not a missed change, and it
+    /// only appears once you have more than one diagram.
+    #[test]
+    fn our_own_write_is_quiet_even_with_another_record_present() {
+        let dir = temp_dir_for("news-ours-plus-one");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let mine = dir.join("mine.json");
+        let body = "{\"a\":1}";
+        fs::write(&mine, body).expect("mine");
+        fs::write(dir.join("untouched.json"), "{\"b\":2}").expect("untouched");
+
+        let hashes = hashes_of(&[(&mine, &content_hash(body.as_bytes()))]);
+        assert!(
+            !library_change_is_news(&dir, &["mine.json".to_string()], &hashes),
+            "only the CHANGED record is consulted; a bystander must not make our own save look external"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A record written by the REAL `gx`, carried through the shell's reader
+    /// unchanged.
+    ///
+    /// The fixture was produced by running `gx import` and then
+    /// `gx run demo hide` against a scratch library, so it is the actual byte
+    /// shape the CLI emits — not a hand-written approximation of it. That
+    /// matters most for what is ABSENT: upickle omits defaults, so `metadata`
+    /// carries only `hiddenElements` and every other field is missing. A
+    /// reader that required them would fail on real data while passing every
+    /// synthetic test.
+    #[test]
+    fn a_real_gx_record_survives_the_shell_untouched() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../local-protocol/fixtures/library-record.json");
+        let bytes = fs::read_to_string(&source).expect("fixture");
+
+        let dir = temp_dir_for("library-fixture");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        fs::write(dir.join("demo.json"), &bytes).expect("seed");
+
+        let entries = read_library_entries(&dir);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "demo.json");
+        assert!(entries[0].error.is_none());
+        // Byte-for-byte: the shell is a courier, and a courier that reformats
+        // JSON would be silently re-deriving a schema it does not own.
+        assert_eq!(entries[0].json.as_deref(), Some(bytes.as_str()));
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

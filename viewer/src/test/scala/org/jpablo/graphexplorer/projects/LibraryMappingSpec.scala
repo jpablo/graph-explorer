@@ -109,3 +109,54 @@ class LibraryMappingSpec extends FunSuite:
     assertEquals(roundTrip(record).metadata.autoDetectFormat, Some(true))
     val off = record.copy(metadata = record.metadata.copy(autoDetectFormat = None))
     assertEquals(roundTrip(off).metadata.autoDetectFormat, None)
+
+  // ------------------------------- what the real CLI actually writes
+
+  /** A verbatim copy of `local-protocol/fixtures/library-record.json`, which
+    * the real `gx` produced via `import` then `run demo hide`.
+    *
+    * Embedded rather than read, because these tests run in a browser with no
+    * filesystem. `RealRecordSpec` on the JVM pins the FILE; this pins that the
+    * viewer's mapping copes with the same shape — in particular a `metadata`
+    * object carrying only the one key upickle bothered to write.
+    */
+  private lazy val realRecord =
+    """{
+      |  "id": { "value": "demo" },
+      |  "name": "demo",
+      |  "folder": { "segments": [] },
+      |  "format": "DOT",
+      |  "text": "digraph Demo {\n  api -> db\n}\n",
+      |  "binding": {
+      |    "origin": "file:///private/tmp/gx-fixture/demo.dot",
+      |    "mode": "Pull",
+      |    "baseHash": "66e1007f7675a9596eb1338082c944eb6c724e8f23a968c49e73a62525b2010a",
+      |    "lastSyncAt": 1787027585326
+      |  },
+      |  "metadata": { "hiddenElements": ["node:db"] },
+      |  "createdAt": 1787027585327,
+      |  "updatedAt": 1787027585606
+      |}""".stripMargin
+
+  test("the viewer can open a diagram `gx import` created"):
+    val d = upickle.default.read[Diagram](realRecord)
+    val (state, unparsed) = LibraryMapping.toPersisted(d)
+    assertEquals(state.projectName, "demo")
+    assertEquals(state.source, "digraph Demo {\n  api -> db\n}\n")
+    assertEquals(state.format, Some("DOT"))
+    assert(unparsed.isEmpty, s"nothing should be unparseable: $unparsed")
+
+  test("a headless `gx run hide` reaches the page as a hidden node"):
+    // This is D7.3's whole claim, at the one point the viewer can check it:
+    // view state written with no window open arrives as view state.
+    val d = upickle.default.read[Diagram](realRecord)
+    val (state, _) = LibraryMapping.toPersisted(d)
+    assertEquals(state.hiddenElements.ids, Set(NodeId("db")))
+
+  test("saving it back does not unbind what gx bound"):
+    val d = upickle.default.read[Diagram](realRecord)
+    val (state, unparsed) = LibraryMapping.toPersisted(d)
+    val saved = LibraryMapping.toDiagram(d.id, state.copy(source = "digraph Demo {}"), Some(d), unparsed, 7)
+    assertEquals(saved.binding, d.binding)
+    assertEquals(saved.text, "digraph Demo {}")
+    assertEquals(saved.metadata.hiddenElements, Set("node:db"))
