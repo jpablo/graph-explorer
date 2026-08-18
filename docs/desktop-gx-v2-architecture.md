@@ -494,7 +494,7 @@ they can be, as `gx-core` unit tests unless marked otherwise.
 | V-12 | A save whose UI window is gone reports its true outcome (fixed in `put_document_snapshot`) |
 | V-13 | Scala and Rust agree on canonicalization and content hash for a shared fixture set — spaces, non-ASCII, symlinks, case variants, Windows UNC (cross-language, the §4 contract). ✅ `local-protocol/fixtures/`, read by both suites |
 | V-14 | `gx` parse cost — cold start *minus* the machine's process-spawn baseline — stays under 20ms, at any graph size. Gated on the difference because the absolute is dominated by the host (D2.1a) |
-| V-15 | A document or record command issued by `gx` with no desktop running succeeds, and is reflected in the UI when a desktop is later started (D7.3) |
+| V-15 | A document or record command issued by `gx` with no desktop running succeeds, and is reflected in the UI when a desktop is later started (D7.3) — **asserted**, `DesktopLibrarySpec` |
 | V-16 | Every read and write on the diagram path names UTF-8 explicitly. Windows reports `windows-1252` as its default charset, so a platform-default decode changes the bytes — and under D1 the bytes *are* the revision (see D2.1b) |
 | V-17 | The shipped `gx` is a real native binary, not a GraalVM fallback image. Built with `--no-fallback`, asserted on the build log (D2.1b) |
 
@@ -761,6 +761,49 @@ hashes are the same value — but the desktop does not yet use one as its
 revision. That is D1's remaining half, and it is now a small change rather than
 a contract negotiation.
 
+**P7 — The store is the live state (D7.3). ✅ DONE in the desktop.** `gx import`
+puts a diagram in the library the UI reads, and a headless `gx run hide` arrives
+as a hidden node — with no message sent, which is the decision's whole point.
+
+Four commands in the shell (`library_list/read/write/delete`) over
+`~/.graph-explorer/library/diagrams`, plus a poll that emits `ge:library.changed`
+when the directory moves for a reason the page did not cause. The shell moves
+RAW JSON and never parses a `Diagram`: the schema is gx-core's, linked into both
+`gx` and the page, and a Rust mirror of it would be a third implementation free
+to drift (V-13's lesson, applied before it could happen again). The id →
+file-name rule moved to `shared` as `DiagramFileName` for the same reason; the
+shell is instead given a question it can answer alone — can this name escape the
+directory?
+
+In the viewer, `DiagramLibrary` is the surface `ProjectStorage` **already had**
+— it compiled as an implementation with no changes at all, so the web path still
+runs its own code, guards included. `DesktopLibrary` mirrors the library in
+memory so reads stay synchronous, debounces writes (a file write per keystroke
+would rewrite the whole diagram through an IPC hop) and flushes on pagehide and
+blur, since batching is also a way to lose the last edits. A save merges onto
+the record **as it stands now**, so a `gx run tag` landing mid-edit survives.
+
+**V-15 is asserted**, in both halves: imported while the app was closed, and
+imported while it was open.
+
+Two things this phase learned the hard way:
+
+- **The watcher echoed the page's own saves back at it, but only with two or
+  more diagrams.** It compared the whole directory signature against the
+  recent-write map and required every record to match, so an untouched
+  neighbour always dragged the answer to "external". Invisible with one
+  diagram. Extracting the decision out of the thread — the V-12 move, again —
+  is what exposed it.
+- **Real records omit their defaults.** upickle writes no key for a defaulted
+  field, so a real `metadata` carries only what was set.
+  `local-protocol/fixtures/library-record.json` is a record the actual CLI
+  produced, and both languages read it.
+
+What is still not true: the **web** library remains `localStorage`, necessarily
+— a browser has no disk and no `gx` to share one with. Migration is one-time and
+non-destructive, so a desktop user keeps a browser copy as a fallback and the
+two libraries diverge from that point on.
+
 **P6 — Command vocabulary (D7). ✅ All three tiers done.** One vocabulary,
 defined once in `gx-core/command` over `shared/`'s ops, with three callers as
 D7.1 requires: the UI executes the document tier, `gx run` exposes both headless
@@ -862,12 +905,7 @@ Remaining in P6, in the order they should land:
    `elementid-is-not-unique` hazard in the persistence layer, and building
    `hide`/`unhide` on the ambiguous spelling would have made it permanent.
 
-   **D7.3 is still not true, and this phase did not make it true.** It asserts
-   the store IS the live state, with UI edits debounced into the record
-   continuously. The viewer still persists to `localStorage`; `gx-core`'s store
-   is written by migration and by `gx`. Until those are one store, a headless
-   `hide` does not show up in a running UI, and D7.3's "headless mutation and
-   live update are the same path" describes an intention rather than the code.
+   **D7.3 was not true when this phase landed. It is now** — see P7 below.
    D8's deferred "unsaved UI drafts" is the other half of the same question.
 
 4. **The session tier. ✅ DONE** — `gx session <command>`: `select`,
