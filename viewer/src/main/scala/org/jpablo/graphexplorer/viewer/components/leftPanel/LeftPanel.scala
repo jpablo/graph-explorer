@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.projects.ProjectStorage
+import org.jpablo.graphexplorer.projects.Library
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
@@ -18,11 +18,11 @@ import org.jpablo.graphexplorer.viewer.widgets.IconButton
   * the list above reads that one straight from `state.displayTitle`.
   */
 private def displayNames(state: ViewerState): Signal[Map[ProjectId, String]] =
-  ProjectStorage.directory
+  Library.directory
     .map(_.projects.map(_.id))
     .distinct
     .map: ids =>
-      ids.flatMap(id => ProjectStorage.projectCardInfo(id, state.languages).map(id -> _.displayName)).toMap
+      ids.flatMap(id => Library.projectCardInfo(id, state.languages).map(id -> _.displayName)).toMap
 
 def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
   div(
@@ -61,7 +61,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           cls := "grow overflow-y-auto",
           ul(
             cls := "menu menu-sm w-full",
-            children <-- ProjectStorage.directory.combineWithFn(displayNames(state), state.displayTitle, state.project.signal):
+            children <-- Library.directory.combineWithFn(displayNames(state), state.displayTitle, state.project.signal):
               (directory, names, openTitle, openProject) =>
                 directory.projects.sortBy(-_.createdAt).map { project =>
                   // The open project's title can change as you type, so it reads live;

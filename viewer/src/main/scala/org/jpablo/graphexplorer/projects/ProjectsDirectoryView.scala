@@ -130,7 +130,7 @@ def ProjectsDirectoryView(
       // were handed can be stale by now (e.g. a theme picked while viewing a
       // diagram). Refresh from storage so the selector shows the truth and a
       // write from here cannot clobber other settings with stale values.
-      viewerSettings.set(ProjectStorage.readViewerSettings())
+      viewerSettings.set(Library.readViewerSettings())
       val t0 = Telemetry.nowMs()
       val navDtMs = Telemetry.consumeNavigationStartMs("/")
       Telemetry.log(
@@ -268,10 +268,10 @@ def ProjectsDirectoryView(
           // filter combine below (every debounce tick would rescan the whole library).
           // Thumbnails stay lazy behind the IntersectionObserver regardless.
           val cardInfoSignal: Signal[Map[ProjectId, ProjectCardInfo]] =
-            ProjectStorage.directory.map: dir =>
-              dir.projects.flatMap(p => ProjectStorage.projectCardInfo(p.id, languages).map(p.id -> _)).toMap
+            Library.directory.map: dir =>
+              dir.projects.flatMap(p => Library.projectCardInfo(p.id, languages).map(p.id -> _)).toMap
 
-          ProjectStorage.directory
+          Library.directory
             .combineWithFn(debouncedSearch, sortOptionVar.signal, kindFilterVar.signal, cardInfoSignal, viewModeVar.signal):
               (directory, searchTerm, sortOption, kindFilter, infos, viewMode) =>
                 Telemetry.time(
@@ -445,7 +445,7 @@ private def exampleCard(
   * the two modes cannot drift in how a diagram is previewed.
   */
 private def projectThumbnail(graphviz: Graphviz, project: ProjectInfo): Signal[Div] =
-  ProjectStorage.getProjectContent(project.id).distinct
+  Library.getProjectContent(project.id).distinct
     .flatMapSwitch: str =>
       Telemetry.log(
         "home.thumb.start",
@@ -530,7 +530,7 @@ private def projectCard(graphviz: Graphviz, router: Router, info: Option[Project
         // buttons, but the hover has to say plainly that this one destroys something.
         IconButton("bi-trash", "Delete diagram", TooltipPos.left, cls := "danger")(
           if dom.window.confirm("Are you sure you want to delete this project?") then
-            ProjectStorage.deleteProject(project.id)
+            Library.deleteProject(project.id)
         )
       ),
 
@@ -596,7 +596,7 @@ private def projectRow(graphviz: Graphviz, router: Router, info: Option[ProjectC
       onClick.stopPropagation --> Observer.empty,
       IconButton("bi-trash", "Delete diagram", TooltipPos.left, cls := "danger")(
         if dom.window.confirm("Are you sure you want to delete this project?") then
-          ProjectStorage.deleteProject(project.id)
+          Library.deleteProject(project.id)
       )
     )
   )

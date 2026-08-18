@@ -18,7 +18,14 @@ case class ProjectsDirectory(projects: List[ProjectInfo] = Nil) derives ReadWrit
 /** Presentation facts a library card needs from a project's payload. */
 case class ProjectCardInfo(format: DiagramFormat, displayName: String, diagramKind: Option[String])
 
-object ProjectStorage:
+/** The browser library: `localStorage`, and the only option on the web.
+  *
+  * Unchanged by D7.3 on purpose. It already satisfies [[DiagramLibrary]], so
+  * the desktop backend is an addition rather than a rewrite of a path that has
+  * been carrying real libraries — and whose guards below exist because it has
+  * lost data before.
+  */
+object ProjectStorage extends DiagramLibrary:
   given owner: Owner = unsafeWindowOwner
 
   private val DirectoryKey = "graph-explorer.projects"
@@ -261,6 +268,25 @@ object ProjectStorage:
 
   private def projectKey(id: ProjectId): String =
     s"graph-explorer.project.${id.value}"
+
+  // ---- raw access, for the one-time copy onto disk (D7.3)
+  //
+  // The migration reads the browser library as JSON rather than as parsed
+  // state: it has to cope with payloads written by older versions whose shape
+  // this build no longer knows, and re-parsing them into today's types would
+  // discard exactly the fields it is trying to preserve.
+
+  private[projects] def rawDirectoryJson: String =
+    readLocalStorage(DirectoryKey, write(ProjectsDirectory()))
+
+  private[projects] def rawPayload(projectId: String): Option[String] =
+    Option(dom.window.localStorage.getItem(rawKey(s"graph-explorer.project.$projectId")))
+
+  private[projects] def readFlag(key: String): Option[String] =
+    Option(dom.window.localStorage.getItem(rawKey(key)))
+
+  private[projects] def writeFlag(key: String, value: String): Unit =
+    writeLocalStorage(key, value)
 
   /** The directory as currently persisted. */
   def directoryNow(): ProjectsDirectory =
