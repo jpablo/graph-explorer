@@ -1,0 +1,24 @@
+{
+  "id": {
+    "value": "demo"
+  },
+  "name": "demo",
+  "folder": {
+    "segments": []
+  },
+  "format": "DOT",
+  "text": "digraph Demo {\n  api -> db\n}\n",
+  "binding": {
+    "origin": "file:///private/tmp/gx-fixture/demo.dot",
+    "mode": "Pull",
+    "baseHash": "66e1007f7675a9596eb1338082c944eb6c724e8f23a968c49e73a62525b2010a",
+    "lastSyncAt": 1787027585326
+  },
+  "metadata": {
+    "hiddenElements": [
+      "node:db"
+    ]
+  },
+  "createdAt": 1787027585327,
+  "updatedAt": 1787027585606
+}

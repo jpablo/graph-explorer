@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
-import org.jpablo.graphexplorer.projects.ProjectStorage
+import org.jpablo.graphexplorer.projects.Library
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
 import org.scalajs.dom
@@ -32,10 +32,10 @@ trait Persistence:
         // rarely declares a title).
         Var(PersistedDiagramState.minimal(initialSource).copy(projectName = name))
       case None =>
-        ProjectStorage.createProjectPersistence(projectId, initialSource)
+        Library.createProjectPersistence(projectId, initialSource)
 
   private val viewerSettings: Var[ViewerSettings] =
-    ProjectStorage.loadViewerSettings()
+    Library.loadViewerSettings()
 
   /** Restores the persisted state values to the current ViewerState. */
   private def restorePersistedState(): Unit =
@@ -177,7 +177,7 @@ object PersistedDiagramState:
   val minimalGraphText = "digraph G {\n}"
 
   /** The name given to never-renamed projects. Display sites substitute the diagram's
-    * own declared title for it (ViewerState.displayTitle, ProjectStorage.projectCardInfo);
+    * own declared title for it (ViewerState.displayTitle, Library.projectCardInfo);
     * the stored name only changes when the user renames, so a rename always wins.
     */
   val defaultProjectName = "Untitled"

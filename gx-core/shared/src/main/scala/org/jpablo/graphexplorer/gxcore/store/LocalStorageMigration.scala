@@ -57,7 +57,7 @@ object LocalStorageMigration:
   def migrate(
       directoryJson: String,
       payloadFor:    String => Option[String],
-      store:         LibraryStore,
+      store:         DiagramSink,
       now:           () => Long = () => System.currentTimeMillis()
   ): Either[String, MigrationReport] =
     parseDirectory(directoryJson).map: projects =>
@@ -77,8 +77,8 @@ object LocalStorageMigration:
               toDiagram(id, project, payload, now()) match
                 case Left(why) => report.copy(failed = report.failed :+ (project.id, why))
                 case Right(diagram) =>
-                  store.save(diagram) match
-                    case Left(err) => report.copy(failed = report.failed :+ (project.id, err.toString))
+                  store.write(diagram) match
+                    case Left(err) => report.copy(failed = report.failed :+ (project.id, err))
                     case Right(_)  => report.copy(imported = report.imported :+ id)
 
   private final case class LegacyProject(id: String, name: String, lastModified: Long, createdAt: Long)

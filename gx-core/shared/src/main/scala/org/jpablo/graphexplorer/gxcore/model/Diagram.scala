@@ -57,7 +57,15 @@ final case class DiagramMetadata(
     hiddenElements:  Set[String] = Set.empty,
     collapsedGroups: Set[String] = Set.empty,
     tags:            List[String] = Nil,
-    notes:           String = ""
+    notes:           String = "",
+    /** Whether the viewer re-reads the document's language on every edit.
+      *
+      * Here rather than in the text because of §5.3.1's question: it survives a
+      * pull. Re-pulling a regenerated origin must not silently switch the
+      * language mode the user chose. `None` is every record written before the
+      * mode existed, and reads as off.
+      */
+    autoDetectFormat: Option[Boolean] = None
 ) derives ReadWriter, CanEqual
 
 object DiagramMetadata:

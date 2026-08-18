@@ -35,8 +35,16 @@ enum StoreError derives CanEqual:
   * reaches a running UI with no message sent: the desktop observes the new
   * record with the same watcher it uses for origins (§6).
   */
-final class LibraryStore(val root: Path):
+final class LibraryStore(val root: Path) extends DiagramSink:
   import LibraryStore.*
+
+  /** `DiagramSink`, so the shared migration can write here as well as into the
+    * desktop's library. Distinct from `save` only in its error type: the trait
+    * is linked into Scala.js, where `StoreError`'s filesystem cases cannot
+    * arise, so it flattens to the message a report would print anyway.
+    */
+  def write(diagram: Diagram): Either[String, Diagram] =
+    save(diagram).left.map(_.toString)
 
   private val diagramsDir = root.resolve("diagrams")
   private val foldersFile = root.resolve("folders.json")
@@ -139,6 +147,7 @@ object LibraryStore:
     * `_`, which is lossy — hence [[DiagramId.derivedFrom]] producing ids that
     * are already safe rather than relying on this to clean up after them.
     */
-  private[store] def sanitize(id: String): String =
-    val cleaned = id.map(c => if c.isLetterOrDigit || c == '-' || c == '_' then c else '_')
-    if cleaned.isEmpty then "_" else cleaned.take(120)
+  /** Delegates to the shared rule. Under D7.3 the webview writes this same
+    * directory, so the id -> file-name mapping cannot live on one side only.
+    */
+  private[store] def sanitize(id: String): String = DiagramFileName.of(id)

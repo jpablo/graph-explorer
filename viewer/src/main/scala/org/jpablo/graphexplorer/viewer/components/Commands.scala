@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components
 
-import org.jpablo.graphexplorer.projects.ProjectStorage
+import org.jpablo.graphexplorer.projects.Library
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
@@ -89,7 +89,7 @@ class RouterCommands(router: Router):
   import Command.always
 
   private def createProjectAndNavigate(source: Option[String] = None) =
-    val id = ProjectStorage.createProjectDirectoryEntry(PersistedDiagramState.defaultProjectName)
+    val id = Library.createProjectDirectoryEntry(PersistedDiagramState.defaultProjectName)
     router.navigateTo(Route.ProjectDetail(id.value, source))
 
   val createProject =
@@ -109,7 +109,7 @@ class RouterCommands(router: Router):
       "Copy example to library",
       (nameAndSource: (String, String)) =>
         val (name, source) = nameAndSource
-        val id             = ProjectStorage.createNamedProject(name, source)
+        val id             = Library.createNamedProject(name, source)
         // No source through the route: the payload is already written, so the
         // detail page restores the named diagram rather than seeding a fresh one.
         router.navigateTo(Route.ProjectDetail(id.value))

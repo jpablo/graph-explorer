@@ -1,0 +1,66 @@
+digraph SbtModules {
+  label = "graph-explorer — sbt modules\nsolid = dependsOn, dashed = aggregate"
+  labelloc = "t"
+  fontname = "Helvetica"
+  fontsize = 16
+  rankdir = TB
+  compound = true
+  bgcolor = "white"
+
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, penwidth=0]
+  edge [fontname="Helvetica", fontsize=9, color="#5a6675"]
+
+  root [label="root\n(graph-explorer)", fillcolor="#e8e3f5", shape=box, style="rounded,filled,bold", penwidth=1, color="#7c6bb0"]
+
+  subgraph cluster_jvm {
+    label = "JVM"
+    fontname = "Helvetica"
+    fontsize = 12
+    fontcolor = "#3b6ea5"
+    style = "rounded"
+    color = "#a8c4e0"
+    bgcolor = "#f4f8fc"
+
+    graphviz_jvm [label="graphviz.jvm", fillcolor="#d6e6f5"]
+    shared_jvm   [label="shared.jvm",   fillcolor="#d6e6f5"]
+    gxcore_jvm   [label="gx-core.jvm",  fillcolor="#d6e6f5"]
+    gxcli        [label="gx-cli\n(gx binary)", fillcolor="#b9d4ec"]
+  }
+
+  subgraph cluster_js {
+    label = "Scala.js"
+    fontname = "Helvetica"
+    fontsize = 12
+    fontcolor = "#b07d2b"
+    style = "rounded"
+    color = "#e6c99a"
+    bgcolor = "#fdf8f0"
+
+    graphviz_js [label="graphviz.js", fillcolor="#f7e6c8"]
+    shared_js   [label="shared.js",   fillcolor="#f7e6c8"]
+    gxcore_js   [label="gx-core.js",  fillcolor="#f7e6c8"]
+    viewer      [label="viewer\n(the app)", fillcolor="#f0d29a"]
+  }
+
+  // dependsOn — the real compile-time edges
+  shared_jvm -> graphviz_jvm
+  gxcore_jvm -> shared_jvm
+  gxcli      -> gxcore_jvm
+
+  shared_js -> graphviz_js
+  gxcore_js -> shared_js
+  viewer    -> shared_js
+  viewer    -> graphviz_js
+  viewer    -> gxcore_js
+
+  // aggregate — root builds and tests all eight
+  edge [style=dashed, color="#b3a7d1", arrowhead=empty]
+  root -> viewer
+  root -> gxcli
+  root -> shared_js
+  root -> shared_jvm
+  root -> graphviz_js
+  root -> graphviz_jvm
+  root -> gxcore_js
+  root -> gxcore_jvm
+}

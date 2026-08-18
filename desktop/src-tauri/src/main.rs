@@ -320,6 +320,12 @@ fn main() {
                 )
                 .map_err(|err| -> Box<dyn std::error::Error> { err.into() })?;
 
+                // D7.3: the library on disk is the live state, so a record
+                // written by `gx` with no window open has to reach the page
+                // once there is one. Nothing sends a message — the shell
+                // notices the directory moved and the page re-reads it.
+                spawn_library_watcher(app.handle().clone(), recent_write_hashes.clone());
+
                 // Apply the real app icon. Window icon is cross-platform
                 // (Windows taskbar / Linux); the macOS Dock needs the AppKit
                 // call since this binary is unbundled.
@@ -339,7 +345,11 @@ fn main() {
             open_document,
             save_document,
             list_documents,
-            session_reply
+            session_reply,
+            library_list,
+            library_read,
+            library_write,
+            library_delete
         ])
         .run(tauri::generate_context!())
         .expect("error while running graph explorer desktop");
@@ -1903,6 +1913,393 @@ fn set_owner_only_permissions(_path: &Path) -> Result<()> {
     Ok(())
 }
 
+// ------------------------------------------------------------------ library
+//
+// D7.3: the store IS the live state. `gx` writes records into
+// `~/.graph-explorer/library/diagrams/<name>.json`, and the webview reads and
+// writes that same directory through the commands below — so a headless
+// `gx import` reaches a running window with no message sent, which is the
+// whole point of the decision.
+//
+// The shell moves RAW JSON STRINGS and never parses a `Diagram` (D2.5:
+// privilege, not intelligence). The schema is gx-core's, defined once in Scala
+// and linked into both `gx` and the page. A Rust struct mirroring it would be
+// a third implementation of one contract, free to drift — which is precisely
+// how V-13's content hash diverged.
+
+fn library_dir_path() -> Result<PathBuf> {
+    let home_dir = dirs::home_dir().context("could not locate user home directory")?;
+    Ok(home_dir
+        .join(".graph-explorer")
+        .join("library")
+        .join("diagrams"))
+}
+
+/// Resolve a library file name against the library directory, checking only
+/// that it cannot address anything outside it.
+///
+/// The id -> file-name mapping is NOT known here. It is `DiagramFileName` in
+/// gx-core's shared Scala, called by `gx` and by the page, so there is exactly
+/// one rule. The shell asks a different and independently safe question: can
+/// this name escape the directory?
+///
+/// Since no accepted name may contain a separator, joining cannot escape — so
+/// this is sufficient without canonicalizing a file that may not exist yet.
+/// `:` is rejected for Windows, where `join("C:x")` would replace the whole
+/// path rather than extend it, and a leading `.` is rejected so a name can
+/// never collide with the `.<name>.tmp` file an atomic write uses.
+fn library_entry_path(dir: &Path, name: &str) -> std::result::Result<PathBuf, IpcError> {
+    let refuse = |why: &str| {
+        Err(IpcError::new(
+            "INVALID_LIBRARY_NAME",
+            format!("{why}: {name:?}"),
+        ))
+    };
+    if name.is_empty() {
+        return refuse("a library entry needs a name");
+    }
+    if name.len() > 200 {
+        return refuse("library entry name is too long");
+    }
+    if name.starts_with('.') {
+        return refuse("a library entry name may not start with a dot");
+    }
+    if name.contains('/') || name.contains('\\') || name.contains(':') || name.contains('\0') {
+        return refuse("a library entry name may not contain a path separator");
+    }
+    Ok(dir.join(name))
+}
+
+/// One record as the page receives it.
+///
+/// A record that cannot be read is REPORTED rather than dropped: silently
+/// omitting it would show the user a library that is missing a diagram with no
+/// indication why, and `LibraryStore.unreadable()` makes the same choice on the
+/// JVM side.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LibraryEntry {
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    json: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+fn read_library_entries(dir: &Path) -> Vec<LibraryEntry> {
+    let Ok(listing) = fs::read_dir(dir) else {
+        // No directory yet is an empty library, not a failure: nothing has
+        // written a record. `gx` creates it on first import.
+        return Vec::new();
+    };
+
+    let mut entries: Vec<LibraryEntry> = listing
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            entry.path().extension().and_then(|e| e.to_str()) == Some("json")
+                && !entry.file_name().to_string_lossy().starts_with('.')
+        })
+        .map(|entry| {
+            let name = entry.file_name().to_string_lossy().to_string();
+            match fs::read_to_string(entry.path()) {
+                Ok(json) => LibraryEntry {
+                    name,
+                    json: Some(json),
+                    error: None,
+                },
+                Err(err) => LibraryEntry {
+                    name,
+                    json: None,
+                    error: Some(err.to_string()),
+                },
+            }
+        })
+        .collect();
+
+    // Sorted so the page gets a stable order across calls; `read_dir` yields
+    // whatever the filesystem does, which differs between platforms and would
+    // reshuffle the library on every refresh.
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+    entries
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_list(state: tauri::State<'_, IpcState>) -> std::result::Result<Vec<LibraryEntry>, IpcError> {
+    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    let entries = read_library_entries(&dir);
+    state.audit_logger.log_event(
+        "library.list",
+        Some(&dir.to_string_lossy()),
+        Some("ui"),
+        "allowed",
+        None,
+        None,
+    );
+    Ok(entries)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_read(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+) -> std::result::Result<String, IpcError> {
+    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    let path = library_entry_path(&dir, &name)?;
+    let json = fs::read_to_string(&path)
+        .map_err(|err| IpcError::new("LIBRARY_READ_FAILED", format!("{name}: {err}")))?;
+    state.audit_logger.log_event(
+        "library.read",
+        Some(&path.to_string_lossy()),
+        Some("ui"),
+        "allowed",
+        None,
+        None,
+    );
+    Ok(json)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_write(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+    json: String,
+) -> std::result::Result<(), IpcError> {
+    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    let path = library_entry_path(&dir, &name)?;
+
+    fs::create_dir_all(&dir)
+        .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
+
+    let existed = path.exists();
+
+    // The same atomic write documents use, so V-03 (a write keeps the file's
+    // permission bits) holds for library records too.
+    write_file_atomic(&path.to_string_lossy(), &json)
+        .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
+
+    // A NEW record is owner-only, matching what `gx` produces.
+    //
+    // Not a contradiction of V-03, which is about not changing bits somebody
+    // chose: nobody chose these, the file did not exist. What it fixes is one
+    // library with two creators disagreeing — `gx` lands new records at 0600
+    // (a JDK temp file's default), while the umask default here made them
+    // world-readable. A user's diagrams should not become readable to other
+    // local accounts depending on which process happened to create them.
+    #[cfg(unix)]
+    if !existed {
+        if let Err(err) = set_owner_only_permissions(&path) {
+            eprintln!("could not restrict permissions on {}: {err}", path.display());
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = existed;
+
+    // Remember our own bytes so the watcher below does not tell the page about
+    // a change the page just made. Without this every UI edit round-trips back
+    // as an external change and fights whatever the user typed next.
+    if let Ok(mut hashes) = state.recent_write_hashes.lock() {
+        hashes.insert(path.to_string_lossy().to_string(), content_hash(json.as_bytes()));
+    }
+
+    state.audit_logger.log_event(
+        "library.write",
+        Some(&path.to_string_lossy()),
+        Some("ui"),
+        "allowed",
+        None,
+        None,
+    );
+    Ok(())
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_delete(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+) -> std::result::Result<bool, IpcError> {
+    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    let path = library_entry_path(&dir, &name)?;
+    let removed = match fs::remove_file(&path) {
+        Ok(()) => true,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => false,
+        Err(err) => {
+            return Err(IpcError::new(
+                "LIBRARY_DELETE_FAILED",
+                format!("{name}: {err}"),
+            ))
+        }
+    };
+    // So the watcher does not report our own delete back to us as news.
+    if removed {
+        if let Ok(mut hashes) = state.recent_write_hashes.lock() {
+            hashes.insert(path.to_string_lossy().to_string(), LIBRARY_DELETED.to_string());
+        }
+    }
+    state.audit_logger.log_event(
+        "library.delete",
+        Some(&path.to_string_lossy()),
+        Some("ui"),
+        if removed { "allowed" } else { "not-found" },
+        None,
+        None,
+    );
+    Ok(removed)
+}
+
+/// One record's identity for change detection: name, size, mtime.
+type LibraryStamp = (String, u64, Option<std::time::SystemTime>);
+
+/// A fingerprint of the whole library directory: name, size and mtime per
+/// record.
+///
+/// Deliberately not the file contents — the library is polled forever, and
+/// hashing every record on every tick would scale with library size for no
+/// gain. A record whose bytes change without size or mtime changing is a
+/// filesystem with second-granularity timestamps rewriting a file within one
+/// second to the same length; the reconcile on the next real change covers it.
+fn library_signature(dir: &Path) -> Vec<LibraryStamp> {
+    let Ok(listing) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut signature: Vec<_> = listing
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().and_then(|e| e.to_str()) == Some("json"))
+        .map(|entry| {
+            let metadata = entry.metadata().ok();
+            (
+                entry.file_name().to_string_lossy().to_string(),
+                metadata.as_ref().map(|m| m.len()).unwrap_or(0),
+                metadata.and_then(|m| m.modified().ok()),
+            )
+        })
+        .collect();
+    signature.sort();
+    signature
+}
+
+const LIBRARY_POLL_INTERVAL: Duration = Duration::from_millis(400);
+
+/// Tell the page the library changed underneath it.
+///
+/// Carries no records. The page re-lists, which keeps this event honest about
+/// what it knows: the directory moved, and the page owns the schema anyway.
+fn library_changed_script() -> String {
+    "window.dispatchEvent(new CustomEvent('ge:library.changed'));".to_string()
+}
+
+fn emit_library_changed_event(app_handle: &tauri::AppHandle) {
+    let script = library_changed_script();
+    for webview in app_handle.webview_windows().values() {
+        if let Err(err) = webview.eval(&script) {
+            eprintln!("failed to announce a library change: {err}");
+        }
+    }
+}
+
+/// Poll the library directory and announce changes the page did not cause.
+///
+/// Polling rather than `notify` for the same reason the document watcher does:
+/// one mechanism, already proven on all three platforms, and a library is a
+/// handful of small files.
+/// Recorded instead of a hash when WE removed a record, so the watcher can
+/// tell our own delete from `gx` deleting something behind our back. A hash is
+/// hex, so this cannot collide with one.
+const LIBRARY_DELETED: &str = "<deleted>";
+
+/// Which records differ between two signatures — added, removed or edited.
+///
+/// Only these are worth asking about. The first version of this compared the
+/// WHOLE signature against the recent-write map, so a library with two
+/// diagrams could never suppress a self-write: the record we did not touch had
+/// no recorded hash and dragged the answer to "not ours".
+fn changed_records(previous: &[LibraryStamp], current: &[LibraryStamp]) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for (name, size, modified) in current {
+        match previous.iter().find(|(n, _, _)| n == name) {
+            Some((_, prev_size, prev_modified))
+                if prev_size == size && prev_modified == modified => {}
+            _ => names.push(name.clone()),
+        }
+    }
+    for (name, _, _) in previous {
+        if !current.iter().any(|(n, _, _)| n == name) {
+            names.push(name.clone());
+        }
+    }
+    names.sort();
+    names.dedup();
+    names
+}
+
+/// Is this change news to the page, or did the page cause it?
+///
+/// Separated from the loop deliberately. V-12 sat unasserted for a release
+/// because its logic took an `AppHandle`, which no unit test can build; a
+/// decision function takes a directory and a map, and can be run anywhere.
+///
+/// Consumes the matching entries: a recorded write explains exactly one
+/// observation, and leaving it in the map would suppress a later genuine
+/// change to the same record.
+fn library_change_is_news(
+    dir: &Path,
+    changed: &[String],
+    recent_write_hashes: &RecentWriteHashes,
+) -> bool {
+    if changed.is_empty() {
+        return false;
+    }
+    let Ok(mut hashes) = recent_write_hashes.lock() else {
+        // A poisoned lock means we cannot prove the change was ours. Telling
+        // the page about a change it already knows costs a redundant re-read;
+        // staying silent about one it does not know loses the update.
+        return true;
+    };
+
+    let mut news = false;
+    for name in changed {
+        let path = dir.join(name);
+        let key = path.to_string_lossy().to_string();
+        let recorded = hashes.get(&key).cloned();
+        let ours = match (recorded.as_deref(), fs::read(&path).ok()) {
+            (Some(LIBRARY_DELETED), None) => true,
+            (Some(known), Some(bytes)) => known == content_hash(&bytes),
+            _ => false,
+        };
+        if ours {
+            hashes.remove(&key);
+        } else {
+            news = true;
+        }
+    }
+    news
+}
+
+/// Poll the library directory and announce changes the page did not cause.
+///
+/// Polling rather than `notify` for the same reason the document watcher does:
+/// one mechanism, already proven on all three platforms, and a library is a
+/// handful of small files.
+fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: RecentWriteHashes) {
+    std::thread::spawn(move || {
+        let Ok(dir) = library_dir_path() else {
+            eprintln!("library watcher: could not locate the library directory");
+            return;
+        };
+        let mut previous = library_signature(&dir);
+
+        loop {
+            std::thread::sleep(LIBRARY_POLL_INTERVAL);
+            let current = library_signature(&dir);
+            let changed = changed_records(&previous, &current);
+            previous = current;
+
+            if library_change_is_news(&dir, &changed, &recent_write_hashes) {
+                emit_library_changed_event(&app_handle);
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2410,6 +2807,349 @@ mod tests {
             fs::read_to_string(&file).expect("readable"),
             "digraph { a }"
         );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // ------------------------------------------------------- D7.3 library
+
+    /// The shell does not know how an id becomes a file name — that rule is
+    /// `DiagramFileName` in gx-core's shared Scala, called by both `gx` and the
+    /// page. What it must know is that a name it is handed cannot address
+    /// anything outside the library.
+    #[test]
+    fn a_library_name_cannot_escape_the_library() {
+        let dir = PathBuf::from("/tmp/library");
+        for hostile in [
+            "../secrets.json",
+            "../../etc/passwd",
+            "sub/dir.json",
+            "back\\slash.json",
+            "C:evil.json",
+            ".hidden.json",
+            "",
+        ] {
+            assert!(
+                library_entry_path(&dir, hostile).is_err(),
+                "should have been refused: {hostile:?}"
+            );
+        }
+    }
+
+    /// `DiagramFileName` keeps letters rather than restricting to ASCII, so a
+    /// diagram named in Japanese produces a name with Japanese in it. A shell
+    /// that only accepted `[A-Za-z0-9_-]` would reject records the store side
+    /// considers perfectly ordinary.
+    #[test]
+    fn a_library_name_keeps_the_letters_the_naming_rule_keeps() {
+        let dir = PathBuf::from("/tmp/library");
+        for ok in ["arch.json", "\u{8a2d}\u{8a08}.json", "caf\u{e9}.json", "a-b_c.json"] {
+            assert!(
+                library_entry_path(&dir, ok).is_ok(),
+                "should have been accepted: {ok:?}"
+            );
+        }
+    }
+
+    /// A record that cannot be read is REPORTED. Dropping it would show a
+    /// library silently missing a diagram, with nothing to explain the gap.
+    #[test]
+    fn an_unreadable_record_is_reported_rather_than_dropped() {
+        let dir = temp_dir_for("library-unreadable");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        fs::write(dir.join("good.json"), "{\"id\":1}").expect("good");
+        // A directory named `*.json` cannot be read as a string, which is a
+        // portable way to make one entry fail while the other succeeds.
+        fs::create_dir_all(dir.join("broken.json")).expect("broken");
+
+        let entries = read_library_entries(&dir);
+        assert_eq!(entries.len(), 2, "{entries:?}");
+
+        let broken = entries.iter().find(|e| e.name == "broken.json").expect("broken listed");
+        assert!(broken.json.is_none());
+        assert!(broken.error.is_some(), "the failure must be reported");
+
+        let good = entries.iter().find(|e| e.name == "good.json").expect("good listed");
+        assert_eq!(good.json.as_deref(), Some("{\"id\":1}"));
+        assert!(good.error.is_none());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// `read_dir` yields filesystem order, which differs by platform. Sorting
+    /// keeps the library from reshuffling itself on every refresh.
+    #[test]
+    fn the_listing_is_sorted_and_ignores_what_is_not_a_record() {
+        let dir = temp_dir_for("library-sorted");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        for name in ["zeta.json", "alpha.json", "mid.json"] {
+            fs::write(dir.join(name), "{}").expect("record");
+        }
+        fs::write(dir.join("notes.txt"), "not a record").expect("txt");
+        fs::write(dir.join(".alpha.json.tmp"), "half-written").expect("tmp");
+
+        let names: Vec<String> = read_library_entries(&dir).into_iter().map(|e| e.name).collect();
+        assert_eq!(names, vec!["alpha.json", "mid.json", "zeta.json"]);
+    }
+
+    /// A missing directory is an EMPTY library, not an error: nothing has
+    /// written a record yet, which is the state every new install is in.
+    #[test]
+    fn a_library_that_does_not_exist_yet_is_empty_not_broken() {
+        let dir = temp_dir_for("library-absent").join("nope");
+        let _ = fs::remove_dir_all(&dir);
+        assert!(read_library_entries(&dir).is_empty());
+        assert!(library_signature(&dir).is_empty());
+    }
+
+    #[test]
+    fn the_signature_notices_a_new_record_and_an_edit() {
+        let dir = temp_dir_for("library-signature");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let empty = library_signature(&dir);
+
+        fs::write(dir.join("a.json"), "{}").expect("a");
+        let one = library_signature(&dir);
+        assert_ne!(empty, one, "a new record must change the signature");
+
+        fs::write(dir.join("a.json"), "{\"changed\":true}").expect("edit");
+        let edited = library_signature(&dir);
+        assert_ne!(one, edited, "a size change must change the signature");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The same shape as V-11's check on the document event: the announcement
+    /// carries no data, so there is nothing in it to leak or to go stale. The
+    /// page re-reads, and the page owns the schema.
+    #[test]
+    fn the_library_change_event_carries_no_records() {
+        let script = library_changed_script();
+        assert!(script.contains("ge:library.changed"), "{script}");
+        assert!(!script.contains("detail"), "the event must carry no payload: {script}");
+        assert!(!script.contains("json"), "{script}");
+    }
+
+    // ------------------------------------- D7.3 watcher: is it news?
+
+    fn hashes_of(pairs: &[(&Path, &str)]) -> RecentWriteHashes {
+        let map: HashMap<String, String> = pairs
+            .iter()
+            .map(|(p, h)| (p.to_string_lossy().to_string(), (*h).to_string()))
+            .collect();
+        Arc::new(Mutex::new(map))
+    }
+
+    #[test]
+    fn changed_records_notices_an_add_an_edit_and_a_removal() {
+        let t = std::time::SystemTime::UNIX_EPOCH;
+        let before = vec![
+            ("a.json".to_string(), 10, Some(t)),
+            ("b.json".to_string(), 10, Some(t)),
+        ];
+        let after = vec![
+            ("a.json".to_string(), 99, Some(t)), // edited
+            ("c.json".to_string(), 10, Some(t)), // added
+        ];                                        // b removed
+        assert_eq!(
+            changed_records(&before, &after),
+            vec!["a.json".to_string(), "b.json".to_string(), "c.json".to_string()]
+        );
+    }
+
+    #[test]
+    fn an_unchanged_library_is_not_news() {
+        let dir = temp_dir_for("news-none");
+        assert!(!library_change_is_news(&dir, &[], &hashes_of(&[])));
+    }
+
+    /// The case the user hit: `gx import` writes a record while the app is
+    /// running. Nothing recorded it, so the page has to be told.
+    #[test]
+    fn a_record_written_by_gx_is_news() {
+        let dir = temp_dir_for("news-external");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        fs::write(dir.join("imported.json"), "{\"id\":\"imported\"}").expect("write");
+
+        assert!(library_change_is_news(
+            &dir,
+            &["imported.json".to_string()],
+            &hashes_of(&[])
+        ));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The page's own save must not come back at it, or every edit would
+    /// re-enter the UI and fight whatever was typed next.
+    #[test]
+    fn our_own_write_is_not_news() {
+        let dir = temp_dir_for("news-ours");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let body = "{\"id\":\"mine\"}";
+        let file = dir.join("mine.json");
+        fs::write(&file, body).expect("write");
+
+        let hashes = hashes_of(&[(&file, &content_hash(body.as_bytes()))]);
+        assert!(!library_change_is_news(&dir, &["mine.json".to_string()], &hashes));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A change we did not cause reaches the page even when it arrives
+    /// alongside one we did.
+    #[test]
+    fn our_write_does_not_suppress_a_neighbours_change() {
+        let dir = temp_dir_for("news-neighbour");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let mine = dir.join("mine.json");
+        let theirs = dir.join("theirs.json");
+        fs::write(&mine, "{\"a\":1}").expect("mine");
+        fs::write(&theirs, "{\"b\":2}").expect("theirs");
+
+        let hashes = hashes_of(&[(&mine, &content_hash(b"{\"a\":1}"))]);
+        assert!(
+            library_change_is_news(
+                &dir,
+                &["mine.json".to_string(), "theirs.json".to_string()],
+                &hashes
+            ),
+            "a change we did not cause must still reach the page"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A recorded write explains exactly ONE observation. If the entry stayed,
+    /// the next genuine edit to that record would be silently swallowed.
+    #[test]
+    fn a_recorded_write_explains_one_change_only() {
+        let dir = temp_dir_for("news-once");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let file = dir.join("mine.json");
+        let body = "{\"v\":1}";
+        fs::write(&file, body).expect("write");
+        let hashes = hashes_of(&[(&file, &content_hash(body.as_bytes()))]);
+
+        assert!(!library_change_is_news(&dir, &["mine.json".to_string()], &hashes));
+        // Someone else edits the same record afterwards.
+        fs::write(&file, "{\"v\":2}").expect("edit");
+        assert!(
+            library_change_is_news(&dir, &["mine.json".to_string()], &hashes),
+            "the second change is news; the recorded write was already spent"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn our_own_delete_is_quiet_but_someone_elses_is_news() {
+        let dir = temp_dir_for("news-delete");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let gone = dir.join("gone.json");
+
+        let ours = hashes_of(&[(&gone, LIBRARY_DELETED)]);
+        assert!(!library_change_is_news(&dir, &["gone.json".to_string()], &ours));
+
+        assert!(
+            library_change_is_news(&dir, &["gone.json".to_string()], &hashes_of(&[])),
+            "a record removed by gx must reach the page"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// THE bug that extracting this function exposed, stated precisely.
+    ///
+    /// The first version compared the WHOLE signature against the recent-write
+    /// map and demanded every record match. A library with a second, untouched
+    /// diagram therefore had one record with no recorded hash, which dragged
+    /// the answer to "not ours" — so the page's own save echoed straight back
+    /// at it. The symptom is over-notification, not a missed change, and it
+    /// only appears once you have more than one diagram.
+    #[test]
+    fn our_own_write_is_quiet_even_with_another_record_present() {
+        let dir = temp_dir_for("news-ours-plus-one");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let mine = dir.join("mine.json");
+        let body = "{\"a\":1}";
+        fs::write(&mine, body).expect("mine");
+        fs::write(dir.join("untouched.json"), "{\"b\":2}").expect("untouched");
+
+        let hashes = hashes_of(&[(&mine, &content_hash(body.as_bytes()))]);
+        assert!(
+            !library_change_is_news(&dir, &["mine.json".to_string()], &hashes),
+            "only the CHANGED record is consulted; a bystander must not make our own save look external"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A record written by the REAL `gx`, carried through the shell's reader
+    /// unchanged.
+    ///
+    /// The fixture was produced by running `gx import` and then
+    /// `gx run demo hide` against a scratch library, so it is the actual byte
+    /// shape the CLI emits — not a hand-written approximation of it. That
+    /// matters most for what is ABSENT: upickle omits defaults, so `metadata`
+    /// carries only `hiddenElements` and every other field is missing. A
+    /// reader that required them would fail on real data while passing every
+    /// synthetic test.
+    #[test]
+    fn a_real_gx_record_survives_the_shell_untouched() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../local-protocol/fixtures/library-record.json");
+        let bytes = fs::read_to_string(&source).expect("fixture");
+
+        let dir = temp_dir_for("library-fixture");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        fs::write(dir.join("demo.json"), &bytes).expect("seed");
+
+        let entries = read_library_entries(&dir);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "demo.json");
+        assert!(entries[0].error.is_none());
+        // Byte-for-byte: the shell is a courier, and a courier that reformats
+        // JSON would be silently re-deriving a schema it does not own.
+        assert_eq!(entries[0].json.as_deref(), Some(bytes.as_str()));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// One library, two creators, two permission policies — found by looking at
+    /// `ls -l` after a real run. `gx` lands a new record at 0600 (a JDK temp
+    /// file's default); the shell's umask default made its own 0644, so whether
+    /// a diagram was readable by other local accounts depended on which process
+    /// happened to create it.
+    #[cfg(unix)]
+    #[test]
+    fn a_new_library_record_is_owner_only_like_the_ones_gx_writes() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = temp_dir_for("library-perms");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let path = dir.join("new.json");
+
+        // What library_write does, in the order it does it.
+        let existed = path.exists();
+        write_file_atomic(&path.to_string_lossy(), "{}").expect("write");
+        assert!(!existed);
+        set_owner_only_permissions(&path).expect("restrict");
+
+        let mode = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "got {mode:o}");
+
+        // And V-03 still holds for one that already exists: bits somebody chose
+        // are not ours to change.
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).expect("chmod");
+        write_file_atomic(&path.to_string_lossy(), "{\"v\":2}").expect("rewrite");
+        let after = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
+        assert_eq!(after, 0o640, "an existing record keeps its bits; got {after:o}");
 
         let _ = fs::remove_dir_all(&dir);
     }
