@@ -147,6 +147,7 @@ object LibraryStore:
     * `_`, which is lossy — hence [[DiagramId.derivedFrom]] producing ids that
     * are already safe rather than relying on this to clean up after them.
     */
-  private[store] def sanitize(id: String): String =
-    val cleaned = id.map(c => if c.isLetterOrDigit || c == '-' || c == '_' then c else '_')
-    if cleaned.isEmpty then "_" else cleaned.take(120)
+  /** Delegates to the shared rule. Under D7.3 the webview writes this same
+    * directory, so the id -> file-name mapping cannot live on one side only.
+    */
+  private[store] def sanitize(id: String): String = DiagramFileName.of(id)

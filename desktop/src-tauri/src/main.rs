@@ -320,6 +320,12 @@ fn main() {
                 )
                 .map_err(|err| -> Box<dyn std::error::Error> { err.into() })?;
 
+                // D7.3: the library on disk is the live state, so a record
+                // written by `gx` with no window open has to reach the page
+                // once there is one. Nothing sends a message — the shell
+                // notices the directory moved and the page re-reads it.
+                spawn_library_watcher(app.handle().clone(), recent_write_hashes.clone());
+
                 // Apply the real app icon. Window icon is cross-platform
                 // (Windows taskbar / Linux); the macOS Dock needs the AppKit
                 // call since this binary is unbundled.
@@ -339,7 +345,11 @@ fn main() {
             open_document,
             save_document,
             list_documents,
-            session_reply
+            session_reply,
+            library_list,
+            library_read,
+            library_write,
+            library_delete
         ])
         .run(tauri::generate_context!())
         .expect("error while running graph explorer desktop");
@@ -1903,6 +1913,310 @@ fn set_owner_only_permissions(_path: &Path) -> Result<()> {
     Ok(())
 }
 
+// ------------------------------------------------------------------ library
+//
+// D7.3: the store IS the live state. `gx` writes records into
+// `~/.graph-explorer/library/diagrams/<name>.json`, and the webview reads and
+// writes that same directory through the commands below — so a headless
+// `gx import` reaches a running window with no message sent, which is the
+// whole point of the decision.
+//
+// The shell moves RAW JSON STRINGS and never parses a `Diagram` (D2.5:
+// privilege, not intelligence). The schema is gx-core's, defined once in Scala
+// and linked into both `gx` and the page. A Rust struct mirroring it would be
+// a third implementation of one contract, free to drift — which is precisely
+// how V-13's content hash diverged.
+
+fn library_dir_path() -> Result<PathBuf> {
+    let home_dir = dirs::home_dir().context("could not locate user home directory")?;
+    Ok(home_dir
+        .join(".graph-explorer")
+        .join("library")
+        .join("diagrams"))
+}
+
+/// Resolve a library file name against the library directory, checking only
+/// that it cannot address anything outside it.
+///
+/// The id -> file-name mapping is NOT known here. It is `DiagramFileName` in
+/// gx-core's shared Scala, called by `gx` and by the page, so there is exactly
+/// one rule. The shell asks a different and independently safe question: can
+/// this name escape the directory?
+///
+/// Since no accepted name may contain a separator, joining cannot escape — so
+/// this is sufficient without canonicalizing a file that may not exist yet.
+/// `:` is rejected for Windows, where `join("C:x")` would replace the whole
+/// path rather than extend it, and a leading `.` is rejected so a name can
+/// never collide with the `.<name>.tmp` file an atomic write uses.
+fn library_entry_path(dir: &Path, name: &str) -> std::result::Result<PathBuf, IpcError> {
+    let refuse = |why: &str| {
+        Err(IpcError::new(
+            "INVALID_LIBRARY_NAME",
+            format!("{why}: {name:?}"),
+        ))
+    };
+    if name.is_empty() {
+        return refuse("a library entry needs a name");
+    }
+    if name.len() > 200 {
+        return refuse("library entry name is too long");
+    }
+    if name.starts_with('.') {
+        return refuse("a library entry name may not start with a dot");
+    }
+    if name.contains('/') || name.contains('\\') || name.contains(':') || name.contains('\0') {
+        return refuse("a library entry name may not contain a path separator");
+    }
+    Ok(dir.join(name))
+}
+
+/// One record as the page receives it.
+///
+/// A record that cannot be read is REPORTED rather than dropped: silently
+/// omitting it would show the user a library that is missing a diagram with no
+/// indication why, and `LibraryStore.unreadable()` makes the same choice on the
+/// JVM side.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LibraryEntry {
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    json: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+fn read_library_entries(dir: &Path) -> Vec<LibraryEntry> {
+    let Ok(listing) = fs::read_dir(dir) else {
+        // No directory yet is an empty library, not a failure: nothing has
+        // written a record. `gx` creates it on first import.
+        return Vec::new();
+    };
+
+    let mut entries: Vec<LibraryEntry> = listing
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            entry.path().extension().and_then(|e| e.to_str()) == Some("json")
+                && !entry.file_name().to_string_lossy().starts_with('.')
+        })
+        .map(|entry| {
+            let name = entry.file_name().to_string_lossy().to_string();
+            match fs::read_to_string(entry.path()) {
+                Ok(json) => LibraryEntry {
+                    name,
+                    json: Some(json),
+                    error: None,
+                },
+                Err(err) => LibraryEntry {
+                    name,
+                    json: None,
+                    error: Some(err.to_string()),
+                },
+            }
+        })
+        .collect();
+
+    // Sorted so the page gets a stable order across calls; `read_dir` yields
+    // whatever the filesystem does, which differs between platforms and would
+    // reshuffle the library on every refresh.
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+    entries
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_list(state: tauri::State<'_, IpcState>) -> std::result::Result<Vec<LibraryEntry>, IpcError> {
+    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    let entries = read_library_entries(&dir);
+    state.audit_logger.log_event(
+        "library.list",
+        Some(&dir.to_string_lossy()),
+        Some("ui"),
+        "allowed",
+        None,
+        None,
+    );
+    Ok(entries)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_read(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+) -> std::result::Result<String, IpcError> {
+    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    let path = library_entry_path(&dir, &name)?;
+    let json = fs::read_to_string(&path)
+        .map_err(|err| IpcError::new("LIBRARY_READ_FAILED", format!("{name}: {err}")))?;
+    state.audit_logger.log_event(
+        "library.read",
+        Some(&path.to_string_lossy()),
+        Some("ui"),
+        "allowed",
+        None,
+        None,
+    );
+    Ok(json)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_write(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+    json: String,
+) -> std::result::Result<(), IpcError> {
+    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    let path = library_entry_path(&dir, &name)?;
+
+    fs::create_dir_all(&dir)
+        .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
+
+    // The same atomic write documents use, so V-03 (a write keeps the file's
+    // permission bits) holds for library records too.
+    write_file_atomic(&path.to_string_lossy(), &json)
+        .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
+
+    // Remember our own bytes so the watcher below does not tell the page about
+    // a change the page just made. Without this every UI edit round-trips back
+    // as an external change and fights whatever the user typed next.
+    if let Ok(mut hashes) = state.recent_write_hashes.lock() {
+        hashes.insert(path.to_string_lossy().to_string(), content_hash(json.as_bytes()));
+    }
+
+    state.audit_logger.log_event(
+        "library.write",
+        Some(&path.to_string_lossy()),
+        Some("ui"),
+        "allowed",
+        None,
+        None,
+    );
+    Ok(())
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_delete(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+) -> std::result::Result<bool, IpcError> {
+    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    let path = library_entry_path(&dir, &name)?;
+    let removed = match fs::remove_file(&path) {
+        Ok(()) => true,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => false,
+        Err(err) => {
+            return Err(IpcError::new(
+                "LIBRARY_DELETE_FAILED",
+                format!("{name}: {err}"),
+            ))
+        }
+    };
+    state.audit_logger.log_event(
+        "library.delete",
+        Some(&path.to_string_lossy()),
+        Some("ui"),
+        if removed { "allowed" } else { "not-found" },
+        None,
+        None,
+    );
+    Ok(removed)
+}
+
+/// A fingerprint of the whole library directory: name, size and mtime per
+/// record.
+///
+/// Deliberately not the file contents — the library is polled forever, and
+/// hashing every record on every tick would scale with library size for no
+/// gain. A record whose bytes change without size or mtime changing is a
+/// filesystem with second-granularity timestamps rewriting a file within one
+/// second to the same length; the reconcile on the next real change covers it.
+fn library_signature(dir: &Path) -> Vec<(String, u64, Option<std::time::SystemTime>)> {
+    let Ok(listing) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut signature: Vec<_> = listing
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().and_then(|e| e.to_str()) == Some("json"))
+        .map(|entry| {
+            let metadata = entry.metadata().ok();
+            (
+                entry.file_name().to_string_lossy().to_string(),
+                metadata.as_ref().map(|m| m.len()).unwrap_or(0),
+                metadata.and_then(|m| m.modified().ok()),
+            )
+        })
+        .collect();
+    signature.sort();
+    signature
+}
+
+const LIBRARY_POLL_INTERVAL: Duration = Duration::from_millis(400);
+
+/// Tell the page the library changed underneath it.
+///
+/// Carries no records. The page re-lists, which keeps this event honest about
+/// what it knows: the directory moved, and the page owns the schema anyway.
+fn library_changed_script() -> String {
+    "window.dispatchEvent(new CustomEvent('ge:library.changed'));".to_string()
+}
+
+fn emit_library_changed_event(app_handle: &tauri::AppHandle) {
+    let script = library_changed_script();
+    for webview in app_handle.webview_windows().values() {
+        if let Err(err) = webview.eval(&script) {
+            eprintln!("failed to announce a library change: {err}");
+        }
+    }
+}
+
+/// Poll the library directory and announce changes the page did not cause.
+///
+/// Polling rather than `notify` for the same reason the document watcher does:
+/// one mechanism, already proven on all three platforms, and a library is a
+/// handful of small files.
+fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: RecentWriteHashes) {
+    std::thread::spawn(move || {
+        let Ok(dir) = library_dir_path() else {
+            eprintln!("library watcher: could not locate the library directory");
+            return;
+        };
+        let mut previous = library_signature(&dir);
+
+        loop {
+            std::thread::sleep(LIBRARY_POLL_INTERVAL);
+            let current = library_signature(&dir);
+            if current == previous {
+                continue;
+            }
+            previous = current;
+
+            // Was this our own write? `library_write` records the bytes it
+            // wrote; if every changed record still matches one of those, the
+            // page already knows and telling it again would clobber what the
+            // user typed after saving.
+            let ours = match recent_write_hashes.lock() {
+                Ok(mut hashes) => {
+                    let mut all_ours = true;
+                    for (name, _, _) in &previous {
+                        let path = dir.join(name).to_string_lossy().to_string();
+                        match (hashes.get(&path), fs::read(dir.join(name)).ok()) {
+                            (Some(known), Some(bytes)) if *known == content_hash(&bytes) => {
+                                hashes.remove(&path);
+                            }
+                            _ => all_ours = false,
+                        }
+                    }
+                    all_ours
+                }
+                Err(_) => false,
+            };
+
+            if !ours {
+                emit_library_changed_event(&app_handle);
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2412,5 +2726,127 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    // ------------------------------------------------------- D7.3 library
+
+    /// The shell does not know how an id becomes a file name — that rule is
+    /// `DiagramFileName` in gx-core's shared Scala, called by both `gx` and the
+    /// page. What it must know is that a name it is handed cannot address
+    /// anything outside the library.
+    #[test]
+    fn a_library_name_cannot_escape_the_library() {
+        let dir = PathBuf::from("/tmp/library");
+        for hostile in [
+            "../secrets.json",
+            "../../etc/passwd",
+            "sub/dir.json",
+            "back\\slash.json",
+            "C:evil.json",
+            ".hidden.json",
+            "",
+        ] {
+            assert!(
+                library_entry_path(&dir, hostile).is_err(),
+                "should have been refused: {hostile:?}"
+            );
+        }
+    }
+
+    /// `DiagramFileName` keeps letters rather than restricting to ASCII, so a
+    /// diagram named in Japanese produces a name with Japanese in it. A shell
+    /// that only accepted `[A-Za-z0-9_-]` would reject records the store side
+    /// considers perfectly ordinary.
+    #[test]
+    fn a_library_name_keeps_the_letters_the_naming_rule_keeps() {
+        let dir = PathBuf::from("/tmp/library");
+        for ok in ["arch.json", "\u{8a2d}\u{8a08}.json", "caf\u{e9}.json", "a-b_c.json"] {
+            assert!(
+                library_entry_path(&dir, ok).is_ok(),
+                "should have been accepted: {ok:?}"
+            );
+        }
+    }
+
+    /// A record that cannot be read is REPORTED. Dropping it would show a
+    /// library silently missing a diagram, with nothing to explain the gap.
+    #[test]
+    fn an_unreadable_record_is_reported_rather_than_dropped() {
+        let dir = temp_dir_for("library-unreadable");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        fs::write(dir.join("good.json"), "{\"id\":1}").expect("good");
+        // A directory named `*.json` cannot be read as a string, which is a
+        // portable way to make one entry fail while the other succeeds.
+        fs::create_dir_all(dir.join("broken.json")).expect("broken");
+
+        let entries = read_library_entries(&dir);
+        assert_eq!(entries.len(), 2, "{entries:?}");
+
+        let broken = entries.iter().find(|e| e.name == "broken.json").expect("broken listed");
+        assert!(broken.json.is_none());
+        assert!(broken.error.is_some(), "the failure must be reported");
+
+        let good = entries.iter().find(|e| e.name == "good.json").expect("good listed");
+        assert_eq!(good.json.as_deref(), Some("{\"id\":1}"));
+        assert!(good.error.is_none());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// `read_dir` yields filesystem order, which differs by platform. Sorting
+    /// keeps the library from reshuffling itself on every refresh.
+    #[test]
+    fn the_listing_is_sorted_and_ignores_what_is_not_a_record() {
+        let dir = temp_dir_for("library-sorted");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        for name in ["zeta.json", "alpha.json", "mid.json"] {
+            fs::write(dir.join(name), "{}").expect("record");
+        }
+        fs::write(dir.join("notes.txt"), "not a record").expect("txt");
+        fs::write(dir.join(".alpha.json.tmp"), "half-written").expect("tmp");
+
+        let names: Vec<String> = read_library_entries(&dir).into_iter().map(|e| e.name).collect();
+        assert_eq!(names, vec!["alpha.json", "mid.json", "zeta.json"]);
+    }
+
+    /// A missing directory is an EMPTY library, not an error: nothing has
+    /// written a record yet, which is the state every new install is in.
+    #[test]
+    fn a_library_that_does_not_exist_yet_is_empty_not_broken() {
+        let dir = temp_dir_for("library-absent").join("nope");
+        let _ = fs::remove_dir_all(&dir);
+        assert!(read_library_entries(&dir).is_empty());
+        assert!(library_signature(&dir).is_empty());
+    }
+
+    #[test]
+    fn the_signature_notices_a_new_record_and_an_edit() {
+        let dir = temp_dir_for("library-signature");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let empty = library_signature(&dir);
+
+        fs::write(dir.join("a.json"), "{}").expect("a");
+        let one = library_signature(&dir);
+        assert_ne!(empty, one, "a new record must change the signature");
+
+        fs::write(dir.join("a.json"), "{\"changed\":true}").expect("edit");
+        let edited = library_signature(&dir);
+        assert_ne!(one, edited, "a size change must change the signature");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The same shape as V-11's check on the document event: the announcement
+    /// carries no data, so there is nothing in it to leak or to go stale. The
+    /// page re-reads, and the page owns the schema.
+    #[test]
+    fn the_library_change_event_carries_no_records() {
+        let script = library_changed_script();
+        assert!(script.contains("ge:library.changed"), "{script}");
+        assert!(!script.contains("detail"), "the event must carry no payload: {script}");
+        assert!(!script.contains("json"), "{script}");
     }
 }
