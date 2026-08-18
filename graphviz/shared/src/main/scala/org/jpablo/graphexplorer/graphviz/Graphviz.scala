@@ -43,6 +43,30 @@ object Graphviz:
   private def failure(errors: Vector[RenderError]): MultipleRenderResult =
     MultipleRenderResult(RenderStatus.Failure.wire, Map.empty, errors)
 
+  /** The graph's STRUCTURE, without laying it out (P8 / D2.3).
+    *
+    * `parse -> resolve` is shared with [[renderFormats]] verbatim, so this is
+    * not a second reading of the DOT language: attribute scoping, node
+    * deduplication, edge chains, ports, cluster membership and cgraph's
+    * `agfstout` edge ordering all come from the same `AttrResolver` the layout
+    * path uses, and are already oracle-verified by the corpus sweep.
+    *
+    * The only thing skipped is the bounding box — see
+    * `Output.dotJsonStructure`. On the largest corpus file that is ~2ms against
+    * ~89ms, because a query like "what nodes exist" was paying for a full `dot`
+    * layout to answer.
+    */
+  def structureJson(dot: String): Either[String, String] =
+    DotParser.parse(dot) match
+      case Left(err) => Left(err)
+      case Right(ast) =>
+        try Right(Output.dotJsonStructure(AttrResolver.resolve(ast)))
+        catch case e: Throwable => Left(Option(e.getMessage).getOrElse(e.toString))
+        finally
+          // Same hygiene as renderFormats: the doc memo keys on the RGraph, so
+          // a long-lived session would otherwise pin the last graph read.
+          org.jpablo.graphexplorer.graphviz.layout.GraphMemo.clearAll()
+
   def renderFormats(dot: String, formats: Seq[String]): MultipleRenderResult =
     DotParser.parse(dot) match
       case Left(err) =>

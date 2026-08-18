@@ -237,8 +237,29 @@ object Output:
       .filter { case (k, v) => v.nonEmpty || (k == "label" && sg.emitLabel) }
       .sortBy(_._1)
 
-  def dotJson(g: RGraph): String =
-    val d = doc(g)
+  def dotJson(g: RGraph): String = dotJsonWith(g, boundingBox(g))
+
+  /** `dot_json` minus the one field that needs a layout (P8 / D2.3).
+    *
+    * `bb` is the ONLY layout-dependent value this writer emits — everything
+    * else comes from [[doc]], which is a pure function of the resolved graph.
+    * Computing it is also what makes a structural query cost ~89ms instead of
+    * ~2ms: the bounding box is not known until the whole graph has been laid
+    * out.
+    *
+    * The substitute is safe rather than approximate. `SimpleGraph` has no `bb`
+    * field and `ExtraAttrs.layoutOnlyKeys` drops the key before capture, so no
+    * reader downstream can observe the difference — the resulting `ViewerGraph`
+    * is identical, by construction rather than by testing. Anything that wants
+    * a real box wants a layout, and should ask for `json0`.
+    */
+  def dotJsonStructure(g: RGraph): String = dotJsonWith(g, StructureOnlyBB)
+
+  /** Deliberately degenerate, so a reader that DOES look at `bb` sees an
+    * obviously empty box instead of a plausible wrong one. */
+  private val StructureOnlyBB = "0 0 0 0"
+
+  private def boundingBox(g: RGraph): String =
     // dot_json `bb` is the **integer** box (space-sep) — gv's `-Tjson`
     // structural dump ROUNDs each GD_bb corner (ROUND macro = round-half-away-
     // from-zero); json0 keeps the exact float. (Earlier floor/ceil only ever
@@ -252,12 +273,16 @@ object Output:
     // spline overhangs the node/cluster box — see json0).
     val (blx, bly, bux, buy) =
       (gvRound(0.0), gvRound(0.0), gvRound(ux - lx), gvRound(uy - ly))
+    s"${g5(blx)} ${g5(bly)} ${g5(bux)} ${g5(buy)}"
+
+  private def dotJsonWith(g: RGraph, bb: String): String =
+    val d = doc(g)
     val sb = new StringBuilder
     sb ++= "{\n"
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
-    sb ++= s"""  "bb": "${g5(blx)} ${g5(bly)} ${g5(bux)} ${g5(buy)}",\n"""
+    sb ++= s"""  "bb": "$bb",\n"""
     d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
     sb ++= s"""  "_subgraph_cnt": ${d.sgCnt}""" // comma deferred: gv omits "objects" when empty
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
