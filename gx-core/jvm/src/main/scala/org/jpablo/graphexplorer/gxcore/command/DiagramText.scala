@@ -22,17 +22,22 @@ import scala.util.control.NonFatal
   * which consumes `dot_json` — a layout product. The viewer never noticed
   * because it lays out anyway.
   *
-  * So this takes the layout path and says so. The results are correct; a query
-  * costs ~91ms on a large graph where it should cost ~9ms. Closing the gap means
-  * writing AST→`ViewerGraph` and then proving it *agrees* with this path, or the
-  * UI and `gx` would read different graphs from the same file — a V-13-shaped
-  * contract, with the corpus available to cross-test against.
+  * ## D2.3 is met (P8)
   *
-  * Scoped as **P8** in `docs/desktop-gx-v2-architecture.md`, now that P7 made
-  * the cost start to matter — headless commands reach a live window, so this is
-  * a plausible thing to call in a loop. Measured there: 2.69ms parse-only
-  * against 70.93ms for the layout path on the largest corpus file, and the
-  * hazard that actually decides the work is ORDERING, not correctness.
+  * It turned out not to need a second DOT reader at all. `dot_json` is
+  * *structure only* apart from one field: `bb`, the bounding box, which is the
+  * sole reason a query was paying for a full layout. `Graphviz.structureJson`
+  * emits the same document with a degenerate box, and `SimpleGraph` has no
+  * `bb` field — `ExtraAttrs.layoutOnlyKeys` drops the key before capture — so
+  * no reader downstream can tell the difference.
+  *
+  * Everything that was feared hard was already done and oracle-verified:
+  * `AttrResolver` handles scoping, node dedup, edge chains, ports and clusters,
+  * and `Output.doc` assigns `_gvid` in cgraph's `agfstout` order, which is what
+  * `Arrow.seq` — and therefore every `ArrowId` — depends on.
+  *
+  * `StructureAgreementSpec` sweeps all 168 corpus files and asserts both paths
+  * read the same `ViewerGraph`.
   */
 object DiagramText:
 
@@ -48,12 +53,15 @@ object DiagramText:
       case DiagramFormat.Mermaid =>
         Left("mermaid diagrams cannot be read headlessly yet (the parser needs a browser)")
       case _ =>
+        // P8: the STRUCTURE, without a layout. `parse -> resolve` is shared
+        // with the layout path verbatim — same scoping, same node dedup, same
+        // cgraph edge ordering — so this is not a second reading of DOT.
+        // `StructureAgreementSpec` sweeps all 168 corpus files to say so out
+        // loud rather than on the strength of having read the code.
         try
-          val result = ScalaGraphviz.renderFormats(text, Seq("dot_json"))
-          result.output.get("dot_json") match
-            case Some(json) => Right(toViewerGraph(read[SimpleGraph](json)))
-            case None =>
-              Left(s"could not parse the diagram: ${result.errors.mkString("; ")}")
+          ScalaGraphviz.structureJson(text) match
+            case Right(json) => Right(toViewerGraph(read[SimpleGraph](json)))
+            case Left(err)   => Left(s"could not parse the diagram: $err")
         catch case NonFatal(e) => Left(s"could not parse the diagram: ${e.getMessage}")
 
   /** Print a graph back to DOT.
