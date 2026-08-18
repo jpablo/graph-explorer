@@ -2070,10 +2070,29 @@ fn library_write(
     fs::create_dir_all(&dir)
         .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
 
+    let existed = path.exists();
+
     // The same atomic write documents use, so V-03 (a write keeps the file's
     // permission bits) holds for library records too.
     write_file_atomic(&path.to_string_lossy(), &json)
         .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
+
+    // A NEW record is owner-only, matching what `gx` produces.
+    //
+    // Not a contradiction of V-03, which is about not changing bits somebody
+    // chose: nobody chose these, the file did not exist. What it fixes is one
+    // library with two creators disagreeing — `gx` lands new records at 0600
+    // (a JDK temp file's default), while the umask default here made them
+    // world-readable. A user's diagrams should not become readable to other
+    // local accounts depending on which process happened to create them.
+    #[cfg(unix)]
+    if !existed {
+        if let Err(err) = set_owner_only_permissions(&path) {
+            eprintln!("could not restrict permissions on {}: {err}", path.display());
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = existed;
 
     // Remember our own bytes so the watcher below does not tell the page about
     // a change the page just made. Without this every UI edit round-trips back
@@ -3097,6 +3116,40 @@ mod tests {
         // Byte-for-byte: the shell is a courier, and a courier that reformats
         // JSON would be silently re-deriving a schema it does not own.
         assert_eq!(entries[0].json.as_deref(), Some(bytes.as_str()));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// One library, two creators, two permission policies — found by looking at
+    /// `ls -l` after a real run. `gx` lands a new record at 0600 (a JDK temp
+    /// file's default); the shell's umask default made its own 0644, so whether
+    /// a diagram was readable by other local accounts depended on which process
+    /// happened to create it.
+    #[cfg(unix)]
+    #[test]
+    fn a_new_library_record_is_owner_only_like_the_ones_gx_writes() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = temp_dir_for("library-perms");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        let path = dir.join("new.json");
+
+        // What library_write does, in the order it does it.
+        let existed = path.exists();
+        write_file_atomic(&path.to_string_lossy(), "{}").expect("write");
+        assert!(!existed);
+        set_owner_only_permissions(&path).expect("restrict");
+
+        let mode = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "got {mode:o}");
+
+        // And V-03 still holds for one that already exists: bits somebody chose
+        // are not ours to change.
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).expect("chmod");
+        write_file_atomic(&path.to_string_lossy(), "{\"v\":2}").expect("rewrite");
+        let after = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
+        assert_eq!(after, 0o640, "an existing record keeps its bits; got {after:o}");
 
         let _ = fs::remove_dir_all(&dir);
     }

@@ -146,3 +146,16 @@ class DesktopLibrarySpec extends FunSuite:
         library.deleteProject(ProjectId("a"))
         assert(!library.projectExists(ProjectId("a")))
         assert(!shell.files.contains("a.json"), shell.files.keys.toString)
+
+  test("opening a diagram and changing nothing writes nothing"):
+    // Found by running it: the library sorts by `updatedAt`, so a write with no
+    // edit behind it would reorder the library for having looked at a diagram.
+    withShell: shell =>
+      shell.files("a.json") = upickle.default.write(record("a", "Alpha", "digraph { a }"))
+      DesktopLibrary.load().map: loaded =>
+        val library = DesktopLibrary(loaded)
+        val state   = library.createProjectPersistence(ProjectId("a"), None)
+        // Set the same value back: page state "changes", the record does not.
+        state.set(state.now())
+        library.flush()
+        assertEquals(shell.writes.toList, Nil, s"no write expected, got ${shell.writes}")

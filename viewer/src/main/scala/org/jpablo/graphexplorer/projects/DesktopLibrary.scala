@@ -172,7 +172,21 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
   private def writeNow(id: ProjectId, state: PersistedDiagramState, unparsed: LibraryMapping.Unparsed): Unit =
     val latest  = records.now().get(id.value)
     val diagram = LibraryMapping.toDiagram(DiagramId(id.value), state, latest, unparsed, js.Date.now().toLong)
-    put(diagram)
+
+    // A visit is not an edit. If the mapping round-trip produces the record we
+    // already hold, the only difference is the clock — and writing that would
+    // bump `updatedAt`, which the library is sorted by, so diagrams would
+    // reshuffle for having been looked at.
+    //
+    // This is a guard, not a fix for a live bug: `signal.distinct` already
+    // suppresses a state that did not change. What it catches is the case
+    // `distinct` cannot see — page state that differs while mapping back to an
+    // identical record. (A genuinely new field DOES write, once: opening a
+    // pre-`autoDetectFormat` diagram settles it to `true` and saves. That is
+    // the viewer's own default, it predates D7.3, and it happens once per
+    // diagram and then stops.)
+    val unchanged = latest.exists(current => diagram.copy(updatedAt = current.updatedAt) == current)
+    if !unchanged then put(diagram)
 
   private def put(d: Diagram): Unit =
     records.update(_.updated(d.id.value, d))
