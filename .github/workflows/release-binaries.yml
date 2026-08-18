@@ -21,6 +21,17 @@ permissions:
 # Opt JavaScript actions into Node 24 (same rationale as the smoke workflow).
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # macOS release signing + notarization. Every one of these resolves to an
+  # empty string until the matching repo secret exists, which is the signal
+  # the release job uses to decide whether to sign: no secrets => the build
+  # behaves exactly as it always did (ad-hoc signature, no notarization).
+  # docs/macos-release-signing.md has the one-time setup for the secrets.
+  APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+  APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+  APPLE_ID: ${{ secrets.APPLE_ID }}
+  APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+  KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'graph-explorer-ci' }}
 
 jobs:
   build-frontend:
@@ -94,6 +105,27 @@ jobs:
           name: frontend-dist
           path: dist
 
+      # The release is tagged vX.Y.Z, but the app version lives in two static
+      # scaffold files (both 0.1.0 since the v0 desktop was added). Without
+      # this, the DMG is named v0.7.0 while the app's Info.plist (and thus
+      # `About`, crash reports, and anything a user checks to confirm they
+      # have the release) still says 0.1.0. Sync them from the tag so the
+      # binary, the bundle, and the filename agree.
+      - name: Set app version from the release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          [[ -n "${version}" ]] || { echo "no release version derivable from tag '${tag}'"; exit 1; }
+          jq --arg v "${version}" '.version = $v' desktop/src-tauri/tauri.conf.json > tmp.conf \
+            && mv tmp.conf desktop/src-tauri/tauri.conf.json
+          # No `sed -i`: BSD and GNU sed disagree on its -i syntax, and this
+          # step runs on all three runners.
+          sed -e "s/^version = \"[0-9.]*\"/version = \"${version}\"/" desktop/src-tauri/Cargo.toml > tmp.cargo \
+            && mv tmp.cargo desktop/src-tauri/Cargo.toml
+          echo "release version: ${version}"
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -116,6 +148,36 @@ jobs:
       # so it does not need the explicit dev-build guard the raw cargo path
       # below uses. It also still emits the raw target/release binary that the
       # smoke scripts exercise.
+      #
+      # Signing: if the APPLE_CERTIFICATE secret exists, import the Developer
+      # ID certificate into a build keychain and remember its identity name in
+      # CERT_ID. The bundler step then signs the .app and the .dmg with it, and
+      # (with APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID present) Tauri
+      # notarizes + staples the .app. Tauri does NOT notarize the .dmg (it only
+      # codesigns it -- tauri-apps/tauri#7533) and never touches gx (a
+      # standalone binary, not a Tauri sidecar), so the "Notarize and staple
+      # DMG and gx" step after the smoke closes those two gaps. Without the
+      # secret nothing is signed at all -- exactly today's behavior.
+      - name: Import Apple Developer certificate (macOS)
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${APPLE_CERTIFICATE}" | base64 --decode > certificate.p12
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import certificate.p12 -k build.keychain \
+            -P "${APPLE_CERTIFICATE_PASSWORD}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "${KEYCHAIN_PASSWORD}" build.keychain
+          CERT_INFO="$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' || true)"
+          [[ -n "${CERT_INFO}" ]] || { echo "no 'Developer ID Application' identity after import"; exit 1; }
+          CERT_ID="$(echo "${CERT_INFO}" | awk -F'"' '{print $2}')"
+          echo "CERT_ID=${CERT_ID}" >> "$GITHUB_ENV"
+          echo "imported signing identity: ${CERT_ID}"
+
       - name: Install Tauri CLI (macOS)
         if: runner.os == 'macOS'
         run: cargo install tauri-cli --version "^2"
@@ -123,9 +185,28 @@ jobs:
       - name: Build desktop bundle (macOS .dmg + .app)
         if: runner.os == 'macOS'
         working-directory: desktop/src-tauri
+        shell: bash
         # bundle.active is false in tauri.conf.json, so name the targets
         # explicitly rather than relying on the default bundle set.
-        run: cargo tauri build --bundles dmg,app
+        #
+        # APPLE_SIGNING_IDENTITY is exported ONLY when the cert secret exists:
+        # Tauri's keychain lookup returns None for a *missing* identity (skip
+        # signing entirely) but Some for '-' (ad-hoc). Ad-hoc must NOT be
+        # forced here, because codesign refuses to ad-hoc sign disk images
+        # ("ad-hoc codesigning is not supported for disk images") -- that
+        # would break the secret-less release path, which must keep building
+        # unsigned exactly as it always has. Developer ID + notarization is
+        # the only way a downloaded DMG opens without Privacy & Security
+        # fiddling; the verify step after the smoke gates that outcome.
+        run: |
+          set -euo pipefail
+          if [[ -n "${CERT_ID:-}" ]]; then
+            export APPLE_SIGNING_IDENTITY="${CERT_ID}"
+            echo "signing with: ${CERT_ID}"
+          else
+            echo "no APPLE_CERTIFICATE secret: signing skipped (no identity available), no notarization"
+          fi
+          cargo tauri build --bundles dmg,app
 
       # Linux/Windows: raw release binary. The tauri/custom-protocol feature is
       # REQUIRED -- without it the build script leaves `dev` set and the window
@@ -392,6 +473,61 @@ jobs:
             }
           }
 
+      # Notarize and staple the two artifacts Tauri leaves un-notarized.
+      # Tauri notarizes + staples the .app, but (a) it only codesigns the .dmg
+      # without notarizing it (tauri-apps/tauri#7533), and (b) it never touches
+      # gx, which is a standalone native binary, not a Tauri sidecar. Both are
+      # the artifacts a user actually downloads and runs, so both get signed,
+      # notarized, and stapled here. Runs after the smoke gates on purpose:
+      # those launch the RAW target/release binary, not the re-signed .app, so
+      # re-signing cannot disturb them. Fails the (macOS) job on any error.
+      - name: Notarize and staple DMG and gx (macOS)
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg="$(find desktop/src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)"
+          [[ -n "${dmg}" ]] || { echo "no .dmg found to notarize"; exit 1; }
+          chmod +x scripts/macos-notarize-staple.sh
+          # --no-codesign: Tauri already codesigned the .dmg.
+          ./scripts/macos-notarize-staple.sh --no-codesign "${CERT_ID}" "${dmg}"
+          # gx is signed from scratch here (it has no signature yet), and
+          # stapling is not supported for raw Mach-O binaries, so
+          # --no-staple: signed + notarized is the terminal state for it.
+          ./scripts/macos-notarize-staple.sh --no-staple "${CERT_ID}" gx-cli/target/gx
+
+      # The publish gate for the signing pipeline itself. When the cert secret
+      # is present, the assets MUST be Developer ID signed and carry a stapled
+      # notarization ticket -- the property that makes a downloaded DMG open
+      # without the user touching Privacy & Security. Failing here withholds
+      # the macOS assets instead of publishing them half-signed. Without the
+      # secret this step is skipped: ad-hoc is the known status quo, and
+      # docs/macos-release-signing.md says what a user of v0.7.0-era assets
+      # has to do in the meantime.
+      - name: Verify signature and notarization (macOS)
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="$(find desktop/src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
+          dmg="$(find desktop/src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)"
+          [[ -n "${app}" && -n "${dmg}" ]] || { echo "no .app/.dmg found"; exit 1; }
+          echo "--- .app signature ---"
+          codesign --verify --deep --strict --verbose=2 "${app}"
+          identity="$(codesign -dv "${app}" 2>&1 | sed -n 's/^[[:space:]]*Authority=//p' | head -n1)"
+          echo "authority: ${identity}"
+          case "${identity}" in
+            "Developer ID Application"*) : ;;
+            *) echo "FAIL: not signed with Developer ID Application (got: '${identity}')"; exit 1 ;;
+          esac
+          echo "--- notarization tickets ---"
+          xcrun stapler validate "${dmg}"
+          xcrun stapler validate "${app}"
+          echo "--- gx signature ---"
+          # gx is a raw binary: signed + notarized, but NOT stapled (stapling
+          # is not supported for Mach-O), so its Gatekeeper check is online.
+          codesign --verify --strict gx-cli/target/gx
+
       # --- Stage assets with OS- and tag-tagged names (no collisions) ---
 
       - name: Stage release assets
@@ -426,3 +562,40 @@ jobs:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           fail_on_unmatched_files: true
           files: release-dist/*
+
+  # needs: release covers ALL matrix legs, so this job only runs when every
+  # platform's assets were attached -- which is what makes the checksum file
+  # trustworthy: it lists exactly the assets that exist on the Release, and it
+  # exists only when the whole release is complete. A failed leg means no
+  # SHA256SUMS, which is the right outcome (a checksum file for half the
+  # assets is worse than none).
+  #
+  # v0.7.0 shipped with no published checksum for any asset; the verification
+  # of the gx binary was "compare it against a download from another machine".
+  # This closes that gap for everything going forward.
+  publish-checksums:
+    name: Publish SHA256SUMS
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets and compute SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          gh api "repos/${{ github.repository }}/releases/tags/${tag}" \
+            --jq '.assets[] | .name' | sort | while IFS= read -r name; do
+            case "${name}" in
+              SHA256SUMS*) continue ;;
+            esac
+            gh release download "${tag}" --repo "${GITHUB_REPOSITORY}" --pattern "${name}" --dir assets
+          done
+          (cd assets && sha256sum -- * > ../SHA256SUMS)
+          cat SHA256SUMS
+
+      - name: Attach SHA256SUMS to the Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          fail_on_unmatched_files: true
+          files: SHA256SUMS
