@@ -786,6 +786,30 @@ the record **as it stands now**, so a `gx run tag` landing mid-edit survives.
 **V-15 is asserted**, in both halves: imported while the app was closed, and
 imported while it was open.
 
+**Verified in a real window** (2026-08-17, macOS). `gx import tmp/sbt-modules.dot`
+appeared in a running app; `gx open` raised it; then three `gx run hide/unhide`
+commands toggled a node on screen with nothing sent over the socket. The audit
+log is the receipt — one page re-read per command, each inside the 400ms poll,
+and **no write-back**:
+
+```
+22:37:10 unhide  ->  22:37:11.116  library.list
+22:37:17 hide    ->  22:37:17.179  library.list
+22:37:23 unhide  ->  22:37:23.248  library.list
+```
+
+That last column is what closed the loop no unit test could: the shell noticed a
+change it had not caused, the page re-read, and derived state (the "1 hidden"
+badge, the hidden-neighbour counts) re-derived itself from a record another
+process wrote.
+
+The same run also settled a hedge. The no-op write guard had been described as
+defensive; the audit log from the PREVIOUS build shows `library.list` at
+`22:22:16.491` followed by `library.write` at `22:22:16.905` — one debounce
+window later. The page was re-reading an external change and writing it straight
+back, bumping `updatedAt` on every `gx` command. The new build does not.
+Measuring beat reasoning about it.
+
 Two things this phase learned the hard way:
 
 - **The watcher echoed the page's own saves back at it, but only with two or
