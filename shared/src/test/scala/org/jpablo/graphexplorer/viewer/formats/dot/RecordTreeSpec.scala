@@ -219,6 +219,30 @@ class RecordTreeSpec extends ScalaCheckSuite:
       val once = RecordTree.serialize(RecordTree.parse(label))
       assertEquals(RecordTree.serialize(RecordTree.parse(once)), once)
 
+  /** An ESCAPED space, pinned for the same reason as the backslash case below:
+    * so it is checked on every run rather than whenever a seed reaches it.
+    *
+    * `RecordLabel` unescapes `\ ` into a plain space, which can land beside a
+    * space that was already there. Nothing re-collapsed the run, so `"a \ b"`
+    * parsed to `"a  b"` and only a SECOND pass made it `"a b"` — the fixed
+    * point took two passes. Seed fnhHBfBywyBmFFfParrwTOZw44DeS3tJVIL13egJZnO=
+    * shrank it to `" \ !` on 2026-08-18.
+    */
+  test("an escaped space settles in ONE pass"):
+    for label <- Vector("a \\ b", "\" \\ !", "x \\  y", "\\ leading", "trailing \\ ") do
+      val once = RecordTree.serialize(RecordTree.parse(label))
+      assertEquals(
+        RecordTree.serialize(RecordTree.parse(once)),
+        once,
+        s"not a fixed point after one pass: ${label.replace("\\", "\\\\")}"
+      )
+
+  test("collapsing an unescaped run does not eat a deliberate escaped space"):
+    // The collapse is escape-aware on purpose: `\ ` is how a user writes a
+    // space they want kept, and canonicalising must not silently delete it.
+    val tree = RecordTree.parse("a \\ b")
+    assertEquals(RecordTree.serialize(tree), "a b")
+
   /** The counterexample the property above found, pinned so it is checked on
     * every run rather than whenever a seed happens to reach it.
     *

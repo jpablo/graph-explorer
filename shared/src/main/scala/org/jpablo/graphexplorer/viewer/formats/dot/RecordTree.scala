@@ -52,7 +52,9 @@ object RecordTree:
     val port = f.id.map(_.trim).filter(_.nonEmpty)
     if f.isLeaf then
       val text = f.text.map(t => if t == " " then "" else t).getOrElse("")
-      Leaf(port, dropUnpairedTrailingBackslash(text))
+      // Collapse BEFORE dropping a dangling backslash: dropping one can itself
+      // expose a trailing space, and that path re-trims on its own.
+      Leaf(port, dropUnpairedTrailingBackslash(collapseUnescapedSpaces(text)))
     else Group(port, f.flds.map(fromField))
 
   /** Canonical label string: fields joined with `" | "`, `<port> ` prefixes,
@@ -262,6 +264,48 @@ object RecordTree:
       else if Specials(c) then { sb += '\\'; sb += c }
       else sb += c
     dropUnpairedTrailingBackslash(sb.result().trim.replaceAll(" {2,}", " "))
+
+  /** Collapse and trim runs of UNESCAPED spaces.
+    *
+    * Restores the invariant this file documents at the top: leaf `text` holds
+    * unescaped spaces already trimmed and collapsed. The engine's parser
+    * unescapes `\ ` into a plain space, which can land beside a space that was
+    * already there — and nothing put the run back into canonical form, so
+    * `serialize ∘ parse` took a SECOND pass to settle. `"a \ b"` became
+    * `"a  b"`, and only the next parse made it `"a b"`.
+    *
+    * The same bug as [[trimTrailingUnescapedSpaces]] approached from the other
+    * side: an unescape reveals whitespace, and whatever reveals it owes the
+    * caller a re-normalization. A ScalaCheck seed found that one; a ScalaCheck
+    * seed found this one, and both counterexamples are pinned in RecordTreeSpec.
+    *
+    * Escape-aware, so `\ ` written deliberately by a user survives — only runs
+    * that are actually unescaped collapse.
+    */
+  private def collapseUnescapedSpaces(s: String): String =
+    val sb                    = StringBuilder()
+    var i                     = 0
+    var lastWasUnescapedSpace = false
+    while i < s.length do
+      val c = s.charAt(i)
+      if c == '\\' && i + 1 < s.length then
+        sb += c
+        sb += s.charAt(i + 1)
+        i += 2
+        lastWasUnescapedSpace = false
+      else
+        if c == ' ' then
+          if !lastWasUnescapedSpace then sb += c
+          lastWasUnescapedSpace = true
+        else
+          sb += c
+          lastWasUnescapedSpace = false
+        i += 1
+    val collapsed = sb.result()
+    // A leading space cannot be escaped (nothing precedes it), so index 0 is
+    // the only case to consider on that side.
+    val fromStart = if collapsed.startsWith(" ") then collapsed.drop(1) else collapsed
+    trimTrailingUnescapedSpaces(fromStart)
 
   private def dropUnpairedTrailingBackslash(s: String): String =
     var i = 0
