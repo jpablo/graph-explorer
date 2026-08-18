@@ -23,9 +23,13 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   # macOS release signing + notarization. Every one of these resolves to an
   # empty string until the matching repo secret exists, which is the signal
-  # the release job uses to decide whether to sign: no secrets => the build
-  # behaves exactly as it always did (ad-hoc signature, no notarization).
-  # docs/macos-release-signing.md has the one-time setup for the secrets.
+  # the release job uses to decide whether to sign.
+  #
+  # NOTE these are defined for EVERY step, so "no secret" means SET-BUT-EMPTY
+  # rather than absent — and Tauri's bundler decides to sign on presence, not
+  # on value. The macOS build step therefore unsets them when there is no
+  # identity; see the comment there. docs/macos-release-signing.md has the
+  # one-time setup for the secrets.
   APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
   APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
   APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -204,6 +208,18 @@ jobs:
             export APPLE_SIGNING_IDENTITY="${CERT_ID}"
             echo "signing with: ${CERT_ID}"
           else
+            # UNSET, not empty. The workflow-level `env:` block defines these
+            # for every step, so with no secrets they arrive here SET to the
+            # empty string — and Tauri's bundler treats PRESENCE as intent. It
+            # ran `security import` on an empty certificate and failed the
+            # whole macOS job with "failed to import keychain certificate",
+            # which is how v0.8.0 shipped without any macOS assets.
+            #
+            # `${VAR:-}` reads the same for unset and empty; a bundler asking
+            # "is this variable defined" does not. Removing them restores the
+            # secret-less path the comment above always claimed to have.
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD
+            unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
             echo "no APPLE_CERTIFICATE secret: signing skipped (no identity available), no notarization"
           fi
           cargo tauri build --bundles dmg,app
