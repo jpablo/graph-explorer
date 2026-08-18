@@ -808,7 +808,7 @@ Remaining in P6, in the order they should land:
    [--params J | --stdin]`, plus `gx run --list`. Headless: none of it needs a
    desktop.
 
-   **D2.3 is knowingly unmet, and this is where it is paid.** D2.3 says command
+   **D2.3 was unmet at P6, and this is where it was paid.** D2.3 says command
    and query implementations use the parser directly rather than taking the
    91ms layout path. There is no such path to take: `DotParser.parse` yields
    graphviz's own AST, and the only DOT→`ViewerGraph` converter in the tree
@@ -820,8 +820,9 @@ Remaining in P6, in the order they should land:
    available to cross-test — and is worth doing when the 80ms starts to matter.
    `DiagramText` is the one place that would change.
 
-   **Scoped as P8**, below, after P7 made it start to matter: headless commands
-   now reach a live window, so `gx run` is a plausible thing to call in a loop.
+   **Closed by P8**, below. The gap turned out not to need a second DOT reader:
+   `dot_json` is structure-only apart from the bounding box, and nothing
+   downstream can observe that field.
 
    **A mutation rewrites the file in canonical form.** The path is text → graph
    → text, so the output is the printer's spelling — quoted ids, explicit node
@@ -973,89 +974,68 @@ What is still not true: the **web** library remains `localStorage`, necessarily
 non-destructive, so a desktop user keeps a browser copy as a fallback and the
 two libraries diverge from that point on.
 
-**P8 — The layout-free parse path (D2.3). ◻ Scoped, not started.** D2.3 says
-command and query implementations use the parser directly. They do not: every
-`gx run` goes through `renderFormats(text, Seq("dot_json"))`, which runs a full
-`dot` layout to answer questions like "what nodes exist".
-
-Measured on `graphviz/corpus/191-scala-type-graph.dot` (1066 lines), JVM,
-JIT-warmed:
+**P8 — The layout-free parse path (D2.3). ✅ DONE.** `gx run` no longer pays for
+a `dot` layout to answer "what nodes exist". Measured on the full DOT →
+`ViewerGraph` path, which is what every document and record command does first:
 
 ```
-DotParser.parse only         2.69 ms
-renderFormats(dot_json)     70.93 ms
+OLD: renderFormats(dot_json) -> ViewerGraph   68.94 ms
+NEW: structureJson -> ViewerGraph              4.27 ms
 ```
 
-**~26×.** This mattered less when headless commands were bookkeeping. P7 made
-them reach a live window, so `gx run` is now a plausible thing to call in a
-loop — an agent hiding twenty nodes pays a second and a half for layout it
-discards.
+**The scope was wrong, in the useful direction.** It was written as "implement
+graphviz's semantic pass" — the attribute cascade, edge chains, implicit nodes,
+cluster membership, ports — with ordering named as the real hazard: `agfstout`
+iterating by (head-node sequence, AGSEQ) rather than declaration order, `_gvid`
+cluster order, `Attributes.fromOrdered`. Reading the code first found every one
+of those already built and already oracle-verified by the layout port's
+byte-exact corpus sweep:
 
-**The gap is a converter, not an algorithm.** `DotParser.parse` yields the DOT
-AST (`NodeStmt`, `EdgeStmt`, `AttrStmt`, `Assign`, `SubStmt`); `toViewerGraph`
-consumes `SimpleGraph`, which is dot_json — graphviz's output *after* it has
-resolved semantics and laid the graph out. What is missing is AST →
-`VizViewerGraphElements`. The back half already works layout-free:
-`expandAndExtractDefaultAttributes` is pure attribute manipulation.
+- `AttrResolver.resolve` does the whole semantic pass
+- `Output.doc` assigns `_gvid` in cgraph's `agfstout` order — which is what
+  `Arrow.seq`, and therefore every `ArrowId`, depends on
+- **`dot_json` is "structure only" apart from ONE field: `bb`.** That bounding
+  box is the entire reason a structural query ran a layout
+- `SimpleGraph` has no `bb` field, and `ExtraAttrs.layoutOnlyKeys` drops the key
+  before capture — so its value cannot reach a `ViewerGraph` at all
 
-So layout is not the thing to reimplement. Graphviz's **semantic pass** is —
-the facts dot_json hands over already resolved, which the AST only implies:
+So the change is a split, not a reimplementation. `Output.dotJsonStructure`
+emits the same document with a degenerate `0 0 0 0` box — deliberately
+degenerate, so anything that does read `bb` sees an obviously empty box rather
+than a plausible wrong one — and `Graphviz.structureJson` runs
+`parse -> resolve -> emit` without entering the layout pipeline. Both paths
+share `parse -> resolve` verbatim, so agreement is structural rather than
+hopeful.
 
-1. **the attribute cascade** — `AttrStmt(Graph|Node|Edge)` applies to everything
-   declared later in that scope and its children. The bulk of the work.
-2. **edge chains** — `a -> b -> c` is two edges
-3. **implicit nodes** — a node first mentioned inside an edge exists
-4. **cluster membership** — `memberships` and `arrowMemberships`
-5. **ports and compass** on edge ends
-6. **ordering** — below
+**Asserted anyway**, because "structural" is a claim about code someone read.
+`StructureAgreementSpec` sweeps all 168 corpus files, twice over:
 
-**The risk is ordering, not correctness.** Three hazards already recorded in
-this project converge here:
+```
+[P8] compared 168 corpus files; 0 mismatched, 0 skipped
+[P8] rendered 168 corpus files; 0 differed
+```
 
-- `agfstout` iterates by **(head-node sequence, edge sequence)**, not
-  declaration order — the assumption that produced the cluster mirrors
-- `_gvid` cluster order keeps fdp layouts identical across the DOT round trip
-- `Attributes.fromOrdered` preserves insertion order, which DOT serialization
-  depends on
+The second clause — byte-identical DOT back out — was added believing equality
+could not catch reordering, since `arrows`/`groups`/`memberships` are plain
+`Map`s. That was wrong: `ViewerGraphElementsToText` sorts by the `_gvid`
+attribute and `Arrow.seq`, both of which equality already compares. Reversing a
+graph's node order and re-rendering produces identical text. The clause is kept
+because it asserts what a user actually experiences — the bytes `gx run
+set-attribute` writes over their file — instead of a proxy for it, and because
+the implication runs through the serializer's ordering rule rather than around
+it.
 
-A fast path that produces the right *set* in the wrong *order* will quietly
-rewrite the user's file on the next `gx run set-attribute`. That is what the
-tests must be aimed at; a missing node would be the easy failure.
+**What phase 2 was for no longer exists.** It was scoped to guarantee ordering
+fidelity; ordering is identical by construction, because both paths produce the
+same `Doc`. What remains open is the `--via-layout` escape hatch, which was
+never built: `renderFormats` is still there and still correct, but nothing in
+`gx` reaches it for a structural read. Worth adding the day the two paths are
+ever suspected of disagreeing.
 
-**Verification: the corpus, which already exists.** 168 `.dot` files under
-`graphviz/corpus`, and an established byte-exact sweep habit. The agreement test
-is V-13's shape — two independent implementations, one contract, cross-checked
-on real data:
+D2.3 is met. Mermaid is still refused headlessly — its converter needs a scan
+produced by mermaid.js, which is a browser dependency `gx` does not have, and
+nothing here changes that.
 
-> for every corpus file, `parseFast(text)` and `parseViaLayout(text)` yield the
-> same `ViewerGraph` once geometry (`pos`, `width`, `height`, `_gvid`) is
-> excluded — **and** `render()` of each is byte-identical DOT.
-
-The second clause is the one that catches ordering. Without it the test passes
-while the round trip corrupts files.
-
-**Phasing:**
-
-1. AST → `VizViewerGraphElements`; set-equality across the corpus. The
-   attribute cascade lives here and is most of the code.
-2. Ordering fidelity: byte-identical `render()` on all 168. Expect this to cost
-   more than it looks.
-3. Wire into `DiagramText`; keep the layout path behind an explicit
-   `--via-layout` for diffing.
-
-**Two decisions, made now rather than discovered later:**
-
-- **No silent fallback on disagreement.** Falling back to layout when the fast
-  path disagrees converts "the fast path is wrong" into "the fast path is
-  sometimes slow" — the harder bug to ever notice, and the same class of
-  self-concealing failure as a build script that reports success over a binary
-  it did not rebuild. Fail loudly; keep the old path reachable by flag.
-- **Mermaid stays refused.** Its converter needs a scan produced by mermaid.js,
-  a browser dependency `gx` does not have. Nothing here changes that.
-
-**One behaviour change to expect.** `get-attributes` currently returns
-`_gvid` — layout bookkeeping leaking into a query answer. The fast path has no
-`_gvid` to leak, which is more correct and still a visible difference.
 
 ---
 
