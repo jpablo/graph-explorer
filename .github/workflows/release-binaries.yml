@@ -596,6 +596,14 @@ jobs:
     steps:
       - name: Download release assets and compute SHA256SUMS
         shell: bash
+        # `gh` in Actions authenticates from GH_TOKEN and nothing else — it does
+        # not inherit the job's implicit token. Without this the whole job exits
+        # 4 on its first call with "set the GH_TOKEN environment variable", which
+        # is what it did on every run since this job was added: v0.7.0 predates
+        # it, so v0.8.0 was the first release to reach it, and no SHA256SUMS has
+        # ever been published.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           tag="${{ github.event.inputs.tag || github.ref_name }}"
