@@ -28,8 +28,8 @@ object DesktopIpc:
     * there is no desktop and no local file to save to.
     */
   enum SaveOutcome derives CanEqual:
-    case Saved(path: String, revision: Long)
-    case Conflict(currentRevision: Option[Long])
+    case Saved(path: String, revision: String)
+    case Conflict(currentRevision: Option[String])
     case Failed(message: String)
     case Unavailable
 
@@ -62,7 +62,7 @@ object DesktopIpc:
     * Note the argument object: `path`, `text`, `baseRevision` — and nothing
     * else. V-11 is asserted against exactly these keys.
     */
-  def saveDocument(path: String, text: String, baseRevision: Long)(using
+  def saveDocument(path: String, text: String, baseRevision: String)(using
       ExecutionContext
   ): Future[SaveOutcome] =
     if !available then Future.successful(SaveOutcome.Unavailable)
@@ -70,9 +70,11 @@ object DesktopIpc:
       val args = js.Dynamic.literal(
         path = path,
         text = text,
-        // Long is not a JS number; the command takes a u64 and Scala.js would
-        // otherwise send an opaque RuntimeLong object that serde rejects.
-        baseRevision = baseRevision.toDouble
+        // D1: a hex content hash, not a number. This used to need
+        // `.toDouble` — Scala.js would otherwise hand serde an opaque
+        // RuntimeLong for a `u64`. A string crosses as itself, so the
+        // workaround goes with the counter that needed it.
+        baseRevision = baseRevision
       )
       invoke(SaveDocument, args).transform:
         case Success(value) =>
@@ -80,7 +82,7 @@ object DesktopIpc:
           Success(
             SaveOutcome.Saved(
               path = asString(snapshot, "path").getOrElse(path),
-              revision = asLong(snapshot, "revision").getOrElse(baseRevision)
+              revision = asString(snapshot, "revision").getOrElse(baseRevision)
             )
           )
         case Failure(error) => Success(failureOutcome(error))
@@ -97,7 +99,7 @@ object DesktopIpc:
       val obj = rejection.asInstanceOf[js.Dynamic]
       asString(obj, "code") match
         case Some("DOCUMENT_CONFLICT") =>
-          SaveOutcome.Conflict(asLong(obj, "currentRevision"))
+          SaveOutcome.Conflict(asString(obj, "currentRevision"))
         case _ =>
           SaveOutcome.Failed(asString(obj, "message").getOrElse(String.valueOf(rejection)))
     else SaveOutcome.Failed(String.valueOf(rejection))
