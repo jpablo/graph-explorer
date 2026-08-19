@@ -8,7 +8,7 @@
 - Scripts: `scripts/` (e.g., `build-viewer-netlify.sh`, `bump-patch-version.sh`).
 
 ## Build, Test, and Development
-- Prefer existing tmux sessions named `sbt` and `vite`; inspect them after every code change for errors. Only if these sessions don't exist should you start `sbt "~viewer/fastLinkJS"` or `npm run dev` yourself.
+- After code edits made during an implementation task, inspect existing tmux sessions named `sbt` and `vite` for errors. Only if these sessions do not exist should you start `sbt "~viewer/fastLinkJS"` or `npm run dev` yourself. Do not start builds for Git-only tasks such as fetch, pull, status, checkout, or branch changes unless the user asks.
 - Dev compile (Scala.js): `sbt "~viewer/fastLinkJS"` — incremental compile with hot reload.
 - Dev server: `npm run dev` — Vite on http://localhost:5173.
 - All tests: `sbt testFull`. (Under sbt 2, `test` is the *incremental* task — sbt 1's `testQuick` — so it is not a full run.)
