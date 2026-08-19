@@ -88,9 +88,9 @@ struct IpcError {
     code: &'static str,
     message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    current_revision: Option<u64>,
+    current_revision: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    attempted_base_revision: Option<u64>,
+    attempted_base_revision: Option<String>,
 }
 
 impl IpcError {
@@ -139,7 +139,7 @@ fn save_document(
     state: tauri::State<'_, IpcState>,
     path: String,
     text: String,
-    base_revision: u64,
+    base_revision: String,
 ) -> std::result::Result<DocumentSnapshot, IpcError> {
     let app_handle = app.clone();
     put_document_snapshot(
@@ -193,7 +193,15 @@ struct ControlFile {
 struct WatchDescriptor {
     path: String,
     format: String,
-    revision: u64,
+    /// D1: the file's content hash, not a counter.
+    ///
+    /// Any process can compute this from the bytes on disk without asking us,
+    /// it survives a restart, and `baseRevision` becomes `If-Match` rather than
+    /// "the number I was told last time". The cost D1 states plainly: an
+    /// A -> B -> A edit returns to its original revision. For conflict
+    /// detection that is correct — if what I based my edit on is what is there
+    /// now, my edit is safe.
+    revision: String,
 }
 
 type WatchRegistry = Arc<Mutex<HashMap<String, WatchDescriptor>>>;
@@ -257,7 +265,7 @@ struct AuditEventRecord {
     path: Option<String>,
     source: Option<String>,
     result: String,
-    revision: Option<u64>,
+    revision: Option<String>,
     message: Option<String>,
 }
 
@@ -402,7 +410,7 @@ impl AuditLogger {
         path: Option<&str>,
         source: Option<&str>,
         result: &str,
-        revision: Option<u64>,
+        revision: Option<String>,
         message: Option<&str>,
     ) {
         let _guard = match self.write_lock.lock() {
@@ -642,7 +650,7 @@ struct PutDocumentRequest {
     path: String,
     text: String,
     #[serde(rename = "baseRevision")]
-    base_revision: u64,
+    base_revision: String,
     source: Option<String>,
 }
 
@@ -651,7 +659,7 @@ struct DocumentSnapshot {
     path: String,
     text: String,
     format: String,
-    revision: u64,
+    revision: String,
     #[serde(rename = "timestampMs")]
     timestamp_ms: u64,
 }
@@ -666,7 +674,7 @@ struct DocumentSnapshot {
 struct DocumentChangedEventPayload {
     text: String,
     path: Option<String>,
-    revision: Option<u64>,
+    revision: Option<String>,
 }
 
 /// The control channel: a unix socket carrying newline-delimited JSON frames.
@@ -844,9 +852,9 @@ struct RpcError {
     code: String,
     message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    current_revision: Option<u64>,
+    current_revision: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    attempted_base_revision: Option<u64>,
+    attempted_base_revision: Option<String>,
 }
 
 impl RpcResponse {
@@ -879,8 +887,8 @@ impl RpcResponse {
 
     fn conflict(
         id: Option<serde_json::Value>,
-        current_revision: u64,
-        attempted_base_revision: u64,
+        current_revision: String,
+        attempted_base_revision: String,
     ) -> Self {
         Self {
             id,
@@ -1289,8 +1297,8 @@ fn get_document_snapshot(watch_registry: &WatchRegistry, path: &str) -> Result<D
 
 enum PutDocumentError {
     Conflict {
-        current_revision: u64,
-        attempted_base_revision: u64,
+        current_revision: String,
+        attempted_base_revision: String,
     },
     Other(anyhow::Error),
 }
@@ -1318,20 +1326,28 @@ fn put_document_snapshot(
         ))
     })?;
 
-    if payload.base_revision != watch.revision {
+    // D1's If-Match: compare what is ON DISK, not what the registry last
+    // recorded. A counter could only answer "has anything happened since I told
+    // you a number"; a hash answers the question that actually matters — "is
+    // the content I based this edit on still there" — and answers it even when
+    // another process wrote the file without going through us.
+    let current_on_disk = fs::read(&normalized)
+        .map(|bytes| content_hash(&bytes))
+        .unwrap_or_default();
+    if payload.base_revision != current_on_disk {
         audit_logger.log_event(
             "document.conflict",
             Some(&normalized),
             payload.source.as_deref(),
             "rejected",
-            Some(watch.revision),
+            Some(current_on_disk.clone()),
             Some(&format!(
                 "attemptedBaseRevision={}, currentRevision={}",
-                payload.base_revision, watch.revision
+                payload.base_revision, current_on_disk
             )),
         );
         return Err(PutDocumentError::Conflict {
-            current_revision: watch.revision,
+            current_revision: current_on_disk,
             attempted_base_revision: payload.base_revision,
         });
     }
@@ -1339,11 +1355,11 @@ fn put_document_snapshot(
     write_file_atomic(&normalized, &payload.text).map_err(PutDocumentError::Other)?;
     let content_hash = content_hash(payload.text.as_bytes());
     if let Ok(mut writes) = recent_write_hashes.lock() {
-        writes.insert(normalized.clone(), content_hash);
+        writes.insert(normalized.clone(), content_hash.clone());
     }
 
-    watch.revision = watch.revision.saturating_add(1);
-    let revision = watch.revision;
+    watch.revision = content_hash.clone();
+    let revision = watch.revision.clone();
     let format = watch.format.clone();
     let source = payload
         .source
@@ -1354,7 +1370,7 @@ fn put_document_snapshot(
     let event_payload = DocumentChangedEventPayload {
         text: payload.text.clone(),
         path: Some(normalized.clone()),
-        revision: Some(revision),
+        revision: Some(revision.clone()),
     };
 
     // V-12. The bytes are on disk and the revision has moved; a window that is
@@ -1371,7 +1387,7 @@ fn put_document_snapshot(
         Some(&normalized),
         Some(&source),
         "ok",
-        Some(revision),
+        Some(revision.clone()),
         notify_failure
             .as_ref()
             .map(|err| format!("write succeeded; UI notification failed: {err}"))
@@ -1678,7 +1694,10 @@ fn add_watch(
     let watch = WatchDescriptor {
         format: infer_format_from_path(&normalized),
         path: normalized.clone(),
-        revision: 1,
+        // Seeded from the bytes, not from 1. A restart therefore hands out the
+        // same revision it did before, which is what "revisions restart at 1"
+        // used to break.
+        revision: fs::read(&normalized).map(|b| content_hash(&b)).unwrap_or_default(),
     };
 
     let mut registry = watch_registry
@@ -1691,7 +1710,7 @@ fn add_watch(
         let initial_event = DocumentChangedEventPayload {
             text,
             path: Some(watch.path.clone()),
-            revision: Some(watch.revision),
+            revision: Some(watch.revision.clone()),
         };
         let _ = emit_document_changed_event(app_handle, &initial_event);
     }
@@ -1712,7 +1731,7 @@ fn add_watch(
         Some(&watch.path),
         Some(source),
         "ok",
-        Some(watch.revision),
+        Some(watch.revision.clone()),
         None,
     );
 
@@ -1813,11 +1832,13 @@ fn spawn_watch_loop(
                 if seen_at.elapsed() >= WATCH_DEBOUNCE {
                     if let Ok(mut registry) = watch_registry.lock() {
                         if let Some(watch) = registry.get_mut(&path) {
-                            watch.revision = watch.revision.saturating_add(1);
+                            // The loop already hashed these bytes to notice the
+                            // change; that hash IS the revision. Nothing to count.
+                            watch.revision = hash.clone();
                             let event_payload = DocumentChangedEventPayload {
                                 text: text.clone(),
                                 path: Some(path.clone()),
-                                revision: Some(watch.revision),
+                                revision: Some(watch.revision.clone()),
                             };
                             if let Err(err) =
                                 emit_document_changed_event(&app_handle, &event_payload)
@@ -2353,12 +2374,17 @@ mod tests {
 
     #[test]
     fn a_conflict_reports_both_revisions() {
-        let response = RpcResponse::conflict(Some(serde_json::json!(1)), 5, 2);
+        let current = content_hash(b"what is there now");
+        let attempted = content_hash(b"what I based my edit on");
+        let response =
+            RpcResponse::conflict(Some(serde_json::json!(1)), current.clone(), attempted.clone());
         let value = serde_json::to_value(&response).expect("serializable");
         assert_eq!(value["ok"], serde_json::json!(false));
         assert_eq!(value["error"]["code"], serde_json::json!("DOCUMENT_CONFLICT"));
-        assert_eq!(value["error"]["currentRevision"], serde_json::json!(5));
-        assert_eq!(value["error"]["attemptedBaseRevision"], serde_json::json!(2));
+        // Both are hex hashes on the wire now (D1), not numbers — a client can
+        // hash the file itself and compare, without asking anyone.
+        assert_eq!(value["error"]["currentRevision"], serde_json::json!(current));
+        assert_eq!(value["error"]["attemptedBaseRevision"], serde_json::json!(attempted));
     }
 
     /// A malformed frame must not kill the connection or the desktop: the
@@ -2407,7 +2433,7 @@ mod tests {
         DocumentChangedEventPayload {
             text: "digraph { a -> b }".to_string(),
             path: Some("/tmp/a.dot".to_string()),
-            revision: Some(7),
+            revision: Some(content_hash(b"whatever")),
         }
     }
 
@@ -2460,7 +2486,7 @@ mod tests {
             WatchDescriptor {
                 path: normalized.clone(),
                 format: "dot".to_string(),
-                revision: 1,
+                revision: content_hash(b"digraph { a }"),
             },
         );
         let recent_writes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
@@ -2479,13 +2505,15 @@ mod tests {
             PutDocumentRequest {
                 path: path.clone(),
                 text: "digraph { a -> b }".to_string(),
-                base_revision: 1,
+                // If-Match against what is actually on disk.
+                base_revision: content_hash(b"digraph { a }"),
                 source: Some("ui".to_string()),
             },
         )
         .unwrap_or_else(|_| panic!("a written file must report success"));
 
-        assert_eq!(snapshot.revision, 2);
+        // The new revision is the new content, not "the old number plus one".
+        assert_eq!(snapshot.revision, content_hash(b"digraph { a -> b }"));
         assert_eq!(
             fs::read_to_string(&file).expect("readable"),
             "digraph { a -> b }"
@@ -2771,7 +2799,10 @@ mod tests {
             WatchDescriptor {
                 path: normalized,
                 format: "dot".to_string(),
-                revision: 5,
+                // DELIBERATELY stale, and nothing like the file's contents.
+                // Under the old counter this value WAS the answer; under D1 it
+                // is ignored, because the file is the authority.
+                revision: content_hash(b"a stale registry entry"),
             },
         );
         let recent_writes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
@@ -2788,7 +2819,7 @@ mod tests {
             PutDocumentRequest {
                 path,
                 text: "clobbered".to_string(),
-                base_revision: 2,
+                base_revision: content_hash(b"something else entirely"),
                 source: Some("ui".to_string()),
             },
         );
@@ -2798,8 +2829,13 @@ mod tests {
                 current_revision,
                 attempted_base_revision,
             }) => {
-                assert_eq!(current_revision, 5);
-                assert_eq!(attempted_base_revision, 2);
+                // Reported from the FILE — the seeded content — NOT from the
+                // stale registry entry above. That difference is the whole
+                // point of D1: a process that wrote the file behind our back
+                // is detected, where a counter could only report what it had
+                // last been told.
+                assert_eq!(current_revision, content_hash(b"digraph { a }"));
+                assert_eq!(attempted_base_revision, content_hash(b"something else entirely"));
             }
             _ => panic!("a stale base revision must conflict"),
         }
@@ -3150,6 +3186,71 @@ mod tests {
         write_file_atomic(&path.to_string_lossy(), "{\"v\":2}").expect("rewrite");
         let after = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
         assert_eq!(after, 0o640, "an existing record keeps its bits; got {after:o}");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// D1's stated cost, asserted as intent rather than left to be discovered:
+    /// an A -> B -> A edit returns to its ORIGINAL revision.
+    ///
+    /// Under a counter this was impossible; under content addressing it is
+    /// unavoidable, and D1 argues it is correct rather than a defect — if the
+    /// content I based my edit on is what is there now, my edit is safe. Pinning
+    /// it means nobody later "fixes" it back into a counter.
+    #[test]
+    fn an_a_b_a_edit_returns_to_its_original_revision() {
+        let dir = temp_dir_for("d1-aba");
+        let file = dir.join("diagram.dot");
+        fs::write(&file, "A").expect("seed");
+        let path = file.to_string_lossy().to_string();
+        let normalized = normalize_path(&path).expect("normalizable");
+
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        registry.lock().expect("lock").insert(
+            normalized.clone(),
+            WatchDescriptor {
+                path: normalized,
+                format: "dot".to_string(),
+                revision: content_hash(b"A"),
+            },
+        );
+        let recent_writes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let audit = AuditLogger {
+            file_path: dir.join("audit.jsonl"),
+            write_lock: Arc::new(Mutex::new(())),
+        };
+
+        let put = |text: &str, base: String| {
+            put_document_snapshot(
+                &registry,
+                &recent_writes,
+                &audit,
+                &|_| Ok(()),
+                PutDocumentRequest {
+                    path: path.clone(),
+                    text: text.to_string(),
+                    base_revision: base,
+                    source: Some("test".to_string()),
+                },
+            )
+        };
+
+        let revision_of = |r: std::result::Result<DocumentSnapshot, PutDocumentError>| match r {
+            Ok(snapshot) => snapshot.revision,
+            Err(_) => panic!("the write should have been accepted"),
+        };
+
+        let a = content_hash(b"A");
+        let to_b = revision_of(put("B", a.clone()));
+        assert_eq!(to_b, content_hash(b"B"));
+
+        let back = revision_of(put("A", to_b));
+        assert_eq!(back, a, "the same content must carry the same revision");
+
+        // And the round trip leaves a base that still validates: an edit built
+        // on the original content is accepted, which is the property D1 says
+        // actually matters.
+        assert!(put("C", a).is_ok(), "a base matching what is on disk must be accepted");
 
         let _ = fs::remove_dir_all(&dir);
     }
