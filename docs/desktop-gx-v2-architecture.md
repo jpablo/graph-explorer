@@ -538,13 +538,42 @@ library — the hazard `ProjectsStorage` already carries guards for.
 
 **P1 is complete.** 96 tests in `gx-core`; full build green at 1956.
 
-**P2 — Content-addressed revisions (D1). ◐ Half done, and the other half is
-not yet needed.** `gx-core` is content-addressed throughout (SHA-256, not
-BLAKE3 — see P1). The desktop still keeps v1's in-memory integer counter behind
-its HTTP API, and that is fine for now precisely because nothing bridges them:
-the Rust `gx` is retired, so no client speaks both. **V-13's cross-language
-contract test becomes necessary at P4/P5**, when the desktop starts sharing
-files with `gx-core` rather than owning them. 
+**P2 — Content-addressed revisions (D1). ✅ DONE.** `gx-core` was
+content-addressed from P1 (SHA-256, not BLAKE3 — see P1); the desktop kept v1's
+in-memory integer counter, and closing that gap is what finished this phase.
+`revision` is now the hex SHA-256 of the file's bytes, on the wire and in the
+registry.
+
+Smaller than its 64 mentions suggested, because the watcher **already hashed the
+bytes** to notice a change — it was incrementing a counter beside a value it had
+in hand. Three substantive edits:
+
+- `add_watch` seeds from the bytes on disk instead of `1`, which retires
+  "revisions restart at 1": a restart hands out the revision it had before
+- the watch loop assigns the hash it already computed
+- **the compare-and-swap reads the FILE, not the registry**
+
+That last one is the change. A counter could only answer "has anything happened
+since I told you a number"; a hash answers "is the content I based this edit on
+still there", and answers it even when another process wrote the file without
+going through us. The existing stale-base test proved it mid-change — it seeds
+the registry with one value while the file holds another, and now reports the
+file's, where the stale registry value used to BE the answer.
+
+`gx` needed no code change: all three of its mentions of revisions are comments
+already saying "a revision IS the hash of the bytes". Only the desktop had not
+caught up, which is exactly what this phase recorded as its remaining half.
+
+The viewer got simpler rather than merely different. `saveDocument` called
+`.toDouble` because Scala.js represents `Long` as a `RuntimeLong` that serde
+rejects for a `u64`; a hex string crosses as itself, so the workaround left with
+the counter that needed it. The phase3 gate got stronger too: it asserted
+revisions "1", "2", "3", which only said a counter moved, and now hashes the
+bytes it wrote and asserts the desktop agrees.
+
+D1's cost is pinned as intent rather than left to be discovered:
+`an_a_b_a_edit_returns_to_its_original_revision`. If the content I based my edit
+on is what is there now, my edit is safe.
 
 **P3 — `gx` rewritten in Scala (D2, D5). ✅ DONE, and the Rust `gx` is
 retired.** Verified as a native binary on all three platforms: a parse-only
@@ -755,11 +784,10 @@ case — *"a not-yet-created file under a symlink resolves through it"*. Disk→
 stays at a 72 ms median, so SHA-256 replacing SipHash costs nothing measurable
 on the watch path.
 
-Still open from P2, and now the only piece: the desktop counts revisions with an
-integer while `gx-core` uses the content hash. They no longer *disagree* — the
-hashes are the same value — but the desktop does not yet use one as its
-revision. That is D1's remaining half, and it is now a small change rather than
-a contract negotiation.
+**Closed.** The desktop counted revisions with an integer while `gx-core` used
+the content hash; they never *disagreed*, since V-13 made the hashes the same
+value, but the desktop did not yet use one as its revision. It does now — see
+P2 above. D1 holds end to end.
 
 **P6 — Command vocabulary (D7). ✅ All three tiers done.** One vocabulary,
 defined once in `gx-core/command` over `shared/`'s ops, with three callers as
