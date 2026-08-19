@@ -328,6 +328,15 @@ jobs:
           }
           "@ | Set-Content -Path $tmp -NoNewline
 
+            # D1: a revision IS the sha256 of the file's bytes. Hash the FILE
+            # rather than the string we think we wrote — Set-Content's encoding
+            # and line endings are exactly the sort of thing that differs on
+            # Windows, and the desktop hashes what is on disk.
+            function Sha256File([string]$path) {
+              (Get-FileHash -Path $path -Algorithm SHA256).Hash.ToLower()
+            }
+            $seedHash = Sha256File $tmp
+
             # A Windows path is still the interesting case: the drive colon,
             # backslash separators, and any \?\ prefix. It used to be
             # interesting because a URL had to survive them; it is interesting
@@ -335,7 +344,7 @@ jobs:
             # a JSON string.
             $watch = Invoke-Control "watch" @{ path = $tmp }
             if (-not $watch.ok) { throw "watch failed: $($watch.error.message)" }
-            if ($watch.result.revision -ne 1) { throw "watch revision: $($watch.result.revision)" }
+            if ($watch.result.revision -ne $seedHash) { throw "watch revision: $($watch.result.revision) != $seedHash" }
 
             # The desktop answers with the CANONICAL path, which on this runner
             # is not the one we sent: $env:TEMP is the 8.3 short name
@@ -347,7 +356,7 @@ jobs:
             if (-not $canonical) { throw "watch did not report a path" }
 
             $doc = Invoke-Control "get-document" @{ path = $tmp }
-            if ($doc.result.document.revision -ne 1) { throw "get revision: $($doc.result.document.revision)" }
+            if ($doc.result.document.revision -ne $seedHash) { throw "get revision: $($doc.result.document.revision) != $seedHash" }
             if ($doc.result.document.path -ne $canonical) {
               throw "watch and get disagree: '$canonical' vs '$($doc.result.document.path)'"
             }
@@ -357,21 +366,24 @@ jobs:
             # entry as the short one. A mangled path is how `watch` succeeded and
             # `get` returned 400 for five months.
             $viaCanonical = Invoke-Control "get-document" @{ path = $canonical }
-            if ($viaCanonical.result.document.revision -ne 1) {
+            if ($viaCanonical.result.document.revision -ne $seedHash) {
               throw "the canonical path missed the watch registry: $($viaCanonical | ConvertTo-Json -Compress)"
             }
 
             $put = Invoke-Control "put-document" `
-              @{ path = $tmp; text = "digraph G {`n  b -> c`n}`n"; baseRevision = 1; source = "cli" }
-            if ($put.result.document.revision -ne 2) { throw "set revision: $($put.result.document.revision)" }
+              @{ path = $tmp; text = "digraph G {`n  b -> c`n}`n"; baseRevision = $seedHash; source = "cli" }
+            $afterHash = Sha256File $tmp
+            if ($put.result.document.revision -ne $afterHash) {
+              throw "set revision: $($put.result.document.revision) != $afterHash"
+            }
 
             # A conflict is an error FRAME now, not an HTTP status. It is also
             # not an exception: the desktop answered.
             $stale = Invoke-Control "put-document" `
-              @{ path = $tmp; text = "digraph G {`n  stale`n}`n"; baseRevision = 1; source = "cli" }
+              @{ path = $tmp; text = "digraph G {`n  stale`n}`n"; baseRevision = $seedHash; source = "cli" }
             if ($stale.ok) { throw "a stale write should have been refused" }
             if ($stale.error.code -ne "DOCUMENT_CONFLICT") { throw "stale write code: $($stale.error.code)" }
-            if ($stale.error.currentRevision -ne 2) { throw "stale currentRevision: $($stale.error.currentRevision)" }
+            if ($stale.error.currentRevision -ne $afterHash) { throw "stale currentRevision: $($stale.error.currentRevision) != $afterHash" }
 
             $unwatch = Invoke-Control "unwatch" @{ path = $tmp }
             if ($unwatch.result.removed -ne $true) { throw "unwatch did not remove the watch" }

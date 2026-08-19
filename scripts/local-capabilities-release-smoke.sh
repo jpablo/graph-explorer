@@ -60,7 +60,10 @@ echo "waiting for the desktop control channel..."
 control_wait_ready 120 || exit 1
 
 tmpfile="$(mktemp /tmp/gx-release-smoke-XXXXXX.dot)"
-printf 'digraph G {\n  a -> b\n}\n' > "${tmpfile}"
+# One source of truth for the seeded bytes: the file is written from it and the
+# expected revision is hashed from it, so the two cannot drift.
+seed_text=$'digraph G {\n  a -> b\n}\n'
+printf '%s' "${seed_text}" > "${tmpfile}"
 
 # gx canonicalized client-side before sending; the gates must do the same, or
 # they stop exercising the path the desktop actually receives.
@@ -75,19 +78,26 @@ assert_eq "true" "$(jq -r '.result.running' <<<"${status_json}")" "release statu
 assert_eq "null" "$(jq -r '.token // "null"' "${RUNTIME_FILE}")" "runtime file has no token"
 assert_eq "null" "$(jq -r '.port // "null"' "${RUNTIME_FILE}")" "runtime file has no port"
 
+# D1: a revision IS the sha256 of the file's bytes, so this gate computes the
+# expected value rather than counting. Stronger than the "1, 2" it replaces:
+# those only said the desktop's counter moved, this says the desktop and an
+# independent hasher agree on what the file is.
+sha_of() { printf '%s' "$1" | shasum -a 256 | cut -d' ' -f1; }
+
 watch_json="$(api_watch "${tmpfile_canonical}")"
 assert_eq "ok" "$(api_last_status)" "release watch outcome"
-assert_eq "1" "$(jq -r '.result.revision' <<<"${watch_json}")" "release watch revision"
+assert_eq "$(sha_of "${seed_text}")" "$(jq -r '.result.revision' <<<"${watch_json}")" "release watch revision is the file hash"
 
 get_json="$(api_get "${tmpfile_canonical}")"
 assert_eq "ok" "$(api_last_status)" "release get outcome"
-assert_eq "1" "$(jq -r '.result.document.revision' <<<"${get_json}")" "release get revision"
+assert_eq "$(sha_of "${seed_text}")" "$(jq -r '.result.document.revision' <<<"${get_json}")" "release get revision is the file hash"
 
-set_json="$(api_set "${tmpfile_canonical}" $'digraph G {\n  b -> c\n}\n' cli)"
+set_text=$'digraph G {\n  b -> c\n}\n'
+set_json="$(api_set "${tmpfile_canonical}" "${set_text}" cli)"
 assert_eq "ok" "$(api_last_status)" "release set outcome"
-assert_eq "2" "$(jq -r '.result.document.revision' <<<"${set_json}")" "release set revision"
+assert_eq "$(sha_of "${set_text}")" "$(jq -r '.result.document.revision' <<<"${set_json}")" "release set revision is the new content hash"
 
-stale_json="$(api_put "${tmpfile_canonical}" $'digraph G {\n  stale -> write\n}\n' 1 cli)"
+stale_json="$(api_put "${tmpfile_canonical}" $'digraph G {\n  stale -> write\n}\n' "$(sha_of "${seed_text}")" cli)"
 assert_eq "error" "$(api_last_status)" "release stale write outcome"
 assert_eq "DOCUMENT_CONFLICT" "$(jq -r '.error.code' <<<"${stale_json}")" "release stale write code"
 
@@ -106,22 +116,24 @@ assert_eq "true" "$(jq -r '.result.removed' <<<"${unwatch_json}")" "release unwa
 spacedir="$(dirname "${tmpfile}")/gx smoke dir"
 mkdir -p "${spacedir}"
 spacedfile="${spacedir}/with space.dot"
-printf 'digraph G {\n  a -> b\n}\n' > "${spacedfile}"
+spaced_seed_text=$'digraph G {\n  a -> b\n}\n'
+printf '%s' "${spaced_seed_text}" > "${spacedfile}"
 # Both the gate and the desktop canonicalize, and on macOS /tmp is a symlink to
 # /private/tmp -- so the path that comes back is the resolved one.
 spacedfile_canonical="$(cd "${spacedir}" && pwd -P)/with space.dot"
 
 spaced_watch_json="$(api_watch "${spacedfile_canonical}")"
 assert_eq "ok" "$(api_last_status)" "spaced-path watch outcome"
-assert_eq "1" "$(jq -r '.result.revision' <<<"${spaced_watch_json}")" "spaced-path watch revision"
+assert_eq "$(sha_of "${spaced_seed_text}")" "$(jq -r '.result.revision' <<<"${spaced_watch_json}")" "spaced-path watch revision is the file hash"
 
 spaced_get_json="$(api_get "${spacedfile_canonical}")"
 assert_eq "ok" "$(api_last_status)" "spaced-path get outcome"
-assert_eq "1" "$(jq -r '.result.document.revision' <<<"${spaced_get_json}")" "spaced-path get revision"
+assert_eq "$(sha_of "${spaced_seed_text}")" "$(jq -r '.result.document.revision' <<<"${spaced_get_json}")" "spaced-path get revision is the file hash"
 assert_eq "${spacedfile_canonical}" "$(jq -r '.result.document.path' <<<"${spaced_get_json}")" "spaced-path get path"
 
-spaced_set_json="$(api_set "${spacedfile_canonical}" $'digraph G {\n  b -> c\n}\n' cli)"
-assert_eq "2" "$(jq -r '.result.document.revision' <<<"${spaced_set_json}")" "spaced-path set revision"
+spaced_set_text=$'digraph G {\n  b -> c\n}\n'
+spaced_set_json="$(api_set "${spacedfile_canonical}" "${spaced_set_text}" cli)"
+assert_eq "$(sha_of "${spaced_set_text}")" "$(jq -r '.result.document.revision' <<<"${spaced_set_json}")" "spaced-path set revision is the new content hash"
 
 api_unwatch "${spacedfile_canonical}" >/dev/null
 rm -rf "${spacedir}"

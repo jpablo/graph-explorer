@@ -152,9 +152,13 @@ api_get() {
 }
 
 # $1 path, $2 text, $3 baseRevision, $4 source (default "cli").
+#
+# `--arg` for baseRevision, not `--argjson`: under D1 a revision is a hex
+# content hash, and a bare hash is not valid JSON the way a bare integer was.
+# `--argjson` dies with "invalid JSON text" on the first hash it is handed.
 api_put() {
   _api_call put-document "$(_jq -n \
-    --arg path "$1" --arg text "$2" --argjson baseRevision "$3" --arg source "${4:-cli}" \
+    --arg path "$1" --arg text "$2" --arg baseRevision "$3" --arg source "${4:-cli}" \
     '{path: $path, text: $text, baseRevision: $baseRevision, source: $source}')"
 }
 

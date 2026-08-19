@@ -63,10 +63,15 @@ require_cmd jq
 require_cmd python3
 require_cmd mktemp
 
-if [[ ! -x "${DESKTOP_BIN}" ]]; then
-  echo "building desktop binary..."
-  (cd "${ROOT_DIR}/desktop/src-tauri" && cargo build)
-fi
+# ALWAYS build, not just when the binary is missing. `cargo build` is
+# incremental, so this costs a second when nothing changed — and the version
+# that only built when the file was absent silently ran a binary from whenever
+# it was last compiled. That is indistinguishable from the change under test not
+# working: this gate reported `revision: 1` against a desktop that had been
+# emitting content hashes for an hour. Same trap `build-gx.sh` already carries a
+# `rm -rf .scala-build` for.
+echo "building desktop binary..."
+(cd "${ROOT_DIR}/desktop/src-tauri" && cargo build)
 
 if ! control_ready; then
   echo "starting graph-explorer-desktop..."
