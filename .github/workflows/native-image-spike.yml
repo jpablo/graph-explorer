@@ -30,6 +30,7 @@ jobs:
   spike:
     name: P0 (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       # The point is to compare all three platforms in one run. One failing
       # must not hide the others' results — that is the entire question.
@@ -108,7 +109,7 @@ jobs:
         # The log carries native-image's own "Peak RSS" line, which is the
         # portable way to compare the three platforms.
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: native-image-build-log-${{ matrix.os }}
           path: target/native-image-build.log

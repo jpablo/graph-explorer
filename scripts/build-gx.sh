@@ -31,7 +31,33 @@ done
 [[ -n "${SCALA_CLI}" ]] || { echo "scala-cli not found (tried scala-cli, scala-cli.bat)" >&2; exit 1; }
 
 echo "--- resolving gx-cli classpath"
-(cd "${ROOT_DIR}" && sbt -batch "gxCli/nativeImageClasspath")
+
+# BOUNDED, because sbt can wedge instead of failing. On Windows a build.sbt
+# error left `sbt -batch` hung for over an hour: the thin client printed the
+# error and then never fell back to the launcher the way macOS does (which
+# recompiles, reprints the error, and exits 1). The step sat in_progress with a
+# failure already on screen until someone read the log. A build that HANGS on
+# failure is worse than one that fails -- it reports nothing and holds a runner
+# to the job ceiling.
+#
+# The ceiling is for a cold coursier fetch, not for a slow build: a healthy warm
+# run resolves in well under a minute.
+SBT_TIMEOUT="${SBT_TIMEOUT:-25m}"
+
+sbt_rc=0
+if command -v timeout >/dev/null 2>&1; then
+  (cd "${ROOT_DIR}" && timeout -k 30s "${SBT_TIMEOUT}" sbt -batch "gxCli/nativeImageClasspath") || sbt_rc=$?
+else
+  # No coreutils `timeout` here; the job-level timeout-minutes is the backstop.
+  (cd "${ROOT_DIR}" && sbt -batch "gxCli/nativeImageClasspath") || sbt_rc=$?
+fi
+if [[ ${sbt_rc} -eq 124 ]]; then
+  echo "FAIL: sbt did not resolve the gx-cli classpath within ${SBT_TIMEOUT}." >&2
+  exit 1
+elif [[ ${sbt_rc} -ne 0 ]]; then
+  echo "FAIL: sbt exited ${sbt_rc} while resolving the gx-cli classpath." >&2
+  exit 1
+fi
 [[ -s "${CP_FILE}" ]] || { echo "empty classpath file: ${CP_FILE}" >&2; exit 1; }
 
 # Windows paths contain ':' (C:\...), so the separator cannot be assumed.
