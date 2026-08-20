@@ -63,10 +63,15 @@ require_cmd jq
 require_cmd python3
 require_cmd mktemp
 
-if [[ ! -x "${DESKTOP_BIN}" ]]; then
-  echo "building desktop binary..."
-  (cd "${ROOT_DIR}/desktop/src-tauri" && cargo build)
-fi
+# ALWAYS build, not just when the binary is missing. `cargo build` is
+# incremental, so this costs a second when nothing changed — and the version
+# that only built when the file was absent silently ran a binary from whenever
+# it was last compiled. That is indistinguishable from the change under test not
+# working: this gate reported `revision: 1` against a desktop that had been
+# emitting content hashes for an hour. Same trap `build-gx.sh` already carries a
+# `rm -rf .scala-build` for.
+echo "building desktop binary..."
+(cd "${ROOT_DIR}/desktop/src-tauri" && cargo build)
 
 if ! control_ready; then
   echo "starting graph-explorer-desktop..."
@@ -79,26 +84,35 @@ echo "waiting for desktop control API..."
 control_wait_ready 80 || exit 1
 
 tmpfile="$(mktemp /tmp/gx-phase3-smoke-XXXXXX)"
-printf 'digraph G {\n  a -> b\n}\n' > "${tmpfile}"
+# One source of truth for the seeded bytes: the file is written from it and the
+# expected revision is hashed from it, so the two cannot drift.
+seed_text=$'digraph G {\n  a -> b\n}\n'
+printf '%s' "${seed_text}" > "${tmpfile}"
 canonical_path="$(cd "$(dirname "${tmpfile}")" && pwd -P)/$(basename "${tmpfile}")"
+
+# D1: a revision IS the sha256 of the file's bytes, so this gate computes the
+# expected value itself instead of counting. That is a STRONGER assertion than
+# the "1, 2, 3" it replaces — those only said the desktop's counter moved, while
+# this says the desktop and an independent hasher agree on what the file is.
+sha_of() { printf '%s' "$1" | shasum -a 256 | cut -d' ' -f1; }
 
 echo "watching file: ${canonical_path}"
 watch_json="$(api_watch "${canonical_path}")"
 assert_eq "ok" "$(api_last_status)" "watch status"
 watch_revision="$(jq -r '.result.revision' <<<"${watch_json}")"
-assert_eq "1" "${watch_revision}" "watch revision"
+assert_eq "$(sha_of "${seed_text}")" "${watch_revision}" "watch revision is the file hash"
 
 get_initial="$(api_get "${canonical_path}")"
 assert_eq "ok" "$(api_last_status)" "get status"
 initial_revision="$(jq -r '.result.document.revision' <<<"${get_initial}")"
-assert_eq "1" "${initial_revision}" "initial revision"
+assert_eq "$(sha_of "${seed_text}")" "${initial_revision}" "initial revision is the file hash"
 
 echo "simulating a UI write over the control channel (source=ui)"
 ui_text=$'digraph G {\n  a -> c\n}\n'
 ui_json="$(api_put "${canonical_path}" "${ui_text}" "${initial_revision}" ui)"
 assert_eq "ok" "$(api_last_status)" "ui write status"
 ui_revision="$(jq -r '.result.document.revision' <<<"${ui_json}")"
-assert_eq "2" "${ui_revision}" "ui write revision"
+assert_eq "$(sha_of "${ui_text}")" "${ui_revision}" "ui write revision is the new content hash"
 
 assert_file_content_eq "${ui_text}" "${canonical_path}" "ui write file content"
 
@@ -107,17 +121,17 @@ cli_text=$'digraph G {\n  c -> d\n}\n'
 set_json="$(api_set "${canonical_path}" "${cli_text}" cli)"
 assert_eq "ok" "$(api_last_status)" "cli write status"
 cli_revision="$(jq -r '.result.document.revision' <<<"${set_json}")"
-assert_eq "3" "${cli_revision}" "cli write revision"
+assert_eq "$(sha_of "${cli_text}")" "${cli_revision}" "cli write revision is the new content hash"
 assert_file_content_eq "${cli_text}" "${canonical_path}" "cli write file content"
 
 echo "validating stale revision conflict"
 stale_text=$'digraph G {\n  stale -> write\n}\n'
-stale_json="$(api_put "${canonical_path}" "${stale_text}" 2 ui)"
+stale_json="$(api_put "${canonical_path}" "${stale_text}" "$(sha_of "${ui_text}")" ui)"
 # An error FRAME, not an unreachable channel: the desktop answered, and said no.
 assert_eq "error" "$(api_last_status)" "stale write outcome"
 assert_eq "DOCUMENT_CONFLICT" "$(jq -r '.error.code' <<<"${stale_json}")" "stale write code"
-assert_eq "3" "$(jq -r '.error.currentRevision' <<<"${stale_json}")" "stale current revision"
-assert_eq "2" "$(jq -r '.error.attemptedBaseRevision' <<<"${stale_json}")" "stale attempted base"
+assert_eq "$(sha_of "${cli_text}")" "$(jq -r '.error.currentRevision' <<<"${stale_json}")" "stale current revision"
+assert_eq "$(sha_of "${ui_text}")" "$(jq -r '.error.attemptedBaseRevision' <<<"${stale_json}")" "stale attempted base"
 
 assert_file_content_eq "${cli_text}" "${canonical_path}" "stale write did not overwrite"
 

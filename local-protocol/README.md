@@ -68,15 +68,31 @@ Request:
 Response, on success:
 
 ```json
-{"id": 1, "ok": true, "result": {"document": {"path": "/tmp/a.dot", "revision": 3, "…": "…"}}}
+{"id": 1, "ok": true, "result": {"document": {"path": "/tmp/a.dot",
+                                              "revision": "9f86d081884c7d65…", "…": "…"}}}
 ```
 
 Response, on failure:
 
 ```json
 {"id": 1, "ok": false, "error": {"code": "DOCUMENT_CONFLICT", "message": "…",
-                                 "currentRevision": 5, "attemptedBaseRevision": 2}}
+                                 "currentRevision": "3b1f…", "attemptedBaseRevision": "9f86…"}}
 ```
+
+## Revisions
+
+A revision is the **hex SHA-256 of the file's bytes** (D1), not a counter. It is
+a JSON string.
+
+That makes `baseRevision` an `If-Match`: *write T to P only if P currently
+hashes to H*. Any process can compute it from the file without asking the
+desktop, it survives a restart, and a write made by something that never spoke
+this protocol is still detected — none of which a counter could do.
+
+The cost, stated rather than discovered: two writes producing identical content
+are indistinguishable, and an A → B → A edit returns to its original revision.
+For conflict detection on a text file that is correct. If the content I based my
+edit on is what is there now, my edit is safe.
 
 `id` is echoed so a desynchronized stream is caught rather than silently
 answering the wrong question. It is a **JSON number** — a client that sends it

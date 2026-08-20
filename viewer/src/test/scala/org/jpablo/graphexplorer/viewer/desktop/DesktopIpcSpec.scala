@@ -40,12 +40,12 @@ class DesktopIpcSpec extends FunSuite:
       """
         window.__TAURI__ = { core: { invoke: function(cmd, args) {
           window.__ipcCalls.push({ cmd: cmd, args: args });
-          return Promise.resolve({ path: args.path, revision: args.baseRevision + 1 });
+          return Promise.resolve({ path: args.path, revision: "b2b2" });
         } } };
       """
     )
 
-    DesktopIpc.saveDocument("/tmp/a.dot", "digraph { a -> b }", 4).map: outcome =>
+    DesktopIpc.saveDocument("/tmp/a.dot", "digraph { a -> b }", "a1a1").map: outcome =>
       val calls = recordedCalls
       assertEquals(calls.length, 1)
       assertEquals(calls(0).selectDynamic("cmd").asInstanceOf[String], DesktopIpc.SaveDocument)
@@ -55,38 +55,45 @@ class DesktopIpcSpec extends FunSuite:
       // named `token` or `port` fails this test on sight.
       assertEquals(keys.sorted, List("baseRevision", "path", "text"))
 
-      assertEquals(outcome, DesktopIpc.SaveOutcome.Saved("/tmp/a.dot", 5L))
+      assertEquals(outcome, DesktopIpc.SaveOutcome.Saved("/tmp/a.dot", "b2b2"))
 
-  test("a Long revision crosses the boundary as a JS number"):
+  test("a revision crosses the boundary as a string, verbatim"):
     stubTauri(
       """
         window.__TAURI__ = { core: { invoke: function(cmd, args) {
           window.__ipcCalls.push({ cmd: cmd, args: args });
-          return Promise.resolve({ path: args.path, revision: 2 });
+          return Promise.resolve({ path: args.path, revision: "cafe" });
         } } };
       """
     )
 
-    // Scala.js represents Long as a RuntimeLong object, which serde would
-    // reject as a u64. The conversion is in `saveDocument`, not at every call
-    // site, so it is pinned here.
-    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", 1).map: _ =>
+    // This test used to assert the opposite — that a Long arrived as a JS
+    // NUMBER — because Scala.js represents Long as a RuntimeLong object that
+    // serde would reject as a `u64`, so `saveDocument` called `.toDouble`.
+    //
+    // Under D1 a revision is a hex content hash. A string crosses as itself,
+    // the conversion is gone, and a 64-bit value never has to survive a round
+    // trip through a double. The hash must arrive UNTOUCHED, since both sides
+    // compare it byte for byte.
+    val hash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", hash).map: _ =>
       val revision = recordedCalls(0).selectDynamic("args").selectDynamic("baseRevision")
-      assertEquals(js.typeOf(revision), "number")
+      assertEquals(js.typeOf(revision), "string")
+      assertEquals(revision.asInstanceOf[String], hash)
 
   test("a rejected save carrying DOCUMENT_CONFLICT becomes a conflict"):
     stubTauri(
       """
         window.__TAURI__ = { core: { invoke: function() {
-          return Promise.reject({ code: 'DOCUMENT_CONFLICT', currentRevision: 9,
-                                  attemptedBaseRevision: 4,
+          return Promise.reject({ code: 'DOCUMENT_CONFLICT', currentRevision: "dead",
+                                  attemptedBaseRevision: "beef",
                                   message: 'file changed on disk since it was loaded' });
         } } };
       """
     )
 
-    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", 4).map: outcome =>
-      assertEquals(outcome, DesktopIpc.SaveOutcome.Conflict(Some(9L)))
+    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", "beef").map: outcome =>
+      assertEquals(outcome, DesktopIpc.SaveOutcome.Conflict(Some("dead")))
 
   test("any other rejection surfaces its message rather than vanishing"):
     stubTauri(
@@ -97,7 +104,7 @@ class DesktopIpcSpec extends FunSuite:
       """
     )
 
-    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", 1).map: outcome =>
+    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", "a1a1").map: outcome =>
       assertEquals(outcome, DesktopIpc.SaveOutcome.Failed("disk full"))
 
   test("outside the desktop shell a save is Unavailable, not an exception"):
@@ -106,7 +113,7 @@ class DesktopIpcSpec extends FunSuite:
     // A browser tab has no local file and no IPC. The viewer is the same app in
     // both places, so this has to be an outcome the UI can report, not a throw
     // that lands in the unhandled-rejection handler.
-    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", 1).map: outcome =>
+    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", "a1a1").map: outcome =>
       assertEquals(outcome, DesktopIpc.SaveOutcome.Unavailable)
 
   test("a document.changed event yields only a path and a revision"):
@@ -117,7 +124,7 @@ class DesktopIpcSpec extends FunSuite:
         detail = js.Dynamic.literal(
           text = "digraph { a }",
           path = "/tmp/a.dot",
-          revision = 3,
+          revision = "c0ffee",
           token = "should-never-be-read",
           port = 61234
         )
@@ -127,7 +134,7 @@ class DesktopIpcSpec extends FunSuite:
     val message = DesktopBridge.extractMessage(event)
     assertEquals(
       message,
-      Some(DesktopBridge.DesktopMessage("digraph { a }", Some("/tmp/a.dot"), Some(3L)))
+      Some(DesktopBridge.DesktopMessage("digraph { a }", Some("/tmp/a.dot"), Some("c0ffee")))
     )
 
   test("a text-only push does not forget which file is open"):
@@ -136,12 +143,12 @@ class DesktopIpcSpec extends FunSuite:
     // report "no active watched file" for a file that is still very much open.
     DesktopBridge.reset()
     DesktopBridge.updateDocumentRef(
-      DesktopBridge.DesktopMessage("digraph {}", Some("/tmp/a.dot"), Some(2L))
+      DesktopBridge.DesktopMessage("digraph {}", Some("/tmp/a.dot"), Some("f00d"))
     )
     DesktopBridge.updateDocumentRef(DesktopBridge.DesktopMessage("digraph { b }", None, None))
 
     assertEquals(
       DesktopBridge.currentDocumentRef,
-      Some(DesktopBridge.DocumentRef("/tmp/a.dot", 2L))
+      Some(DesktopBridge.DocumentRef("/tmp/a.dot", "f00d"))
     )
     DesktopBridge.reset()

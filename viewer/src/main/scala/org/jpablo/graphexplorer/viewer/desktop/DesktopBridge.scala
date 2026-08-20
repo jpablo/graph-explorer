@@ -21,9 +21,9 @@ object DesktopBridge:
     * last saw. Formerly it also carried `port` and `token` — the credential the
     * webview no longer holds (V-11).
     */
-  case class DocumentRef(path: String, revision: Long) derives CanEqual
+  case class DocumentRef(path: String, revision: String) derives CanEqual
 
-  case class DesktopMessage(text: String, path: Option[String], revision: Option[Long]) derives CanEqual
+  case class DesktopMessage(text: String, path: Option[String], revision: Option[String]) derives CanEqual
 
   private var installed                = false
   private var target: Option[ViewerState] = None
@@ -93,7 +93,7 @@ object DesktopBridge:
         text = t,
         path = DesktopIpc.asString(detailValue, "path").orElse(DesktopIpc.asString(payloadValue, "path")),
         revision =
-          DesktopIpc.asLong(detailValue, "revision").orElse(DesktopIpc.asLong(payloadValue, "revision"))
+          DesktopIpc.asString(detailValue, "revision").orElse(DesktopIpc.asString(payloadValue, "revision"))
       )
 
   private[desktop] def updateDocumentRef(message: DesktopMessage): Unit =

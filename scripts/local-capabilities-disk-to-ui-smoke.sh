@@ -165,7 +165,12 @@ def poll_revision():
 
 
 staging = path + ".staging"
-last_revision = int(start_revision)
+# D1: a revision is a content hash, so the signal is CHANGED, not GREATER.
+# Ordering was never what this gate needed — it asks "did the desktop notice the
+# file move", and a differing hash answers that exactly. Each sample writes
+# distinct bytes (the loop index and a millisecond clock), so a change always
+# produces a different hash.
+last_revision = start_revision
 latencies = []
 
 for i in range(1, samples_n + 1):
@@ -180,20 +185,20 @@ for i in range(1, samples_n + 1):
 
     while True:
         revision = poll_revision()
-        if revision is not None and int(revision) > last_revision:
+        if revision is not None and revision != last_revision:
             observed = time.monotonic()
-            last_revision = int(revision)
+            last_revision = revision
             break
         if time.monotonic() >= deadline:
             sys.exit(
-                "sample %d: no revision bump within %dms (last revision %d)"
+                "sample %d: revision did not change within %dms (still %s)"
                 % (i, timeout_s * 1000, last_revision)
             )
         time.sleep(0.005)
 
     latency = int(round((observed - t0) * 1000))
     latencies.append(latency)
-    print("sample %2d: %4d ms (revision -> %d)" % (i, latency, last_revision), flush=True)
+    print("sample %2d: %4d ms (revision -> %s)" % (i, latency, str(last_revision)[:12]), flush=True)
 
 # Same statistics as the shell version it replaces, so runs stay comparable across the change.
 xs = sorted(latencies)
