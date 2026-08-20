@@ -250,6 +250,52 @@ jobs:
             exit 1
           fi
 
+      # gx's version comes from sbt-dynver, which reads `git describe` when sbt
+      # LOADS -- so the tree has to be clean by the time it does. Three tracked
+      # files are modified by this point:
+      #
+      #   - tauri.conf.json and Cargo.toml, edited by "Set app version from the
+      #     release tag" above;
+      #   - Cargo.lock, rewritten by the `cargo clean -p` that precedes the
+      #     desktop build. That one is invisible: `clean -p` resolves the
+      #     workspace WITHOUT --locked, so it quietly re-pins the package to the
+      #     new version -- which is also the only reason the `--locked` build
+      #     right after it does not fail on a stale lock.
+      #
+      # A dirty tree makes dynver append its `+YYYYMMDD-HHMM` marker, which is
+      # how v0.9.1 and v0.9.2 both shipped a gx reporting
+      #
+      #     0.9.2+0-5f6ee662+20260820-2243
+      #
+      # instead of `0.9.2` -- a released binary self-identifying as a dev build,
+      # in `gx --version`, the viewer's startup console banner, and the About
+      # dialog. The desktop artifacts are already built by here, so the edits
+      # have done their job and restoring them costs nothing.
+      #
+      # No counterpart is needed in local-capabilities-smoke.yml's mirror of
+      # this job: it has the same `cargo clean -p` but no version-setting step,
+      # so its lock resolution is a no-op and its tree never goes dirty.
+      - name: Restore version-edited files before the gx build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -- desktop/src-tauri/tauri.conf.json \
+                          desktop/src-tauri/Cargo.toml \
+                          desktop/src-tauri/Cargo.lock
+          # Assert the ACTUAL property, not a proxy for it: dynver stamps from
+          # `git describe`, so ask git the same question dynver will. (A
+          # `git status` check would also catch untracked files, which do not
+          # make describe dirty and would fail this step for the wrong reason.)
+          described="$(git describe --tags --dirty)"
+          case "${described}" in
+            *-dirty)
+              echo "::error::tree is dirty, so dynver would stamp gx as a dev build: ${described}"
+              git status --porcelain --untracked-files=no
+              exit 1
+              ;;
+          esac
+          echo "clean tree; gx will be stamped from ${described}"
+
       - name: Set up scala-cli (for the gx native image)
         uses: VirtusLab/scala-cli-setup@v1
 
