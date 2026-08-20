@@ -158,6 +158,30 @@ jobs:
       # (scala-cli-setup already provides the JDK it runs on.)
       - name: Set up sbt
         uses: sbt/setup-sbt@v1
+        with:
+          # NO disk cache on the gx build.
+          #
+          # sbt 2's disk cache stores TASK OUTPUTS, including the meta-build
+          # compile that turns project/PWEnv.scala into `jsenv.playwright`. On a
+          # hit, sbt skips `compiling 1 Scala source` -- and if the restored
+          # entry does not actually materialize those classes into target/out,
+          # build.sbt fails at `Test / jsEnv` with:
+          #
+          #     Not found: jsenv - did you mean jsEnv?
+          #
+          # That is what broke every macOS release after v0.8.0, and the log
+          # timestamps name the culprit exactly. The one macOS release run that
+          # ever SUCCEEDED missed the cache, compiled, uploaded its assets at
+          # 00:04:36 -- and saved the entry at 00:04:41. Both dispatches after it
+          # hit that key, printed no compile line, and died on build.sbt. Linux
+          # survived only because its branch-scope entry happens to hold 67 KB of
+          # nothing while macOS's holds 9 MB.
+          #
+          # A release build should not consume a task-output cache it did not
+          # produce, so this is the right setting on its own merits. Keep it in
+          # step with the mirror of this job in local-capabilities-smoke.yml --
+          # the two drifting is what hid this for two releases.
+          disk-cache: false
 
       - name: Put coursier bin dir on PATH
         shell: bash
