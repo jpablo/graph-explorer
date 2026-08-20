@@ -27,22 +27,34 @@ class ControlChannelSpec extends FunSuite:
     /** Every request frame the client sent, in order. */
     @volatile var received: Vector[ujson.Obj] = Vector.empty
 
+    /** Set before the server channel is closed, and re-checked after every
+      * accept — `close()` explains why a stub that is already closed can still
+      * be handed a connection.
+      */
+    @volatile private var stopped = false
+
     private val thread = Thread: () =>
       try
-        while true do
+        while !stopped do
           val channel = server.accept()
-          try
-            var open = true
-            while open do
-              readFrame(channel) match
-                case None => open = false
-                case Some(raw) =>
-                  val request = ujson.read(raw).obj
-                  synchronized { received = received :+ ujson.Obj.from(request) }
-                  val response = reply(ujson.Obj.from(request)) + "\n"
-                  channel.write(ByteBuffer.wrap(response.getBytes(StandardCharsets.UTF_8)))
-          catch case NonFatal(_) => ()
-          finally channel.close()
+          // Refuse anything that arrived in the closing window rather than
+          // answering it. Without this a connection the kernel queued before
+          // the descriptor actually went away gets a real reply from a stub
+          // the test believes is dead.
+          if stopped then channel.close()
+          else
+            try
+              var open = true
+              while open do
+                readFrame(channel) match
+                  case None => open = false
+                  case Some(raw) =>
+                    val request = ujson.read(raw).obj
+                    synchronized { received = received :+ ujson.Obj.from(request) }
+                    val response = reply(ujson.Obj.from(request)) + "\n"
+                    channel.write(ByteBuffer.wrap(response.getBytes(StandardCharsets.UTF_8)))
+            catch case NonFatal(_) => ()
+            finally channel.close()
       catch case NonFatal(_) => ()
     thread.setDaemon(true)
     thread.start()
@@ -55,9 +67,32 @@ class ControlChannelSpec extends FunSuite:
       )
       file
 
+    /** Stop serving, and do not return until that is actually true.
+      *
+      * `server.close()` on its own is not enough, and the gap is the whole
+      * reason this method is more than one line. Closing a channel while
+      * another thread is blocked in `accept()` is a DEFERRED close: the JDK
+      * releases the blocked thread and lets IT drop the descriptor, so
+      * `close()` can return while the listening socket is still live. A client
+      * connecting in that window is queued by the kernel and handed straight
+      * to `accept()` — which returns it instead of throwing — and the stub
+      * answers a request it was supposed to be too dead to hear.
+      *
+      * That is exactly how "a stale socket file reads as NoDesktop" failed on
+      * Linux CI with `Right(null)`: the client's `connect()` SUCCEEDED, so it
+      * never saw NoDesktop at all. macOS wakes the blocked thread on a
+      * different schedule, which is why it only ever showed up there.
+      *
+      * Joining the accept thread closes the window: that thread exits only
+      * once `accept()` has thrown, which happens only once the descriptor is
+      * really gone. Bounded rather than indefinite so a wedged stub fails a
+      * test instead of hanging the suite.
+      */
     def close(): Unit =
+      stopped = true
       try server.close()
       catch case NonFatal(_) => ()
+      thread.join(5_000)
 
     private def readFrame(channel: java.nio.channels.SocketChannel): Option[String] =
       val buffer = ByteBuffer.allocate(8192)
