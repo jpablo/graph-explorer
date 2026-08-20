@@ -369,21 +369,41 @@ jobs:
           app="$(find desktop/src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
           dmg="$(find desktop/src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)"
           [[ -n "${app}" && -n "${dmg}" ]] || { echo "no .app/.dmg found"; exit 1; }
+          # `codesign -dv` does NOT print Authority lines -- they start at
+          # verbosity 2. v0.9.2 signed and notarized perfectly and then failed
+          # right here on `got: ''`, because the assertion was reading a field
+          # that command never emits. Keep --verbose=2 (the --verify line above
+          # has always had it; this one did not).
+          #
+          # Captured into a variable rather than piped into `head -n1`: head
+          # exits at the first line and SIGPIPEs codesign, and `set -o pipefail`
+          # would report 141 for the pipeline, aborting under `set -e`.
+          assert_developer_id() {
+            local what="$1" path="$2" info identity
+            info="$(codesign -dv --verbose=2 "${path}" 2>&1 || true)"
+            identity="$(printf '%s\n' "${info}" | sed -n 's/^[[:space:]]*Authority=//p' | sed -n 1p)"
+            echo "${what} authority: ${identity}"
+            case "${identity}" in
+              "Developer ID Application"*) : ;;
+              *) echo "FAIL: ${what} is not signed with Developer ID Application (got: '${identity}')"; exit 1 ;;
+            esac
+          }
+
           echo "--- .app signature ---"
           codesign --verify --deep --strict --verbose=2 "${app}"
-          identity="$(codesign -dv "${app}" 2>&1 | sed -n 's/^[[:space:]]*Authority=//p' | head -n1)"
-          echo "authority: ${identity}"
-          case "${identity}" in
-            "Developer ID Application"*) : ;;
-            *) echo "FAIL: not signed with Developer ID Application (got: '${identity}')"; exit 1 ;;
-          esac
+          assert_developer_id ".app" "${app}"
           echo "--- notarization tickets ---"
           xcrun stapler validate "${dmg}"
           xcrun stapler validate "${app}"
           echo "--- gx signature ---"
           # gx is a raw binary: signed + notarized, but NOT stapled (stapling
           # is not supported for Mach-O), so its Gatekeeper check is online.
+          # It gets the SAME authority assertion as the .app: `--verify` alone
+          # passes for an ad-hoc signature, so on its own it cannot tell a
+          # Developer ID binary from an unsigned-in-effect one -- and gx is a
+          # published asset users execute.
           codesign --verify --strict gx-cli/target/gx
+          assert_developer_id "gx" gx-cli/target/gx
 
       # --- Stage assets with OS- and tag-tagged names (no collisions) ---
 
