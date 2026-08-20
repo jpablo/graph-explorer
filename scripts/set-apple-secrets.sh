@@ -284,10 +284,17 @@ printf '%s' "${KEYCHAIN_PASSWORD_VALUE}"  | set_secret KEYCHAIN_PASSWORD
 
 step "Done."
 cat <<EOF
-  The next tag build will sign and notarize. To exercise it on the current
-  release without cutting a new version:
+  The next tag build will sign and notarize. Cutting a new version is the
+  clean way to exercise that:
 
-      gh workflow run release-binaries.yml -f tag=\$(git describe --tags --abbrev=0)
+      scripts/bump-patch-version.sh
+
+  Re-dispatching an EXISTING tag also works, but read the consequence first:
+  it REPLACES that release's already-published assets with signed ones, so
+  anyone who downloaded them gets different bytes and the published
+  SHA256SUMS no longer matches. Only do this to a release nobody has:
+
+      gh workflow run release-binaries.yml -f tag=vX.Y.Z
 
   The macOS job now runs "Verify signature and notarization" as a publish
   gate: if signing or notarization fails, the macOS assets are withheld
