@@ -60,8 +60,10 @@ checksum at all.
 
 1. **A paid Apple Developer account** ($99/yr). Free accounts do not get a
    *Developer ID* certificate and cannot submit to the notary service —
-   the `Apple Development` certificates already on both machines are free
-   / Xcode development certs and will not work for this.
+   the `Apple Development` certificates on this machine are free / Xcode
+   development certs and will not work for this (as of 2026-08-20 both are
+   also expired, so `security find-identity -v -p codesigning` reports zero
+   valid identities).
 2. **A macOS machine with the latest Xcode + command line tools** (this
    Mac is fine). `Developer ID` certs are only issued to macOS; there is
    no Linux path.
@@ -79,7 +81,26 @@ a password. Keep both; the cert expires in ~1 year, and a re-issue is a
 
 ## 4. Create the GitHub secrets
 
-Repo → *Settings* → *Secrets and variables* → *Actions*:
+Use the script — it validates everything **locally** first, because a GitHub
+secret is write-only once stored and a typo in any of the six stays invisible
+until a tag build reaches the signing path, near the end of a ~20 minute macOS
+job:
+
+```sh
+scripts/set-apple-secrets.sh --dry-run ~/Downloads/DeveloperID.p12   # check only
+scripts/set-apple-secrets.sh           ~/Downloads/DeveloperID.p12   # then set
+```
+
+It refuses to send anything to GitHub unless the password opens the `.p12`, the
+`.p12` actually contains the **private key** (exporting the certificate alone
+from Keychain Access is the usual mistake, and produces a file that imports
+without complaint in CI and then yields no signing identity), the certificate
+is a *Developer ID Application* one and unexpired, and the Apple ID plus
+app-specific password authenticate against the real notary service. The Team ID
+is read out of the certificate rather than retyped.
+
+The six secrets it sets, should you ever need to set them by hand instead —
+repo → *Settings* → *Secrets and variables* → *Actions*:
 
 | Secret                       | Value                                                                 |
 |------------------------------|-----------------------------------------------------------------------|
@@ -129,15 +150,15 @@ codesign -dv gx-vX.Y.Z-macos        # Authority = Developer ID Application ...
                                     # opens with no warning
 ```
 
-## 6. Current state (v0.7.0-era assets)
+## 6. Current state (through v0.9.1: still unsigned)
 
-Until a signed release exists, the honest guidance for the published
-assets is what it always has been:
+Until a signed release exists — v0.9.1 included — the honest guidance for the
+published assets is what it always has been:
 
 ```sh
 xattr -dr com.apple.quarantine Graph\ Explorer.app   # then launch
 ```
 
-...plus the SHA256SUMS check once it is published. That guidance stays
+...plus the SHA256SUMS check, which **is** published as of v0.9.1. That guidance stays
 valid until the secrets above are in place; it is not a bug to patch
 around, it is the consequence of the cert being absent.
