@@ -50,6 +50,7 @@ jobs:
   verify:
     name: Tests + frontend build
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v5
@@ -115,6 +116,7 @@ jobs:
   rust:
     name: Rust tests (desktop)
     runs-on: macos-latest
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v5
@@ -147,6 +149,7 @@ jobs:
   dependency-graph:
     name: Submit dependency graph
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     # Push only. The submission API writes to the repo, which a fork's PR token
     # cannot do, and a graph submitted from an unmerged branch is noise anyway.
     if: github.event_name == 'push'
