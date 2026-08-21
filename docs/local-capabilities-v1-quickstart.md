@@ -108,6 +108,31 @@ Stop watching:
 gx-cli/target/gx unwatch /tmp/diagram.dot --json
 ```
 
+## A separate library: `GX_HOME`
+
+Graph Explorer keeps its state in `~/.graph-explorer` — `library/` and
+`runtime/`. `GX_HOME` replaces that directory, and **both** `gx` and the desktop
+read it, which is the point: they have to agree, or the library ends up in one
+place and the runtime file naming its socket in another.
+
+```bash
+GX_HOME=/tmp/scratch desktop/src-tauri/target/release/graph-explorer-desktop &
+GX_HOME=/tmp/scratch gx-cli/target/gx status
+```
+
+Useful for a throwaway library, for keeping a second one, and for testing
+against a running desktop without touching your real one.
+
+Redirecting `$HOME` does **not** work for this. The desktop follows it; `gx` is
+a GraalVM native image and reads `user.home`, which on macOS comes from the
+password database and ignores `$HOME` entirely — so `gx` would silently answer
+about your real desktop. That is exactly what happened while verifying v0.9.4,
+and the only tell was a fresh sandbox reporting six diagrams.
+
+`GX_HOME` moves gx's own data and nothing else. The access policy's denied roots
+(`~/.ssh`, `~/.gnupg`, ...) keep reading your true home, so relocating a library
+can never quietly un-deny a secret. A blank value reads as unset.
+
 ## Optional policy controls
 
 Allowlist (only watch files under these roots):

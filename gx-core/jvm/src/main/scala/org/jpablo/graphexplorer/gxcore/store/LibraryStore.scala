@@ -1,10 +1,10 @@
 package org.jpablo.graphexplorer.gxcore.store
 
-import org.jpablo.graphexplorer.gxcore.fs.AtomicFiles
+import org.jpablo.graphexplorer.gxcore.fs.{AtomicFiles, GxHome}
 import org.jpablo.graphexplorer.gxcore.model.*
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 import scala.util.control.NonFatal
 
 enum StoreError derives CanEqual:
@@ -138,9 +138,16 @@ final class LibraryStore(val root: Path) extends DiagramSink:
     catch case NonFatal(e) => Left(StoreError.Io(e.toString))
 
 object LibraryStore:
-  /** `~/.graph-explorer/library`, the location `gx` and the desktop agree on. */
-  def default(home: Path = Paths.get(sys.props.getOrElse("user.home", "."))): LibraryStore =
-    LibraryStore(home.resolve(".graph-explorer").resolve("library"))
+  /** `$GX_HOME/library`, or `~/.graph-explorer/library` — the location `gx` and
+    * the desktop agree on.
+    *
+    * The parameter is the GX HOME, not the user's: routed through [[GxHome]] so
+    * there is one definition of where the data lives. Two would be one too many
+    * — a half-applied override is worse than none, because it splits the library
+    * from the runtime file that names its socket.
+    */
+  def default(gxHome: Path = GxHome.resolve()): LibraryStore =
+    LibraryStore(GxHome.libraryDir(gxHome))
 
   /** An id becomes a filename, so it must not be able to escape the directory or
     * collide after normalisation. Anything outside a conservative set becomes

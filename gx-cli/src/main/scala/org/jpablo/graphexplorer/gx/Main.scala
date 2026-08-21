@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.gx
 
-import org.jpablo.graphexplorer.gxcore.fs.{AccessPolicy, Audit}
+import org.jpablo.graphexplorer.gxcore.fs.{AccessPolicy, Audit, GxHome}
 import org.jpablo.graphexplorer.gxcore.rpc.{ChannelError, ControlChannel}
 import org.jpablo.graphexplorer.gxcore.store.LibraryStore
 
@@ -22,8 +22,12 @@ object Main:
   private val DebugFlag = "--debug-protocol"
 
   def main(argv: Array[String]): Unit =
-    val home    = Paths.get(sys.props.getOrElse("user.home", "."))
-    val runtime = home.resolve(".graph-explorer").resolve("runtime")
+    // Resolved once, here, and threaded everywhere else. `$GX_HOME` moves the
+    // library, the control file and the audit log together — they only work as
+    // a set, since the runtime file is what names the socket for the library it
+    // belongs to.
+    val gxHome  = GxHome.resolve()
+    val runtime = GxHome.runtimeDir(gxHome)
     val control = runtime.resolve("control.json")
 
     val args  = argv.toVector
@@ -35,7 +39,7 @@ object Main:
       else _ => ()
 
     val env = CliEnv(
-      store = LibraryStore.default(home),
+      store = LibraryStore.default(gxHome),
       policy = AccessPolicy.fromEnv(),
       audit = Audit(runtime.resolve("audit.log.jsonl")),
       // The user's shell, not the process's idea of it. v1 learned this the hard

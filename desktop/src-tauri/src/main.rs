@@ -548,6 +548,8 @@ fn default_denied_roots() -> Vec<PathBuf> {
         roots.push(PathBuf::from(static_path));
     }
 
+    // The user's REAL home, deliberately -- not graph_explorer_dir(). $GX_HOME
+    // relocates gx's own data; it must not be able to un-deny a secret.
     if let Some(home) = dirs::home_dir() {
         roots.push(home.join(".ssh"));
         roots.push(home.join(".gnupg"));
@@ -610,9 +612,49 @@ fn runtime_file_path() -> Result<PathBuf> {
     Ok(runtime_dir_path()?.join("control.json"))
 }
 
+/// Where Graph Explorer keeps its own state: `library/` and `runtime/`.
+///
+/// `$GX_HOME` replaces that directory wholesale. Default: `~/.graph-explorer`.
+///
+/// It exists because the two halves could not be pointed at the same place.
+/// This side follows `$HOME` (that is what `dirs::home_dir` does); `gx` is a
+/// GraalVM native image reading `user.home`, which on macOS comes from the
+/// password database and ignores `$HOME`. So a test that launched a desktop
+/// under a redirected `$HOME` and then asked `gx` about it was silently asking
+/// about the REAL desktop. One variable both sides read closes that.
+///
+/// NOT a general home override: the access policy's denied roots (`~/.ssh`,
+/// `~/.gnupg`, ...) deliberately keep reading the true home, because relocating
+/// gx's own data must never quietly un-deny a secret.
+fn graph_explorer_dir() -> Result<PathBuf> {
+    Ok(graph_explorer_dir_from(
+        env::var_os("GX_HOME"),
+        dirs::home_dir(),
+    )?)
+}
+
+/// The decision, separated from the process it reads. Env vars are global and
+/// a test that set one would race every other test in the binary; this way the
+/// rule is exercised directly.
+fn graph_explorer_dir_from(
+    gx_home:  Option<std::ffi::OsString>,
+    home_dir: Option<PathBuf>,
+) -> Result<PathBuf> {
+    if let Some(dir) = gx_home {
+        let dir = PathBuf::from(dir);
+        // A set-but-empty variable means "unset" here. Exporting an empty
+        // GX_HOME is how a shell script passes through an unset value, and
+        // taking it literally would put the library at the filesystem root.
+        if !dir.as_os_str().is_empty() {
+            return Ok(dir);
+        }
+    }
+    let home_dir = home_dir.context("could not locate user home directory")?;
+    Ok(home_dir.join(".graph-explorer"))
+}
+
 fn runtime_dir_path() -> Result<PathBuf> {
-    let home_dir = dirs::home_dir().context("could not locate user home directory")?;
-    Ok(home_dir.join(".graph-explorer").join("runtime"))
+    Ok(graph_explorer_dir()?.join("runtime"))
 }
 
 fn control_socket_path() -> Result<PathBuf> {
@@ -2023,11 +2065,7 @@ fn set_owner_only_permissions(_path: &Path) -> Result<()> {
 // how V-13's content hash diverged.
 
 fn library_dir_path() -> Result<PathBuf> {
-    let home_dir = dirs::home_dir().context("could not locate user home directory")?;
-    Ok(home_dir
-        .join(".graph-explorer")
-        .join("library")
-        .join("diagrams"))
+    Ok(graph_explorer_dir()?.join("library").join("diagrams"))
 }
 
 /// Resolve a library file name against the library directory, checking only
@@ -2501,6 +2539,53 @@ mod tests {
             recent_write_hashes: Arc::new(Mutex::new(HashMap::new())),
             app_handle: Arc::new(OnceLock::new()),
         }
+    }
+
+    /// `$GX_HOME` has to mean the same directory here and in `gx`, or it is
+    /// worse than not existing: a library in one place and the runtime file
+    /// that names its socket in another. The Scala half of this rule lives in
+    /// gx-core's GxHome, tested there — these are the same cases.
+    #[test]
+    fn gx_home_replaces_the_data_directory() {
+        let dir = graph_explorer_dir_from(
+            Some(std::ffi::OsString::from("/tmp/scratch")),
+            Some(PathBuf::from("/Users/someone")),
+        )
+        .expect("an explicit GX_HOME needs no home directory");
+        // The variable names the data directory itself. Nesting
+        // `.graph-explorer` inside it would put a hidden directory in a path
+        // the caller chose explicitly.
+        assert_eq!(dir, PathBuf::from("/tmp/scratch"));
+    }
+
+    #[test]
+    fn without_gx_home_it_is_the_dot_directory_under_home() {
+        let dir = graph_explorer_dir_from(None, Some(PathBuf::from("/Users/someone")))
+            .expect("a home directory is enough");
+        assert_eq!(dir, PathBuf::from("/Users/someone/.graph-explorer"));
+    }
+
+    #[test]
+    fn a_blank_gx_home_means_unset_not_the_filesystem_root() {
+        // `export GX_HOME="$SOMETHING"` with SOMETHING unset is how a shell
+        // script passes through an absent value. Taken literally it would put
+        // the library at `/library`.
+        let dir = graph_explorer_dir_from(
+            Some(std::ffi::OsString::from("")),
+            Some(PathBuf::from("/Users/someone")),
+        )
+        .expect("a blank value falls back to the home directory");
+        assert_eq!(dir, PathBuf::from("/Users/someone/.graph-explorer"));
+    }
+
+    #[test]
+    fn an_explicit_gx_home_works_with_no_home_directory_at_all() {
+        // The point of the fallback order: a process that cannot locate a home
+        // is still usable if it was told where to look.
+        let dir = graph_explorer_dir_from(Some(std::ffi::OsString::from("/tmp/scratch")), None)
+            .expect("GX_HOME alone is sufficient");
+        assert_eq!(dir, PathBuf::from("/tmp/scratch"));
+        assert!(graph_explorer_dir_from(None, None).is_err(), "neither one is an error");
     }
 
     #[test]
