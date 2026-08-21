@@ -254,6 +254,60 @@ class CliSpec extends FunSuite:
     assert(r.stdout.contains("nothing bound"), r.stdout)
   }
 
+  // ------------------------------------------------- sync × line endings
+  //
+  // `base` and `remote` are hashes of file BYTES, so `local` has to be measured
+  // the same way. Hashing the record's text with a fixed LF made every one of
+  // these read as a local edit that never happened.
+  //
+  // Note every OTHER sync test above uses text with no newline in it, where LF
+  // and CRLF are the same bytes — which is exactly how this survived.
+
+  private def crlf: String = "digraph G {\r\n  a -> b\r\n}\r\n"
+
+  tmp.test("a CRLF origin nobody has touched is InSync, not Ahead") { dir =>
+    dot(dir, "win.dot", crlf)
+    val i = Run(dir)
+    assertEquals(i("import", "win.dot", "--mode", "sync"), ExitCode.Ok, i.stderr)
+
+    // Nothing at all happens here. Both sides are exactly as imported.
+    val s = Run(dir)
+    assertEquals(s("sync", "--all"), ExitCode.Ok, s.stderr)
+    assert(s.stdout.contains("InSync"), s.stdout)
+    assertEquals(Files.readString(dir.resolve("win.dot")), crlf, "sync rewrote an untouched origin")
+  }
+
+  tmp.test("a byte-identical CRLF regeneration is Converged, not Diverged") { dir =>
+    val f = dot(dir, "win.dot", crlf)
+    val i = Run(dir)
+    i("import", "win.dot", "--mode", "sync")
+    val id = i.store.list().head.id
+
+    // The generator rewrites the same bytes; the store independently agrees.
+    val d = i.store.get(id).fold(x => fail(s"$x"), identity)
+    val next = "digraph G {\r\n  a -> c\r\n}\r\n"
+    i.store.save(d.copy(text = next))
+    Files.writeString(f, next)
+
+    val s = Run(dir)
+    assertEquals(s("sync", "--all"), ExitCode.Ok, s.stdout)
+    assert(s.stdout.contains("Converged"), s.stdout)
+  }
+
+  tmp.test("a CRLF origin that moves is Behind, and pull follows it") { dir =>
+    val f = dot(dir, "win.dot", crlf)
+    val i = Run(dir)
+    i("import", "win.dot", "--mode", "pull")
+
+    val next = "digraph G {\r\n  a -> b\r\n  b -> c\r\n}\r\n"
+    Files.writeString(f, next)
+
+    val s = Run(dir)
+    assertEquals(s("sync", "--all"), ExitCode.Ok, s.stderr)
+    assert(s.stdout.contains("Behind"), s.stdout)
+    assertEquals(s.store.list().head.text, next)
+  }
+
   // --------------------------------------------------------------- watch
 
   /** v1 had no way to observe changes without a window. This is the primitive a

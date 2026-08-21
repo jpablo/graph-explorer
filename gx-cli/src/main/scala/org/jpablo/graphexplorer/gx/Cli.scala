@@ -412,15 +412,30 @@ object Cli:
       case None => (d, SyncState.InSync)
       case Some(binding) =>
         val path   = binding.origin.filePath.map(Paths.get(_))
-        val remote = path.flatMap(Documents.hashOf)
-        val local  = Hashing.ofText(d.text, LineEnding.Lf)
-        val state  = SyncState.of(binding.baseHash, local, remote)
+        // ONE read of the origin: it answers both questions below, and the Pull
+        // branch reuses it rather than reading and re-hashing the same bytes.
+        val origin = path.flatMap(Documents.read(_).toOption)
+        val remote = origin.map(_.hash)
+
+        // `base` and `remote` are hashes of FILE BYTES, so `local` has to be
+        // measured the same way: the record's text as it would be written into
+        // THIS file, using the convention that file already uses (V-04).
+        //
+        // Hashing with a fixed LF made every CRLF-authored origin read `Ahead`
+        // forever — nothing had been edited, the bytes simply could not agree —
+        // and made a byte-identical regeneration land on `Diverged` instead of
+        // `Converged`, which is the conflict machine SyncState.Converged exists
+        // to prevent. Hashing.ofText demands the convention explicitly for this
+        // exact reason; see its scaladoc and V-16.
+        //
+        // With no origin on disk the state is OriginMissing whatever `local`
+        // says, and Lf is what Documents.create would write if it reappears.
+        val local = Hashing.ofText(d.text, origin.map(_.lineEnding).getOrElse(LineEnding.Lf))
+        val state = SyncState.of(binding.baseHash, local, remote)
 
         binding.mode.autoAction(state) match
           case Some(SyncAction.Pull) =>
-            (for
-              p   <- path
-              doc <- Documents.read(p).toOption
+            (for doc <- origin
             yield
               val updated = d.copy(
                 text = doc.text,
