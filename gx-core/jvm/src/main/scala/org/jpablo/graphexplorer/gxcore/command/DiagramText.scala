@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.gxcore.command
 import org.jpablo.graphexplorer.graphviz.Graphviz as ScalaGraphviz
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, toViewerGraph}
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, viewerGraphElementsToText}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import upickle.default.read
 
 import scala.util.control.NonFatal
@@ -69,6 +69,19 @@ object DiagramText:
     * `omitInternal` because a round trip must not leak the layout's own
     * bookkeeping (`_gvid` and friends) into the user's file — those are
     * artifacts of how the graph was read, not of what it says.
+    *
+    * Goes through `viewerGraphToText` rather than calling the printer directly,
+    * which is not a stylistic preference — the printer is the LAST step of
+    * three, and this used to skip the other two:
+    *
+    *   - `combineStyleAttributes` folds the synthetic sub-attributes
+    *     (`fillstyle` and friends) back into a real `style="filled"`. Without
+    *     it `gx` wrote `fillstyle="true"` into the user's file, and then could
+    *     not read that file back: sub-attributes are not DOT, so the reader
+    *     rejected its own output. Two commands were enough to break a diagram.
+    *   - `graph.id` and `graph.tpe` carry the graph's NAME and whether it is
+    *     directed. Defaulting them silently rewrote `graph MyNet { a -- b }`
+    *     into `digraph "G" { "a" -> "b" }`, which is a different diagram.
     */
   def render(graph: ViewerGraph): String =
-    viewerGraphElementsToText(graph.elements, omitInternal = true)
+    ViewerGraph.viewerGraphToText(graph, omitInternal = true)
