@@ -2,12 +2,39 @@ name: Release binaries
 
 # Triggered when scripts/bump-patch-version.sh pushes a vX.Y.Z tag (or via
 # manual dispatch to (re)build assets for an existing tag). Builds the
-# desktop/gx binaries on the same matrix as local-capabilities-smoke.yml,
-# runs the runtime smoke as a per-platform publish gate, then attaches the
-# artifacts to the GitHub Release for the tag.
+# desktop/gx binaries, runs the runtime smoke as a per-platform publish gate,
+# then attaches the artifacts to the GitHub Release for the tag.
+#
+# AND ON EVERY PR, which is the point of the `pull_request` trigger below.
+#
+# This file used to be tag/dispatch-only, so nothing exercised it until the
+# irreversible step. Four defects shipped through that gap in a single day
+# (2026-08-20), every one of them in a line no PR had ever run:
+#
+#   - the signing gate parsed `Authority=` out of `codesign -dv`, which does
+#     not print it -- so it read '' and could never pass;
+#   - gx was checked with `codesign --verify --strict` alone, which passes for
+#     an ad-hoc signature and so could not fail;
+#   - the released gx reported a dirty dev version, because the tree is edited
+#     before sbt loads;
+#   - an sbt disk-cache hit skipped the meta-build compile and broke the macOS
+#     leg for two releases.
+#
+# A PR run does everything a tag run does EXCEPT publish: same three platforms,
+# same version stamping, same signing and notarization, same publish gate. It
+# stops at "Attach assets to the Release" and uploads the staged assets as a
+# build artifact instead. `github.event_name != 'pull_request'` is the only
+# thing separating the two, so the tested path and the real path cannot drift.
+#
+# This replaces the `release-packaging` mirror job that used to live in
+# local-capabilities-smoke.yml. That mirror was a hand-maintained copy of this
+# job and it drifted twice; a PR now runs the original instead of a likeness of
+# it, for about the same CI time (the mirror already built all three platforms).
 on:
   push:
     tags: ['v*.*.*']
+  pull_request:
+    branches: [viewer]
   workflow_dispatch:
     inputs:
       tag:
@@ -30,6 +57,12 @@ permissions:
 # which is how the v5 bump knew what to bump.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # The version this run stamps and names assets with. A PR has no tag, so it
+  # gets a fixed placeholder -- nothing it produces is published, and a real
+  # value here would only invite mistaking a PR build for a release. Defined
+  # once so the version step, the staging step and the attach step cannot
+  # disagree about what is being built.
+  RELEASE_TAG: ${{ github.event_name == 'pull_request' && 'v0.0.0' || (github.event.inputs.tag || github.ref_name) }}
   # macOS release signing + notarization. Every one of these resolves to an
   # empty string until the matching repo secret exists, which is the signal
   # the release job uses to decide whether to sign.
@@ -130,7 +163,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          tag="${RELEASE_TAG}"
           version="${tag#v}"
           [[ -n "${version}" ]] || { echo "no release version derivable from tag '${tag}'"; exit 1; }
           jq --arg v "${version}" '.version = $v' desktop/src-tauri/tauri.conf.json > tmp.conf \
@@ -286,7 +319,12 @@ jobs:
           # `git describe`, so ask git the same question dynver will. (A
           # `git status` check would also catch untracked files, which do not
           # make describe dirty and would fail this step for the wrong reason.)
-          described="$(git describe --tags --dirty)"
+          # --always matters on a PR: the checkout is a shallow merge ref with no
+          # tags, and a bare `git describe --tags` EXITS NONZERO there ("No names
+          # found"), taking this step down under `set -e`. With --always it falls
+          # back to an abbreviated sha and still appends -dirty, so the assertion
+          # keeps working on a PR, where there is no tag to describe.
+          described="$(git describe --tags --dirty --always)"
           case "${described}" in
             *-dirty)
               echo "::error::tree is dirty, so dynver would stamp gx as a dev build: ${described}"
@@ -457,7 +495,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          tag="${RELEASE_TAG}"
           mkdir -p release-dist
           case "${{ runner.os }}" in
             macOS)
@@ -479,12 +517,27 @@ jobs:
           esac
           ls -la release-dist
 
+      # THE line that separates a PR run from a release run. Everything above
+      # is identical for both; only publishing is withheld.
       - name: Attach assets to the Release
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           fail_on_unmatched_files: true
           files: release-dist/*
+
+      # A PR's assets are kept as a build artifact instead: downloadable for
+      # inspection, attached to nothing. This is what the deleted
+      # `release-packaging` mirror job used to provide.
+      - name: Upload staged assets (PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-dist-${{ runner.os }}
+          path: release-dist/*
+          if-no-files-found: error
+          retention-days: 7
 
   # needs: release covers ALL matrix legs, so this job only runs when every
   # platform's assets were attached -- which is what makes the checksum file
@@ -499,6 +552,8 @@ jobs:
   publish-checksums:
     name: Publish SHA256SUMS
     needs: release
+    # There is no Release to attach a checksum file to on a PR.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -514,7 +569,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          tag="${RELEASE_TAG}"
           gh api "repos/${{ github.repository }}/releases/tags/${tag}" \
             --jq '.assets[] | .name' | sort | while IFS= read -r name; do
             case "${name}" in
@@ -528,6 +583,6 @@ jobs:
       - name: Attach SHA256SUMS to the Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           fail_on_unmatched_files: true
           files: SHA256SUMS
