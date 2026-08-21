@@ -48,6 +48,19 @@ A loose file on disk needs no setup — `gx run ./arch.dot list-nodes` works imm
 But **the record tier only exists for library diagrams**; on a loose file those commands
 refuse with exit 4 and tell you to `gx import` it first.
 
+⚠️ **A name match is not proof you have the right diagram.** The library is global, so a
+name like `infra` may already belong to a diagram bound to a completely different file.
+Resolution reports *ambiguity*, but one exact match is not ambiguous — it is just possibly
+the wrong file. Before acting on a library ref you did not import yourself, check what it
+is bound to:
+
+```bash
+gx ls --json      # or: gx run <ref> get-record --json
+```
+
+and confirm the `origin` is the file you mean. Addressing the **path** instead of the name
+sidesteps the question entirely, and is the safer default when you have a path in hand.
+
 ## Three tiers
 
 | Tier | Verb | Operates on | Needs a desktop? |

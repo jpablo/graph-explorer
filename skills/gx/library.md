@@ -21,6 +21,12 @@ Importing the same file twice does not create a second record. It warns
 (`already imported as <id>`) and reuses the first — a second record fighting the first over
 one file is worse than a duplicate.
 
+Note what that uniqueness is keyed on: the **origin**, not the name. Two different files
+can both be called `infra`, and the second import gets a fresh id (`infra-2`) while keeping
+the name. So a bare name is not a safe address — `gx run infra hide ...` may act on a
+record bound to someone else's file, succeed, and report success. Check the `origin` first,
+or address the path.
+
 ## Bindings and sync modes
 
 An imported diagram carries a **binding**: the origin it came from, a mode, and the content
