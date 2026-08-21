@@ -94,6 +94,18 @@ while True:
         if request.get("method") == "boom":
             reply = {"id": request.get("id"), "ok": False,
                      "error": {"code": "WATCH_FAILED", "message": "nope"}}
+        elif request.get("method") == "status":
+            # A real desktop's status, because `control_ready` now reads it:
+            # the socket is bound before the webview, so answering is no longer
+            # the same as being usable. Touch `starting` in the stub dir to make
+            # this stub report the state a desktop is in while its window comes
+            # up. `echo` keeps the params assertion below possible.
+            starting = os.path.exists(os.path.join(os.path.dirname(path), "starting"))
+            reply = {"id": request.get("id"), "ok": True, "result": {
+                "running": not starting,
+                "state": "starting" if starting else "running",
+                "echo": request.get("params"),
+            }}
         else:
             reply = {"id": request.get("id"), "ok": True, "result": request.get("params")}
         conn.sendall((json.dumps(reply) + "\n").encode("utf-8"))
@@ -144,9 +156,20 @@ check "an embedded newline" "$(printf '/a\nb.dot')" "$(roundtrip "$(printf '/a\n
 # (a laptop). The old check only asked whether the call SUCCEEDED, which is a
 # property the bug happened to break in a way that looked like "no desktop".
 # Asserting the frame's content instead makes it fail on any bash.
-check "a defaulted params object is valid JSON" "{}" "$(api_status | jq -c '.result')"
+check "a defaulted params object is valid JSON" "{}" "$(api_status | jq -c '.result.echo')"
 
 check "a live socket is ready"  "0"  "$(control_ready && echo 0 || echo 1)"
+
+# A socket that answers but has no window yet is NOT ready. This is the
+# distinction the desktop gained when it started binding before the webview,
+# and the one the release smoke found missing: `control_ready` used to accept
+# any successful reply, so every caller raced the window and asserted
+# `running == true` a line later.
+touch "${stub_dir}/starting"
+check "a starting desktop is not ready" "1" "$(control_ready && echo 0 || echo 1)"
+check "and it says so"                  "starting" "$(api_status | jq -r '.result.state')"
+rm -f "${stub_dir}/starting"
+check "and it is ready once the window is up" "0" "$(control_ready && echo 0 || echo 1)"
 
 # --- the outcome channel -----------------------------------------------------
 # The bug this file exists for: does the outcome survive the `$( )` capture the
