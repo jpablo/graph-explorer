@@ -29,7 +29,7 @@ private enum Target derives CanEqual:
     * writing a file needs no registration first. v1 could not do this — `get`
     * failed with "path is not currently watched" until you had called `watch`.
     */
-  case OnDisk(path: Path, origin: OriginUri)
+  case OnDisk(path: Path)
 
 /** The `gx` command surface (§8).
   *
@@ -215,13 +215,10 @@ object Cli:
                             createdAt = env.now(),
                             updatedAt = env.now()
                           )
-                          env.store.initialize()
-                          env.store.save(d) match
-                            case Left(e) => env.err(s"gx: $e"); ExitCode.Unknown
-                            case Right(saved) =>
-                              env.audit.record(AuditEvent.Allowed(resolved.toString, "import"))
-                              printDiagram(saved, args, env)
-                              ExitCode.Ok
+                          persist(d, env): saved =>
+                            env.audit.record(AuditEvent.Allowed(resolved.toString, "import"))
+                            printDiagram(saved, args, env)
+                            ExitCode.Ok
 
   // ----------------------------------------------------------------- ls
 
@@ -247,7 +244,7 @@ object Cli:
         case Target.InLibrary(d) =>
           if args.json then env.out(summaryJson(d).render(indent = 2)) else env.out(d.text)
           ExitCode.Ok
-        case Target.OnDisk(path, _) =>
+        case Target.OnDisk(path) =>
           Documents.read(path) match
             case Left(err) =>
               env.err(s"gx: ${describe(err)}")
@@ -279,7 +276,7 @@ object Cli:
     */
   private def applyText(target: Target, text: String, args: Args, env: CliEnv, source: String): Int =
     target match
-      case Target.OnDisk(path, _) => writeFile(path, text, args, env, source)
+      case Target.OnDisk(path) => writeFile(path, text, args, env, source)
       case Target.InLibrary(d) =>
         val updated = d.copy(text = text, updatedAt = env.now())
         d.binding.filter(b => b.mode.pushes) match
@@ -288,9 +285,8 @@ object Cli:
             // never writes them back (§5.3). Saving the record is the whole
             // operation, and the divergence it creates is reported by
             // `gx sync` rather than resolved behind the user's back.
-            env.store.save(updated) match
-              case Left(e)  => env.err(s"gx: $e"); ExitCode.Unknown
-              case Right(_) => reportSet(updated, wroteOrigin = false, args, env); ExitCode.Ok
+            persist(updated, env): _ =>
+              reportSet(updated, wroteOrigin = false, args, env); ExitCode.Ok
           case Some(binding) =>
             binding.origin.filePath.map(Paths.get(_)) match
               case None =>
@@ -308,12 +304,10 @@ object Cli:
                       text = doc.text,
                       binding = Some(binding.copy(baseHash = doc.hash, lastSyncAt = env.now()))
                     )
-                    env.store.save(synced) match
-                      case Left(e) => env.err(s"gx: $e"); ExitCode.Unknown
-                      case Right(_) =>
-                        env.audit.record(AuditEvent.Written(path.toString, doc.hash, source))
-                        reportSet(synced, wroteOrigin = true, args, env)
-                        ExitCode.Ok
+                    persist(synced, env): _ =>
+                      env.audit.record(AuditEvent.Written(path.toString, doc.hash, source))
+                      reportSet(synced, wroteOrigin = true, args, env)
+                      ExitCode.Ok
 
   private def writeFile(path: Path, text: String, args: Args, env: CliEnv, source: String): Int =
     checkPolicy(path, env) match
@@ -373,9 +367,8 @@ object Cli:
                           binding = Some(Binding(origin, mode, base, env.now())),
                           updatedAt = env.now()
                         )
-                        env.store.save(bound) match
-                          case Left(e)  => env.err(s"gx: $e"); ExitCode.Unknown
-                          case Right(_) => printDiagram(bound, args, env); ExitCode.Ok
+                        persist(bound, env): _ =>
+                          printDiagram(bound, args, env); ExitCode.Ok
       case _ =>
         env.err("gx: bind needs a diagram and a path")
         ExitCode.Usage
@@ -387,16 +380,13 @@ object Cli:
         ExitCode.InvalidPathOrPolicy
       case Some(d) =>
         val detached = d.copy(binding = None, updatedAt = env.now())
-        env.store.save(detached) match
-          case Left(e)  => env.err(s"gx: $e"); ExitCode.Unknown
-          case Right(_) => printDiagram(detached, args, env); ExitCode.Ok
+        persist(detached, env): _ =>
+          printDiagram(detached, args, env); ExitCode.Ok
 
   // --------------------------------------------------------------- sync
 
   private def sync(args: Args, env: CliEnv): Int =
-    val targets =
-      if args.has("all") || args.positional.isEmpty then env.store.list().filter(_.isBound)
-      else args.positional.flatMap(findInLibrary(_, env)).filter(_.isBound)
+    val targets = boundTargets(args, env)
 
     if targets.isEmpty then
       env.out(if args.json then "[]" else "(nothing bound to sync)")
@@ -479,9 +469,7 @@ object Cli:
     * discarded").
     */
   private def watch(args: Args, env: CliEnv): Int =
-    val diagrams =
-      if args.has("all") || args.positional.isEmpty then env.store.list().filter(_.isBound)
-      else args.positional.flatMap(findInLibrary(_, env)).filter(_.isBound)
+    val diagrams = boundTargets(args, env)
 
     val fromPaths = args.positional.filter(r => findInLibrary(r, env).isEmpty).map: raw =>
       FileOrigins.originOf(env.cwd.resolve(raw), env.cwd)
@@ -507,15 +495,11 @@ object Cli:
 
   private def emitWatchEvent(event: WatchEvent, args: Args, env: CliEnv): Unit =
     val (kind, uri, hash) = event match
-      case WatchEvent.Changed(u, h)   => ("changed", u, Some(h))
-      case WatchEvent.Restored(u, h)  => ("restored", u, Some(h))
-      case WatchEvent.Deleted(u, h)   => ("deleted", u, Some(h))
+      case WatchEvent.Changed(u, h)  => ("changed", u, h)
+      case WatchEvent.Restored(u, h) => ("restored", u, h)
+      case WatchEvent.Deleted(u, h)  => ("deleted", u, h)
     if args.json then
-      env.out(
-        ujson
-          .Obj("event" -> kind, "origin" -> uri.value, "hash" -> hash.map(_.hex).getOrElse(""))
-          .render()
-      )
+      env.out(ujson.Obj("event" -> kind, "origin" -> uri.value, "hash" -> hash.hex).render())
     else env.out(s"$kind\t${uri.value}")
 
   // ---------------------------------------------------------------- run
@@ -531,9 +515,7 @@ object Cli:
     if args.has("list") then
       // Discoverability is part of the vocabulary being a vocabulary: a name
       // nobody can enumerate is not addressable in any useful sense.
-      if args.json then env.out(ujson.Arr.from(AnyCommand.names.map(ujson.Str(_))).render(indent = 2))
-      else AnyCommand.names.foreach(env.out)
-      ExitCode.Ok
+      listNames(AnyCommand.names, args, env)
     else
       (args.positionalAt(0), args.positionalAt(1)) match
         case (Some(_), Some(commandName)) =>
@@ -569,7 +551,7 @@ object Cli:
     */
   private def executeRecord(target: Target, command: RecordCommand, args: Args, env: CliEnv): Int =
     target match
-      case Target.OnDisk(path, _) =>
+      case Target.OnDisk(path) =>
         env.err(s"gx: '${path.getFileName}' is not in the library, so it has no record to change")
         env.err(s"gx: import it first:  gx import ${path.getFileName}")
         ExitCode.InvalidPathOrPolicy
@@ -588,12 +570,10 @@ object Cli:
             // Metadata only: the record is saved, and the ORIGIN is untouched
             // whatever the sync mode says. That is §5.3.1's split doing its job
             // — hiding a node must never make a regenerating origin conflict.
-            env.store.save(updated.copy(updatedAt = env.now())) match
-              case Left(e) => env.err(s"gx: $e"); ExitCode.Unknown
-              case Right(saved) =>
-                if args.json then env.out(summaryJson(saved).render(indent = 2))
-                else env.out(s"${saved.id.value}  ${command.name}")
-                ExitCode.Ok
+            persist(updated.copy(updatedAt = env.now()), env): saved =>
+              if args.json then env.out(summaryJson(saved).render(indent = 2))
+              else env.out(s"${saved.id.value}  ${command.name}")
+              ExitCode.Ok
 
   private def executeDocument(target: Target, command: DocumentCommand, args: Args, env: CliEnv): Int =
     textOf(target, env) match
@@ -651,7 +631,7 @@ object Cli:
   private def textOf(target: Target, env: CliEnv): Either[Int, String] =
     target match
       case Target.InLibrary(d) => Right(d.text)
-      case Target.OnDisk(path, _) =>
+      case Target.OnDisk(path) =>
         Documents.read(path) match
           case Right(doc) => Right(doc.text)
           case Left(err) =>
@@ -687,9 +667,7 @@ object Cli:
     */
   private def sessionCommand(args: Args, env: CliEnv): Int =
     if args.has("list") then
-      if args.json then env.out(ujson.Arr.from(SessionCommand.names.map(ujson.Str(_))).render(indent = 2))
-      else SessionCommand.names.foreach(env.out)
-      ExitCode.Ok
+      listNames(SessionCommand.names, args, env)
     else
       args.positionalAt(0) match
         case None =>
@@ -810,7 +788,7 @@ object Cli:
             env.err(s"gx: bind it first:  gx bind ${d.id.value} <path>")
             Left(ExitCode.InvalidPathOrPolicy)
       case None =>
-        checkPolicy(env.cwd.resolve(ref), env).left.map(identity)
+        checkPolicy(env.cwd.resolve(ref), env)
 
   // ---------------------------------------------------------- resolution
 
@@ -826,7 +804,7 @@ object Cli:
             val path = env.cwd.resolve(ref)
             checkPolicy(path, env) match
               case Left(code) => code
-              case Right(resolved) => f(Target.OnDisk(resolved, FileOrigins.originOf(resolved, env.cwd)))
+              case Right(resolved) => f(Target.OnDisk(resolved))
 
   /** id, then exact name, then the origin path. Ambiguity is reported rather
     * than resolved by picking one, because "gx set" on the wrong diagram is not
@@ -847,6 +825,31 @@ object Cli:
           case _           => None
 
   // ------------------------------------------------------------- helpers
+
+  /** Save, or report the failure the same way everywhere. A store write that
+    * fails is `Unknown`, not a success with a warning — the six call sites that
+    * spelled this out by hand could each have answered differently.
+    */
+  private def persist(d: Diagram, env: CliEnv)(onSaved: Diagram => Int): Int =
+    env.store.save(d) match
+      case Left(e)      => env.err(s"gx: $e"); ExitCode.Unknown
+      case Right(saved) => onSaved(saved)
+
+  /** The vocabulary of a command tier, for `--list`. Both tiers print it the
+    * same way; two copies is how the two `--list` flags start differing.
+    */
+  private def listNames(names: Vector[String], args: Args, env: CliEnv): Int =
+    if args.json then env.out(ujson.Arr.from(names.map(ujson.Str(_))).render(indent = 2))
+    else names.foreach(env.out)
+    ExitCode.Ok
+
+  /** `--all`, or no arguments at all, means every bound diagram. `sync` and
+    * `watch` are documented as sharing that rule, so they read it from here
+    * rather than each restating it.
+    */
+  private def boundTargets(args: Args, env: CliEnv): Vector[Diagram] =
+    if args.has("all") || args.positional.isEmpty then env.store.list().filter(_.isBound)
+    else args.positional.flatMap(findInLibrary(_, env)).filter(_.isBound)
 
   private def checkPolicy(path: Path, env: CliEnv): Either[Int, Path] =
     env.policy.evaluate(path, env.cwd) match

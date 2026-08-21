@@ -41,7 +41,7 @@ object Args:
           if name.isEmpty then Left("empty flag: '--'")
           else if name.contains('=') then
             val (k, v) = name.span(_ != '=')
-            Right(()).flatMap(_ => loop(tail, positional, values + (k -> v.drop(1)), switches))
+            loop(tail, positional, values + (k -> v.drop(1)), switches)
           else if ValueFlags.contains(name) then
             tail match
               case v :: more if !v.startsWith("--") =>
