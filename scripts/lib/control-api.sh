@@ -73,8 +73,24 @@ control_load() {
 # real call rather than a stat.
 control_ready() {
   control_load || return 1
-  api_status >/dev/null 2>&1
-  [[ "$(api_last_status)" == "ok" ]]
+  local body
+  body="$(api_status 2>/dev/null)"
+  [[ "$(api_last_status)" == "ok" ]] || return 1
+
+  # READY MEANS THE WINDOW IS UP, not merely that the socket answers.
+  #
+  # The desktop binds its control socket before the webview now, so that it can
+  # say "starting" instead of looking absent for the 15-30s WebView2 takes on
+  # Windows. A bound socket therefore stopped being proof of a usable desktop:
+  # it answers `running: false` while starting.
+  #
+  # Waiting on the weaker signal made every caller race the webview. The release
+  # smoke caught it immediately -- it waited, got an answer, and then asserted
+  # `running == true` one line later and failed. The Windows gate never had this
+  # bug: its readiness loop has always checked `$status.result.running`, so the
+  # two implementations of the same wait disagreed, and only the stricter one
+  # was right.
+  [[ "$(_jq -r '.result.running' <<<"${body}")" == "true" ]]
 }
 
 control_wait_ready() {
