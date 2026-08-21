@@ -92,12 +92,48 @@ $errLog = Join-Path $env:TEMP "gx-desktop-err.log"
 $desktopProc = Start-Process -FilePath $desktop -PassThru `
   -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 try {
+  # BUDGET: 120s, not the 30s this used to allow.
+  #
+  # The desktop binds its control socket inside tauri's `setup`, which runs
+  # only after WebView2 has initialized. On a cold Windows runner that
+  # initialization has a long tail, and the socket cannot exist before it
+  # finishes -- so this wait is really "how long may WebView2 take".
+  #
+  # Measured across recent CI runs, the whole step:
+  #
+  #     4s  4s  4s  4s  4s  4s  5s  5s  7s  8s  15s  31s   <- passes
+  #     33s                                                <- the failure
+  #
+  # The common case is ~4s and the tail is not close to it. A 30s budget sat
+  # INSIDE that tail, so the gate failed on the desktop being slow rather than
+  # broken -- and it is a blocking gate on every PR, where a false red teaches
+  # people to ignore it. 120s is four times the worst observed start; the loop
+  # exits the moment the channel answers, so the common case still costs 4s.
+  #
+  # Deadline-based rather than a fixed iteration count: an iteration is a
+  # connect attempt plus a sleep, so `120 iterations` was never 30 seconds of
+  # anything in particular.
+  $runtimeDir = Join-Path $HOME ".graph-explorer/runtime"
+  $waitStarted = Get-Date
+  $deadline = $waitStarted.AddSeconds(120)
   $ready = $false
   $lastError = "(never attempted)"
-  for ($i = 0; $i -lt 120; $i++) {
-    # A dead process will never become ready. Waiting the full 30s for
-    # one that exited in the first 200ms tells you nothing.
+  $socketAppearedAfter = $null
+
+  while ((Get-Date) -lt $deadline) {
+    # A dead process will never become ready. Waiting the full budget for one
+    # that exited in the first 200ms tells you nothing.
     if ($desktopProc.HasExited) { break }
+
+    # Record WHEN the socket shows up, separately from when it answers. The
+    # failure this replaces reported neither, so "never bound" and "bound but
+    # not answering" looked identical -- and they have different causes.
+    if (-not $socketAppearedAfter) {
+      $sock = Get-ChildItem $runtimeDir -Force -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -eq "control.sock" }
+      if ($sock) { $socketAppearedAfter = [math]::Round(((Get-Date) - $waitStarted).TotalSeconds, 1) }
+    }
+
     if (Test-Path $control) {
       try {
         $status = Invoke-Control "status" @{}
@@ -109,12 +145,19 @@ try {
     }
     Start-Sleep -Milliseconds 250
   }
+  $waited = [math]::Round(((Get-Date) - $waitStarted).TotalSeconds, 1)
+  if ($ready) { Write-Host "control channel ready after ${waited}s" }
   if (-not $ready) {
     Write-Host "--- why the control channel never came up ---"
+    Write-Host "waited         : ${waited}s of a 120s budget"
+    if ($socketAppearedAfter) {
+      Write-Host "control.sock   : appeared after ${socketAppearedAfter}s but never answered"
+    } else {
+      Write-Host "control.sock   : NEVER APPEARED -- the desktop did not reach tauri's setup"
+    }
     Write-Host "desktop exited : $($desktopProc.HasExited)"
     if ($desktopProc.HasExited) { Write-Host "exit code      : $($desktopProc.ExitCode)" }
     Write-Host "last error     : $lastError"
-    $runtimeDir = Join-Path $HOME ".graph-explorer/runtime"
     Write-Host "runtime dir    : $runtimeDir"
     if (Test-Path $runtimeDir) {
       # Get-ChildItem rather than Test-Path on the socket: an AF_UNIX
