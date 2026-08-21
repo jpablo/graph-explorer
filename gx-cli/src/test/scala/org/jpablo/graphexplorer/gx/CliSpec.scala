@@ -53,7 +53,9 @@ class CliSpec extends FunSuite:
     val env: CliEnv = CliEnv(
       store = store,
       policy = AccessPolicy(Nil, Nil),
-      audit = Audit(dir.resolve("audit.jsonl")),
+      // Same clock the CLI uses, so an audit line's timestamp is a fact a test
+      // can assert rather than whatever the wall clock said.
+      audit = Audit(dir.resolve("audit.jsonl"), () => clock),
       cwd = dir,
       out = s => out.append(s).append('\n'),
       err = s => err.append(s).append('\n'),
@@ -615,6 +617,23 @@ class CliSpec extends FunSuite:
     val env = r.env.copy(policy = AccessPolicy(Nil, List(secret)))
     assertEquals(Cli.run(Vector("import", "secrets/a.dot"), env), ExitCode.InvalidPathOrPolicy)
     assert(r.stderr.contains("denied root"), r.stderr)
+  }
+
+  /** The audit log is the only place `source` is recorded, so WHEN an event
+    * happened has to come from the same clock as the record it describes.
+    * Audit stamped its own `System.currentTimeMillis()` instead — the one hole
+    * in a seam every other timestamp goes through.
+    */
+  tmp.test("an audit line is stamped from the injected clock, not the wall clock") { dir =>
+    dot(dir, "a.dot")
+    val r = Run(dir)
+    assertEquals(r("import", "a.dot"), ExitCode.Ok, r.stderr)
+
+    val line = r.env.audit.entries.headOption.getOrElse(fail("nothing was audited"))
+    val stamp = ujson.read(line).obj("timestampMs").num.toLong
+    // The fixture's clock starts at 1000 and ticks by one per read, so a real
+    // wall-clock stamp is thirteen digits and this assertion is unmissable.
+    assert(stamp > 1000L && stamp < 2000L, s"audit used a clock the test does not control: $stamp")
   }
 
   /** The guardrail has to hold on EVERY path-taking command, not most of them.

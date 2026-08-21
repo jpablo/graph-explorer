@@ -20,11 +20,6 @@ enum ChannelError derives CanEqual:
   case Io(message: String)
   case Rpc(code: String, message: String, details: ujson.Obj)
 
-  def describe: String = this match
-    case NoDesktop(_)     => "no desktop is running"
-    case Io(message)      => message
-    case Rpc(_, message, _) => message
-
 /** The desktop's control channel: a unix socket carrying one JSON object per
   * line, request then response (D4).
   *

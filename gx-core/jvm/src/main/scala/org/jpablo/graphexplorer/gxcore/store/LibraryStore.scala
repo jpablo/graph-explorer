@@ -110,9 +110,6 @@ final class LibraryStore(val root: Path) extends DiagramSink:
   def findByOrigin(origin: OriginUri): Vector[Diagram] =
     list().filter(_.binding.exists(_.origin == origin))
 
-  def inFolder(folder: FolderPath): Vector[Diagram] =
-    list().filter(_.folder == folder)
-
   // ------------------------------------------------------------ folders
 
   /** The tree, including folders that hold nothing.
