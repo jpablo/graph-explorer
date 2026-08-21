@@ -6,7 +6,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -274,10 +274,6 @@ struct WatchController {
 }
 
 fn main() {
-    // Written before the socket is bound so a client that finds the file and
-    // then fails to connect learns something true: the desktop is starting, or
-    // it died. The file alone never proved liveness — now `connect` does.
-    write_runtime_file().expect("failed to write control runtime file");
     let access_policy = load_access_policy().expect("failed to load access policy");
     let request_limits = load_request_limits().expect("failed to load request limits");
     let audit_logger = init_audit_logger().expect("failed to initialize audit logger");
@@ -289,6 +285,42 @@ fn main() {
     let watch_controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
     let recent_write_hashes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
     let pending_sessions: PendingSessions = Arc::new(Mutex::new(HashMap::new()));
+
+    // The control channel comes up BEFORE tauri, and this ordering is the whole
+    // point of the split above.
+    //
+    // The socket used to be bound inside `setup`, which runs only after the
+    // webview is initialized — on a cold Windows machine that is routinely 15s
+    // and has been measured at over 30. For that entire window `connect` was
+    // refused, so `gx status` said "no desktop is running" about a desktop the
+    // user could see starting. Refused is indistinguishable from absent, so the
+    // one state the user most wanted named was the one they could not get.
+    //
+    // Binding here makes `connect` succeed immediately. What the socket can DO
+    // is then a second question, answered honestly per method: `status` needs
+    // no window and works at once, and anything that does need one gets a typed
+    // STARTING refusal rather than a hang. See `ConnectionContext::app`.
+    let app_handle: SharedAppHandle = Arc::new(OnceLock::new());
+    let listener = bind_control_socket().expect("failed to bind the control socket");
+
+    spawn_control_server(
+        listener,
+        access_policy.clone(),
+        pending_sessions.clone(),
+        request_limits.clone(),
+        audit_logger.clone(),
+        rate_limiter.clone(),
+        watch_registry.clone(),
+        watch_controllers.clone(),
+        recent_write_hashes.clone(),
+        app_handle.clone(),
+    );
+
+    // AFTER the bind, not before. The file names a socket, so writing it first
+    // published a path that did not answer yet — the state that made a starting
+    // desktop look like a dead one. Now the file's existence and the socket's
+    // existence are the same fact.
+    write_runtime_file().expect("failed to write control runtime file");
 
     // The registries are Arcs, so the webview's IPC verbs and the socket's RPC
     // operate on the same state — two front doors, one house. Neither carries a
@@ -305,28 +337,15 @@ fn main() {
 
     tauri::Builder::default()
         .setup({
-            let access_policy = access_policy.clone();
-            let request_limits = request_limits.clone();
-            let audit_logger = audit_logger.clone();
-            let rate_limiter = rate_limiter.clone();
-            let watch_registry = watch_registry.clone();
-            let watch_controllers = watch_controllers.clone();
             let recent_write_hashes = recent_write_hashes.clone();
+            let app_handle = app_handle.clone();
             move |app| {
                 app.manage(ipc_state);
 
-                spawn_control_server(
-                    access_policy.clone(),
-                    pending_sessions.clone(),
-                    request_limits.clone(),
-                    audit_logger.clone(),
-                    rate_limiter.clone(),
-                    watch_registry.clone(),
-                    watch_controllers.clone(),
-                    recent_write_hashes.clone(),
-                    app.handle().clone(),
-                )
-                .map_err(|err| -> Box<dyn std::error::Error> { err.into() })?;
+                // The socket has been accepting since before tauri started; this
+                // is the moment its handlers stop answering STARTING. `set`
+                // returns Err only if called twice, and `setup` runs once.
+                let _ = app_handle.set(app.handle().clone());
 
                 // D7.3: the library on disk is the live state, so a record
                 // written by `gx` with no window open has to reach the page
@@ -693,17 +712,10 @@ struct DocumentChangedEventPayload {
 /// - **There are no URLs.** The percent-decoding hazard that produced the
 ///   Windows blocker (a path with a space, or any canonical Windows path,
 ///   arriving mangled) cannot recur: a path is a JSON string.
-fn spawn_control_server(
-    access_policy: AccessPolicy,
-    pending_sessions: PendingSessions,
-    request_limits: RequestLimits,
-    audit_logger: AuditLogger,
-    rate_limiter: RequestRateLimiter,
-    watch_registry: WatchRegistry,
-    watch_controllers: WatchControllers,
-    recent_write_hashes: RecentWriteHashes,
-    app_handle: tauri::AppHandle,
-) -> Result<JoinHandle<()>> {
+/// Bind the control socket. Separate from serving it, because binding is what
+/// makes `connect` succeed and that must happen at the top of `main` -- long
+/// before tauri has a window.
+fn bind_control_socket() -> Result<UnixListener> {
     let socket_path = control_socket_path()?;
     check_socket_path_length(&socket_path)?;
 
@@ -720,7 +732,21 @@ fn spawn_control_server(
         )
     })?;
     set_owner_only_permissions(&socket_path)?;
+    Ok(listener)
+}
 
+fn spawn_control_server(
+    listener: UnixListener,
+    access_policy: AccessPolicy,
+    pending_sessions: PendingSessions,
+    request_limits: RequestLimits,
+    audit_logger: AuditLogger,
+    rate_limiter: RequestRateLimiter,
+    watch_registry: WatchRegistry,
+    watch_controllers: WatchControllers,
+    recent_write_hashes: RecentWriteHashes,
+    app_handle: SharedAppHandle,
+) -> JoinHandle<()> {
     let handle = std::thread::spawn(move || {
         for stream in listener.incoming() {
             let stream = match stream {
@@ -752,8 +778,16 @@ fn spawn_control_server(
             });
         }
     });
-    Ok(handle)
+    handle
 }
+
+/// The window layer, which does not exist until tauri's `setup` runs.
+///
+/// The control socket is bound and accepting BEFORE that (see `main`), so a
+/// request can arrive while this is still empty. Handlers ask through
+/// `ConnectionContext::app` and get a typed STARTING refusal rather than
+/// blocking on a webview that may take half a minute to come up.
+type SharedAppHandle = Arc<OnceLock<tauri::AppHandle>>;
 
 #[derive(Clone)]
 struct ConnectionContext {
@@ -765,7 +799,22 @@ struct ConnectionContext {
     watch_registry: WatchRegistry,
     watch_controllers: WatchControllers,
     recent_write_hashes: RecentWriteHashes,
-    app_handle: tauri::AppHandle,
+    app_handle: SharedAppHandle,
+}
+
+impl ConnectionContext {
+    /// The window layer, or a typed refusal while it is still starting.
+    ///
+    /// Every caller of this needs a window. `status` deliberately does not call
+    /// it: answering "who are you and are you up" is the one question that must
+    /// work before the webview does, because it is how `gx` tells a starting
+    /// desktop from an absent one.
+    fn app(&self) -> std::result::Result<&tauri::AppHandle, (&'static str, String)> {
+        self.app_handle.get().ok_or((
+            "STARTING",
+            "the desktop is starting; its window is not up yet".to_string(),
+        ))
+    }
 }
 
 /// One request per line, one response per line, in order. JSON strings cannot
@@ -954,20 +1003,25 @@ fn dispatch_method(
             // brought forward. Sharing the path is what keeps `gx open` and a
             // UI open from drifting into two behaviours.
             let source = if method == "show" { "open" } else { "api" };
+            // Watching means telling a page, so this one needs the window.
+            let app = match context.app() {
+                Ok(app) => app,
+                Err((code, message)) => return RpcResponse::failure(id, code, message),
+            };
             match add_watch(
                 &context.access_policy,
                 &context.watch_registry,
                 &context.watch_controllers,
                 &context.recent_write_hashes,
                 &context.audit_logger,
-                &context.app_handle,
+                app,
                 &request.path,
                 source,
             ) {
                 Ok(watch) => {
                     let mut focused = true;
                     if method == "show" {
-                        focused = focus_main_window(&context.app_handle);
+                        focused = focus_main_window(app);
                     }
                     match serde_json::to_value(&watch) {
                         Ok(mut value) => {
@@ -1028,7 +1082,10 @@ fn dispatch_method(
                 Ok(request) => request,
                 Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
             };
-            let app_handle = context.app_handle.clone();
+            let app_handle = match context.app() {
+                Ok(app) => app.clone(),
+                Err((code, message)) => return RpcResponse::failure(id, code, message),
+            };
             match put_document_snapshot(
                 &context.watch_registry,
                 &context.recent_write_hashes,
@@ -1060,7 +1117,11 @@ fn dispatch_method(
                 path: None,
                 revision: None,
             };
-            match emit_document_changed_event(&context.app_handle, &payload) {
+            let app = match context.app() {
+                Ok(app) => app,
+                Err((code, message)) => return RpcResponse::failure(id, code, message),
+            };
+            match emit_document_changed_event(app, &payload) {
                 Ok(()) => RpcResponse::success(id, serde_json::json!({ "pushed": true })),
                 Err(err) => RpcResponse::failure(id, "PUSH_FAILED", err),
             }
@@ -1078,7 +1139,15 @@ fn dispatch_method(
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct StatusBody {
+    /// Whether the window layer is up. This was hardcoded `true` — it could
+    /// only ever be read by a client that had already connected, so it said
+    /// nothing. It now distinguishes a desktop that can show you something
+    /// from one that is still starting.
     running: bool,
+    /// "starting" until tauri's setup has run, then "running". A field rather
+    /// than an inference, because `gx` decides liveness by whether the call
+    /// SUCCEEDED and would otherwise read a starting desktop as a ready one.
+    state: String,
     version: String,
     pid: u32,
     socket: String,
@@ -1091,8 +1160,13 @@ struct StatusBody {
 }
 
 fn status_body(context: &ConnectionContext) -> StatusBody {
+    // Deliberately does NOT go through `ConnectionContext::app`: this is the
+    // one method that has to answer before the window exists, because it is how
+    // a caller tells "starting" from "not there at all".
+    let up = context.app_handle.get().is_some();
     StatusBody {
-        running: true,
+        running: up,
+        state: if up { "running" } else { "starting" }.to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         pid: std::process::id(),
         socket: control_socket_path()
@@ -1158,7 +1232,7 @@ fn run_session_command(
         }
     };
 
-    let windows = context.app_handle.webview_windows();
+    let windows = context.app()?.webview_windows();
     if windows.is_empty() {
         forget_session(context, id);
         // The session tier's defining limit, reported as itself: there is no
@@ -2401,6 +2475,59 @@ mod tests {
 
     /// The runtime file is what every client reads first. If a credential ever
     /// reappears in it, this fails.
+    /// A context with no window yet — the state the process is in from the
+    /// moment it starts until tauri's setup runs. Constructible at all only
+    /// because the handle became a OnceLock: it used to be an AppHandle, which
+    /// a unit test cannot make, so this state could not be tested before.
+    fn starting_context(dir: &Path) -> ConnectionContext {
+        ConnectionContext {
+            access_policy: AccessPolicy {
+                allowed_roots: Vec::new(),
+                denied_roots: Vec::new(),
+            },
+            pending_sessions: Arc::new(Mutex::new(HashMap::new())),
+            request_limits: RequestLimits {
+                max_body_bytes: 1024,
+                rate_limit_max_requests: 10,
+                rate_limit_window: Duration::from_secs(1),
+            },
+            audit_logger: AuditLogger {
+                file_path: dir.join("audit.jsonl"),
+                write_lock: Arc::new(Mutex::new(())),
+            },
+            rate_limiter: RequestRateLimiter::new(10, Duration::from_secs(1)),
+            watch_registry: Arc::new(Mutex::new(HashMap::new())),
+            watch_controllers: Arc::new(Mutex::new(HashMap::new())),
+            recent_write_hashes: Arc::new(Mutex::new(HashMap::new())),
+            app_handle: Arc::new(OnceLock::new()),
+        }
+    }
+
+    #[test]
+    fn a_starting_desktop_answers_status_rather_than_refusing_it() {
+        // The point of binding the socket before the webview. `status` is the
+        // question a client asks to tell "starting" from "not there", so it is
+        // the one method that must work without a window.
+        let dir = std::env::temp_dir();
+        let body = status_body(&starting_context(&dir));
+        assert_eq!(body.state, "starting");
+        assert!(!body.running, "no window yet, so nothing can be shown");
+        assert_eq!(body.pid, std::process::id(), "it is still a real process");
+    }
+
+    #[test]
+    fn anything_needing_a_window_refuses_with_starting_not_a_hang() {
+        // The alternative design — bind early but start accepting late — would
+        // have left the client BLOCKED on a read with no timeout for the whole
+        // webview startup. A typed refusal is a fast, true answer instead.
+        let dir = std::env::temp_dir();
+        let err = starting_context(&dir)
+            .app()
+            .expect_err("there is no window during startup");
+        assert_eq!(err.0, "STARTING");
+        assert!(err.1.contains("starting"), "{}", err.1);
+    }
+
     #[test]
     fn the_runtime_file_carries_no_credential() {
         let control = ControlFile {

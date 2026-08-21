@@ -119,18 +119,29 @@ object Cli:
     // desktop separately; a single `status` call answers both, and answers the
     // first one the only way that means anything — by connecting.
     val desktop = env.rpc("status", ujson.Obj()).toOption.flatMap(_.objOpt)
-    val running = desktop.isDefined
     val watches = desktop.flatMap(_.get("watches")).flatMap(_.arrOpt).map(_.size).getOrElse(0)
+
+    // Three states, not two. The socket now answers from the moment the process
+    // starts — it is bound before the webview, which on Windows can take half a
+    // minute — so "the call succeeded" no longer means "there is a window".
+    // A desktop that is starting used to be reported as absent, which is the
+    // one thing it definitely was not.
+    //
+    // `state` absent means a desktop from before this existed: it only ever
+    // answered once it was fully up, so treating it as running is right.
+    val starting = desktop.flatMap(_.get("state")).flatMap(_.strOpt).contains("starting")
+    val running  = desktop.isDefined && !starting
 
     if args.json then
       env.out(
         ujson.Obj(
-          "ok"             -> true,
-          "library"        -> env.store.root.toString,
-          "diagrams"       -> diagrams.size,
-          "bound"          -> bound,
-          "desktopRunning" -> running,
-          "desktopWatches" -> watches
+          "ok"              -> true,
+          "library"         -> env.store.root.toString,
+          "diagrams"        -> diagrams.size,
+          "bound"           -> bound,
+          "desktopRunning"  -> running,
+          "desktopStarting" -> starting,
+          "desktopWatches"  -> watches
         ).render(indent = 2)
       )
     else
@@ -142,6 +153,7 @@ object Cli:
       // told the reader the desktop had their diagram when it did not, which
       // is the one thing the number cannot mean.
       if running then env.out(s"desktop:  running (${watching(watches)})")
+      else if starting then env.out("desktop:  starting (its window is not up yet)")
       else env.out("desktop:  not running (only `gx open` needs it)")
     ExitCode.Ok
 

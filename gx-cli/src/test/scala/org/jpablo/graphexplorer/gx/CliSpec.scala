@@ -420,6 +420,49 @@ class CliSpec extends FunSuite:
     assert(r.stdout.contains("running (watching 2 files)"), r.stdout)
   }
 
+  /** The desktop binds its control socket BEFORE the webview comes up, because
+    * on Windows that wait is routinely 15s and has been measured past 30. So a
+    * successful call no longer proves there is a window, and the state the user
+    * most needs named — "it is starting" — is exactly the one that used to be
+    * reported as "not running".
+    */
+  tmp.test("a starting desktop is starting, not missing") { dir =>
+    val r = Run(
+      dir,
+      answer = (_, _) =>
+        Right(ujson.Obj("running" -> false, "state" -> "starting", "watches" -> ujson.Arr()))
+    )
+    assertEquals(r("status"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains("starting"), r.stdout)
+    // The two claims it must NOT make: that there is no desktop, and that
+    // there is a window to show you something.
+    assert(!r.stdout.contains("not running"), r.stdout)
+    assert(!r.stdout.contains("running (watching"), r.stdout)
+  }
+
+  tmp.test("a desktop that sends no state is running, not starting") { dir =>
+    // Wire compatibility, pinned: a desktop from before `state` existed only
+    // ever answered once it was fully up, so its silence means running. Read
+    // the other way, every older desktop would report itself as starting
+    // forever.
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("running" -> true, "watches" -> ujson.Arr())))
+    assertEquals(r("status"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains("running (watching nothing)"), r.stdout)
+    assert(!r.stdout.contains("starting"), r.stdout)
+  }
+
+  tmp.test("--json names the starting state too") { dir =>
+    val r = Run(
+      dir,
+      answer = (_, _) =>
+        Right(ujson.Obj("running" -> false, "state" -> "starting", "watches" -> ujson.Arr()))
+    )
+    assertEquals(r("status", "--json"), ExitCode.Ok, r.stderr)
+    val parsed = ujson.read(r.stdout)
+    assertEquals(parsed("desktopStarting").bool, true)
+    assertEquals(parsed("desktopRunning").bool, false)
+  }
+
   // -------------------------------------------------------------- policy
 
   tmp.test("a denied path is refused with exit 4 and recorded") { dir =>
