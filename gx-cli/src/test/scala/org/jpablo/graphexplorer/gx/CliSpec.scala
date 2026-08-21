@@ -776,3 +776,78 @@ class CliSpec extends FunSuite:
     l("ls", "--json")
     assertEquals(ujson.read(l.stdout).arr.size, 1)
   }
+
+  // --------------------------------------------------------------- skill
+
+  /** `gx skill` points an agent at the skill; it must never install one.
+    *
+    * A skill is a prompt someone's agent will load and act on, so writing it
+    * into their harness is a decision rather than a side effect of asking where
+    * it is. These assert the printing, and — via the resolver — that the answer
+    * is pinned to the binary rather than to whatever the branch says today.
+    */
+
+  tmp.test("skill prints a location and an instruction, and writes nothing") { dir =>
+    val r = Run(dir)
+    assertEquals(r("skill"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains(SkillLocation.File), r.stdout)
+    assert(r.stdout.contains("Tell your coding agent"), r.stdout)
+    // The whole point of the command: it is a pointer, not an installer.
+    assert(!Files.exists(dir.resolve(SkillLocation.File)), "skill must not install anything")
+  }
+
+  tmp.test("skill --json is machine-readable and says whether it is pinned") { dir =>
+    val r = Run(dir)
+    assertEquals(r("skill", "--json"), ExitCode.Ok, r.stderr)
+    val json = ujson.read(r.stdout)
+    assertEquals(json("skill").str, SkillLocation.Name)
+    assert(json("raw").str.endsWith(SkillLocation.File), json("raw").str)
+    json("pinned").bool // present, and a boolean
+  }
+
+  tmp.test("skill takes an explicit version and pins to that tag") { dir =>
+    val r = Run(dir)
+    assertEquals(r("skill", "0.9.4", "--json"), ExitCode.Ok, r.stderr)
+    val json = ujson.read(r.stdout)
+    assertEquals(json("ref").str, "v0.9.4")
+    assertEquals(json("pinned").bool, true)
+  }
+
+  tmp.test("skill refuses something that is not a version") { dir =>
+    val r = Run(dir)
+    assertEquals(r("skill", "yesterday"), ExitCode.Usage)
+    assert(r.stderr.contains("not a version"), r.stderr)
+  }
+
+  tmp.test("skill --latest is the branch tip, and not pinned") { dir =>
+    val r = Run(dir)
+    assertEquals(r("skill", "--latest", "--json"), ExitCode.Ok, r.stderr)
+    val json = ujson.read(r.stdout)
+    assertEquals(json("ref").str, SkillLocation.DefaultBranch)
+    assertEquals(json("pinned").bool, false)
+  }
+
+  tmp.test("skill will not guess between --latest and a named version") { dir =>
+    val r = Run(dir)
+    assertEquals(r("skill", "0.9.4", "--latest"), ExitCode.Usage)
+    assert(r.stderr.contains("pick one"), r.stderr)
+  }
+
+  // The resolver itself, away from the printing: a dev build has no tag to
+  // point at, and pretending otherwise would send an agent to a 404.
+  test("a released version resolves to its tag; a dev build falls back to the tip") {
+    val release = SkillLocation.resolve(None, latest = false, running = "0.9.4")
+    assertEquals(release.map(_.ref), Right("v0.9.4"))
+    assertEquals(release.map(_.pinned), Right(true))
+
+    val dev = SkillLocation.resolve(None, latest = false, running = "0.9.3+13-2b8d0a46+20260730-2334")
+    assertEquals(dev.map(_.ref), Right(SkillLocation.DefaultBranch))
+    assertEquals(dev.map(_.pinned), Right(false))
+    // The tip is not pinned, but the version still names a real tag to suggest.
+    assertEquals(SkillLocation.baseRelease("0.9.3+13-2b8d0a46+20260730-2334"), Some("0.9.3"))
+  }
+
+  test("a version given with the tag's own 'v' is accepted") {
+    val found = SkillLocation.resolve(Some("v1.2.3"), latest = false, running = "0.9.4")
+    assertEquals(found.map(_.ref), Right("v1.2.3"))
+  }
