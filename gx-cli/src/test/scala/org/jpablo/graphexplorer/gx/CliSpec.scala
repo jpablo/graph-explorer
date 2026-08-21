@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 import org.jpablo.graphexplorer.gxcore.store.LibraryStore
 
 import java.nio.file.{Files, Path}
+import java.nio.file.attribute.PosixFilePermissions
 
 /** V-09: every command except `open` works with no desktop running.
   *
@@ -252,6 +253,94 @@ class CliSpec extends FunSuite:
     val r = Run(dir)
     assertEquals(r("sync", "--all"), ExitCode.Ok)
     assert(r.stdout.contains("nothing bound"), r.stdout)
+  }
+
+  /** A ref that resolves to nothing is a typo, not an empty selection. This
+    * used to be flat-mapped away: "(nothing bound to sync)" and exit 0, which
+    * tells a script that mistyped a name that it succeeded.
+    */
+  tmp.test("sync on a ref that matches nothing fails, it does not report success") { dir =>
+    dot(dir, "gen.dot", "v1")
+    val i = Run(dir)
+    i("import", "gen.dot", "--mode", "sync")
+
+    val s = Run(dir)
+    assertNotEquals(s("sync", "typo"), ExitCode.Ok, s.stdout)
+    assert(s.stderr.contains("no diagram matches"), s.stderr)
+    assert(!s.stdout.contains("nothing bound"), s.stdout)
+  }
+
+  /** A reconciliation that cannot be persisted is not a success. The three
+    * saves inside syncOne discarded their Either, so gx printed `Behind`,
+    * exited 0, and left the record on its old baseline — and the next run
+    * redid the same work from the same stale state, silently.
+    */
+  tmp.test("a sync that cannot save the record reports it and does not exit 0") { dir =>
+    val f = dot(dir, "gen.dot", "v1")
+    val i = Run(dir)
+    i("import", "gen.dot", "--mode", "pull")
+
+    Files.writeString(f, "v2") // the origin moves, so Pull has something to save
+
+    // Readable and listable, but nothing new can be created in it — so the
+    // scan still finds the record and only the WRITE fails.
+    val diagrams = dir.resolve("library").resolve("diagrams")
+    val restore  = Files.getPosixFilePermissions(diagrams)
+    Files.setPosixFilePermissions(diagrams, PosixFilePermissions.fromString("r-xr-xr-x"))
+    try
+      // Root ignores the mode bits; there is nothing to assert on such a box.
+      assume(
+        scala.util.Try(Files.createTempFile(diagrams, "probe", null)).isFailure,
+        "this user can write to a read-only directory"
+      )
+
+      val s = Run(dir)
+      assertNotEquals(s("sync", "--all"), ExitCode.Ok, s.stdout)
+      assert(s.stderr.contains("could not be saved"), s.stderr)
+    finally Files.setPosixFilePermissions(diagrams, restore)
+  }
+
+  // ------------------------------------------------------- ambiguous refs
+  //
+  // findInLibrary's own doc says ambiguity is reported rather than resolved by
+  // picking one. It returned None for "nothing matched" AND "several matched",
+  // so callers rendered both as "no diagram matches" — and the ones that fall
+  // back to a PATH did so on an ambiguous name.
+
+  /** Two records deliberately sharing a name; only their ids differ. */
+  private def twoNamed(dir: Path, name: String): Run =
+    dot(dir, "a.dot", "digraph { a }")
+    dot(dir, "b.dot", "digraph { b }")
+    val i = Run(dir)
+    i("import", "a.dot", "--name", name)
+    i("import", "b.dot", "--name", name)
+    i
+
+  tmp.test("an ambiguous ref is reported as ambiguous, with the ids to pick from") { dir =>
+    twoNamed(dir, "Shared Thing")
+    val r = Run(dir)
+    assertNotEquals(r("get", "Shared Thing"), ExitCode.Ok, r.stdout)
+    assert(r.stderr.contains("matches 2 diagrams"), r.stderr)
+    assert(!r.stderr.contains("no diagram matches"), "ambiguity reported as absence")
+  }
+
+  /** The wrong-diagram write the doc warns about, in its real form: with no
+    * ambiguity case, `set` fell through to treating the ref as a path and
+    * created a FILE called `shared` instead of refusing.
+    */
+  tmp.test("an ambiguous ref does not fall through to being a path") { dir =>
+    twoNamed(dir, "Shared Thing")
+    val r = Run(dir, stdinText = "digraph { c }")
+    assertNotEquals(r("set", "Shared Thing", "--stdin"), ExitCode.Ok, r.stdout)
+    assert(r.stderr.contains("matches 2 diagrams"), r.stderr)
+    assert(!Files.exists(dir.resolve("Shared Thing")), "set wrote a file named after an ambiguous ref")
+  }
+
+  tmp.test("an unambiguous id still resolves when its name is shared") { dir =>
+    val i  = twoNamed(dir, "Shared Thing")
+    val id = i.store.list().head.id
+    val r  = Run(dir)
+    assertEquals(r("get", id.value), ExitCode.Ok, r.stderr)
   }
 
   // ------------------------------------------------- sync × line endings
@@ -526,6 +615,21 @@ class CliSpec extends FunSuite:
     val env = r.env.copy(policy = AccessPolicy(Nil, List(secret)))
     assertEquals(Cli.run(Vector("import", "secrets/a.dot"), env), ExitCode.InvalidPathOrPolicy)
     assert(r.stderr.contains("denied root"), r.stderr)
+  }
+
+  /** The guardrail has to hold on EVERY path-taking command, not most of them.
+    * `watch` took a ref that was not in the library, turned it straight into an
+    * origin, and started following it — the one way to point gx at a file the
+    * policy forbids.
+    */
+  tmp.test("watch refuses a denied path too, like every other command") { dir =>
+    val secret = Files.createDirectories(dir.resolve("secrets"))
+    Files.writeString(secret.resolve("a.dot"), "x")
+    val r   = Run(dir)
+    val env = r.env.copy(policy = AccessPolicy(Nil, List(secret)))
+    assertEquals(Cli.run(Vector("watch", "secrets/a.dot"), env), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("denied root"), r.stderr)
+    assert(!r.stderr.contains("watching "), "watch followed a denied path anyway")
   }
 
   // ----------------------------------------------------------------- run

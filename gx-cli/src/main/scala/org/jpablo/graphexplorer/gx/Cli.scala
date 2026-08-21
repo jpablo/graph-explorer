@@ -20,6 +20,24 @@ import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 import java.nio.file.{Path, Paths}
 import scala.util.control.NonFatal
 
+/** Why a reference resolved to no single diagram. Two cases, not one: "you
+  * typed a name nothing has" and "you typed a name several things share" need
+  * different answers from the user.
+  */
+private enum RefError derives CanEqual:
+  case NotFound(ref: String)
+  case Ambiguous(ref: String, matches: Vector[Diagram])
+
+/** What one reconciliation did.
+  *
+  * `failure` is a store write that did NOT land. It used to be discarded —
+  * `env.store.save(updated)` with the Either thrown away at three sites — so
+  * `gx sync` printed Behind/Ahead and exited 0 after failing to persist the
+  * record it had just reconciled. The next run then redid the same work from
+  * the same stale baseline, silently, forever.
+  */
+private case class SyncOutcome(diagram: Diagram, state: SyncState, failure: Option[String])
+
 /** What a reference on the command line turned out to mean. */
 private enum Target derives CanEqual:
   case InLibrary(diagram: Diagram)
@@ -343,11 +361,9 @@ object Cli:
         modeOf(args, default = SyncMode.Pull) match
           case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
           case Right(mode) =>
-            findInLibrary(ref, env) match
-              case None =>
-                env.err(s"gx: no diagram matches '$ref'")
-                ExitCode.InvalidPathOrPolicy
-              case Some(d) =>
+            resolveRef(ref, env) match
+              case Left(err) => reportRef(err, env)
+              case Right(d) =>
                 val path = env.cwd.resolve(rawPath)
                 checkPolicy(path, env) match
                   case Left(code) => code
@@ -374,42 +390,64 @@ object Cli:
         ExitCode.Usage
 
   private def unbind(args: Args, env: CliEnv): Int =
-    args.positionalAt(0).flatMap(findInLibrary(_, env)) match
+    args.positionalAt(0) match
       case None =>
         env.err("gx: unbind needs a diagram")
         ExitCode.InvalidPathOrPolicy
-      case Some(d) =>
-        val detached = d.copy(binding = None, updatedAt = env.now())
-        persist(detached, env): _ =>
-          printDiagram(detached, args, env); ExitCode.Ok
+      case Some(ref) =>
+        resolveRef(ref, env) match
+          case Left(err) => reportRef(err, env)
+          case Right(d) =>
+            val detached = d.copy(binding = None, updatedAt = env.now())
+            persist(detached, env): _ =>
+              printDiagram(detached, args, env); ExitCode.Ok
 
   // --------------------------------------------------------------- sync
 
   private def sync(args: Args, env: CliEnv): Int =
-    val targets = boundTargets(args, env)
+    val (unknown, found) = selectedRefs(args, env)
+    // Report every bad ref, not just the first: a script passing ten names
+    // wants all the typos at once.
+    if unknown.nonEmpty then unknown.map(reportRef(_, env)).last
+    else syncTargets(found.filter(_.isBound), args, env)
 
+  private def syncTargets(targets: Vector[Diagram], args: Args, env: CliEnv): Int =
     if targets.isEmpty then
       env.out(if args.json then "[]" else "(nothing bound to sync)")
       ExitCode.Ok
     else
       val results  = targets.map(syncOne(_, env))
-      val diverged = results.count(_._2 == SyncState.Diverged)
+      val diverged = results.count(_.state == SyncState.Diverged)
+      val failures = results.flatMap(o => o.failure.map(o.diagram.id.value -> _))
       if args.json then
         env.out(
           ujson.Arr
-            .from(results.map((d, state) =>
-              ujson.Obj("id" -> d.id.value, "state" -> state.toString)
+            .from(results.map(o =>
+              ujson.Obj("id" -> o.diagram.id.value, "state" -> o.state.toString)
             ))
             .render(indent = 2)
         )
-      else for (d, state) <- results do env.out(f"${d.id.value}%-28s $state")
-      // Divergence is a state, not an error (§5.2) — but a script that just
-      // pushed and wants to know whether it landed deserves a non-zero code.
-      if diverged > 0 then ExitCode.Conflict else ExitCode.Ok
+      else for o <- results do env.out(f"${o.diagram.id.value}%-28s ${o.state}")
 
-  private def syncOne(d: Diagram, env: CliEnv): (Diagram, SyncState) =
+      for (id, why) <- failures do env.err(s"gx: $id reconciled but could not be saved: $why")
+
+      // A write that did not land outranks divergence: divergence is a state
+      // the user can act on, an unsaved record is one they have not been told
+      // about. Divergence is a state, not an error (§5.2) — but a script that
+      // just pushed and wants to know whether it landed deserves a non-zero code.
+      if failures.nonEmpty then ExitCode.Unknown
+      else if diverged > 0 then ExitCode.Conflict
+      else ExitCode.Ok
+
+  private def syncOne(d: Diagram, env: CliEnv): SyncOutcome =
+    // Save, and KEEP the answer. Every early return below goes through here.
+    def store(updated: Diagram, state: SyncState): SyncOutcome =
+      env.store.save(updated) match
+        case Left(e)      => SyncOutcome(updated, state, Some(e.toString))
+        case Right(saved) => SyncOutcome(saved, state, None)
+
     d.binding match
-      case None => (d, SyncState.InSync)
+      case None => SyncOutcome(d, SyncState.InSync, None)
       case Some(binding) =>
         val path   = binding.origin.filePath.map(Paths.get(_))
         // ONE read of the origin: it answers both questions below, and the Pull
@@ -442,9 +480,8 @@ object Cli:
                 binding = Some(binding.copy(baseHash = doc.hash, lastSyncAt = env.now())),
                 updatedAt = env.now()
               )
-              env.store.save(updated)
-              (updated, state)
-            ).getOrElse((d, state))
+              store(updated, state)
+            ).getOrElse(SyncOutcome(d, state, None))
 
           case Some(SyncAction.Push) =>
             (for
@@ -453,25 +490,24 @@ object Cli:
             yield
               val updated =
                 d.copy(binding = Some(binding.copy(baseHash = doc.hash, lastSyncAt = env.now())))
-              env.store.save(updated)
               env.audit.record(AuditEvent.Written(p.toString, doc.hash, "sync"))
-              (updated, state)
-            ).getOrElse((d, state))
+              store(updated, state)
+            ).getOrElse(SyncOutcome(d, state, None))
 
           case Some(SyncAction.AdvanceBase) =>
             // Converged: both sides moved to the same content, so only the
             // agreed baseline is stale. No I/O — this is what stops a
             // byte-identical regeneration from looking like a change.
             val updated = d.copy(binding = Some(binding.copy(baseHash = local, lastSyncAt = env.now())))
-            env.store.save(updated)
-            (updated, state)
+            store(updated, state)
 
           case None =>
             if state == SyncState.Diverged then
               env.audit.record(
                 AuditEvent.Conflict(binding.origin.value, binding.baseHash, local, "sync")
               )
-            (d, state)
+            // Nothing was written, so there is nothing that could fail to save.
+            SyncOutcome(d, state, None)
 
   // -------------------------------------------------------------- watch
 
@@ -484,29 +520,45 @@ object Cli:
     * discarded").
     */
   private def watch(args: Args, env: CliEnv): Int =
-    val diagrams = boundTargets(args, env)
+    // Resolve each ref ONCE. This used to run findInLibrary twice per argument
+    // — once to collect the diagrams, once to test emptiness — and each call
+    // scans the whole library.
+    val (unresolved, found) = selectedRefs(args, env)
+    val diagrams            = found.filter(_.isBound)
 
-    val fromPaths = args.positional.filter(r => findInLibrary(r, env).isEmpty).map: raw =>
-      FileOrigins.originOf(env.cwd.resolve(raw), env.cwd)
+    // Only "nothing matched" can mean "this is a path"; an ambiguous ref is a
+    // ref, and watching a FILE of that name is not what was asked for.
+    val (ambiguous, missing) = unresolved.partitionMap:
+      case err: RefError.Ambiguous => Left(err)
+      case RefError.NotFound(ref)  => Right(ref)
 
-    val origins = (diagrams.flatMap(_.binding.map(_.origin)) ++ fromPaths).distinct
+    // A ref that is not in the library is a PATH, and every other path-taking
+    // command runs it past the access policy first. watch did not, which made
+    // it the one way to point gx at a file the policy forbids.
+    val (denied, allowed) = missing.partitionMap(raw => checkPolicy(env.cwd.resolve(raw), env))
 
-    if origins.isEmpty then
-      env.err("gx: nothing to watch")
-      ExitCode.Usage
+    if ambiguous.nonEmpty then ambiguous.map(reportRef(_, env)).last
+    else if denied.nonEmpty then denied.head
     else
-      if args.has("open") && !env.desktopRunning() then
-        env.err("gx: --open needs a running desktop; watching anyway")
+      val fromPaths = allowed.map(FileOrigins.originOf(_, env.cwd))
+      val origins   = (diagrams.flatMap(_.binding.map(_.origin)) ++ fromPaths).distinct
 
-      val interval = args.value("interval").flatMap(_.toLongOption).getOrElse(50L)
-      val registry = WatchRegistry(env.audit, debounceMs = interval)
-      origins.foreach(registry.watch)
-      for o <- origins do env.err(s"watching ${o.value}")
+      if origins.isEmpty then
+        env.err("gx: nothing to watch")
+        ExitCode.Usage
+      else
+        if args.has("open") && !env.desktopRunning() then
+          env.err("gx: --open needs a running desktop; watching anyway")
 
-      while env.keepWatching() do
-        for event <- registry.poll() do emitWatchEvent(event, args, env)
-        env.sleep(interval)
-      ExitCode.Ok
+        val interval = args.value("interval").flatMap(_.toLongOption).getOrElse(50L)
+        val registry = WatchRegistry(env.audit, debounceMs = interval)
+        origins.foreach(registry.watch)
+        for o <- origins do env.err(s"watching ${o.value}")
+
+        while env.keepWatching() do
+          for event <- registry.poll() do emitWatchEvent(event, args, env)
+          env.sleep(interval)
+        ExitCode.Ok
 
   private def emitWatchEvent(event: WatchEvent, args: Args, env: CliEnv): Unit =
     val (kind, uri, hash) = event match
@@ -794,15 +846,16 @@ object Cli:
     */
   private def pathToShow(args: Args, env: CliEnv): Either[Int, Path] =
     val ref = args.positional.head
-    findInLibrary(ref, env) match
-      case Some(d) =>
+    resolveRef(ref, env) match
+      case Left(err: RefError.Ambiguous) => Left(reportRef(err, env))
+      case Right(d) =>
         d.binding.flatMap(_.origin.filePath).map(Paths.get(_)) match
           case Some(path) => Right(path)
           case None =>
             env.err(s"gx: '${d.name}' is not bound to a file, so there is nothing to open")
             env.err(s"gx: bind it first:  gx bind ${d.id.value} <path>")
             Left(ExitCode.InvalidPathOrPolicy)
-      case None =>
+      case Left(_: RefError.NotFound) =>
         checkPolicy(env.cwd.resolve(ref), env)
 
   // ---------------------------------------------------------- resolution
@@ -813,9 +866,13 @@ object Cli:
         env.err("gx: this command needs a diagram or a path")
         ExitCode.Usage
       case Some(ref) =>
-        findInLibrary(ref, env) match
-          case Some(d) => f(Target.InLibrary(d))
-          case None =>
+        resolveRef(ref, env) match
+          case Right(d) => f(Target.InLibrary(d))
+          // Only "nothing matched" can mean "this is a path". An ambiguous ref
+          // falling through here is how `gx set <ambiguous>` ended up writing
+          // to a FILE of that name instead of refusing.
+          case Left(err: RefError.Ambiguous) => reportRef(err, env)
+          case Left(_: RefError.NotFound) =>
             val path = env.cwd.resolve(ref)
             checkPolicy(path, env) match
               case Left(code) => code
@@ -824,20 +881,46 @@ object Cli:
   /** id, then exact name, then the origin path. Ambiguity is reported rather
     * than resolved by picking one, because "gx set" on the wrong diagram is not
     * a mistake the user can see happening.
+    *
+    * That promise used to be unkept: this returned None for "nothing matched"
+    * AND for "several matched", so every caller rendered both as "no diagram
+    * matches" — and the ones that fall back to treating the ref as a PATH did
+    * so on an ambiguous name, which is the wrong-diagram write the paragraph
+    * above is about.
+    */
+  private def resolveRef(ref: String, env: CliEnv): Either[RefError, Diagram] =
+    val all = env.store.list()
+    lazy val byName = all.filter(_.name == ref)
+    lazy val byOrigin =
+      val origin = FileOrigins.originOf(env.cwd.resolve(ref), env.cwd)
+      all.filter(_.binding.exists(_.origin == origin))
+
+    all.find(_.id.value == ref) match
+      case Some(d) => Right(d)
+      case None =>
+        // Tier order is preserved: a unique name beats an origin match, and an
+        // origin match still answers when the name tier found nothing usable.
+        (byName, byOrigin) match
+          case (Vector(one), _)     => Right(one)
+          case (_, Vector(one))     => Right(one)
+          case (Vector(), Vector()) => Left(RefError.NotFound(ref))
+          case (many, others)       => Left(RefError.Ambiguous(ref, (many ++ others).distinct))
+
+  /** True when the ref names something in the library. Callers that fall back
+    * to a path use this; an AMBIGUOUS ref is not a path and must not fall
+    * through, so they check [[resolveRef]] rather than this.
     */
   private def findInLibrary(ref: String, env: CliEnv): Option[Diagram] =
-    val all = env.store.list()
-    all
-      .find(_.id.value == ref)
-      .orElse:
-        all.filter(_.name == ref) match
-          case Vector(one) => Some(one)
-          case _           => None
-      .orElse:
-        val origin = FileOrigins.originOf(env.cwd.resolve(ref), env.cwd)
-        all.filter(_.binding.exists(_.origin == origin)) match
-          case Vector(one) => Some(one)
-          case _           => None
+    resolveRef(ref, env).toOption
+
+  private def reportRef(err: RefError, env: CliEnv): Int = err match
+    case RefError.NotFound(ref) =>
+      env.err(s"gx: no diagram matches '$ref'")
+      ExitCode.InvalidPathOrPolicy
+    case RefError.Ambiguous(ref, matches) =>
+      env.err(s"gx: '$ref' matches ${matches.size} diagrams — name one by id:")
+      for d <- matches do env.err(s"gx:   ${d.id.value}  ${d.name}")
+      ExitCode.InvalidPathOrPolicy
 
   // ------------------------------------------------------------- helpers
 
@@ -858,13 +941,17 @@ object Cli:
     else names.foreach(env.out)
     ExitCode.Ok
 
-  /** `--all`, or no arguments at all, means every bound diagram. `sync` and
-    * `watch` are documented as sharing that rule, so they read it from here
-    * rather than each restating it.
+  /** `--all`, or no arguments at all, means the whole library; otherwise the
+    * positional refs, resolved. `sync` and `watch` are documented as sharing
+    * that rule, so they read it from here rather than each restating it.
+    *
+    * Failures are RETURNED, not dropped. Flat-mapping them away is what made
+    * `gx sync typo` print "(nothing bound to sync)" and exit 0 — a script that
+    * mistyped a name was told it had succeeded.
     */
-  private def boundTargets(args: Args, env: CliEnv): Vector[Diagram] =
-    if args.has("all") || args.positional.isEmpty then env.store.list().filter(_.isBound)
-    else args.positional.flatMap(findInLibrary(_, env)).filter(_.isBound)
+  private def selectedRefs(args: Args, env: CliEnv): (Vector[RefError], Vector[Diagram]) =
+    if args.has("all") || args.positional.isEmpty then (Vector.empty, env.store.list())
+    else args.positional.partitionMap(resolveRef(_, env))
 
   private def checkPolicy(path: Path, env: CliEnv): Either[Int, Path] =
     env.policy.evaluate(path, env.cwd) match
