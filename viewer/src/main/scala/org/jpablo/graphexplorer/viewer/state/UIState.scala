@@ -4,11 +4,9 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.eventbus.EventBus
 import com.raquo.airstream.state.Var
 
-enum RightPanelSection(idx: Int) derives CanEqual:
-  case none              extends RightPanelSection(-1)
-  case diagramAttributes extends RightPanelSection(0)
-  case elements          extends RightPanelSection(1)
-  case sources           extends RightPanelSection(2)
+/** Persisted by `ordinal` (see Persistence), NOT by any hand-assigned number. */
+enum RightPanelSection derives CanEqual:
+  case none, diagramAttributes, elements, sources
 
   def isVisible = this != none
 

@@ -285,9 +285,6 @@ case class ViewerState(
   // If true, prompt for label before creating a new node (default: true)
   val promptLabelBeforeNewNode: Var[Boolean] = Var(true)
 
-  // If true, prompt for label before creating a new group (default: true)
-  val promptLabelBeforeNewGroup: Var[Boolean] = Var(true)
-
   // ------------- New node flow -------------
   case class PendingNewNode(attributes: Attributes, direction: ArrowDirection)
   val pendingNewNodeV: Var[Option[PendingNewNode]] = Var(None)
@@ -306,12 +303,9 @@ case class ViewerState(
     else
       addNodeWithSmartConnection(attributes, direction)
 
-  /** Creates a new group from the current selection, optionally prompting for the label before creation based on settings. */
+  /** Creates a new group from the current selection, prompting for its label. */
   def createGroupMaybePrompt(elementIds: ElementIds): Unit =
-    if promptLabelBeforeNewGroup.now() then
-      pendingNewGroupV.set(Some(PendingNewGroup(elementIds)))
-    else
-      createGroupWithLabel(elementIds, "")
+    pendingNewGroupV.set(Some(PendingNewGroup(elementIds)))
 
   /** Creates a new group with the specified elements and label. */
   def createGroupWithLabel(elementIds: ElementIds, label: String): Unit =
@@ -325,9 +319,6 @@ case class ViewerState(
 
   // -------- storage ------------
   initializePersistence()
-
-  def nodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
-    ids.flatMap(fullGraphNow().getNode)
 
   def allNodeIds(): Set[NodeId] =
     fullGraphNow().nodeIds
@@ -369,7 +360,7 @@ case class ViewerState(
       to:       NodeId,
       fromCell: Option[List[Int]] = None,
       toCell:   Option[List[Int]] = None
-  )(using name: sourcecode.FullName) =
+  ) =
     phases.fullGraphV.update: g =>
       val (g1, fromPort) = recordCells.resolvePortIn(g, from, fromCell)
       val (g2, toPort)   = recordCells.resolvePortIn(g1, to, toCell)

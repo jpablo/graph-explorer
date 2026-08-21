@@ -231,13 +231,10 @@ trait KeyboardNavOps:
         boxes: Map[ElementId, NavBox]
     ): Option[NodeId] =
       boxes.get(n).flatMap: o =>
-        // Strictly past this node's edge, so an overlapping neighbour never
-        // counts as "beside" — and this node can never be its own answer.
-        def beyond(b: NavBox) = dir match
-          case NavDirection.NavLeft  => b.r <= o.l
-          case NavDirection.NavRight => b.l >= o.r
-          case NavDirection.NavUp    => b.b <= o.t
-          case NavDirection.NavDown  => b.t >= o.b
+        // Signed distance from this node's edge to the candidate's facing edge.
+        // Non-negative means strictly past that edge, so an overlapping
+        // neighbour never counts as "beside" — and this node is never its own
+        // answer. One definition, so the two uses cannot drift apart.
         def gap(b: NavBox) = dir match
           case NavDirection.NavLeft  => o.l - b.r
           case NavDirection.NavRight => b.l - o.r
@@ -246,7 +243,7 @@ trait KeyboardNavOps:
         visibleGraphNow().nodeIds.iterator
           .filter(_ != n)
           .flatMap(id => boxes.get(id).map(id -> _))
-          .filter((_, b) => overlaps(o, b, dir) && beyond(b))
+          .filter((_, b) => overlaps(o, b, dir) && gap(b) >= 0)
           .minByOption((_, b) => gap(b))
           .map(_._1)
 

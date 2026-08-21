@@ -25,9 +25,7 @@ trait DiagramSelectionOps:
   val editingElementV = Var[Option[ElementId]](None)
 
   object selection:
-    val signal = selectionV.signal
-      .distinct
-//     .tapEach(sel => println(s"[selection] $sel"))
+    val signal = selectionV.signal.distinct
 
     val selectionChanges: EventStream[(toUnselect: ElementIds, toSelect: ElementIds)] =
       selection.signal
@@ -41,24 +39,20 @@ trait DiagramSelectionOps:
         .distinct
         .changes
 
-    val _selectSuccessors =
-      selectRelated(outgoing = true, transitive = true)((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
-    val _selectPredecessors =
-      selectRelated(outgoing = false, transitive = true)((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
-    val _selectDirectSuccessors =
-      selectRelated(outgoing = true, transitive = false)((graph, nodes) => graph.directSuccessorsGraph(nodes.nodeIds))
-    val _selectDirectPredecessors =
-      selectRelated(outgoing = false, transitive = false)((graph, nodes) => graph.directPredecessorsGraph(nodes.nodeIds))
-
     /** `outgoing` and `transitive` describe the same operation the selector
       * already performs; they exist because the ROW-scoped path has to take the
       * first hop itself (only that hop is constrained by the port) and therefore
       * needs to know which way it points and whether to keep going.
       */
-    private def selectRelated(outgoing: Boolean, transitive: Boolean)(
-        selector: (ViewerGraph, Selection) => ViewerGraph
-    )(fullGraph: ViewerGraph, hiddenNodes: HiddenElements): Unit =
-      val visibleSubGraph: ViewerGraph = fullGraph.removeElements(hiddenNodes)
+    private def selectRelated(outgoing: Boolean, transitive: Boolean): Unit =
+      def selector(graph: ViewerGraph, nodes: Selection): ViewerGraph =
+        (outgoing, transitive) match
+          case (true, true)   => graph.allSuccessorsGraph(nodes.nodeIds)
+          case (true, false)  => graph.directSuccessorsGraph(nodes.nodeIds)
+          case (false, true)  => graph.allPredecessorsGraph(nodes.nodeIds)
+          case (false, false) => graph.directPredecessorsGraph(nodes.nodeIds)
+
+      val visibleSubGraph: ViewerGraph = fullGraphNow().removeElements(hiddenElements.now())
       recordCells.selectedCellHop(visibleSubGraph, outgoing) match
         // A row of a record/table is the subject: only the arrows attached at
         // its port count, so take that hop by hand. A PORT constrains the first
@@ -99,14 +93,14 @@ trait DiagramSelectionOps:
 
     def toggle(ss: ElementId*): Unit = selectionV.update(ss.foldLeft(_)(_.toggle(_)))
 
-    def set(ss: Selection)(using name: sourcecode.FullName): Unit =
+    def set(ss: Selection): Unit =
       selectionV.set(ss)
 
     @targetName("setElementIds")
-    def set1(ss: Set[? <: ElementId])(using name: sourcecode.FullName): Unit =
+    def set1(ss: Set[? <: ElementId]): Unit =
       set(ElementIds(ss))
 
-    def set2(ss: ElementId*)(using name: sourcecode.FullName): Unit =
+    def set2(ss: ElementId*): Unit =
       set1(ss.toSet)
 
     @targetName("addElementIds")
@@ -130,7 +124,7 @@ trait DiagramSelectionOps:
     def keepOnly(p: ElementId => Boolean): Unit =
       selectionV.update(_.filter(p))
 
-    def clear()(using name: sourcecode.FullName): Unit =
+    def clear(): Unit =
       set(ElementIds())
 
     def contains(id: ElementId) =
@@ -181,17 +175,10 @@ trait DiagramSelectionOps:
         // Keep the original groups/clusters in the selection and add all members
         set(s ++ memberNodeIds)
 
-    def selectSuccessors() =
-      _selectSuccessors(fullGraphNow(), hiddenElements.now())
-
-    def selectPredecessors() =
-      _selectPredecessors(fullGraphNow(), hiddenElements.now())
-
-    def selectDirectSuccessors() =
-      _selectDirectSuccessors(fullGraphNow(), hiddenElements.now())
-
-    def selectDirectPredecessors() =
-      _selectDirectPredecessors(fullGraphNow(), hiddenElements.now())
+    def selectSuccessors()         = selectRelated(outgoing = true, transitive = true)
+    def selectPredecessors()       = selectRelated(outgoing = false, transitive = true)
+    def selectDirectSuccessors()   = selectRelated(outgoing = true, transitive = false)
+    def selectDirectPredecessors() = selectRelated(outgoing = false, transitive = false)
 
     def addToGroup() =
       val classified = now().classify
@@ -361,10 +348,14 @@ trait DiagramSelectionOps:
         set(ElementIds.from(nodeId))
       if now().contains(nodeId) then navCursorSet(nodeId)
 
+    /** `elementsFromRectEnd` is BY-NAME: it is a document-wide hit test that
+      * forces layout, and only the click branch below reads it — this runs on
+      * every mouse-move of a rubber-band drag.
+      */
     def selectExtendSelectionOverlappingElements(
-        rect:                MouseActionRect,
-        selectableElements:  Seq[SelectableElement],
-        elementsFromRectEnd: js.Array[dom.Element]
+        rect:                 MouseActionRect,
+        selectableElements:   Seq[SelectableElement],
+        elementsFromRectEnd: => js.Array[dom.Element]
     ) =
       if rect.isEmpty then
         // Equivalent to an onClick event

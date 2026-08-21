@@ -20,9 +20,6 @@ trait VisibilityOps:
 
     val signal = _hiddenElements.signal
 
-    def toggle(s: NodeId): Unit =
-      _hiddenElements.update(_.toggle(s))
-
     def add(ss: Set[NodeId]): Unit =
       _hiddenElements.update(_ ++ ss)
 
