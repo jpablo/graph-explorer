@@ -94,13 +94,28 @@ object VizViewerGraphElements:
     *   a new set of attributes where the "style" attribute, if present, is replaced with its sub-attributes
     */
   private def expandElementStyleAttributes(attrs: Attributes): Attributes =
-    // At this point there should be no sub-attributes in the attributes map.
-    StyleSubAttributes.subAttributeIds.foreach(attrId => assert(attrs.get(attrId).isEmpty))
+    // Sub-attributes are synthetic: they exist inside a ViewerGraph and nowhere
+    // in the DOT language, so text arriving here should carry none.
+    //
+    // This was an `assert`, and the input it was meant to be impossible turned
+    // out to be reachable: `DiagramText.render` printed a graph WITHOUT folding
+    // sub-attributes back into `style`, so `gx` wrote `fillstyle="true"` into
+    // the user's file and then could not read that file back. The printer is
+    // fixed, but files written by a released `gx` are already on disk, and
+    // `assertion failed` — naming no attribute and no element — is not a
+    // diagnosis anyone can act on.
+    //
+    // Dropped rather than honoured, because that is what `dot` does with an
+    // attribute it does not know. Honouring `fillstyle` would make the viewer
+    // paint a fill graphviz would not, and the whole point of this reader is to
+    // agree with graphviz. A file that lost its fill this way says so in the
+    // only way that stays truthful: it renders the way `dot` renders it.
+    val cleaned = attrs -- StyleSubAttributes.subAttributeIds
 
     // Check for either NodeStyle or Style (EdgeStyle uses Style.attrId)
-    val style         = attrs.get(NodeStyle) orElse attrs.get(Style) orElse attrs.get(EdgeStyle)
+    val style         = cleaned.get(NodeStyle) orElse cleaned.get(Style) orElse cleaned.get(EdgeStyle)
     val styleSubAttrs = StyleSubAttributes.fromStyleString(style.map(_.toString))
     // 1. Normalize fill color if present
     // 2. Remove the "style" attribute if it exists
     // 3. Add the expanded style sub-attributes back to the attributes map (which the UI will use)
-    removeIncorrectCombos(attrs, styleSubAttrs) - NodeStyle - EdgeStyle - Style ++ styleSubAttrs.toAttributes
+    removeIncorrectCombos(cleaned, styleSubAttrs) - NodeStyle - EdgeStyle - Style ++ styleSubAttrs.toAttributes
