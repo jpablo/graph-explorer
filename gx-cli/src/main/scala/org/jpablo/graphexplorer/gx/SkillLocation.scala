@@ -17,11 +17,30 @@ package org.jpablo.graphexplorer.gx
   */
 object SkillLocation:
 
-  val Repo          = "https://github.com/jpablo/graph-explorer"
-  val RawHost       = "https://raw.githubusercontent.com/jpablo/graph-explorer"
-  val Directory     = ".claude/skills/gx"
-  val File          = s"$Directory/SKILL.md"
-  val Name          = "gx"
+  val Repo    = "https://github.com/jpablo/graph-explorer"
+  val RawHost = "https://raw.githubusercontent.com/jpablo/graph-explorer"
+
+  /** Where the skill lives in the REPO, which is not where it gets installed.
+    *
+    * A vendor-neutral `skills/<name>/` rather than `.claude/skills/`: the Agent
+    * Skills format is read by more than one harness, and each keeps installed
+    * skills somewhere different — so the directory a skill is *published* from
+    * should not be spelled after any one of them. `.claude/skills/gx` is one
+    * possible destination, named in the instruction rather than here.
+    */
+  val Directory = "skills/gx"
+  val File      = s"$Directory/SKILL.md"
+
+  /** The spec requires `name` to match the directory it lives in. */
+  val Name = "gx"
+
+  /** The supporting files beside SKILL.md, which an installer has to take too.
+    *
+    * SKILL.md links them and stops short of repeating them, so fetching it
+    * alone yields a skill whose reference sections are dangling links.
+    */
+  val SupportingFiles = Vector("commands.md", "library.md")
+
   val DefaultBranch = "viewer"
 
   /** A released version, with or without the `v` the tags carry. */

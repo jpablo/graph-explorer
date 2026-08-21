@@ -866,9 +866,11 @@ object Cli:
           // wrapped terminal intact.
           env.out("  Read and analyze the skill at")
           env.out(s"    ${found.raw}")
-          env.out("  check it against the `gx` on this machine, then install it: save it as")
-          env.out(s"  ${SkillLocation.File} in this project, or under your home directory to")
-          env.out("  have it in every project. Keep the YAML frontmatter intact.")
+          env.out(s"  together with ${SkillLocation.SupportingFiles.mkString(" and ")} beside it, which it links.")
+          env.out("  Check it against the `gx` on this machine, then install all three as a")
+          env.out(s"  skill named `${SkillLocation.Name}` wherever this harness keeps skills — for Claude")
+          env.out(s"  Code that is ${SkillLocation.Name}/ under .claude/skills/ in the project, or under")
+          env.out("  your home directory to have it everywhere. Keep the frontmatter intact.")
           env.out("")
           if found.pinned then
             env.out(s"Pinned to ${found.ref}, the gx you are running.")

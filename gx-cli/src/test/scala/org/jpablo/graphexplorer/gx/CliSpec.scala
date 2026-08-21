@@ -5,7 +5,9 @@ import org.jpablo.graphexplorer.gxcore.fs.{AccessPolicy, Audit, Documents}
 import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 import org.jpablo.graphexplorer.gxcore.store.LibraryStore
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
+
+import scala.jdk.CollectionConverters.*
 
 /** V-09: every command except `open` works with no desktop running.
   *
@@ -851,3 +853,53 @@ class CliSpec extends FunSuite:
     val found = SkillLocation.resolve(Some("v1.2.3"), latest = false, running = "0.9.4")
     assertEquals(found.map(_.ref), Right("v1.2.3"))
   }
+
+  /** The path `gx skill` advertises has to be the path the skill is actually
+    * at, or every URL the command prints is a 404 — and nothing else in the
+    * build would notice, because the skill is an asset no Scala code imports.
+    */
+  test("the advertised location exists in this repository") {
+    val root = repoRoot()
+    val skill = root.resolve(SkillLocation.File)
+    assert(Files.exists(skill), s"gx skill points at ${SkillLocation.File}, which does not exist")
+    for name <- SkillLocation.SupportingFiles do
+      val f = root.resolve(SkillLocation.Directory).resolve(name)
+      assert(Files.exists(f), s"SKILL.md links $name, which does not exist")
+  }
+
+  /** Only the six fields the Agent Skills spec allows.
+    *
+    * Not a style preference: packaging or uploading a skill with any other key
+    * fails with a hard error rather than ignoring it, so a Claude Code-only
+    * field here would make the skill unusable everywhere else.
+    */
+  test("the skill's frontmatter is portable") {
+    val allowed = Set("allowed-tools", "compatibility", "description", "license", "metadata", "name")
+    val lines   = Files.readAllLines(repoRoot().resolve(SkillLocation.File)).asScala.toVector
+    assertEquals(lines.headOption, Some("---"), "SKILL.md must open with YAML frontmatter")
+
+    val body = lines.drop(1)
+    val end  = body.indexOf("---")
+    assert(end > 0, "the frontmatter is not closed")
+
+    val keys = body.take(end).filterNot(_.startsWith(" ")).filter(_.contains(":")).map(_.takeWhile(_ != ':'))
+    val bad  = keys.filterNot(allowed.contains)
+    assertEquals(bad, Vector.empty[String], s"non-portable frontmatter key(s): ${bad.mkString(", ")}")
+
+    // The spec ties the name to the directory; a mismatch simply fails to load.
+    assert(keys.contains("name"), "SKILL.md needs a name")
+    assert(
+      body.take(end).contains(s"name: ${SkillLocation.Name}"),
+      s"the skill's name must match its directory (${SkillLocation.Name})"
+    )
+  }
+
+  /** sbt runs tests from wherever it was launched, so walk up rather than
+    * assuming the module directory.
+    */
+  private def repoRoot(): Path =
+    Iterator
+      .iterate(Paths.get(sys.props.getOrElse("user.dir", ".")).toAbsolutePath)(_.getParent)
+      .takeWhile(_ != null)
+      .find(p => Files.exists(p.resolve("build.sbt")))
+      .getOrElse(fail("could not find the repository root"))

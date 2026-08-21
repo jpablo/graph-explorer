@@ -1,6 +1,8 @@
 ---
 name: gx
 description: Read, query and edit graph diagrams from the command line with `gx`, the Graph Explorer CLI — list a DOT or Mermaid file's nodes/edges/groups, set attributes, group and hide elements, keep a file synced with the diagram library, and show it in the Graph Explorer desktop app. Use whenever a task involves .dot/.gv/.mmd diagram files, asks what a diagram contains, asks to restyle or restructure one, or asks to open/visualize a graph.
+license: Apache-2.0
+compatibility: Requires the `gx` binary on PATH (Graph Explorer; download from https://github.com/jpablo/graph-explorer/releases). Everything except `gx open` and `gx session` runs headless — no desktop app and no display needed.
 ---
 
 # Driving Graph Explorer with `gx`
@@ -43,8 +45,8 @@ Every command takes a `<ref>`, and a ref is resolved in this order:
 Ambiguity is reported, never guessed at.
 
 A loose file on disk needs no setup — `gx run ./arch.dot list-nodes` works immediately.
-But **the record tier only exists for library diagrams** (see the tiers below); on a loose
-file those commands refuse with exit 4 and tell you to `gx import` it first.
+But **the record tier only exists for library diagrams**; on a loose file those commands
+refuse with exit 4 and tell you to `gx import` it first.
 
 ## Three tiers
 
@@ -145,11 +147,9 @@ The graph is preserved; the formatting, comments and layout of the source are no
   use `gx run` only for *queries*.
 - Work on a copy when the source file is precious.
 
-### The graph's name and kind are preserved
-
-`graph MyNet { a -- b }` stays undirected and stays `MyNet`. (Both were silently rewritten
-to `digraph "G"` before v0.9.5 — if you are on an older `gx`, check the diff after any
-mutation on an undirected graph.)
+The graph's **name and kind are preserved**: `graph MyNet { a -- b }` stays undirected and
+stays `MyNet`. (Both were silently rewritten to `digraph "G"` before v0.9.5 — on an older
+`gx`, check the diff after any mutation on an undirected graph.)
 
 ## Conflict safety
 
@@ -165,42 +165,6 @@ gx:   expected 000000000000, found b163c1d6bdfb
 conditional on it. Without `--base`, `gx` reads the hash itself immediately before
 writing, which is enough for ordinary sequential use.
 
-## The library, and syncing
-
-The library lives in `~/.graph-explorer/library`. Importing a file gives it a record —
-which is what makes tags, notes, folders and hidden elements possible — and a **binding**
-to the file it came from:
-
-```bash
-gx import ./arch.dot --mode sync --name "Architecture"
-gx ls
-gx sync --all          # reconcile every bound diagram; exit 5 if any diverged
-```
-
-Modes: `pull` (default — the file wins, edits stay local), `push` (the library wins),
-`sync` (both directions), `detached` (no file).
-
-Record-tier commands then work on it:
-
-```bash
-gx run architecture hide --params '{"targets":["node:legacy"]}'
-gx run architecture tag  --params '{"tags":["infra"]}'
-gx run architecture get-record --json
-```
-
-Record edits **never write the origin file**, whatever the mode says — hiding a node must
-not make a regenerated file conflict.
-
-## Watching
-
-```bash
-gx watch ./arch.dot --json
-```
-
-Streams one JSON object per line (`changed` / `restored` / `deleted`, with the new hash)
-until killed. This is the headless way to react to a diagram changing. Run it in the
-background and read its output; never in the foreground of a turn.
-
 ## Showing it to the user
 
 ```bash
@@ -214,56 +178,6 @@ on with the headless work.
 `gx session select --params '{"targets":["node:api"]}'` and friends act on whatever is
 currently on screen — there is no `<ref>`, because the live view already knows what it is
 displaying.
-
-## Exit codes
-
-| Code | Meaning | What to do |
-|---|---|---|
-| 0 | ok | |
-| 1 | usage — including a **malformed** element ref | fix the command line |
-| 2 | needs a desktop | only `open` / `session`; everything else still works |
-| 4 | element doesn't exist, bad path, policy refusal, or unparseable diagram | check `gx ls` / `list-nodes`, or import the file first |
-| 5 | conflict, or `sync` found divergence | re-read the file and retry |
-| 6 | unexpected | report it |
-
-## Command reference
-
-Document tier — operates on the text:
-
-| Command | Params |
-|---|---|
-| `list-nodes`, `list-arrows`, `list-groups` | none |
-| `get-attributes` | `targets` |
-| `set-attribute` | `targets`, `name`, `value` |
-| `remove-attribute` | `targets`, `name` |
-| `reset-attributes` | `targets` |
-| `group` | `targets`, `label` (optional) |
-| `ungroup` | `targets` |
-| `combine-into-record` | `nodes` |
-| `split-record`, `transpose-record` | `node` (a single ref string) |
-
-Record tier — operates on stored metadata, library diagrams only:
-
-| Command | Params |
-|---|---|
-| `hide`, `unhide` | `targets` |
-| `unhide-all`, `expand-all`, `get-record` | none |
-| `collapse`, `expand` | `groups` (group refs only) |
-| `tag`, `untag` | `tags` (array of strings) |
-| `set-notes` | `notes` |
-| `move-to-folder` | `folder` |
-| `rename-diagram` | `name` |
-
-Session tier — `gx session <cmd>`, needs a desktop:
-`select` / `add-to-selection` (`targets`), `clear-selection`, `reset-view`,
-`what-is-selected`.
-
-## Sandboxing
-
-`GX_ALLOWED_ROOTS` and `GX_DENY_ROOTS` (path-separated) restrict which files `gx` will
-touch; a refusal is exit 4 with the reason, and it is recorded in
-`~/.graph-explorer/runtime/audit.log.jsonl`. If a path is denied, do not work around it —
-report it.
 
 ## Gotchas
 
@@ -281,3 +195,11 @@ report it.
   it `push` or `sync`, or write the path directly.
 - `gx skill` prints where this skill lives, pinned to the running binary. Re-read it after
   a `gx` upgrade — command names and params are versioned API.
+
+## Additional resources
+
+- Every command name, its parameters, and the exit codes: [commands.md](commands.md).
+  Load it before issuing any command whose params you are not certain of.
+- Importing, binding, sync modes, watching, and the filesystem sandbox:
+  [library.md](library.md). Load it when the task involves the library rather than a
+  loose file on disk, or when a path is refused by policy.
