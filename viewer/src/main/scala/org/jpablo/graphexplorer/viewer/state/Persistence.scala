@@ -3,43 +3,92 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
 import org.jpablo.graphexplorer.projects.Library
+import org.jpablo.graphexplorer.router.Route
+import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
 import org.scalajs.dom
 import upickle.default.*
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 trait Persistence:
   this: ViewerState =>
 
-  /** ViewerSettings below is deliberately NOT branched by `exampleName`: theme,
+  /** This viewer's store, chosen by its target (§6).
+    *
+    * The choice is made once, in `DiagramPersistence.forTarget`, and that
+    * function is total over `ViewTarget`. Before this, every viewer opened a
+    * library handle keyed by a `ProjectId`, and the only way to keep an example
+    * out of the library was to remember not to call for one. A loose file could
+    * not be kept out at all.
+    */
+  protected val persistence: DiagramPersistence =
+    DiagramPersistence.forTarget(target, initialSource)
+
+  /** This viewer's session, while it shows a loose file (§7.3).
+    *
+    * A Signal rather than a lookup, so a dirty marker and a conflict banner
+    * follow the file instead of waiting for the next render. §10 asks for
+    * exactly this: the subscription is owner-scoped, so Laminar teardown ends
+    * it when the view goes.
+    */
+  // `lazy`, because a trait's vals initialize before `ViewerState.sourceText`
+  // does. Forcing them at first read is what keeps this off a null.
+  lazy val documentSession: Signal[Option[DesktopDocumentRegistry.Session]] =
+    target match
+      case ViewTarget.LooseFile(session) => DesktopDocumentRegistry.signal(session)
+      case _                             => Signal.fromValue(None)
+
+  /** The editor holds an edit the file does not have (§7.3, `local` vs `base`).
+    *
+    * False for a library record, and not because a record cannot change: a
+    * record saves on every keystroke, so it is never behind. "Unsaved" is a
+    * state only a file can be in.
+    */
+  lazy val documentDirty: Signal[Boolean] =
+    target match
+      case ViewTarget.LooseFile(_) =>
+        documentSession
+          .combineWith(sourceText.signal)
+          .map((session, text) => session.exists(_.sourceText != text))
+          .distinct // the same comparison `documentIsDirty` makes, in Signal form
+      case _ => Signal.fromValue(false)
+
+  /** The navigation this view is holding up, while the person answers (§7.4).
+    *
+    * The route is kept rather than re-derived: the dialog must go where the
+    * click asked to go, and by the time it is answered the click is long gone.
+    */
+  val pendingLeave: Var[Option[Route]] = Var(None)
+
+  /** The same question as [[documentDirty]], answered now rather than observed.
+    *
+    * A navigation guard has to decide inside the click that asks for it (§7.4),
+    * and a Signal cannot be read at that moment. ONE comparison, used by both,
+    * so a guard and a marker can never disagree.
+    */
+  def documentIsDirty: Boolean =
+    target match
+      case ViewTarget.LooseFile(session) =>
+        DesktopDocumentRegistry.get(session).exists(_.sourceText != sourceText.now())
+      case _ => false
+
+  /** The file changed under an edit, and both versions are kept (§7.3). */
+  lazy val documentConflict: Signal[Option[DesktopDocumentRegistry.Conflict]] =
+    documentSession.map(_.flatMap(_.conflict)).distinct
+
+  /** ViewerSettings below is deliberately NOT branched by the target: theme,
     * panel widths and the like are app-wide preferences, and losing a theme
     * change because it was made while looking at an example would be its own bug.
     */
-  protected val persistedDiagramState: Var[PersistedDiagramState] =
-    exampleName match
-      case Some(name) =>
-        // A PLAIN Var: `createProjectPersistence` is the only thing that opens a
-        // localStorage handle for a project AND stamps its directory entry, so
-        // not calling it is what keeps an example out of the library entirely.
-        // The rest of the app reads this Var identically either way, so no other
-        // code has to know which mode it is in.
-        //
-        // The gallery's name for the example is its project name: that is the
-        // name the reader clicked, and `displayTitle` would otherwise fall
-        // through to "Untitled" (an example has no stored name, and its source
-        // rarely declares a title).
-        Var(PersistedDiagramState.minimal(initialSource).copy(projectName = name))
-      case None =>
-        Library.createProjectPersistence(projectId, initialSource)
-
   private val viewerSettings: Var[ViewerSettings] =
     Library.loadViewerSettings()
 
   /** Restores the persisted state values to the current ViewerState. */
   private def restorePersistedState(): Unit =
-    val restoredDiagramState   = persistedDiagramState.now()
+    val restoredDiagramState   = persistence.initial
     val restoredViewerSettings = viewerSettings.now()
 
     project.hiddenElements.set(restoredDiagramState.hiddenElements)
@@ -96,17 +145,8 @@ trait Persistence:
       )
       .changes
       .distinct
-      .foreach: (hidden, collapsed, name, source, format, autoDetect) =>
-        persistedDiagramState.set(
-          PersistedDiagramState(
-            hiddenElements = hidden,
-            collapsedGroups = collapsed,
-            projectName = name,
-            source = source,
-            format = Some(format.toString),
-            autoDetectFormat = Some(autoDetect)
-          )
-        )
+      .foreach: _ =>
+        persistence.update(snapshot())
 
     // synchronize ViewerState ~> ViewerSettings
     Signal
@@ -157,10 +197,50 @@ trait Persistence:
             )
           )
 
+  /** This diagram as it stands now.
+    *
+    * One construction, read by the change sync above and by [[save]] below. Two
+    * constructions would drift, and a ⌘S that wrote a different shape from the
+    * autosave is the kind of difference nobody sees until a field goes missing.
+    */
+  def snapshot(): PersistedDiagramState =
+    PersistedDiagramState(
+      hiddenElements = project.hiddenElements.now(),
+      collapsedGroups = project.collapsedGroups.now(),
+      projectName = project.name.now(),
+      source = sourceText.now(),
+      format = Some(formatSelection.now().toString),
+      autoDetectFormat = Some(autoDetectFormat.now())
+    )
+
+  /** Save this diagram, because the person asked (§11).
+    *
+    * A typed operation on the viewer, so ⌘S reaches THIS diagram's store. The
+    * keyboard handler used to reach through `window.__graphExplorerDesktopBridge`
+    * for a destination that was process-global: one shared reference, whichever
+    * viewer was on screen. That is how an autosave could update one record while
+    * ⌘S wrote a different file.
+    *
+    * There is no destination to check any more. `persistence` belongs to this
+    * viewer and was chosen from this viewer's target, so a save cannot name
+    * anything else.
+    */
+  def save()(using ExecutionContext): Future[SaveResult] =
+    persistence.saveNow(snapshot())
+
   /** Initializes persistence by restoring state and setting up synchronization. */
   def initializePersistence(): Unit =
     restorePersistedState()
     setupStateSynchronization()
+
+  /** Release the store when the view goes away (§10).
+    *
+    * The view calls this from its unmount, beside the owner it kills. Every
+    * store today releases nothing, and the method still exists: a store that
+    * holds a handle must have somewhere to give it back, and adding the call
+    * later means finding every unmount again.
+    */
+  def closePersistence(): Unit = persistence.close()
 
 case class PersistedDiagramState(
     hiddenElements: HiddenElements = ElementIds(),

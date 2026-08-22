@@ -4,10 +4,11 @@ import org.jpablo.graphexplorer.projects.Library
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
-import org.jpablo.graphexplorer.viewer.state.{NavDirection, PersistedDiagramState, RightPanelSection, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{NavDirection, PersistedDiagramState, RightPanelSection, SaveResult, ViewerState}
 import org.scalajs.dom.KeyValue
 import org.scalajs.dom
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
 import scala.collection.immutable.VectorMap
 
@@ -927,12 +928,16 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     if isSaveShortcut then
       ev.preventDefault()
       ev.stopPropagation()
-      val bridge = js.Dynamic.global.window.selectDynamic("__graphExplorerDesktopBridge")
-      val saveCurrentTextFn = bridge.selectDynamic("saveCurrentText")
-      if !js.isUndefined(saveCurrentTextFn) && js.typeOf(saveCurrentTextFn) == "function" then
-        saveCurrentTextFn.asInstanceOf[js.Function0[Any]]()
-      else
-        state.infoBus.emit("Desktop save is unavailable in this mode")
+      // §11: an operation on the ACTIVE target. This used to reach through
+      // `window.__graphExplorerDesktopBridge` for a destination that was
+      // process-global — one reference shared by every viewer — so ⌘S could
+      // write a file while the autosave updated a different record.
+      state.save().foreach:
+        case SaveResult.Saved             => state.infoBus.emit("Saved")
+        case SaveResult.Conflict(message) => state.errorBus.emit(message)
+        case SaveResult.Failed(message)   => state.errorBus.emit(s"Save failed: $message")
+        // Not an error: an example simply has nowhere to go (§11).
+        case SaveResult.Unsupported(message) => state.infoBus.emit(message)
       return
 
     // ⌘V / Ctrl+V is advertised by `pasteDiagram` but deliberately NOT dispatched

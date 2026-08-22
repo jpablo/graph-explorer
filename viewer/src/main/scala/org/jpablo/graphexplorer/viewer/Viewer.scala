@@ -7,9 +7,22 @@ import org.jpablo.graphexplorer.projects.{DesktopLibrary, DesktopMigration, Libr
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
-import org.jpablo.graphexplorer.viewer.desktop.{DesktopBridge, DesktopIpc, DesktopOpenRequests, SessionCommands}
+import org.jpablo.graphexplorer.viewer.desktop.{
+  DesktopBridge,
+  DesktopDocumentRegistry,
+  DesktopIpc,
+  DesktopOpenRequests,
+  SessionCommands
+}
 import org.jpablo.graphexplorer.viewer.logging.Level
-import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, RightPanelSection, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{
+  DocumentSessionId,
+  PersistedDiagramState,
+  ProjectId,
+  RightPanelSection,
+  ViewerState,
+  ViewTarget
+}
 import org.scalajs.dom.{document, window, URLSearchParams}
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.utils.ShareUrl
@@ -147,7 +160,10 @@ object Viewer:
           * Both routes share this so an example is the SAME viewer, not a
           * second, weaker one.
           */
-        def diagramView(id: String, source: Option[String], exampleName: Option[String]) =
+        def diagramView(target: ViewTarget, source: Option[String]) =
+          val exampleName = target match
+            case ViewTarget.Example(_, name) => Some(name)
+            case _                           => None
           // Owner scoped to this project visit: killed when the view unmounts, so the
           // ViewerState's subscriptions (phases, persistence, theme, panels...) — and the
           // whole object graph they retain — are released instead of leaking one full
@@ -155,7 +171,7 @@ object Viewer:
           val viewOwner = new ManualOwner
           val state =
             ViewerState(
-              projectId = ProjectId(id),
+              target = target,
               graphviz = graphviz,
               writeText = clipboardWrite,
               readText = clipboardRead,
@@ -166,8 +182,7 @@ object Viewer:
               initialRightPanelSection = lastRightPanelSection,
               initialLeftPanelVisible = lastLeftPanelVisible,
               clientSize = clientSize,
-              logLevel = logLevel,
-              exampleName = exampleName
+              logLevel = logLevel
             )(using viewOwner)
           // A bit hacky: we need to keep track of the last right panel section selected,
           // otherwise there's a noticeable transition none => something when switching diagrams
@@ -175,6 +190,26 @@ object Viewer:
           // Similarly track the left panel visibility state between diagrams
           state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
           DesktopBridge.attach(state)
+
+          // §7.4: a loose file with an unsaved edit asks before it is left.
+          // Registered per view and cleared on unmount below, so exactly one
+          // guard exists and it belongs to what is on screen.
+          val leaveGuard: Route => Boolean = route =>
+            if state.documentIsDirty then
+              state.pendingLeave.set(Some(route))
+              false
+            else true
+          router.guardNavigation(leaveGuard)
+
+          // The window closing is the case a dialog cannot serve: the browser
+          // owns that prompt and allows only its own wording. §7.4 rules out
+          // doing the work in `pagehide` instead — IPC during teardown is not
+          // guaranteed to finish, so a save started there may never land.
+          val warnOnClose: js.Function1[dom.Event, Unit] = event =>
+            if state.documentIsDirty then
+              event.preventDefault()
+              event.asInstanceOf[js.Dynamic].updateDynamic("returnValue")("")
+          dom.window.addEventListener("beforeunload", warnOnClose)
           // The session tier answers from HERE (D7.2): a socket client's "what is
           // selected" has no answer anywhere else.
           SessionCommands.attach(state)
@@ -186,8 +221,32 @@ object Viewer:
               // navigation was answered by a viewer nobody was looking at.
               DesktopBridge.detach(state)
               SessionCommands.detach(state)
+              router.clearNavigationGuard(leaveGuard)
+              dom.window.removeEventListener("beforeunload", warnOnClose)
+              state.closePersistence()
               viewOwner.killSubscriptions()
             })
+
+        /** A loose file: the same viewer, and a different store (§5, §6).
+          *
+          * The SAME `diagramView`, on purpose. A loose file is not a weaker
+          * diagram, and a second, thinner viewer would drift from this one.
+          * Only the target differs, and the target is what chooses the store.
+          *
+          * The text is not passed as `source`. It comes from
+          * `LooseFilePersistence.initial`, which reads the registry — so one
+          * place holds what the shell sent, and a reload of this route shows
+          * the file again rather than an empty diagram.
+          */
+        def looseDocumentView(sessionId: String) =
+          DocumentSessionId.parse(sessionId).filter(DesktopDocumentRegistry.get(_).isDefined) match
+            case Some(session) =>
+              diagramView(ViewTarget.LooseFile(session), source = None)
+            case None =>
+              // A bookmark can outlive the session it names, and a person can
+              // type this URL. Say so, and offer the way back. Opening an empty
+              // viewer here would offer a save with no file to write to.
+              unknownDocumentSession(routerCmds)
 
         val app =
           div(
@@ -196,7 +255,7 @@ object Viewer:
                 ProjectsDirectoryView(graphviz, router, routerCmds, viewerSettings, setTheme)
 
               case Route.ProjectDetail(id, source) =>
-                diagramView(id, source, exampleName = None)
+                diagramView(ViewTarget.library(id), source)
 
               case Route.Example(slug) =>
                 DotExamples.bySlug.get(slug) match
@@ -208,7 +267,7 @@ object Viewer:
                       cls := "contents",
                       child <-- FetchStream
                         .get(example.path)
-                        .map(text => diagramView(s"example-$slug", Some(text), exampleName = Some(name)))
+                        .map(text => diagramView(ViewTarget.Example(slug, name), Some(text)))
                     )
                   case None =>
                     // A renamed or removed example. Say so and offer the way back,
@@ -216,6 +275,9 @@ object Viewer:
                     // route signal's own propagation) or drawing an empty viewer
                     // that just looks broken.
                     unknownExample(slug, routerCmds)
+
+              case Route.LooseDocument(sessionId) =>
+                looseDocumentView(sessionId)
           )
 
         render(document.querySelector("#app"), app)
@@ -234,6 +296,18 @@ object Viewer:
         // while poking at the example comes with them into their copy.
         onClick --> (_ => routerCmds.copyExampleToLibrary.execute(Some((name, state.sourceText.now()))))
       ).primary.tiny
+    )
+
+  /** A `/documents/<id>` route whose session the page does not hold. */
+  private def unknownDocumentSession(routerCmds: RouterCommands) =
+    div(
+      cls := "loose-document-placeholder",
+      h2("No such document session"),
+      p("This page shows a file the desktop opened. That session is not open now."),
+      Button(
+        "Back to the library",
+        onClick --> (_ => routerCmds.navigateHome.execute())
+      ).primary.small
     )
 
   private def unknownExample(slug: String, routerCmds: RouterCommands) =

@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.router.Route
-import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
@@ -143,39 +143,48 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
 
   test("a text-only push does not forget which file is open"):
     // `/v1/push-text` emits `{text, path: null, revision: null}` — text with no
-    // document behind it. If that cleared the reference, the next ⌘S would
-    // report "no active watched file" for a file that is still very much open.
+    // document behind it. If that ended the session, the next ⌘S would have no
+    // file to write for a file that is still very much open.
     DesktopBridge.reset()
-    DesktopBridge.updateDocumentRef(
+    DesktopDocumentRegistry.reset()
+    DesktopBridge.recordSession(
       DesktopBridge.DesktopMessage("digraph {}", Some("/tmp/a.dot"), Some("f00d"))
     )
-    DesktopBridge.updateDocumentRef(DesktopBridge.DesktopMessage("digraph { b }", None, None))
+    DesktopBridge.recordSession(DesktopBridge.DesktopMessage("digraph { b }", None, None))
 
     assertEquals(
-      DesktopBridge.currentDocumentRef,
-      Some(DesktopBridge.DocumentRef("/tmp/a.dot", "f00d"))
+      DesktopDocumentRegistry.find("/tmp/a.dot").map(_.revision),
+      Some("f00d")
     )
+    assertEquals(DesktopDocumentRegistry.all.size, 1, "a text push must not open a second session")
     DesktopBridge.reset()
+    DesktopDocumentRegistry.reset()
 
   // ------------------------------------------- Phase 1: typed open targets
 
   private def openEvent(detail: js.Dynamic): dom.Event =
     js.Dynamic.literal(detail = detail).asInstanceOf[dom.Event]
 
+  private def everyRecordExists: String => Boolean = _ => true
+  private def noRecordExists: String => Boolean     = _ => false
+
   test("a library open request routes to that record, by id"):
     // The whole point of the typed target: the id survives the trip. `gx open`
     // used to resolve every reference to a PATH and discard the diagram id, so
     // an open could not say which record it meant — and an unbound record,
     // having no path, could not be opened at all.
-    val route = DesktopOpenRequests.route(
-      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "architecture")))
+    val decision = DesktopOpenRequests.decide(
+      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "architecture"))),
+      everyRecordExists
     )
-    assertEquals(route, Some(Route.ProjectDetail("architecture")))
+    decision match
+      case DesktopOpenRequests.Decision.Show(route, _) => assertEquals(route, Route.ProjectDetail("architecture"))
+      case other                                       => fail(s"expected a route, got $other")
 
   test("an open request we cannot act on navigates nowhere"):
     // Untrusted input from outside the page. Guessing a route would navigate
     // away from whatever the user is looking at, which is strictly worse than
-    // ignoring a request that names nothing.
+    // refusing a request that names nothing.
     val unusable = List(
       js.Dynamic.literal(target = js.Dynamic.literal(kind = "library")),                     // no id
       js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "   ")),   // blank id
@@ -185,20 +194,91 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
       js.Dynamic.literal()                                                                    // no target at all
     )
     for detail <- unusable do
-      assertEquals(DesktopOpenRequests.route(openEvent(detail)), None, s"detail: $detail")
+      assertEquals(
+        DesktopOpenRequests.decide(openEvent(detail), everyRecordExists),
+        DesktopOpenRequests.Decision.Reject("VIEW_REJECTED", "the page could not route to that target"),
+        s"detail: $detail"
+      )
 
-  test("an open request for a record the library does not hold routes nowhere"):
+  test("an open request for a record the library does not hold is refused, with a reason"):
     // The shell cannot make this check — D2.5 keeps it diagram-ignorant — so
     // the page has to, and has to SAY so. Navigating anyway would leave the
     // user on an empty diagram while `gx open` reported success.
-    //
-    // The refusal itself travels through complete_open, which needs a live IPC
-    // bridge; what is asserted here is the decision, and the round trip is
-    // covered by scripts/local-capabilities-open-handshake-smoke.sh.
-    val route = DesktopOpenRequests.route(
-      openEvent(js.Dynamic.literal(requestId = 7, target = js.Dynamic.literal(kind = "library", diagramId = "missing")))
+    val decision = DesktopOpenRequests.decide(
+      openEvent(js.Dynamic.literal(requestId = 7, target = js.Dynamic.literal(kind = "library", diagramId = "missing"))),
+      noRecordExists
     )
-    assertEquals(route, Some(Route.ProjectDetail("missing")))
+    assertEquals(
+      decision,
+      DesktopOpenRequests.Decision.Reject("DIAGRAM_NOT_FOUND", "no diagram 'missing' in this library")
+    )
+
+  // ------------------------------- Phase 2 item 7: the file open handshake
+
+  test("a file open request routes to that file's session, not to its path"):
+    // The defect this repairs: a loose file had no route, so `gx open <path>`
+    // reached no viewer on Home and landed in the wrong viewer with a project
+    // open — while still reporting success.
+    DesktopDocumentRegistry.reset()
+    val open = DesktopDocumentRegistry.record("/tmp/opened.dot", "rev-1", "digraph G { a }")
+
+    val decision = DesktopOpenRequests.decide(
+      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/opened.dot"))),
+      noRecordExists
+    )
+
+    decision match
+      case DesktopOpenRequests.Decision.Show(route, view) =>
+        assertEquals(route, Route.LooseDocument(open.id.value))
+        // §13: the acknowledgment names the session, and the route carries no path.
+        val reported = view.asInstanceOf[js.Dynamic]
+        assertEquals(reported.selectDynamic("kind").asInstanceOf[String], "file")
+        assertEquals(reported.selectDynamic("sessionId").asInstanceOf[String], open.id.value)
+        assertEquals(reported.selectDynamic("revision").asInstanceOf[String], "rev-1")
+      case other => fail(s"expected a route to the session, got $other")
+
+    DesktopDocumentRegistry.reset()
+
+  test("a file open request the shell never delivered is refused, not reported as shown"):
+    // THE defect item 7 repairs. Before this, a file `show` kept only the
+    // NO_WINDOW check, so `gx open <path>` printed "showing ..." for a file no
+    // viewer had.
+    DesktopDocumentRegistry.reset()
+
+    val decision = DesktopOpenRequests.decide(
+      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/never-sent.dot"))),
+      noRecordExists
+    )
+
+    assertEquals(
+      decision,
+      DesktopOpenRequests.Decision.Reject(
+        "DOCUMENT_NOT_FOUND",
+        "the page holds no open document for that path"
+      )
+    )
+
+  test("a second open of one file routes to the SAME session"):
+    // §4.2: display repeats, the session does not. Two ids would give one file
+    // two routes, and the back button would walk through dead ones.
+    DesktopDocumentRegistry.reset()
+    val first = DesktopDocumentRegistry.record("/tmp/twice.dot", "rev-1", "digraph G { a }")
+
+    def routeNow() =
+      DesktopOpenRequests.decide(
+        openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/twice.dot"))),
+        noRecordExists
+      ) match
+        case DesktopOpenRequests.Decision.Show(route, _) => route
+        case other                                       => fail(s"expected a route, got $other")
+
+    val before = routeNow()
+    DesktopDocumentRegistry.record("/tmp/twice.dot", "rev-2", "digraph G { b }") // the file changed
+    val after = routeNow()
+
+    assertEquals(before, after)
+    assertEquals(after, Route.LooseDocument(first.id.value))
+    DesktopDocumentRegistry.reset()
 
   // ------------------------------------------------ Phase 0: target lifetime
   //
@@ -207,22 +287,19 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
   // kept receiving file events — the mechanism behind a loose file's source
   // being persisted into whichever library record was last displayed.
 
-  test("detaching the attached viewer clears the target and its save destination"):
+  test("detaching the attached viewer releases it"):
     withGraphvizAsync { graphviz =>
       DesktopBridge.reset()
-      val state = ViewerState(ProjectId("detach-me"), graphviz)
+      val state = ViewerState(ViewTarget.library("detach-me"), graphviz)
       DesktopBridge.attach(state)
-      DesktopBridge.updateDocumentRef(
-        DesktopBridge.DesktopMessage("digraph {}", Some("/tmp/a.dot"), Some("f00d"))
-      )
-      assert(DesktopBridge.currentDocumentRef.isDefined, "precondition: a destination exists")
+      assert(DesktopBridge.currentTarget.isDefined, "precondition: a viewer is attached")
 
       DesktopBridge.detach(state)
 
       assertEquals(
-        DesktopBridge.currentDocumentRef,
+        DesktopBridge.currentTarget,
         None,
-        "the ⌘S destination outlived the viewer that owned it"
+        "an unmounted viewer stayed attached and kept receiving file events"
       )
       DesktopBridge.reset()
       Future.unit
@@ -235,20 +312,16 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
   test("a detach from a viewer that is no longer current leaves the live one alone"):
     withGraphvizAsync { graphviz =>
       DesktopBridge.reset()
-      val leaving  = ViewerState(ProjectId("leaving"), graphviz)
-      val arriving = ViewerState(ProjectId("arriving"), graphviz)
+      val leaving  = ViewerState(ViewTarget.library("leaving"), graphviz)
+      val arriving = ViewerState(ViewTarget.library("arriving"), graphviz)
 
       DesktopBridge.attach(leaving)
       DesktopBridge.attach(arriving) // navigation: the new view mounts first
-      DesktopBridge.updateDocumentRef(
-        DesktopBridge.DesktopMessage("digraph {}", Some("/tmp/b.dot"), Some("beef"))
-      )
 
       DesktopBridge.detach(leaving) // ...and only then does the old one unmount
 
-      assertEquals(
-        DesktopBridge.currentDocumentRef,
-        Some(DesktopBridge.DocumentRef("/tmp/b.dot", "beef")),
+      assert(
+        DesktopBridge.currentTarget.exists(_ eq arriving),
         "a stale detach tore down the viewer that had just arrived"
       )
       DesktopBridge.reset()
@@ -258,8 +331,8 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
   test("the session tier releases a detached viewer, and keeps a current one"):
     withGraphvizAsync { graphviz =>
       SessionCommands.reset()
-      val leaving  = ViewerState(ProjectId("s-leaving"), graphviz)
-      val arriving = ViewerState(ProjectId("s-arriving"), graphviz)
+      val leaving  = ViewerState(ViewTarget.library("s-leaving"), graphviz)
+      val arriving = ViewerState(ViewTarget.library("s-arriving"), graphviz)
 
       SessionCommands.attach(leaving)
       SessionCommands.detach(leaving)

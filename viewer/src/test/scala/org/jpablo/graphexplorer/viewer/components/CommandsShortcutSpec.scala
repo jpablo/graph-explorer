@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.{Owner, unsafeWindowOwner}
 import munit.FunSuite
 import org.jpablo.graphexplorer.router.Router
-import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
@@ -14,7 +14,7 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  test("Cmd/Ctrl+S invokes desktop save bridge when available"):
+  test("Cmd/Ctrl+S saves through the viewer, with no desktop bridge present"):
     withGraphvizAsync { graphviz =>
       given Owner = unsafeWindowOwner
       js.eval(
@@ -38,15 +38,18 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
             };
           }
 
-          window.__saveCallCount = 0;
-          window.__graphExplorerDesktopBridge = {
-            saveCurrentText: function() { window.__saveCallCount += 1; }
-          };
+          // No `__graphExplorerDesktopBridge` here, on purpose. §11 moved ⌘S
+          // onto the viewer, so the shortcut must work with no global object
+          // to reach through.
+          delete window.__graphExplorerDesktopBridge;
         """
       )
 
-      val state    = ViewerState(ProjectId("save-shortcut-spec"), graphviz)
+      val state    = ViewerState(ViewTarget.library("save-shortcut-spec"), graphviz)
       val commands = Commands(state, RouterCommands(Router()))
+
+      var reported = List.empty[String]
+      state.infoBus.events.foreach(message => reported = reported :+ message)
 
       var prevented = false
       val event = js.Dynamic
@@ -64,16 +67,20 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
 
       commands.handleKeyDown(event)
 
-      val saveCallCount = js.Dynamic.global.window.selectDynamic("__saveCallCount").asInstanceOf[Int]
-      assertEquals(saveCallCount, 1)
       assert(prevented, "Save shortcut should prevent browser default save behavior")
-      afterMicrotasks(())
+      afterMicrotasks {
+        assertEquals(
+          reported,
+          List("Saved"),
+          "⌘S must save through the viewer's own store, with no desktop bridge present"
+        )
+      }
     }
 
   test("Cmd/Ctrl+V is left for the browser's paste event, not consumed here"):
     withGraphvizAsync { graphviz =>
       given Owner = unsafeWindowOwner
-      val state    = ViewerState(ProjectId("paste-passthrough-spec"), graphviz)
+      val state    = ViewerState(ViewTarget.library("paste-passthrough-spec"), graphviz)
       val commands = Commands(state, RouterCommands(Router()))
 
       // `pasteDiagram` advertises ⌘V so the menus can show it, which puts it in
@@ -106,7 +113,7 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
   test("no two commands share a shortcut (byShortcut would silently drop one)"):
     withGraphvizAsync { graphviz =>
       given Owner = unsafeWindowOwner
-      val state    = ViewerState(ProjectId("shortcut-dup-spec"), graphviz)
+      val state    = ViewerState(ViewTarget.library("shortcut-dup-spec"), graphviz)
       val commands = Commands(state, RouterCommands(Router()))
 
       // byShortcut is a Map built with .toMap: two commands normalizing to the same

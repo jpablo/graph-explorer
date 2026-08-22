@@ -431,7 +431,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
   test("Updating the graph should trigger an update to the source text"):
     withGraphvizAsync { graphviz =>
-      val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val viewerState = ViewerState(ViewTarget.library("test"), graphviz, _ => ())
 
       // Initial state check - text is set synchronously
       assertEquals(viewerState.sourceText.now(), PersistedDiagramState.minimalGraphText)

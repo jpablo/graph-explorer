@@ -27,7 +27,7 @@ class VisibilityOpsSpec extends FunSuite with TestHelpers:
 
   test("hideSuccessorLayer hides only the immediate layer and nodes that lose all incoming"):
     withGraphviz { graphviz =>
-      val st = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val st = ViewerState(ViewTarget.library("test"), graphviz, _ => ())
 
       // Graph: A->B, E->B, A->D, D->F, B->G
       buildGraph(st, nodes = Seq("A", "B", "D", "E", "F", "G"), edges = Seq(
@@ -57,7 +57,7 @@ class VisibilityOpsSpec extends FunSuite with TestHelpers:
 
   test("hideSuccessorsRecursive hides deeper layers transitively"):
     withGraphviz { graphviz =>
-      val st = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val st = ViewerState(ViewTarget.library("test"), graphviz, _ => ())
 
       // Graph: A->B, E->B, A->D, D->F, B->G
       buildGraph(st, nodes = Seq("A", "B", "D", "E", "F", "G"), edges = Seq(
@@ -88,7 +88,7 @@ class VisibilityOpsSpec extends FunSuite with TestHelpers:
 
   test("deleteHiddenElements removes hidden elements from the graph and clears hidden state"):
     withGraphviz { graphviz =>
-      val st = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val st = ViewerState(ViewTarget.library("test"), graphviz, _ => ())
 
       // Stub confirm to always approve
       js.eval(
@@ -153,7 +153,7 @@ class VisibilityOpsSpec extends FunSuite with TestHelpers:
           |}
           |""".stripMargin
 
-      val st = ViewerState(ProjectId("test"), graphviz, _ => (), initialSource = Some(dot))
+      val st = ViewerState(ViewTarget.library("test"), graphviz, _ => (), initialSource = Some(dot))
 
       afterMicrotasks {
         st.selection.set1(Set(NodeId("e")))
