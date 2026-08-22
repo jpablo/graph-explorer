@@ -4,6 +4,16 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
 import org.jpablo.graphexplorer.projects.Library
 import org.jpablo.graphexplorer.router.Route
+
+/** Why a view is being left, and therefore what happens once the person
+  * answers the unsaved-changes question (§7.4).
+  *
+  * One dialog serves both. The question is identical — this text is not on
+  * disk, what now — and only the last step differs.
+  */
+enum LeaveIntent derives CanEqual:
+  case Navigate(route: Route)
+  case CloseWindow
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
@@ -56,12 +66,13 @@ trait Persistence:
           .distinct // the same comparison `documentIsDirty` makes, in Signal form
       case _ => Signal.fromValue(false)
 
-  /** The navigation this view is holding up, while the person answers (§7.4).
+  /** What this view is holding up, while the person answers (§7.4).
     *
-    * The route is kept rather than re-derived: the dialog must go where the
-    * click asked to go, and by the time it is answered the click is long gone.
+    * The destination is kept rather than re-derived: the dialog must do what
+    * was asked, and by the time it is answered the click — or the close
+    * request — is long gone.
     */
-  val pendingLeave: Var[Option[Route]] = Var(None)
+  val pendingLeave: Var[Option[LeaveIntent]] = Var(None)
 
   /** The same question as [[documentDirty]], answered now rather than observed.
     *

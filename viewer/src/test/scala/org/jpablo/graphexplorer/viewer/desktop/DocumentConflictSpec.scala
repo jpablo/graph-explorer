@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
+import org.jpablo.graphexplorer.viewer.state.{LeaveIntent, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
@@ -116,7 +116,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
 
       router.guardNavigation: route =>
         if state.documentIsDirty then
-          state.pendingLeave.set(Some(route))
+          state.pendingLeave.set(Some(LeaveIntent.Navigate(route)))
           false
         else true
 
@@ -132,7 +132,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
 
         assertEquals(
           state.pendingLeave.now(),
-          Some(Route.ProjectDetail("some-record")),
+          Some(LeaveIntent.Navigate(Route.ProjectDetail("some-record"))),
           "§7.4: the dialog must go where the click asked to go"
         )
         assertEquals(

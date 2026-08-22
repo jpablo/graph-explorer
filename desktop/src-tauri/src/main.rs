@@ -6,6 +6,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -80,6 +81,16 @@ struct IpcState {
     watch_registry: WatchRegistry,
     watch_controllers: WatchControllers,
     recent_write_hashes: RecentWriteHashes,
+    /// Whether the page holds an edit that is not on disk (§7.4).
+    ///
+    /// Reported by the page as it changes, rather than asked for at close
+    /// time. A question asked during teardown has to be answered during
+    /// teardown, and §7.4 rules that out: IPC completion is not guaranteed
+    /// then. A flag that is already correct needs no round trip.
+    unsaved: Arc<AtomicBool>,
+    /// Set by `confirm_close` once the person has answered, so the close that
+    /// follows is allowed through instead of asking again.
+    closing: Arc<AtomicBool>,
 }
 
 /// The error shape a rejected `invoke()` delivers to the page. Serialized as
@@ -336,6 +347,13 @@ fn main() {
     // no window and works at once, and anything that does need one gets a typed
     // STARTING refusal rather than a hang. See `ConnectionContext::app`.
     let app_handle: SharedAppHandle = Arc::new(OnceLock::new());
+
+    // §7.4: the page reports unsaved work as it changes, and a close is refused
+    // while it stands. Declared here so BOTH front doors see the same flag —
+    // the webview's commands set it, and `status` reports it.
+    let unsaved = Arc::new(AtomicBool::new(false));
+    let closing = Arc::new(AtomicBool::new(false));
+
     let listener = bind_control_socket().expect("failed to bind the control socket");
 
     spawn_control_server(
@@ -351,6 +369,7 @@ fn main() {
         watch_controllers.clone(),
         recent_write_hashes.clone(),
         app_handle.clone(),
+        unsaved.clone(),
     );
 
     // AFTER the bind, not before. The file names a socket, so writing it first
@@ -372,6 +391,8 @@ fn main() {
         watch_registry: watch_registry.clone(),
         watch_controllers: watch_controllers.clone(),
         recent_write_hashes: recent_write_hashes.clone(),
+        unsaved: unsaved.clone(),
+        closing: closing.clone(),
     };
 
     tauri::Builder::default()
@@ -415,11 +436,42 @@ fn main() {
             viewer_ready,
             complete_open,
             hash_text,
+            set_unsaved,
+            confirm_close,
             library_list,
             library_read,
             library_write,
             library_delete
         ])
+        .on_window_event({
+            let unsaved = unsaved.clone();
+            let closing = closing.clone();
+            move |window, event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if close_is_allowed(
+                        closing.load(std::sync::atomic::Ordering::Relaxed),
+                        unsaved.load(std::sync::atomic::Ordering::Relaxed),
+                    ) {
+                        return;
+                    }
+
+                    // §7.4: the person chooses Save, Discard or Cancel. The
+                    // window stays until they do. Tauri closes without asking
+                    // anything by default, and the page's `beforeunload` cannot
+                    // serve here — it offers one generic prompt, not three
+                    // answers, and a save it started during teardown is not
+                    // guaranteed to finish.
+                    api.prevent_close();
+                    // Through the app handle: a `Window` cannot evaluate script,
+                    // and the page lives in the webview it hosts.
+                    for webview in window.app_handle().webview_windows().values() {
+                        let _ = webview.eval(
+                            "window.dispatchEvent(new CustomEvent('ge:close.requested'));",
+                        );
+                    }
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running graph explorer desktop");
 }
@@ -879,6 +931,7 @@ fn spawn_control_server(
     watch_controllers: WatchControllers,
     recent_write_hashes: RecentWriteHashes,
     app_handle: SharedAppHandle,
+    unsaved: Arc<AtomicBool>,
 ) -> JoinHandle<()> {
     let handle = std::thread::spawn(move || {
         for stream in listener.incoming() {
@@ -905,6 +958,7 @@ fn spawn_control_server(
                 watch_controllers: watch_controllers.clone(),
                 recent_write_hashes: recent_write_hashes.clone(),
                 app_handle: app_handle.clone(),
+                unsaved: unsaved.clone(),
             };
             std::thread::spawn(move || {
                 if let Err(err) = serve_connection(stream, &context) {
@@ -937,6 +991,10 @@ struct ConnectionContext {
     watch_controllers: WatchControllers,
     recent_write_hashes: RecentWriteHashes,
     app_handle: SharedAppHandle,
+    /// Whether the page holds an edit that is not on disk (§7.4). Reported in
+    /// `status` so a script can ask before it does anything disruptive, and so
+    /// the close rule has an observable that does not need a window.
+    unsaved: Arc<AtomicBool>,
 }
 
 impl ConnectionContext {
@@ -1340,6 +1398,9 @@ struct StatusBody {
     max_body_bytes: usize,
     rate_limit_max_requests: usize,
     rate_limit_window_ms: u64,
+    /// Whether the page holds an edit that is not on disk (§7.4). A close is
+    /// refused while this is true, so it is worth being able to ask.
+    unsaved_in_page: bool,
 }
 
 fn status_body(context: &ConnectionContext) -> StatusBody {
@@ -1361,6 +1422,7 @@ fn status_body(context: &ConnectionContext) -> StatusBody {
         max_body_bytes: context.request_limits.max_body_bytes,
         rate_limit_max_requests: context.request_limits.rate_limit_max_requests,
         rate_limit_window_ms: context.request_limits.rate_limit_window.as_millis() as u64,
+        unsaved_in_page: context.unsaved.load(std::sync::atomic::Ordering::Relaxed),
     }
 }
 
@@ -1617,6 +1679,40 @@ fn complete_open(
         if let Some(sender) = pending.remove(&request_id) {
             let _ = sender.send(outcome);
         }
+    }
+}
+
+/// Whether a close may proceed without asking (§7.4).
+///
+/// A free function so the rule can be tested without a window: the decision is
+/// the part worth pinning, and the event plumbing around it is not.
+///
+/// `confirmed` means the person has already answered. `unsaved` means the page
+/// holds an edit that is not on disk. Anything else may close.
+fn close_is_allowed(confirmed: bool, unsaved: bool) -> bool {
+    confirmed || !unsaved
+}
+
+/// The page reporting whether it holds an edit that is not on disk (§7.4).
+///
+/// Pushed as it changes rather than pulled at close time. Asking during
+/// teardown means answering during teardown, and §7.4 rules that out: IPC
+/// completion is not guaranteed then, so a save started at that moment may
+/// never land. A flag that is already correct costs nothing to read.
+#[tauri::command(rename_all = "camelCase")]
+fn set_unsaved(state: tauri::State<'_, IpcState>, unsaved: bool) {
+    state.unsaved.store(unsaved, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The page saying the person has answered, and the window may go.
+///
+/// Reached after Save completed or after Discard. Cancel simply never calls
+/// this, and the window stays as it is.
+#[tauri::command(rename_all = "camelCase")]
+fn confirm_close(app: tauri::AppHandle, state: tauri::State<'_, IpcState>) {
+    state.closing.store(true, std::sync::atomic::Ordering::Relaxed);
+    for window in app.webview_windows().values() {
+        let _ = window.close();
     }
 }
 
@@ -3196,6 +3292,7 @@ mod tests {
             watch_controllers: Arc::new(Mutex::new(HashMap::new())),
             recent_write_hashes: Arc::new(Mutex::new(HashMap::new())),
             app_handle: Arc::new(OnceLock::new()),
+            unsaved: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -3510,6 +3607,17 @@ mod tests {
         let text = fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
         serde_json::from_str(&text).expect("fixture is valid JSON")
+    }
+
+    #[test]
+    fn a_close_is_refused_only_while_an_unanswered_edit_is_unsaved() {
+        // The whole table, because each row is a different failure. Refusing
+        // the wrong one traps the window open; allowing the wrong one throws
+        // away an edit with no prompt.
+        assert!(close_is_allowed(false, false), "nothing unsaved: close");
+        assert!(!close_is_allowed(false, true), "an unsaved edit must be asked about");
+        assert!(close_is_allowed(true, true), "the person already answered: close");
+        assert!(close_is_allowed(true, false), "answered and nothing unsaved: close");
     }
 
     #[test]

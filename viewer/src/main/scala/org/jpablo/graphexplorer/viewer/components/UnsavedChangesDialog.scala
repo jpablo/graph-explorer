@@ -2,8 +2,9 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.state.{SaveResult, ViewerState}
+import org.jpablo.graphexplorer.router.Router
+import org.jpablo.graphexplorer.viewer.desktop.DesktopClose
+import org.jpablo.graphexplorer.viewer.state.{LeaveIntent, SaveResult, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.{Action, Dialog, PrimaryAction, QuietAction}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,16 +19,18 @@ import scala.concurrent.ExecutionContext.Implicits.global
   * dialog runs BEFORE the navigation, and the navigation waits for the save.
   */
 def UnsavedChangesDialog(state: ViewerState, router: Router): Div =
-  def leave(route: Route): Unit =
+  def leave(intent: LeaveIntent): Unit =
     state.pendingLeave.set(None)
-    // Force, because the guard would ask the same question again and the
-    // person has already answered it.
-    router.forceNavigateTo(route)
+    intent match
+      // Force, because the guard would ask the same question again and the
+      // person has already answered it.
+      case LeaveIntent.Navigate(route) => router.forceNavigateTo(route)
+      case LeaveIntent.CloseWindow     => DesktopClose.confirm()
 
   div(
     child <-- state.pendingLeave.signal.map:
       case None => emptyNode
-      case Some(route) =>
+      case Some(intent) =>
         Dialog(onDismiss = () => state.pendingLeave.set(None))(
           div(
             h3(cls := "font-bold text-md mb-2", "Save this file?"),
@@ -37,13 +40,13 @@ def UnsavedChangesDialog(state: ViewerState, router: Router): Div =
           div(
             cls := "flex gap-2",
             QuietAction("Cancel", onClick --> state.pendingLeave.set(None)),
-            Action("Discard", onClick --> leave(route)),
+            Action("Discard", onClick --> leave(intent)),
             PrimaryAction(
               "Save",
               onClick --> state
                 .save()
                 .foreach:
-                  case SaveResult.Saved => leave(route)
+                  case SaveResult.Saved => leave(intent)
                   // The navigation is abandoned, not retried. A conflict or a
                   // failure means the edit is still the only copy, and leaving
                   // now would lose it — which is what this dialog prevents.
