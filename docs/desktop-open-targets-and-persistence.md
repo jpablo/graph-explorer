@@ -1,6 +1,6 @@
 # Desktop Open Targets and Persistence
 
-Status: Phases 0-2 implemented; Phases 3-4 proposed. Reviewed against `31b72b14` (2026-08-22).
+Status: Phases 0-3 implemented; Phase 4 proposed. Reviewed against `31b72b14` (2026-08-22).
 
 Reads with:
 
