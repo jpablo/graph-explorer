@@ -1,8 +1,10 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
+import org.jpablo.graphexplorer.projects.Library
 import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, ViewerState, ViewTarget}
 import org.scalajs.dom
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
 
 /** Wiring between the desktop shell and the current diagram view.
@@ -47,13 +49,7 @@ object DesktopBridge:
     target = Some(state)
     if !installed then
       val handler: js.Function1[dom.Event, Unit] = event =>
-        extractMessage(event).foreach: message =>
-          // Recorded FIRST, and with no viewer required. An open request routes
-          // to a SESSION, so the session has to exist before the request
-          // arrives — and an open issued on Home arrives with nothing attached,
-          // which is exactly when this used to drop the document entirely (§1).
-          val session = recordedSession(message)
-          target.foreach(applyDocumentChange(_, message, session))
+        extractMessage(event).foreach(routeDocumentChange)
 
       dom.window.addEventListener(DocumentChangedEventName, handler)
       dom.window.addEventListener(DocumentChangedFallbackEventName, handler)
@@ -103,6 +99,29 @@ object DesktopBridge:
         revision =
           DesktopIpc.asString(detailValue, "revision").orElse(DesktopIpc.asString(payloadValue, "revision"))
       )
+
+  /** Where a document event goes (§8, item 6).
+    *
+    * Separated from the listener so the decision is testable without a window,
+    * a viewer, or a desktop.
+    */
+  private[desktop] def routeDocumentChange(message: DesktopMessage): Unit =
+    message.path.filter(Library.recordsBoundTo(_).nonEmpty) match
+      case Some(path) =>
+        // A BOUND origin. The record owns this file (§2), so the change
+        // reconciles against the record and reaches the screen only if the
+        // record adopts it. Treating it as a loose file here would open a
+        // second, competing copy of a diagram the library already holds.
+        OriginReconciler.reconcile(path, message.text, message.revision.getOrElse(""))
+        ()
+      case None =>
+        // A loose file, or a text push. Recorded FIRST, and with no viewer
+        // required: an open request routes to a SESSION, so the session has to
+        // exist before the request arrives — and an open issued on Home arrives
+        // with nothing attached, which is exactly when this used to drop the
+        // document entirely (§1).
+        val session = recordedSession(message)
+        target.foreach(applyDocumentChange(_, message, session))
 
   /** What a document event does to the viewer that is showing that file (§7.3).
     *
