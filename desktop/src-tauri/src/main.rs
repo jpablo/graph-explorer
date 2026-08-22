@@ -714,6 +714,45 @@ struct WatchRequest {
     _open_in_ui: Option<bool>,
 }
 
+/// What `gx open` decided a reference means (§3.1).
+///
+/// `show` carries this instead of a bare path, because a library record and a
+/// loose file have different owners and different persistence rules, and the
+/// path alone cannot tell them apart. Resolving both to a path is what let an
+/// open request lose its record identity — and let an unbound record be
+/// unopenable, since it has no path to resolve to.
+///
+/// Typed only, by decision: `gx` and this shell ship in one release, so a
+/// mixed pair is a version mismatch rather than a shape to negotiate.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+enum OpenTarget {
+    Library {
+        #[serde(rename = "diagramId")]
+        diagram_id: String,
+    },
+    File {
+        path: String,
+    },
+}
+
+#[derive(Debug, Deserialize)]
+struct ShowRequest {
+    target: OpenTarget,
+}
+
+/// Asks the page to display a target it alone can resolve.
+///
+/// A library record is not a file operation: it may have no origin at all, and
+/// even when it has one the record is authoritative (§2). So the shell does not
+/// watch anything here — it names the record and lets the page route to it.
+#[derive(Debug, Serialize)]
+struct OpenRequestedPayload {
+    kind: String,
+    #[serde(rename = "diagramId", skip_serializing_if = "Option::is_none")]
+    diagram_id: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct UnwatchRequest {
     path: String,
@@ -1057,16 +1096,64 @@ fn dispatch_method(
             Err(err) => RpcResponse::failure(id, "INTERNAL", err),
         },
 
-        "watch" | "show" => {
+        // `show` carries a TYPED target (§3.1); `watch` is a plain file
+        // operation and keeps its path. They stopped being the same request the
+        // moment an open could name a library record that has no path at all.
+        "show" => {
+            let request: ShowRequest = match serde_json::from_value(params) {
+                Ok(request) => request,
+                Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
+            };
+
+            let app = match context.app() {
+                Ok(app) => app,
+                Err((code, message)) => return RpcResponse::failure(id, code, message),
+            };
+
+            match request.target {
+                // A record is the page's to resolve: it may have no origin, and
+                // even with one the RECORD is authoritative (§2). Nothing is
+                // watched here.
+                OpenTarget::Library { diagram_id } => {
+                    let payload = OpenRequestedPayload {
+                        kind: "library".to_string(),
+                        diagram_id: Some(diagram_id.clone()),
+                    };
+                    if let Err(err) = emit_open_requested_event(app, &payload) {
+                        context.audit_logger.log_event(
+                            "show.rejected",
+                            Some(&diagram_id),
+                            Some("open"),
+                            "rejected",
+                            None,
+                            Some(&err.to_string()),
+                        );
+                        return RpcResponse::failure(id, "NO_WINDOW", err);
+                    }
+                    let focused = focus_main_window(app);
+                    context.audit_logger.log_event(
+                        "show.library",
+                        Some(&diagram_id),
+                        Some("open"),
+                        "ok",
+                        None,
+                        None,
+                    );
+                    RpcResponse::success(
+                        id,
+                        serde_json::json!({ "kind": "library", "diagramId": diagram_id, "focused": focused }),
+                    )
+                }
+
+                OpenTarget::File { path } => show_file(id, &path, context, app),
+            }
+        }
+
+        "watch" => {
             let request: WatchRequest = match serde_json::from_value(params) {
                 Ok(request) => request,
                 Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
             };
-            // `show` is `watch` plus a window: the session tier (D7.2) is not a
-            // different document operation, it is the same one with the view
-            // brought forward. Sharing the path is what keeps `gx open` and a
-            // UI open from drifting into two behaviours.
-            let source = if method == "show" { "open" } else { "api" };
             // Watching means telling a page, so this one needs the window.
             let app = match context.app() {
                 Ok(app) => app,
@@ -1080,61 +1167,17 @@ fn dispatch_method(
                 &context.audit_logger,
                 app,
                 &request.path,
-                source,
+                "api",
             ) {
-                Ok(outcome) => {
-                    let watch = outcome.watch;
-                    let mut focused = true;
-                    if method == "show" {
-                        // Registration is idempotent; DISPLAY is not. A watch
-                        // that already existed emitted no document event above,
-                        // so without this a second `gx open` only raised the
-                        // window and left the previous document on screen.
-                        if !outcome.created {
-                            if let Err(err) = activate_document(app, &watch) {
-                                context.audit_logger.log_event(
-                                    "show.rejected",
-                                    Some(&watch.path),
-                                    Some(source),
-                                    "rejected",
-                                    None,
-                                    Some(&err.to_string()),
-                                );
-                                return RpcResponse::failure(id, "NO_WINDOW", err);
-                            }
-                        }
-
-                        // Do not report a show that reached no page. This is the
-                        // narrow half of §4's item 7: an emitted event is still
-                        // not proof the right viewer displayed the document —
-                        // that needs the acknowledgment handshake in Phase 1 —
-                        // but claiming success with no window at all was simply
-                        // false.
-                        if app.webview_windows().is_empty() {
-                            return RpcResponse::failure(
-                                id,
-                                "NO_WINDOW",
-                                anyhow::anyhow!("the desktop has no window to show it in"),
-                            );
-                        }
-
-                        focused = focus_main_window(app);
-                    }
-                    match serde_json::to_value(&watch) {
-                        Ok(mut value) => {
-                            if let Some(object) = value.as_object_mut() {
-                                object.insert("focused".to_string(), serde_json::Value::Bool(focused));
-                            }
-                            RpcResponse::success(id, value)
-                        }
-                        Err(err) => RpcResponse::failure(id, "INTERNAL", err),
-                    }
-                }
+                // Registration only. `watch` is resource observation, not
+                // display (§12), so it never activates a document and never
+                // changes what the window is showing.
+                Ok(outcome) => watch_response(id, &outcome.watch, true),
                 Err(err) => {
                     context.audit_logger.log_event(
                         "watch.rejected",
                         Some(&request.path),
-                        Some(source),
+                        Some("api"),
                         "rejected",
                         None,
                         Some(&err.to_string()),
@@ -1954,6 +1997,89 @@ fn activate_document(app_handle: &tauri::AppHandle, watch: &WatchDescriptor) -> 
     emit_document_changed_event(app_handle, &payload)
 }
 
+/// The `show` path for a LOOSE FILE: watch it, put it on screen, raise the
+/// window — and refuse to call any of that a success if there is no page.
+fn show_file(
+    id: Option<serde_json::Value>,
+    path: &str,
+    context: &ConnectionContext,
+    app: &tauri::AppHandle,
+) -> RpcResponse {
+    match add_watch(
+        &context.access_policy,
+        &context.watch_registry,
+        &context.watch_controllers,
+        &context.recent_write_hashes,
+        &context.audit_logger,
+        app,
+        path,
+        "open",
+    ) {
+        Ok(outcome) => {
+            // Registration is idempotent; DISPLAY is not (§4.2). A watch that
+            // already existed emitted no document event, so without this a
+            // second `gx open` only raised the window and left the previous
+            // document on screen.
+            if !outcome.created {
+                if let Err(err) = activate_document(app, &outcome.watch) {
+                    context.audit_logger.log_event(
+                        "show.rejected",
+                        Some(&outcome.watch.path),
+                        Some("open"),
+                        "rejected",
+                        None,
+                        Some(&err.to_string()),
+                    );
+                    return RpcResponse::failure(id, "NO_WINDOW", err);
+                }
+            }
+
+            // An emitted event is still not proof the right viewer displayed
+            // it — that needs the acknowledgment handshake in §4 — but claiming
+            // success with no window at all was simply false.
+            if app.webview_windows().is_empty() {
+                return RpcResponse::failure(
+                    id,
+                    "NO_WINDOW",
+                    anyhow::anyhow!("the desktop has no window to show it in"),
+                );
+            }
+
+            let focused = focus_main_window(app);
+            watch_response(id, &outcome.watch, focused)
+        }
+        Err(err) => {
+            context.audit_logger.log_event(
+                "watch.rejected",
+                Some(path),
+                Some("open"),
+                "rejected",
+                None,
+                Some(&err.to_string()),
+            );
+            RpcResponse::failure(id, "WATCH_FAILED", err)
+        }
+    }
+}
+
+/// The descriptor plus whether a window came forward, which is what both
+/// `watch` and a file `show` answer with.
+fn watch_response(
+    id: Option<serde_json::Value>,
+    watch: &WatchDescriptor,
+    focused: bool,
+) -> RpcResponse {
+    match serde_json::to_value(watch) {
+        Ok(mut value) => {
+            if let Some(object) = value.as_object_mut() {
+                object.insert("focused".to_string(), serde_json::Value::Bool(focused));
+            }
+            RpcResponse::success(id, value)
+        }
+        Err(err) => RpcResponse::failure(id, "INTERNAL", err),
+    }
+}
+
 fn remove_watch(
     watch_registry: &WatchRegistry,
     watch_controllers: &WatchControllers,
@@ -2111,6 +2237,29 @@ fn document_changed_script(payload: &DocumentChangedEventPayload) -> Result<Stri
          window.dispatchEvent(new CustomEvent('document.changed', {{ detail: {payload} }}));",
         payload = payload_json
     ))
+}
+
+fn open_requested_script(payload: &OpenRequestedPayload) -> Result<String> {
+    let payload_json =
+        serde_json::to_string(payload).context("failed to serialize open request")?;
+    Ok(format!(
+        "window.dispatchEvent(new CustomEvent('ge:open.requested', {{ detail: {payload} }}));",
+        payload = payload_json
+    ))
+}
+
+fn emit_open_requested_event(
+    app_handle: &tauri::AppHandle,
+    payload: &OpenRequestedPayload,
+) -> Result<()> {
+    let script = open_requested_script(payload)?;
+    let windows = app_handle.webview_windows();
+    if windows.is_empty() {
+        return Err(anyhow::anyhow!("no webview windows are available"));
+    }
+    windows
+        .values()
+        .try_for_each(|webview| webview.eval(&script).map_err(anyhow::Error::from))
 }
 
 fn emit_document_changed_event(

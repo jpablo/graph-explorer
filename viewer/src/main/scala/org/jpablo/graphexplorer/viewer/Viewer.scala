@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.projects.{DesktopLibrary, DesktopMigration, Libr
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
-import org.jpablo.graphexplorer.viewer.desktop.{DesktopBridge, DesktopIpc, SessionCommands}
+import org.jpablo.graphexplorer.viewer.desktop.{DesktopBridge, DesktopIpc, DesktopOpenRequests, SessionCommands}
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window, URLSearchParams}
@@ -27,6 +27,11 @@ object Viewer:
     val infos      = EventBus[String]()
     val router     = Router()
     val routerCmds = RouterCommands(router)
+
+    // Installed once, at the window level rather than per view: an open request
+    // routinely arrives while the app is on Home, which is precisely when there
+    // is no viewer to deliver it to.
+    DesktopOpenRequests.install(router.navigateTo)
 
     var lastRightPanelSection = RightPanelSection.none
     var lastLeftPanelVisible  = false

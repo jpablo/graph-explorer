@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.router.Route
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
@@ -155,6 +156,35 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
       Some(DesktopBridge.DocumentRef("/tmp/a.dot", "f00d"))
     )
     DesktopBridge.reset()
+
+  // ------------------------------------------- Phase 1: typed open targets
+
+  private def openEvent(detail: js.Dynamic): dom.Event =
+    js.Dynamic.literal(detail = detail).asInstanceOf[dom.Event]
+
+  test("a library open request routes to that record, by id"):
+    // The whole point of the typed target: the id survives the trip. `gx open`
+    // used to resolve every reference to a PATH and discard the diagram id, so
+    // an open could not say which record it meant — and an unbound record,
+    // having no path, could not be opened at all.
+    val route = DesktopOpenRequests.route(
+      openEvent(js.Dynamic.literal(kind = "library", diagramId = "architecture"))
+    )
+    assertEquals(route, Some(Route.ProjectDetail("architecture")))
+
+  test("an open request we cannot act on navigates nowhere"):
+    // Untrusted input from outside the page. Guessing a route would navigate
+    // away from whatever the user is looking at, which is strictly worse than
+    // ignoring a request that names nothing.
+    val unusable = List(
+      js.Dynamic.literal(kind = "library"),                       // no id
+      js.Dynamic.literal(kind = "library", diagramId = "   "),    // blank id
+      js.Dynamic.literal(kind = "loose-file", diagramId = "x"),   // newer shell
+      js.Dynamic.literal(diagramId = "architecture"),             // no kind
+      js.Dynamic.literal()
+    )
+    for detail <- unusable do
+      assertEquals(DesktopOpenRequests.route(openEvent(detail)), None, s"detail: $detail")
 
   // ------------------------------------------------ Phase 0: target lifetime
   //

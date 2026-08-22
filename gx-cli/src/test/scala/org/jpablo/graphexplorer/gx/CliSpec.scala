@@ -478,36 +478,56 @@ class CliSpec extends FunSuite:
     val (method, params) = r.sent.head
     assertEquals(method, "show")
     // The path is resolved against the user's cwd before it is sent: the
-    // desktop's working directory is an artifact of how it was launched.
-    assertEquals(params("path").str, f.toString)
+    // desktop's working directory is an artifact of how it was launched. It now
+    // travels inside a TYPED target — a bare path could not say whether it
+    // meant a record or a loose file.
+    assertEquals(params("target")("kind").str, "file")
+    assertEquals(params("target")("path").str, f.toString)
     assert(r.stdout.contains("showing"), r.stdout)
   }
 
   /** A library reference is not a path. The desktop only understands files, so
     * `open my-diagram` has to resolve through the binding.
     */
-  tmp.test("open resolves a library diagram to the file it is bound to") { dir =>
-    val f = dot(dir, "bound.dot")
+  /** Replaces "open resolves a library diagram to the file it is bound to".
+    *
+    * It no longer does, on purpose. Flattening a record to its origin path is
+    * what discarded the record identity (§1): the desktop received a path and
+    * could not tell whether it was meant as a record or as a loose file, so an
+    * incoming file could persist into whichever record was displayed. A BOUND
+    * record still opens as a record; `--loose` is how you ask for the file.
+    */
+  tmp.test("a bound record still opens as a RECORD, not as its origin path") { dir =>
+    dot(dir, "bound.dot")
     val i = Run(dir)
     assertEquals(i("import", "bound.dot"), ExitCode.Ok, i.stderr)
+    val id = i.store.list().head.id
 
     val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
     assertEquals(r("open", "bound"), ExitCode.Ok, r.stderr)
-    assertEquals(r.sent.head._2("path").str, f.toString)
+    val params = r.sent.head._2
+    assertEquals(params("target")("kind").str, "library")
+    assertEquals(params("target")("diagramId").str, id.value)
   }
 
-  tmp.test("open refuses a diagram with no origin, and says how to fix it") { dir =>
+  /** Replaces "open refuses a diagram with no origin, and says how to fix it".
+    *
+    * That refusal was only ever true because an open could name nothing but a
+    * path, so a record without one had nothing to send. A record carries its
+    * own text and is perfectly displayable (§3.2), and now the request names
+    * the record itself. The unbound case is asserted under "an UNBOUND record
+    * can be opened" below.
+    */
+  tmp.test("an unbound record is opened, not refused for lacking an origin") { dir =>
     dot(dir, "detached.dot")
     val i = Run(dir)
     assertEquals(i("import", "detached.dot"), ExitCode.Ok, i.stderr)
     assertEquals(i("unbind", "detached"), ExitCode.Ok, i.stderr)
 
     val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
-    assertEquals(r("open", "detached"), ExitCode.InvalidPathOrPolicy, r.stdout)
-    assert(r.stderr.contains("not bound to a file"), r.stderr)
-    assert(r.stderr.contains("gx bind"), r.stderr)
-    // And it never asked the desktop: there was nothing to ask about.
-    assert(r.sent.isEmpty, s"should not have called the desktop: ${r.sent}")
+    assertEquals(r("open", "detached"), ExitCode.Ok, r.stdout)
+    assert(!r.stderr.contains("not bound to a file"), r.stderr)
+    assertEquals(r.sent.head._2("target")("kind").str, "library")
   }
 
   /** A desktop can be up with no window on screen. `show` reports which
@@ -536,6 +556,68 @@ class CliSpec extends FunSuite:
     * be reported as one: nothing about the request needs fixing, and the user's
     * next move is to bring the window up.
     */
+  // ------------------------------------------- Phase 1: typed open targets
+
+  tmp.test("open sends a LIBRARY target, keeping the record identity") { dir =>
+    dot(dir, "arch.dot")
+    val i = Run(dir)
+    i("import", "arch.dot")
+    val id = i.store.list().head.id
+
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
+    assertEquals(r("open", "arch"), ExitCode.Ok, r.stderr)
+
+    val (method, params) = r.sent.head
+    assertEquals(method, "show")
+    assertEquals(params("target")("kind").str, "library")
+    assertEquals(params("target")("diagramId").str, id.value)
+    assert(!params.value.contains("path"), "a library open still sent a bare path")
+  }
+
+  /** Was refused outright: "not bound to a file, so there is nothing to open".
+    * True only while an open could name nothing but a path — the record has
+    * text of its own and is perfectly displayable (§3.2).
+    */
+  tmp.test("an UNBOUND record can be opened") { dir =>
+    dot(dir, "arch.dot")
+    val i = Run(dir)
+    i("import", "arch.dot")
+    val id = i.store.list().head.id
+    i("unbind", id.value)
+    assert(!i.store.list().head.isBound, "precondition: the record has no origin")
+
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
+    assertEquals(r("open", id.value), ExitCode.Ok, r.stderr)
+    assertEquals(r.sent.head._2("target")("kind").str, "library")
+  }
+
+  tmp.test("a path nothing has imported sends a FILE target") { dir =>
+    val f = dot(dir, "loose.dot")
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
+    assertEquals(r("open", "loose.dot"), ExitCode.Ok, r.stderr)
+
+    val params = r.sent.head._2
+    assertEquals(params("target")("kind").str, "file")
+    assertEquals(params("target")("path").str, f.toString)
+  }
+
+  /** §3.3's escape hatch. Without it there is no way to say "the file, not the
+    * record bound to it" — and opening a loose file must never import it.
+    */
+  tmp.test("--loose opens the file even when a record is bound to that path") { dir =>
+    val f = dot(dir, "arch.dot")
+    val i = Run(dir)
+    i("import", "arch.dot")
+
+    val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
+    assertEquals(r("open", "arch.dot", "--loose"), ExitCode.Ok, r.stderr)
+
+    val params = r.sent.head._2
+    assertEquals(params("target")("kind").str, "file", "--loose still resolved to the record")
+    assertEquals(params("target")("path").str, f.toString)
+    assertEquals(i.store.list().size, 1, "--loose imported something")
+  }
+
   tmp.test("a desktop with no window to show it in needs a desktop, it did not refuse the path") { dir =>
     dot(dir, "arch.dot")
     val r = Run(

@@ -38,6 +38,20 @@ private enum RefError derives CanEqual:
   */
 private case class SyncOutcome(diagram: Diagram, state: SyncState, failure: Option[String])
 
+/** What `gx open` decided a reference means (§3.1 of
+  * docs/desktop-open-targets-and-persistence.md).
+  *
+  * Distinct from [[Target]], which answers "library record or file on disk?"
+  * for the document tier. This one crosses the wire: the desktop has to know
+  * which it was given, because a record and a loose file have different owners
+  * and different persistence rules, and a path cannot tell them apart. Sending
+  * only a path is what made an open lose its record identity — and made an
+  * UNBOUND record unopenable, since it has no path to send.
+  */
+private enum OpenTarget derives CanEqual:
+  case Library(id: DiagramId)
+  case File(path: Path)
+
 /** What a reference on the command line turned out to mean. */
 private enum Target derives CanEqual:
   case InLibrary(diagram: Diagram)
@@ -72,7 +86,9 @@ object Cli:
       |  gx watch [<ref>...] [--all] [--json]   stream changes to stdout
       |  gx run <ref> <command> [--params J]    a document or record command
       |  gx session <command> [--params J]      act on the LIVE view (needs a desktop)
-      |  gx open <ref>                          show it in the desktop
+      |  gx open <ref> [--loose]                show it in the desktop
+      |                                         (--loose: the FILE at that path,
+      |                                          never the record bound to it)
       |
       |  gx skill [<version>] [--latest]        where the agent skill lives
       |
@@ -814,16 +830,39 @@ object Cli:
     else
       // Resolved BEFORE the desktop is consulted: a typo'd name should say so,
       // not blame a missing window.
-      pathToShow(args, env) match
+      openTarget(args, env) match
         case Left(code) => code
-        case Right(path) =>
-          env.rpc("show", ujson.Obj("path" -> path.toString)) match
+        case Right(target) =>
+          // Typed, not a bare path (§3.1). Which KIND this is decides who owns
+          // the document on the other side, and the desktop cannot infer that
+          // from a path.
+          val payload = target match
+            case OpenTarget.Library(id) =>
+              ujson.Obj("target" -> ujson.Obj("kind" -> "library", "diagramId" -> id.value))
+            case OpenTarget.File(path) =>
+              ujson.Obj("target" -> ujson.Obj("kind" -> "file", "path" -> path.toString))
+
+          val shown = target match
+            case OpenTarget.Library(id) => id.value
+            case OpenTarget.File(path)  => path.toString
+
+          env.rpc("show", payload) match
             case Right(result) =>
               val focused = result.objOpt.flatMap(_.get("focused")).flatMap(_.boolOpt).getOrElse(true)
               if args.json then
-                env.out(ujson.Obj("path" -> path.toString, "focused" -> focused).render(indent = 2))
+                env.out(
+                  ujson
+                    .Obj(
+                      "kind"    -> (target match
+                        case _: OpenTarget.Library => "library"
+                        case _: OpenTarget.File    => "file"),
+                      "ref"     -> shown,
+                      "focused" -> focused
+                    )
+                    .render(indent = 2)
+                )
               else
-                env.out(s"showing ${path}")
+                env.out(s"showing $shown")
                 // A desktop can be running with no window on screen. Saying so
                 // beats reporting success for something the user cannot see.
                 if !focused then env.err("gx: the desktop is running but has no window to raise")
@@ -856,19 +895,25 @@ object Cli:
     * or a path — but the desktop only understands files, so a library diagram
     * has to resolve to the origin it is bound to.
     */
-  private def pathToShow(args: Args, env: CliEnv): Either[Int, Path] =
+  private def openTarget(args: Args, env: CliEnv): Either[Int, OpenTarget] =
     val ref = args.positional.head
-    resolveRef(ref, env) match
-      case Left(err: RefError.Ambiguous) => Left(reportRef(err, env))
-      case Right(d) =>
-        d.binding.flatMap(_.origin.filePath).map(Paths.get(_)) match
-          case Some(path) => Right(path)
-          case None =>
-            env.err(s"gx: '${d.name}' is not bound to a file, so there is nothing to open")
-            env.err(s"gx: bind it first:  gx bind ${d.id.value} <path>")
-            Left(ExitCode.InvalidPathOrPolicy)
-      case Left(_: RefError.NotFound) =>
-        checkPolicy(env.cwd.resolve(ref), env)
+
+    // `--loose` is the escape hatch of §3.3: open the FILE at this path, even
+    // if a record is bound to it. Without it there is no way to say "the file,
+    // not the record" — and opening a loose file must never import it.
+    if args.has("loose") then checkPolicy(env.cwd.resolve(ref), env).map(OpenTarget.File(_))
+    else
+      resolveRef(ref, env) match
+        case Left(err: RefError.Ambiguous) => Left(reportRef(err, env))
+
+        // A record opens AS a record, bound or not. It used to be refused when
+        // it had no origin ("nothing to open"), which was only true while an
+        // open could name nothing but a path: the record has text of its own
+        // and is perfectly displayable (§3.2).
+        case Right(d) => Right(OpenTarget.Library(d.id))
+
+        case Left(_: RefError.NotFound) =>
+          checkPolicy(env.cwd.resolve(ref), env).map(OpenTarget.File(_))
 
   // -------------------------------------------------------------- skill
 
