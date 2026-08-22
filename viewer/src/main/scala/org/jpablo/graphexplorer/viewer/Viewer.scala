@@ -168,7 +168,14 @@ object Viewer:
           SessionCommands.attach(state)
 
           TopLevel(state, router, Commands(state, routerCmds), exampleName.map(exampleBanner(_, state, routerCmds)))
-            .amend(onUnmountCallback(_ => viewOwner.killSubscriptions()))
+            .amend(onUnmountCallback { _ =>
+              // Both targets are process-global and used to outlive the view
+              // that set them, so a file event or a session query after
+              // navigation was answered by a viewer nobody was looking at.
+              DesktopBridge.detach(state)
+              SessionCommands.detach(state)
+              viewOwner.killSubscriptions()
+            })
 
         val app =
           div(

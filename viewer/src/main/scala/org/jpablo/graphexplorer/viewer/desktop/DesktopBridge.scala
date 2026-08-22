@@ -36,13 +36,40 @@ object DesktopBridge:
 
   private[desktop] def currentDocumentRef: Option[DocumentRef] = documentRef
 
+  /** Release a viewer that is going away, so nothing keeps talking to it.
+    *
+    * The listener is process-global while the target moves with navigation, so
+    * without this an unmounted viewer stays the target and every later file
+    * event is applied to it — which is how opening a loose file could write its
+    * source into whichever library record was last displayed.
+    *
+    * The identity check is not defensive padding. Laminar mounts the incoming
+    * view BEFORE unmounting the outgoing one, so the old viewer's detach
+    * arrives after the new one has already attached; clearing unconditionally
+    * would drop the live target and leave the window deaf. Reference identity
+    * (`eq`) is the question being asked — is this still the same object.
+    */
+  def detach(state: ViewerState): Unit =
+    if target.exists(_ eq state) then
+      target = None
+      // The destination goes with its owner. A documentRef that outlives the
+      // viewer is exactly the stale ⌘S target this phase exists to remove.
+      documentRef = None
+
   def attach(state: ViewerState)(using ExecutionContext): Unit =
     target = Some(state)
     if !installed then
       val handler: js.Function1[dom.Event, Unit] = event =>
         extractMessage(event).foreach: message =>
-          updateDocumentRef(message)
-          target.foreach(_.replaceSourceDetectingFormat(message.text))
+          target match
+            case Some(state) =>
+              updateDocumentRef(message)
+              state.replaceSourceDetectingFormat(message.text)
+            case None =>
+              // No live viewer owns this file. Recording the ref anyway would
+              // leave ⌘S aimed at a document nothing is displaying — a write
+              // to a file the user is not looking at.
+              dom.console.debug("Desktop bridge: document event with no attached viewer, ignored.")
 
       dom.window.addEventListener(DocumentChangedEventName, handler)
       dom.window.addEventListener(DocumentChangedFallbackEventName, handler)

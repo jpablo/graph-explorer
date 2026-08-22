@@ -1,9 +1,12 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
+import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.scalajs.js
 
 /** V-11 from the webview's side: the page holds no credential, and the payload
@@ -13,7 +16,7 @@ import scala.scalajs.js
   * `document.changed` script it evaluates in this page. Together they cover
   * both directions of the boundary.
   */
-class DesktopIpcSpec extends FunSuite:
+class DesktopIpcSpec extends FunSuite with TestHelpers:
 
   /** Install a fake `window.__TAURI__.core.invoke` that records what it was
     * called with and resolves/rejects on demand.
@@ -152,3 +155,79 @@ class DesktopIpcSpec extends FunSuite:
       Some(DesktopBridge.DocumentRef("/tmp/a.dot", "f00d"))
     )
     DesktopBridge.reset()
+
+  // ------------------------------------------------ Phase 0: target lifetime
+  //
+  // The listener is process-global while the target moves with navigation. With
+  // nothing ever releasing the target, an unmounted viewer stayed attached and
+  // kept receiving file events — the mechanism behind a loose file's source
+  // being persisted into whichever library record was last displayed.
+
+  test("detaching the attached viewer clears the target and its save destination"):
+    withGraphvizAsync { graphviz =>
+      DesktopBridge.reset()
+      val state = ViewerState(ProjectId("detach-me"), graphviz)
+      DesktopBridge.attach(state)
+      DesktopBridge.updateDocumentRef(
+        DesktopBridge.DesktopMessage("digraph {}", Some("/tmp/a.dot"), Some("f00d"))
+      )
+      assert(DesktopBridge.currentDocumentRef.isDefined, "precondition: a destination exists")
+
+      DesktopBridge.detach(state)
+
+      assertEquals(
+        DesktopBridge.currentDocumentRef,
+        None,
+        "the ⌘S destination outlived the viewer that owned it"
+      )
+      DesktopBridge.reset()
+      Future.unit
+    }
+
+  /** Laminar mounts the incoming view BEFORE unmounting the outgoing one, so
+    * the old viewer's detach arrives after the new one has attached. Clearing
+    * unconditionally would drop the live target and leave the window deaf.
+    */
+  test("a detach from a viewer that is no longer current leaves the live one alone"):
+    withGraphvizAsync { graphviz =>
+      DesktopBridge.reset()
+      val leaving  = ViewerState(ProjectId("leaving"), graphviz)
+      val arriving = ViewerState(ProjectId("arriving"), graphviz)
+
+      DesktopBridge.attach(leaving)
+      DesktopBridge.attach(arriving) // navigation: the new view mounts first
+      DesktopBridge.updateDocumentRef(
+        DesktopBridge.DesktopMessage("digraph {}", Some("/tmp/b.dot"), Some("beef"))
+      )
+
+      DesktopBridge.detach(leaving) // ...and only then does the old one unmount
+
+      assertEquals(
+        DesktopBridge.currentDocumentRef,
+        Some(DesktopBridge.DocumentRef("/tmp/b.dot", "beef")),
+        "a stale detach tore down the viewer that had just arrived"
+      )
+      DesktopBridge.reset()
+      Future.unit
+    }
+
+  test("the session tier releases a detached viewer, and keeps a current one"):
+    withGraphvizAsync { graphviz =>
+      SessionCommands.reset()
+      val leaving  = ViewerState(ProjectId("s-leaving"), graphviz)
+      val arriving = ViewerState(ProjectId("s-arriving"), graphviz)
+
+      SessionCommands.attach(leaving)
+      SessionCommands.detach(leaving)
+      assertEquals(SessionCommands.currentTarget, None, "the session tier kept a departed viewer")
+
+      SessionCommands.attach(leaving)
+      SessionCommands.attach(arriving)
+      SessionCommands.detach(leaving)
+      assert(
+        SessionCommands.currentTarget.exists(_ eq arriving),
+        "a stale detach cleared the viewer that is actually on screen"
+      )
+      SessionCommands.reset()
+      Future.unit
+    }

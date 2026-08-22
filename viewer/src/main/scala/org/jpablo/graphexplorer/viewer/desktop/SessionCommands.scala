@@ -53,9 +53,23 @@ object SessionCommands:
     install()
     target = Some(state)
 
+  /** Let go of a viewer that is unmounting, so the tier answers "nothing is
+    * open" rather than reporting on a diagram that left the screen.
+    *
+    * The listener deliberately stays installed — see [[attach]]'s note: a page
+    * on its library route must still be able to answer instantly. Only the
+    * target goes. Identity-checked for the same reason as
+    * [[DesktopBridge.detach]]: the incoming view mounts before the outgoing one
+    * unmounts, so an unconditional clear would discard the live target.
+    */
+  def detach(state: ViewerState): Unit =
+    if target.exists(_ eq state) then target = None
+
   private[desktop] def reset(): Unit =
     installed = false
     target = None
+
+  private[desktop] def currentTarget: Option[ViewerState] = target
 
   private def handle(event: dom.Event): Unit =
     val detail = event.asInstanceOf[js.Dynamic].selectDynamic("detail")
