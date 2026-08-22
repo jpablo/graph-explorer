@@ -531,6 +531,23 @@ class CliSpec extends FunSuite:
     assert(r.stderr.contains("blocked by denylist"), r.stderr)
   }
 
+  /** The desktop may be up with no window — the socket answers from process
+    * start, before the webview exists. That is not a bad path, so it must not
+    * be reported as one: nothing about the request needs fixing, and the user's
+    * next move is to bring the window up.
+    */
+  tmp.test("a desktop with no window to show it in needs a desktop, it did not refuse the path") { dir =>
+    dot(dir, "arch.dot")
+    val r = Run(
+      dir,
+      answer = (_, _) =>
+        Left(ChannelError.Rpc("NO_WINDOW", "the desktop has no window to show it in", ujson.Obj()))
+    )
+    assertEquals(r("open", "arch.dot"), ExitCode.NeedsDesktop, r.stderr)
+    assert(r.stderr.contains("no window"), r.stderr)
+    assert(!r.stderr.contains("refused"), "a missing window read as a rejected path")
+  }
+
   tmp.test("status says what the desktop is WATCHING, not what it has open") { dir =>
     // The number is the desktop's watch registry. It was labelled "open",
     // which reads as "your diagram is on screen" — and an imported diagram is

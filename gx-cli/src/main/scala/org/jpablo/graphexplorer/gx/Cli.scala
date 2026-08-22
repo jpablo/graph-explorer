@@ -835,6 +835,15 @@ object Cli:
               env.err(s"gx: ($detail)")
               ExitCode.NeedsDesktop
 
+            // A desktop that is up but has no window to show it in. Not the
+            // same as refusing the path: nothing is wrong with what was asked,
+            // and the user's next move is to bring the app up rather than to
+            // fix an argument — which is what NeedsDesktop already means.
+            case Left(ChannelError.Rpc("NO_WINDOW", message, _)) =>
+              env.err(s"gx: the desktop is running but has no window to show it in ($message)")
+              env.err("gx: open the Graph Explorer window, then retry")
+              ExitCode.NeedsDesktop
+
             case Left(ChannelError.Rpc(code, message, _)) =>
               env.err(s"gx: the desktop refused to open it ($code): $message")
               ExitCode.InvalidPathOrPolicy

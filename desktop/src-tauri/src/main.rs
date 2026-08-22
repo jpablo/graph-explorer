@@ -127,6 +127,8 @@ fn open_document(
     )
     .map_err(|err| IpcError::new("WATCH_FAILED", err))?;
 
+    // The UI reads the bytes from the snapshot below, so it needs no activation
+    // event either way.
     get_document_snapshot(&state.watch_registry, &path)
         .map_err(|err| IpcError::new("DOCUMENT_READ_FAILED", err))
 }
@@ -1060,9 +1062,42 @@ fn dispatch_method(
                 &request.path,
                 source,
             ) {
-                Ok(watch) => {
+                Ok(outcome) => {
+                    let watch = outcome.watch;
                     let mut focused = true;
                     if method == "show" {
+                        // Registration is idempotent; DISPLAY is not. A watch
+                        // that already existed emitted no document event above,
+                        // so without this a second `gx open` only raised the
+                        // window and left the previous document on screen.
+                        if !outcome.created {
+                            if let Err(err) = activate_document(app, &watch) {
+                                context.audit_logger.log_event(
+                                    "show.rejected",
+                                    Some(&watch.path),
+                                    Some(source),
+                                    "rejected",
+                                    None,
+                                    Some(&err.to_string()),
+                                );
+                                return RpcResponse::failure(id, "NO_WINDOW", err);
+                            }
+                        }
+
+                        // Do not report a show that reached no page. This is the
+                        // narrow half of §4's item 7: an emitted event is still
+                        // not proof the right viewer displayed the document —
+                        // that needs the acknowledgment handshake in Phase 1 —
+                        // but claiming success with no window at all was simply
+                        // false.
+                        if app.webview_windows().is_empty() {
+                            return RpcResponse::failure(
+                                id,
+                                "NO_WINDOW",
+                                anyhow::anyhow!("the desktop has no window to show it in"),
+                            );
+                        }
+
                         focused = focus_main_window(app);
                     }
                     match serde_json::to_value(&watch) {
@@ -1782,6 +1817,33 @@ fn infer_format_from_path(path: &str) -> String {
     }
 }
 
+/// The descriptor already registered for this path, if any.
+///
+/// Split out so the "is it already watched?" decision is testable without a
+/// running window: taking this branch is exactly what made a second `gx open`
+/// on a live path emit nothing and merely raise the window.
+fn existing_watch(
+    watch_registry: &WatchRegistry,
+    normalized: &str,
+) -> Result<Option<WatchDescriptor>> {
+    let registry = watch_registry
+        .lock()
+        .map_err(|err| anyhow::anyhow!("watch registry lock poisoned: {err}"))?;
+    Ok(registry.get(normalized).cloned())
+}
+
+/// A watch, and whether THIS call is what created it.
+///
+/// Registration and display activation are different operations (§4.2 of
+/// docs/desktop-open-targets-and-persistence.md). Registration is idempotent;
+/// activation must reach the page every time. Callers that show a document
+/// need to know which happened, because the initial document event is emitted
+/// only on creation.
+struct WatchOutcome {
+    watch: WatchDescriptor,
+    created: bool,
+}
+
 fn add_watch(
     access_policy: &AccessPolicy,
     watch_registry: &WatchRegistry,
@@ -1791,20 +1853,18 @@ fn add_watch(
     app_handle: &tauri::AppHandle,
     path: &str,
     source: &str,
-) -> Result<WatchDescriptor> {
+) -> Result<WatchOutcome> {
     let normalized = normalize_path(path)?;
     let normalized_path = PathBuf::from(&normalized);
     ensure_watch_target_is_file(&normalized_path)?;
     ensure_path_not_denied(access_policy, &normalized_path)?;
     ensure_path_allowed(access_policy, &normalized_path)?;
 
-    {
-        let registry = watch_registry
-            .lock()
-            .map_err(|err| anyhow::anyhow!("watch registry lock poisoned: {err}"))?;
-        if let Some(existing) = registry.get(&normalized) {
-            return Ok(existing.clone());
-        }
+    if let Some(existing) = existing_watch(watch_registry, &normalized)? {
+        return Ok(WatchOutcome {
+            watch: existing,
+            created: false,
+        });
     }
 
     let watch = WatchDescriptor {
@@ -1851,7 +1911,27 @@ fn add_watch(
         None,
     );
 
-    Ok(watch)
+    Ok(WatchOutcome {
+        watch,
+        created: true,
+    })
+}
+
+/// Push the current bytes of an already-registered document at the page.
+///
+/// The counterpart to registration being idempotent: `add_watch` emits the
+/// initial document event only when it creates the watch, so a second `gx open`
+/// on a path already being watched used to return the existing descriptor and
+/// emit nothing — the window came forward still showing whatever it had been
+/// showing. Activation is what makes the open actually open something.
+fn activate_document(app_handle: &tauri::AppHandle, watch: &WatchDescriptor) -> Result<()> {
+    let text = fs::read_to_string(&watch.path)?;
+    let payload = DocumentChangedEventPayload {
+        text,
+        path: Some(watch.path.clone()),
+        revision: Some(watch.revision.clone()),
+    };
+    emit_document_changed_event(app_handle, &payload)
 }
 
 fn remove_watch(
@@ -2436,6 +2516,52 @@ fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: Rece
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Registration is idempotent; DISPLAY is not.
+    ///
+    /// `add_watch` emits the initial document event only when it creates the
+    /// watch, and returns the existing descriptor otherwise. That early return
+    /// is why a second `gx open` on a path already being watched used to raise
+    /// the window while leaving the previous document on screen: nothing was
+    /// re-delivered, because nothing was registered.
+    ///
+    /// This pins the decision itself. The `show` branch now treats a
+    /// non-created outcome as "activate anyway" (§4.2), and the end-to-end
+    /// reopen is covered by the disk-to-UI smoke.
+    #[test]
+    fn a_path_already_watched_is_not_a_new_watch() {
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        let path = "/tmp/already-open.dot";
+
+        assert!(
+            existing_watch(&registry, path).unwrap().is_none(),
+            "an unregistered path must look unregistered"
+        );
+
+        registry.lock().unwrap().insert(
+            path.to_string(),
+            WatchDescriptor {
+                path: path.to_string(),
+                format: "dot".to_string(),
+                revision: "c0ffee".to_string(),
+            },
+        );
+
+        let found = existing_watch(&registry, path)
+            .unwrap()
+            .expect("a registered path must be found, or add_watch would install a second watcher");
+        assert_eq!(found.revision, "c0ffee", "the descriptor in force is the one returned");
+
+        // The distinction the show branch depends on: this path is NOT created,
+        // so activation has to be performed explicitly rather than relied upon
+        // as a side effect of registering.
+        assert!(
+            existing_watch(&registry, "/tmp/some-other.dot")
+                .unwrap()
+                .is_none(),
+            "a different path must not collide with an existing watch"
+        );
+    }
 
     /// The paths that broke v1, now crossing the boundary they actually cross.
     ///
