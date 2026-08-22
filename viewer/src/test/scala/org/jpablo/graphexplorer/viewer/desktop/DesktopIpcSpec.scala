@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.router.Route
+import org.jpablo.graphexplorer.gxcore.model.ContentHash
 import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
@@ -60,6 +61,41 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
       assertEquals(keys.sorted, List("baseRevision", "path", "text"))
 
       assertEquals(outcome, DesktopIpc.SaveOutcome.Saved("/tmp/a.dot", "b2b2"))
+
+  // ------------------------------- Phase 3: hashing the page cannot do itself
+
+  test("the page asks the shell to hash, and sends only the stored text"):
+    stubTauri(
+      """
+        window.__TAURI__ = { core: { invoke: function(cmd, args) {
+          window.__ipcCalls.push({ cmd: cmd, args: args });
+          return Promise.resolve("deadbeef");
+        } } };
+      """
+    )
+
+    DesktopIpc.hashText("digraph G {\r\na\r\n}").map: hash =>
+      val calls = recordedCalls
+      assertEquals(calls.length, 1)
+      assertEquals(calls(0).selectDynamic("cmd").asInstanceOf[String], "hash_text")
+
+      val args = calls(0).selectDynamic("args")
+      val keys = js.Object.keys(args.asInstanceOf[js.Object]).toList
+      assertEquals(keys.sorted, List("text"))
+
+      // Verbatim, line endings included. The convention is applied HERE, by
+      // shared Scala, and the shell hashes the bytes it is given — so a
+      // normalising send would silently defeat the CRLF rule.
+      assertEquals(args.selectDynamic("text").asInstanceOf[String], "digraph G {\r\na\r\n}")
+      assertEquals(hash, ContentHash.fromHex("deadbeef"))
+
+  test("outside the desktop shell a hash FAILS rather than answering wrongly"):
+    clearTauri()
+    // A save degrades to `Unavailable` because "not saved" is a true and useful
+    // answer. A hash has no such fallback: any value it invented would be
+    // compared against real ones and would report a phantom conflict.
+    DesktopIpc.hashText("digraph G { a }").failed.map: error =>
+      assertEquals(error, IpcUnavailable)
 
   test("a revision crosses the boundary as a string, verbatim"):
     stubTauri(

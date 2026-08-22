@@ -129,7 +129,22 @@ object OriginUri:
         throw IllegalStateException(s"OriginUri built with an unknown scheme: $u")
       )
 
-    /** The filesystem path a `file:` URI denotes, or None for other schemes. */
+    /** The filesystem path a `file:` URI denotes, or None for other schemes.
+      *
+      * CAUTION: this is NOT the inverse of `fromCanonicalPath` on Windows. That
+      * encoder writes URI separators, so `C:\\Users\\x\\a.dot` comes back as
+      * `C:/Users/x/a.dot` — the same file, spelled the other way.
+      *
+      * Pass the result to `Paths.get`, which accepts either separator, and
+      * every caller here does. Do NOT compare it to a path some other process
+      * reported: the desktop shell writes the platform's own separator, so a
+      * byte comparison misses and misses SILENTLY — the file reads as unbound
+      * and opens a second time beside the record that already owns it.
+      * `DesktopLibrary.recordsBoundTo` collapses both spellings for that
+      * reason.
+      *
+      * `OriginUriSpec` pins this shape.
+      */
     def filePath: Option[String] =
       Option.when(u.startsWith("file://")):
         val encoded = u.stripPrefix("file://")

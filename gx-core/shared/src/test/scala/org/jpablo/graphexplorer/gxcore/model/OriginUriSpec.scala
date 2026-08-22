@@ -58,6 +58,14 @@ class OriginUriSpec extends FunSuite:
 
   // ------------------------------------------------------------- Windows
 
+  /** The round trip is NOT the identity here, and that is the pinned answer
+    * rather than an accident: the encoder writes URI separators.
+    *
+    * Callers that hand the result to `Paths.get` are unaffected — it accepts
+    * either separator. A caller that COMPARES it to a path another process
+    * reported is not: the desktop shell writes the platform's own separator, so
+    * the comparison misses, and misses silently.
+    */
   test("a Windows path becomes a file URI with a bare drive letter") {
     val u = OriginUri.fromCanonicalPath("C:\\Users\\jpablo\\arch.dot")
     assertEquals(u.value, "file:///C:/Users/jpablo/arch.dot")

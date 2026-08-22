@@ -62,6 +62,33 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
 
   def directoryNow(): ProjectsDirectory = toDirectory(records.now())
 
+  private def indexByOrigin(byId: Map[String, Diagram]): Map[String, List[BoundRecord]] =
+    byId.values.toList
+      .flatMap: d =>
+        for
+          binding <- d.binding
+          path    <- binding.origin.filePath
+        yield pathKey(path) -> BoundRecord(ProjectId(d.id.value), d.text, binding)
+      .groupMap(_._1)(_._2)
+
+  /** The spelling both sides of this comparison collapse to.
+    *
+    * The two sides arrive by different routes. The shell reports a canonical
+    * path as the platform writes it — `C:\Users\x\a.dot` on Windows. A binding
+    * stores a URI, and `filePath` decodes it back to `C:/Users/x/a.dot`,
+    * because `fromCanonicalPath` writes URI separators. One file, two
+    * spellings, and a byte comparison misses.
+    *
+    * The miss is SILENT and costly: the file reads as unbound, so it opens as a
+    * loose document beside the record that already owns it, and the two then
+    * disagree about the same file.
+    *
+    * Only the separator differs. Case is already settled — both sides resolve
+    * to the filesystem's own spelling, which `canonicalization.json` pins for
+    * both languages — and both strip Windows' `\\?\` verbatim prefix.
+    */
+  private def pathKey(path: String): String = path.replace('\\', '/')
+
   private def toDirectory(byId: Map[String, Diagram]): ProjectsDirectory =
     ProjectsDirectory(
       byId.values.toList
@@ -73,6 +100,25 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
     )
 
   def projectExists(id: ProjectId): Boolean = records.now().contains(id.value)
+
+  /** Records by the file they are bound to (§8, Phase 3 item 1).
+    *
+    * A real index rather than a scan per event, and DERIVED rather than
+    * maintained: it recomputes when `records` moves, so it cannot fall out of
+    * step with the records it describes. A hand-kept second map would be faster
+    * to update and would be the thing that goes stale.
+    *
+    * Keyed by the PATH, because that is what arrives. The shell reports a
+    * canonical path in a document event; a binding stores a canonical URI, and
+    * `filePath` decodes it back. A record whose origin is not a file — an
+    * `https:` origin — has no key here and is unreachable this way, which is
+    * correct: nothing on this machine can change it.
+    */
+  private val boundByPath: StrictSignal[Map[String, List[BoundRecord]]] =
+    records.signal.map(indexByOrigin).observe
+
+  override def recordsBoundTo(path: String): List[BoundRecord] =
+    boundByPath.now().getOrElse(pathKey(path), Nil)
 
   def getProjectContent(id: ProjectId): Signal[String] =
     records.signal.map(_.get(id.value).map(_.text).getOrElse(PersistedDiagramState.minimalGraphText))
@@ -160,6 +206,34 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
           seededText += id.value -> latest.text
 
     state
+
+  /** Store what reconciliation decided (§8, Phase 3 item 4).
+    *
+    * Through `put`, so an open viewer follows: `createProjectPersistence`
+    * already watches `records` and adopts an external change when the person is
+    * not mid-edit, and warns instead of discarding when they are. That is why a
+    * raw origin event must never reach `ViewerState` on its own (item 6) — the
+    * record is the one place a change has to land, and everything else follows
+    * from there.
+    *
+    * `updatedAt` moves only when the TEXT moves. A pull changes the document;
+    * advancing a stale baseline does not, and the library is sorted by that
+    * field — so a `Converged` record would jump to the top for a change nobody
+    * made.
+    */
+  override def recordReconciled(id: ProjectId, text: Option[String], base: ContentHash): Unit =
+    for
+      d       <- records.now().get(id.value)
+      binding <- d.binding
+    do
+      val at = js.Date.now().toLong
+      put(
+        d.copy(
+          text = text.getOrElse(d.text),
+          binding = Some(binding.copy(baseHash = base, lastSyncAt = at)),
+          updatedAt = if text.isDefined then at else d.updatedAt
+        )
+      )
 
   /** Write, merged onto the record as it stands NOW rather than as it stood
     * when the page opened it.

@@ -189,6 +189,18 @@ label[for ^= show-ns-kind-] {
   }
 }
 
+.origin-state-banner {
+  @apply flex items-baseline gap-3 px-3 py-2 bg-warning/15 border-b border-warning/40 text-sm;
+
+  .origin-state-title {
+    @apply font-semibold;
+  }
+
+  .origin-state-detail {
+    @apply opacity-70;
+  }
+}
+
 .document-conflict-banner {
   @apply flex items-center gap-3 px-3 py-2 bg-warning/15 border-b border-warning/40 text-sm;
 

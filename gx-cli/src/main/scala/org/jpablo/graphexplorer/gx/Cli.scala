@@ -459,74 +459,69 @@ object Cli:
       else ExitCode.Ok
 
   private def syncOne(d: Diagram, env: CliEnv): SyncOutcome =
-    // Save, and KEEP the answer. Every early return below goes through here.
+    // Save, and KEEP the answer. Every branch below goes through here.
     def store(updated: Diagram, state: SyncState): SyncOutcome =
       env.store.save(updated) match
         case Left(e)      => SyncOutcome(updated, state, Some(e.toString))
         case Right(saved) => SyncOutcome(saved, state, None)
 
-    d.binding match
-      case None => SyncOutcome(d, SyncState.InSync, None)
-      case Some(binding) =>
-        val path   = binding.origin.filePath.map(Paths.get(_))
-        // ONE read of the origin: it answers both questions below, and the Pull
-        // branch reuses it rather than reading and re-hashing the same bytes.
-        val origin = path.flatMap(Documents.read(_).toOption)
-        val remote = origin.map(_.hash)
+    // Binding updates are the caller's: the reconciler decides the new base,
+    // and only this side knows the clock.
+    def rebound(binding: Binding, base: ContentHash) =
+      binding.copy(baseHash = base, lastSyncAt = env.now())
 
-        // `base` and `remote` are hashes of FILE BYTES, so `local` has to be
-        // measured the same way: the record's text as it would be written into
-        // THIS file, using the convention that file already uses (V-04).
-        //
-        // Hashing with a fixed LF made every CRLF-authored origin read `Ahead`
-        // forever — nothing had been edited, the bytes simply could not agree —
-        // and made a byte-identical regeneration land on `Diverged` instead of
-        // `Converged`, which is the conflict machine SyncState.Converged exists
-        // to prevent. Hashing.ofText demands the convention explicitly for this
-        // exact reason; see its scaladoc and V-16.
-        //
-        // With no origin on disk the state is OriginMissing whatever `local`
-        // says, and Lf is what Documents.create would write if it reappears.
-        val local = Hashing.ofText(d.text, origin.map(_.lineEnding).getOrElse(LineEnding.Lf))
-        val state = SyncState.of(binding.baseHash, local, remote)
+    val path = d.binding.flatMap(_.origin.filePath.map(Paths.get(_)))
+    // ONE read of the origin: it answers every question the plan asks, and the
+    // Pull branch reuses its text rather than reading the same file twice.
+    val origin = path.flatMap(Documents.read(_).toOption)
 
-        binding.mode.autoAction(state) match
-          case Some(SyncAction.Pull) =>
-            (for doc <- origin
-            yield
-              val updated = d.copy(
-                text = doc.text,
-                binding = Some(binding.copy(baseHash = doc.hash, lastSyncAt = env.now())),
-                updatedAt = env.now()
-              )
-              store(updated, state)
-            ).getOrElse(SyncOutcome(d, state, None))
+    // The decision lives in gx-core, so the app can ask it too (§8). This
+    // method is now the I/O half: read, ask, perform, save.
+    val plan = Reconciler.plan(
+      d.binding,
+      d.text,
+      origin.map(doc => OriginSnapshot(doc.text, doc.hash, doc.lineEnding)),
+      Hashing.ofText
+    )
 
-          case Some(SyncAction.Push) =>
-            (for
-              p   <- path
-              doc <- Documents.write(p, d.text, binding.baseHash).toOption
-            yield
-              val updated =
-                d.copy(binding = Some(binding.copy(baseHash = doc.hash, lastSyncAt = env.now())))
-              env.audit.record(AuditEvent.Written(p.toString, doc.hash, "sync"))
-              store(updated, state)
-            ).getOrElse(SyncOutcome(d, state, None))
+    (d.binding, plan.action) match
+      case (Some(binding), ReconcileAction.AdoptOrigin(text, base)) =>
+        store(
+          d.copy(
+            text = text,
+            binding = Some(rebound(binding, base)),
+            updatedAt = env.now()
+          ),
+          plan.state
+        )
 
-          case Some(SyncAction.AdvanceBase) =>
-            // Converged: both sides moved to the same content, so only the
-            // agreed baseline is stale. No I/O — this is what stops a
-            // byte-identical regeneration from looking like a change.
-            val updated = d.copy(binding = Some(binding.copy(baseHash = local, lastSyncAt = env.now())))
-            store(updated, state)
+      case (Some(binding), ReconcileAction.WriteOrigin(text, expecting)) =>
+        (for
+          p   <- path
+          doc <- Documents.write(p, text, expecting).toOption
+        yield
+          // The hash of what the write PRODUCED, not a prediction of it. The
+          // two agree — a write reproduces the file's line ending, which is the
+          // convention `local` was hashed with — and using the write's own
+          // answer keeps that agreement from being load-bearing.
+          env.audit.record(AuditEvent.Written(p.toString, doc.hash, "sync"))
+          store(d.copy(binding = Some(rebound(binding, doc.hash))), plan.state)
+        ).getOrElse(SyncOutcome(d, plan.state, None))
 
-          case None =>
-            if state == SyncState.Diverged then
-              env.audit.record(
-                AuditEvent.Conflict(binding.origin.value, binding.baseHash, local, "sync")
-              )
-            // Nothing was written, so there is nothing that could fail to save.
-            SyncOutcome(d, state, None)
+      case (Some(binding), ReconcileAction.AdvanceBase(base)) =>
+        store(d.copy(binding = Some(rebound(binding, base))), plan.state)
+
+      case (Some(binding), ReconcileAction.DoNothing) =>
+        plan match
+          case ReconcilePlan.Bound(SyncState.Diverged, _, local) =>
+            env.audit.record(AuditEvent.Conflict(binding.origin.value, binding.baseHash, local, "sync"))
+          case _ => ()
+        // Nothing was written, so there is nothing that could fail to save.
+        SyncOutcome(d, plan.state, None)
+
+      case (None, _) =>
+        // No origin to reconcile against. Not stored: nothing changed.
+        SyncOutcome(d, plan.state, None)
 
   // -------------------------------------------------------------- watch
 

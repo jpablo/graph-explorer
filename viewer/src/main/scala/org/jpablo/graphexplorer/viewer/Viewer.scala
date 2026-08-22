@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
 import org.jpablo.graphexplorer.viewer.desktop.{
   DesktopBridge,
+  DesktopClose,
   DesktopDocumentRegistry,
   DesktopIpc,
   DesktopOpenRequests,
@@ -17,6 +18,7 @@ import org.jpablo.graphexplorer.viewer.desktop.{
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{
   DocumentSessionId,
+  LeaveIntent,
   PersistedDiagramState,
   ProjectId,
   RightPanelSection,
@@ -139,6 +141,12 @@ object Viewer:
       // that is an answer).
       SessionCommands.install()
 
+      // Before `DesktopOpenRequests.install` below, which announces
+      // `viewer_ready` and releases the shell's queued opens. A `gx open` of a
+      // FILE delivers the document first and asks the page to display it
+      // second, so the document listener has to exist before either arrives.
+      DesktopBridge.install()
+
       // Installed at the WINDOW level, not per view: an open request routinely
       // arrives while the app is on Home, which is precisely when there is no
       // viewer to deliver it to.
@@ -196,15 +204,22 @@ object Viewer:
           // guard exists and it belongs to what is on screen.
           val leaveGuard: Route => Boolean = route =>
             if state.documentIsDirty then
-              state.pendingLeave.set(Some(route))
+              state.pendingLeave.set(Some(LeaveIntent.Navigate(route)))
               false
             else true
           router.guardNavigation(leaveGuard)
 
-          // The window closing is the case a dialog cannot serve: the browser
-          // owns that prompt and allows only its own wording. §7.4 rules out
-          // doing the work in `pagehide` instead — IPC during teardown is not
-          // guaranteed to finish, so a save started there may never land.
+          // §7.4's other half: the window closing. The shell refuses that close
+          // and asks here, because it cannot ask during teardown. The page
+          // keeps the shell's flag current so the common case — nothing
+          // unsaved — closes with no round trip at all.
+          DesktopClose.install(state)
+
+          // The BROWSER's window closing. A tab has no shell to ask, so the
+          // generic prompt is all there is. The desktop does not rely on this:
+          // it refuses the close and raises the real three-answer dialog
+          // through `DesktopClose`, because §7.4 needs Save, Discard AND
+          // Cancel, and a `beforeunload` prompt offers one answer.
           val warnOnClose: js.Function1[dom.Event, Unit] = event =>
             if state.documentIsDirty then
               event.preventDefault()
@@ -222,6 +237,7 @@ object Viewer:
               DesktopBridge.detach(state)
               SessionCommands.detach(state)
               router.clearNavigationGuard(leaveGuard)
+              DesktopClose.detach(state)
               dom.window.removeEventListener("beforeunload", warnOnClose)
               state.closePersistence()
               viewOwner.killSubscriptions()

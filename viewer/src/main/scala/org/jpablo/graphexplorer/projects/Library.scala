@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.projects
 
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.gxcore.model.ContentHash
 import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
 import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, ViewerSettings}
 
@@ -23,6 +24,12 @@ object Library:
     */
   def install(library: DiagramLibrary): Unit = backend = library
 
+  /** Put the browser library back. For tests: `install` is process-global, so
+    * one test that swaps the backend would otherwise swap it for every test
+    * that runs after it.
+    */
+  private[graphexplorer] def restoreDefault(): Unit = backend = ProjectStorage
+
   def isDesktop: Boolean = backend ne ProjectStorage
 
   def directory: Signal[ProjectsDirectory] = backend.directory
@@ -36,6 +43,12 @@ object Library:
   def deleteProject(id: ProjectId): Unit = backend.deleteProject(id)
   def getProjectContent(id: ProjectId): Signal[String] = backend.getProjectContent(id)
   def projectExists(id: ProjectId): Boolean = backend.projectExists(id)
+
+  /** The records bound to a file path (§8). Empty on the browser backend. */
+  def recordsBoundTo(path: String): List[BoundRecord] = backend.recordsBoundTo(path)
+
+  def recordReconciled(id: ProjectId, text: Option[String], base: ContentHash): Unit =
+    backend.recordReconciled(id, text, base)
   def findProjectByExactSource(dot: String): Option[ProjectId] = backend.findProjectByExactSource(dot)
 
   def projectCardInfo(id: ProjectId, languages: DiagramLanguages): Option[ProjectCardInfo] =

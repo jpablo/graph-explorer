@@ -11,6 +11,12 @@ package org.jpablo.graphexplorer.gxcore.fs
   * other as having edited it.
   *
   * So: detect what the file uses, and reproduce it.
+  *
+  * Shared rather than JVM-only, and still in `fs` because a line ending is a
+  * property of BYTES on disk. [[org.jpablo.graphexplorer.gxcore.model.Reconciler]]
+  * needs it to state the convention it hashes with, and that reconciler has to
+  * run where there is no `java.nio` — the desktop's page is Scala.js. Nothing
+  * here touches a file: detection reads a String and `applyTo` returns one.
   */
 enum LineEnding(val chars: String) derives CanEqual:
   case Lf   extends LineEnding("\n")

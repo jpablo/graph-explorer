@@ -6,6 +6,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -80,6 +81,16 @@ struct IpcState {
     watch_registry: WatchRegistry,
     watch_controllers: WatchControllers,
     recent_write_hashes: RecentWriteHashes,
+    /// Whether the page holds an edit that is not on disk (§7.4).
+    ///
+    /// Reported by the page as it changes, rather than asked for at close
+    /// time. A question asked during teardown has to be answered during
+    /// teardown, and §7.4 rules that out: IPC completion is not guaranteed
+    /// then. A flag that is already correct needs no round trip.
+    unsaved: Arc<AtomicBool>,
+    /// Set by `confirm_close` once the person has answered, so the close that
+    /// follows is allowed through instead of asking again.
+    closing: Arc<AtomicBool>,
 }
 
 /// The error shape a rejected `invoke()` delivers to the page. Serialized as
@@ -336,6 +347,13 @@ fn main() {
     // no window and works at once, and anything that does need one gets a typed
     // STARTING refusal rather than a hang. See `ConnectionContext::app`.
     let app_handle: SharedAppHandle = Arc::new(OnceLock::new());
+
+    // §7.4: the page reports unsaved work as it changes, and a close is refused
+    // while it stands. Declared here so BOTH front doors see the same flag —
+    // the webview's commands set it, and `status` reports it.
+    let unsaved = Arc::new(AtomicBool::new(false));
+    let closing = Arc::new(AtomicBool::new(false));
+
     let listener = bind_control_socket().expect("failed to bind the control socket");
 
     spawn_control_server(
@@ -351,6 +369,7 @@ fn main() {
         watch_controllers.clone(),
         recent_write_hashes.clone(),
         app_handle.clone(),
+        unsaved.clone(),
     );
 
     // AFTER the bind, not before. The file names a socket, so writing it first
@@ -372,6 +391,8 @@ fn main() {
         watch_registry: watch_registry.clone(),
         watch_controllers: watch_controllers.clone(),
         recent_write_hashes: recent_write_hashes.clone(),
+        unsaved: unsaved.clone(),
+        closing: closing.clone(),
     };
 
     tauri::Builder::default()
@@ -385,6 +406,19 @@ fn main() {
                 // is the moment its handlers stop answering STARTING. `set`
                 // returns Err only if called twice, and `setup` runs once.
                 let _ = app_handle.set(app.handle().clone());
+
+                // macOS routes ⌘Q through the app menu's Quit item, and
+                // Tauri's default one is `PredefinedMenuItem::quit`, which
+                // calls the native terminate directly. That bypasses the event
+                // loop entirely: neither `CloseRequested` nor `ExitRequested`
+                // fires, and §7.4's question never gets asked — measured, not
+                // assumed. The run loop reported `Exit` and nothing before it.
+                //
+                // So Quit becomes an item we own. Everything else in the menu
+                // stays predefined: an app that edits text and lost ⌘C/⌘V would
+                // be a far worse trade than the bug this fixes.
+                #[cfg(target_os = "macos")]
+                install_menu_with_asking_quit(app)?;
 
                 // D7.3: the library on disk is the live state, so a record
                 // written by `gx` with no window open has to reach the page
@@ -414,13 +448,153 @@ fn main() {
             session_reply,
             viewer_ready,
             complete_open,
+            hash_text,
+            set_unsaved,
+            confirm_close,
             library_list,
             library_read,
             library_write,
             library_delete
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running graph explorer desktop");
+        .on_menu_event({
+            let unsaved = unsaved.clone();
+            let closing = closing.clone();
+            move |app, event| {
+                if event.id() == MENU_QUIT {
+                    // The item this app owns, in place of the predefined Quit
+                    // that terminates without asking anything.
+                    if close_is_allowed(
+                        closing.load(std::sync::atomic::Ordering::Relaxed),
+                        unsaved.load(std::sync::atomic::Ordering::Relaxed),
+                    ) {
+                        app.exit(0);
+                    } else {
+                        ask_the_page_about_leaving(app);
+                    }
+                }
+            }
+        })
+        .on_window_event({
+            let unsaved = unsaved.clone();
+            let closing = closing.clone();
+            move |window, event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if close_is_allowed(
+                        closing.load(std::sync::atomic::Ordering::Relaxed),
+                        unsaved.load(std::sync::atomic::Ordering::Relaxed),
+                    ) {
+                        return;
+                    }
+
+                    // §7.4: the person chooses Save, Discard or Cancel. The
+                    // window stays until they do. Tauri closes without asking
+                    // anything by default, and the page's `beforeunload` cannot
+                    // serve here — it offers one generic prompt, not three
+                    // answers, and a save it started during teardown is not
+                    // guaranteed to finish.
+                    api.prevent_close();
+                    // Through the app handle: a `Window` cannot evaluate script,
+                    // and the page lives in the webview it hosts.
+                    ask_the_page_about_leaving(window.app_handle());
+                }
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while running graph explorer desktop")
+        .run({
+            let unsaved = unsaved.clone();
+            let closing = closing.clone();
+            move |app_handle, event| {
+                // ⌘Q is an app QUIT, not a window close, and macOS routes the
+                // two differently: a window's red button raises
+                // `CloseRequested` on the window, while a quit raises
+                // `ExitRequested` on the app. Handling only the first meant the
+                // most common way to leave — ⌘Q — discarded an unsaved edit
+                // with no prompt at all.
+                if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                    if !close_is_allowed(
+                        closing.load(std::sync::atomic::Ordering::Relaxed),
+                        unsaved.load(std::sync::atomic::Ordering::Relaxed),
+                    ) {
+                        api.prevent_exit();
+                        ask_the_page_about_leaving(app_handle);
+                    }
+                }
+            }
+        });
+}
+
+/// The macOS menu, with a Quit that asks before it goes (§7.4).
+///
+/// Built by hand because only the Quit item needs to change and Tauri offers no
+/// way to swap one item of the default menu. Every other item is the predefined
+/// one, so Edit keeps working exactly as it did.
+#[cfg(target_os = "macos")]
+fn install_menu_with_asking_quit(app: &tauri::App) -> Result<()> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+
+    let handle = app.handle();
+    let name = "Graph Explorer Desktop";
+
+    let quit = MenuItem::with_id(handle, MENU_QUIT, "Quit Graph Explorer Desktop", true, Some("Cmd+Q"))?;
+
+    let app_menu = Submenu::with_items(
+        handle,
+        name,
+        true,
+        &[
+            &PredefinedMenuItem::about(handle, Some(name), None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::hide(handle, None)?,
+            &PredefinedMenuItem::hide_others(handle, None)?,
+            &PredefinedMenuItem::show_all(handle, None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &quit,
+        ],
+    )?;
+
+    // The one submenu a text editor cannot lose.
+    let edit_menu = Submenu::with_items(
+        handle,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(handle, None)?,
+            &PredefinedMenuItem::redo(handle, None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::cut(handle, None)?,
+            &PredefinedMenuItem::copy(handle, None)?,
+            &PredefinedMenuItem::paste(handle, None)?,
+            &PredefinedMenuItem::select_all(handle, None)?,
+        ],
+    )?;
+
+    let window_menu = Submenu::with_items(
+        handle,
+        "Window",
+        true,
+        &[
+            &PredefinedMenuItem::minimize(handle, None)?,
+            &PredefinedMenuItem::close_window(handle, None)?,
+        ],
+    )?;
+
+    app.set_menu(Menu::with_items(handle, &[&app_menu, &edit_menu, &window_menu])?)?;
+    Ok(())
+}
+
+/// The id of the Quit item this app owns, rather than the predefined one.
+const MENU_QUIT: &str = "gx-quit";
+
+/// Raise §7.4's question in the page: Save, Discard or Cancel.
+///
+/// One function for both ways out. The question does not depend on whether a
+/// window was closed or the app was quit, and the page's answer — `confirm_close`
+/// — releases both.
+fn ask_the_page_about_leaving(app: &tauri::AppHandle) {
+    for webview in app.webview_windows().values() {
+        let _ = webview.eval("window.dispatchEvent(new CustomEvent('ge:close.requested'));");
+    }
 }
 
 fn init_audit_logger() -> Result<AuditLogger> {
@@ -878,6 +1052,7 @@ fn spawn_control_server(
     watch_controllers: WatchControllers,
     recent_write_hashes: RecentWriteHashes,
     app_handle: SharedAppHandle,
+    unsaved: Arc<AtomicBool>,
 ) -> JoinHandle<()> {
     let handle = std::thread::spawn(move || {
         for stream in listener.incoming() {
@@ -904,6 +1079,7 @@ fn spawn_control_server(
                 watch_controllers: watch_controllers.clone(),
                 recent_write_hashes: recent_write_hashes.clone(),
                 app_handle: app_handle.clone(),
+                unsaved: unsaved.clone(),
             };
             std::thread::spawn(move || {
                 if let Err(err) = serve_connection(stream, &context) {
@@ -936,6 +1112,10 @@ struct ConnectionContext {
     watch_controllers: WatchControllers,
     recent_write_hashes: RecentWriteHashes,
     app_handle: SharedAppHandle,
+    /// Whether the page holds an edit that is not on disk (§7.4). Reported in
+    /// `status` so a script can ask before it does anything disruptive, and so
+    /// the close rule has an observable that does not need a window.
+    unsaved: Arc<AtomicBool>,
 }
 
 impl ConnectionContext {
@@ -1339,6 +1519,9 @@ struct StatusBody {
     max_body_bytes: usize,
     rate_limit_max_requests: usize,
     rate_limit_window_ms: u64,
+    /// Whether the page holds an edit that is not on disk (§7.4). A close is
+    /// refused while this is true, so it is worth being able to ask.
+    unsaved_in_page: bool,
 }
 
 fn status_body(context: &ConnectionContext) -> StatusBody {
@@ -1360,6 +1543,7 @@ fn status_body(context: &ConnectionContext) -> StatusBody {
         max_body_bytes: context.request_limits.max_body_bytes,
         rate_limit_max_requests: context.request_limits.rate_limit_max_requests,
         rate_limit_window_ms: context.request_limits.rate_limit_window.as_millis() as u64,
+        unsaved_in_page: context.unsaved.load(std::sync::atomic::Ordering::Relaxed),
     }
 }
 
@@ -1617,6 +1801,63 @@ fn complete_open(
             let _ = sender.send(outcome);
         }
     }
+}
+
+/// Whether a close may proceed without asking (§7.4).
+///
+/// A free function so the rule can be tested without a window: the decision is
+/// the part worth pinning, and the event plumbing around it is not.
+///
+/// `confirmed` means the person has already answered. `unsaved` means the page
+/// holds an edit that is not on disk. Anything else may close.
+fn close_is_allowed(confirmed: bool, unsaved: bool) -> bool {
+    confirmed || !unsaved
+}
+
+/// The page reporting whether it holds an edit that is not on disk (§7.4).
+///
+/// Pushed as it changes rather than pulled at close time. Asking during
+/// teardown means answering during teardown, and §7.4 rules that out: IPC
+/// completion is not guaranteed then, so a save started at that moment may
+/// never land. A flag that is already correct costs nothing to read.
+#[tauri::command(rename_all = "camelCase")]
+fn set_unsaved(state: tauri::State<'_, IpcState>, unsaved: bool) {
+    state.unsaved.store(unsaved, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The page saying the person has answered, and the window may go.
+///
+/// Reached after Save completed or after Discard. Cancel simply never calls
+/// this, and the window stays as it is.
+#[tauri::command(rename_all = "camelCase")]
+fn confirm_close(app: tauri::AppHandle, state: tauri::State<'_, IpcState>) {
+    state.closing.store(true, std::sync::atomic::Ordering::Relaxed);
+    // `exit`, not `close`. The question is raised by two different intents —
+    // closing the window and quitting the app — and the answer has to serve
+    // both. Closing windows would leave a quit half-done: the person said
+    // "discard and go", and the app would still be running.
+    app.exit(0);
+}
+
+/// Hash text for the page, so one SHA-256 serves the whole system.
+///
+/// The page reconciles a bound record against its origin (§8), and that needs
+/// `local` — the record's text hashed as it would be STORED. The page cannot
+/// compute it: `Hashing` is `MessageDigest`, which does not exist in Scala.js.
+///
+/// A second digest in the webview would be the alternative, and it would have
+/// to agree with this one byte for byte forever. `content_hash` is already
+/// pinned against `Hashing` by the shared `content-hashes.json` fixture, so
+/// routing the page through here means there is nothing new to keep in
+/// agreement.
+///
+/// The LINE ENDING is applied before the call, not here. `LineEnding.applyTo`
+/// is shared Scala the page already has, and reimplementing that convention in
+/// Rust would recreate exactly the divergence this command exists to avoid.
+/// This hashes the bytes it is given.
+#[tauri::command(rename_all = "camelCase")]
+fn hash_text(text: String) -> String {
+    content_hash(text.as_bytes())
 }
 
 /// The page's answer to a session command.
@@ -2207,6 +2448,20 @@ fn show_file(
     context: &ConnectionContext,
     app: &tauri::AppHandle,
 ) -> RpcResponse {
+    // BEFORE `add_watch`, which emits the document event that carries the
+    // file's text. That event is dispatched into the page and is NOT queued the
+    // way an open request is (§4.1), so emitting it before the page is
+    // listening drops it — and the open request that follows then finds no
+    // session and answers DOCUMENT_NOT_FOUND.
+    //
+    // The control socket answers from process start, well before the webview
+    // runs, so "the desktop is up" is not "the page is listening". A `gx open`
+    // issued by a shell alias that launches the desktop lands in exactly that
+    // window.
+    if let Err((code, message)) = wait_for_page(&context.page_ready) {
+        return RpcResponse::failure(id, code, message);
+    }
+
     match add_watch(
         &context.access_policy,
         &context.watch_registry,
@@ -3160,6 +3415,7 @@ mod tests {
             watch_controllers: Arc::new(Mutex::new(HashMap::new())),
             recent_write_hashes: Arc::new(Mutex::new(HashMap::new())),
             app_handle: Arc::new(OnceLock::new()),
+            unsaved: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -3474,6 +3730,51 @@ mod tests {
         let text = fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
         serde_json::from_str(&text).expect("fixture is valid JSON")
+    }
+
+    #[test]
+    fn a_close_is_refused_only_while_an_unanswered_edit_is_unsaved() {
+        // The whole table, because each row is a different failure. Refusing
+        // the wrong one traps the window open; allowing the wrong one throws
+        // away an edit with no prompt.
+        assert!(close_is_allowed(false, false), "nothing unsaved: close");
+        assert!(!close_is_allowed(false, true), "an unsaved edit must be asked about");
+        assert!(close_is_allowed(true, true), "the person already answered: close");
+        assert!(close_is_allowed(true, false), "answered and nothing unsaved: close");
+    }
+
+    #[test]
+    fn hash_text_is_the_same_digest_the_fixtures_pin() {
+        // The page calls this instead of hashing for itself, so it has to
+        // return exactly what `content_hash` returns — which the fixture above
+        // pins against the JVM's `Hashing`. A separate path here would be a
+        // second implementation wearing the first one's name.
+        let doc = fixture("content-hashes.json");
+        let cases = doc["contentHashes"].as_array().expect("an array");
+        let mut checked = 0;
+
+        for case in cases {
+            if let Some(text) = case.get("text").and_then(|t| t.as_str()) {
+                assert_eq!(
+                    hash_text(text.to_string()),
+                    case["sha256"].as_str().expect("sha256"),
+                    "hash_text disagrees with the fixture for '{}'",
+                    case["name"].as_str().unwrap_or("?")
+                );
+                checked += 1;
+            }
+        }
+
+        assert!(checked >= 4, "the text cases should not have shrunk");
+    }
+
+    #[test]
+    fn hash_text_hashes_the_bytes_it_is_given_and_applies_no_convention() {
+        // The line ending is applied by the caller (shared Scala), so CRLF and
+        // LF text MUST hash differently here. If this command normalised
+        // anything, a CRLF origin would read as changed on every comparison —
+        // the exact bug the CRLF rule exists to prevent.
+        assert_ne!(hash_text("a\nb".to_string()), hash_text("a\r\nb".to_string()));
     }
 
     #[test]

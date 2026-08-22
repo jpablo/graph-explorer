@@ -20,6 +20,9 @@
 #   3. An open issued against a still-starting desktop is not lost (§4.1). The
 #      socket answers from process start, before the webview exists; a request
 #      in that window used to be dispatched into a page with no listener.
+#   0. A loose file opens on a COLD desktop — one that has displayed nothing
+#      yet. Checked FIRST, because opening anything else installs the document
+#      listener and hides the failure.
 #   4. A LOOSE FILE open is acknowledged too, and the acknowledgment names the
 #      document session that displayed it (§15.6, Phase 2 item 7). A file
 #      `show` used to keep only the NO_WINDOW check, so `gx open <path>`
@@ -185,6 +188,28 @@ echo "waiting for the control socket (not the window)..."
 if ! control_wait_ready 120; then
   fail "desktop control API did not become ready"
 fi
+
+# ------------------------------------- 0. a FILE opens on a cold desktop
+#
+# BEFORE any library open, on purpose. The document listener used to be
+# installed by the first diagram view that mounted, so a desktop sitting on Home
+# had none: the document event carrying the file's text was dropped, and the
+# open request that followed answered DOCUMENT_NOT_FOUND. Opening a record
+# first installed the listener and hid it.
+#
+# So the order of these two checks is the check. Do not move this below.
+cold_file="${GX_HOME}/cold-open.dot"
+printf 'digraph G { cold -> start }\n' > "${cold_file}"
+
+echo "opening a loose file on a desktop that has shown nothing yet..."
+body="$(api_show_file "${cold_file}")"
+if [[ "$(api_last_status)" != "ok" ]]; then
+  echo "${body}" >&2
+  fail "a cold file open was refused (code: $(api_last_error_code))"
+fi
+[[ "$(jq -r '.result.view.kind // ""' <<<"${body}")" == "file" ]] \
+  || fail "a cold file open was not acknowledged as a file view"
+echo "cold file open acknowledged"
 
 echo "opening a library record against a possibly-starting desktop..."
 started_at="$(python3 -c 'import time; print(int(time.time()*1000))')"

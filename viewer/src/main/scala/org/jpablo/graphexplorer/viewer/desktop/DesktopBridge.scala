@@ -1,8 +1,10 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
+import org.jpablo.graphexplorer.projects.Library
 import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, ViewerState, ViewTarget}
 import org.scalajs.dom
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
 
 /** Wiring between the desktop shell and the current diagram view.
@@ -43,23 +45,31 @@ object DesktopBridge:
   def detach(state: ViewerState): Unit =
     if target.exists(_ eq state) then target = None
 
-  def attach(state: ViewerState): Unit =
-    target = Some(state)
+  /** Listen for document events, for the life of the window.
+    *
+    * Called at STARTUP, not on the first attach. This listener used to be
+    * installed lazily by `attach`, and `attach` runs only when a diagram view
+    * mounts — so a desktop sitting on Home had no listener at all. The document
+    * event carrying a file's text was dropped, and the open request that
+    * followed found no session and answered DOCUMENT_NOT_FOUND.
+    *
+    * That made `gx open <path>` fail on a freshly started desktop and succeed
+    * once any diagram had been opened, which is the worst shape a bug can take:
+    * it disappears exactly when someone tries to reproduce it.
+    *
+    * CAUTION: this must run BEFORE `DesktopOpenRequests.install`. That call
+    * announces `viewer_ready`, and the shell delivers its queued opens on that
+    * signal — including the document events they depend on.
+    */
+  def install(): Unit =
     if !installed then
       val handler: js.Function1[dom.Event, Unit] = event =>
-        extractMessage(event).foreach: message =>
-          // Recorded FIRST, and with no viewer required. An open request routes
-          // to a SESSION, so the session has to exist before the request
-          // arrives — and an open issued on Home arrives with nothing attached,
-          // which is exactly when this used to drop the document entirely (§1).
-          val session = recordedSession(message)
-          target.foreach(applyDocumentChange(_, message, session))
+        extractMessage(event).foreach(routeDocumentChange)
 
       dom.window.addEventListener(DocumentChangedEventName, handler)
       dom.window.addEventListener(DocumentChangedFallbackEventName, handler)
 
-      // Imperative fallback for desktop wrappers, and the surface Commands'
-      // ⌘S reaches for:
+      // Imperative fallback for desktop wrappers:
       // window.__graphExplorerDesktopBridge.pushText("...")
       val bridge = js.Dynamic.literal(
         pushText = (text: String) =>
@@ -70,6 +80,15 @@ object DesktopBridge:
       js.Dynamic.global.window.updateDynamic("__graphExplorerDesktopBridge")(bridge)
       installed = true
       dom.console.info("Desktop bridge listener installed.")
+
+  /** Point the bridge at the viewer now on screen.
+    *
+    * Only the target. Listening is [[install]]'s job, and it happens once at
+    * startup — a session must be recordable before any viewer exists, because
+    * an open request routes TO a session.
+    */
+  def attach(state: ViewerState): Unit =
+    target = Some(state)
 
   /** The desktop dispatches a `CustomEvent`; some wrappers put the same object
     * on `payload` instead of `detail`, and a bare string is accepted as text.
@@ -103,6 +122,29 @@ object DesktopBridge:
         revision =
           DesktopIpc.asString(detailValue, "revision").orElse(DesktopIpc.asString(payloadValue, "revision"))
       )
+
+  /** Where a document event goes (§8, item 6).
+    *
+    * Separated from the listener so the decision is testable without a window,
+    * a viewer, or a desktop.
+    */
+  private[desktop] def routeDocumentChange(message: DesktopMessage): Unit =
+    message.path.filter(Library.recordsBoundTo(_).nonEmpty) match
+      case Some(path) =>
+        // A BOUND origin. The record owns this file (§2), so the change
+        // reconciles against the record and reaches the screen only if the
+        // record adopts it. Treating it as a loose file here would open a
+        // second, competing copy of a diagram the library already holds.
+        OriginReconciler.reconcile(path, message.text, message.revision.getOrElse(""))
+        ()
+      case None =>
+        // A loose file, or a text push. Recorded FIRST, and with no viewer
+        // required: an open request routes to a SESSION, so the session has to
+        // exist before the request arrives — and an open issued on Home arrives
+        // with nothing attached, which is exactly when this used to drop the
+        // document entirely (§1).
+        val session = recordedSession(message)
+        target.foreach(applyDocumentChange(_, message, session))
 
   /** What a document event does to the viewer that is showing that file (§7.3).
     *

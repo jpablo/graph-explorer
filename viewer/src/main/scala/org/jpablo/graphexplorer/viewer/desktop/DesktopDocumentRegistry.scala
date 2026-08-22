@@ -82,6 +82,11 @@ object DesktopDocumentRegistry:
 
   /** The session for a path, if the page holds one.
     *
+    * An exact comparison, and it needs no separator normalising the way
+    * `DesktopLibrary.recordsBoundTo` does. Both sides of this one come from the
+    * shell's `watch.path`: the document event that recorded the session, and
+    * the open request that looks it up. They agree by construction.
+    *
     * A linear search, on purpose. A person opens few files at once, and one map
     * cannot fall out of step with itself. A second index from path to id would
     * be faster, and would add an invariant to keep.
