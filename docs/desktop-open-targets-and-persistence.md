@@ -1,6 +1,6 @@
 # Desktop Open Targets and Persistence
 
-Status: Proposed; reviewed against `31b72b14` (2026-08-22)
+Status: Phases 0-2 implemented; Phases 3-4 proposed. Reviewed against `31b72b14` (2026-08-22).
 
 Reads with:
 
@@ -591,8 +591,8 @@ These changes reduce the immediate risk of wrong-record and stale-destination wr
 
 ### 15.6 Integration
 
-- `gx open loose.dot` against a cold desktop displays the correct document.
-- Opening the same loose path again while another view is active reactivates that document even though its watch already exists.
+- `gx open loose.dot` against a cold desktop displays the correct document, and reports success only after the page acknowledges it (§4). The acknowledgment names the document session that displayed it.
+- Opening the same loose path again while another view is active reactivates that document even though its watch already exists, completes the handshake again, and lands on the SAME session.
 - `gx open <unbound-record>` works.
 - The CLI receives an error or timeout if the webview does not acknowledge.
 - `GX_HOME` points the CLI and desktop at the same library and runtime roots, including a deliberately tested relative-value policy.
