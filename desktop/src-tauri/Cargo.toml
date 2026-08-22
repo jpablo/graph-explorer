@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "2.1.1" }
+tauri-build = { version = "2.1.1", features = [] }
 
 [dependencies]
 anyhow = "1.0"

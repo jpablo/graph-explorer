@@ -407,6 +407,19 @@ fn main() {
                 // returns Err only if called twice, and `setup` runs once.
                 let _ = app_handle.set(app.handle().clone());
 
+                // macOS routes ⌘Q through the app menu's Quit item, and
+                // Tauri's default one is `PredefinedMenuItem::quit`, which
+                // calls the native terminate directly. That bypasses the event
+                // loop entirely: neither `CloseRequested` nor `ExitRequested`
+                // fires, and §7.4's question never gets asked — measured, not
+                // assumed. The run loop reported `Exit` and nothing before it.
+                //
+                // So Quit becomes an item we own. Everything else in the menu
+                // stays predefined: an app that edits text and lost ⌘C/⌘V would
+                // be a far worse trade than the bug this fixes.
+                #[cfg(target_os = "macos")]
+                install_menu_with_asking_quit(app)?;
+
                 // D7.3: the library on disk is the live state, so a record
                 // written by `gx` with no window open has to reach the page
                 // once there is one. Nothing sends a message — the shell
@@ -443,6 +456,24 @@ fn main() {
             library_write,
             library_delete
         ])
+        .on_menu_event({
+            let unsaved = unsaved.clone();
+            let closing = closing.clone();
+            move |app, event| {
+                if event.id() == MENU_QUIT {
+                    // The item this app owns, in place of the predefined Quit
+                    // that terminates without asking anything.
+                    if close_is_allowed(
+                        closing.load(std::sync::atomic::Ordering::Relaxed),
+                        unsaved.load(std::sync::atomic::Ordering::Relaxed),
+                    ) {
+                        app.exit(0);
+                    } else {
+                        ask_the_page_about_leaving(app);
+                    }
+                }
+            }
+        })
         .on_window_event({
             let unsaved = unsaved.clone();
             let closing = closing.clone();
@@ -464,16 +495,106 @@ fn main() {
                     api.prevent_close();
                     // Through the app handle: a `Window` cannot evaluate script,
                     // and the page lives in the webview it hosts.
-                    for webview in window.app_handle().webview_windows().values() {
-                        let _ = webview.eval(
-                            "window.dispatchEvent(new CustomEvent('ge:close.requested'));",
-                        );
-                    }
+                    ask_the_page_about_leaving(window.app_handle());
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running graph explorer desktop");
+        .build(tauri::generate_context!())
+        .expect("error while running graph explorer desktop")
+        .run({
+            let unsaved = unsaved.clone();
+            let closing = closing.clone();
+            move |app_handle, event| {
+                // ⌘Q is an app QUIT, not a window close, and macOS routes the
+                // two differently: a window's red button raises
+                // `CloseRequested` on the window, while a quit raises
+                // `ExitRequested` on the app. Handling only the first meant the
+                // most common way to leave — ⌘Q — discarded an unsaved edit
+                // with no prompt at all.
+                if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                    if !close_is_allowed(
+                        closing.load(std::sync::atomic::Ordering::Relaxed),
+                        unsaved.load(std::sync::atomic::Ordering::Relaxed),
+                    ) {
+                        api.prevent_exit();
+                        ask_the_page_about_leaving(app_handle);
+                    }
+                }
+            }
+        });
+}
+
+/// The macOS menu, with a Quit that asks before it goes (§7.4).
+///
+/// Built by hand because only the Quit item needs to change and Tauri offers no
+/// way to swap one item of the default menu. Every other item is the predefined
+/// one, so Edit keeps working exactly as it did.
+#[cfg(target_os = "macos")]
+fn install_menu_with_asking_quit(app: &tauri::App) -> Result<()> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+
+    let handle = app.handle();
+    let name = "Graph Explorer Desktop";
+
+    let quit = MenuItem::with_id(handle, MENU_QUIT, "Quit Graph Explorer Desktop", true, Some("Cmd+Q"))?;
+
+    let app_menu = Submenu::with_items(
+        handle,
+        name,
+        true,
+        &[
+            &PredefinedMenuItem::about(handle, Some(name), None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::hide(handle, None)?,
+            &PredefinedMenuItem::hide_others(handle, None)?,
+            &PredefinedMenuItem::show_all(handle, None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &quit,
+        ],
+    )?;
+
+    // The one submenu a text editor cannot lose.
+    let edit_menu = Submenu::with_items(
+        handle,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(handle, None)?,
+            &PredefinedMenuItem::redo(handle, None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::cut(handle, None)?,
+            &PredefinedMenuItem::copy(handle, None)?,
+            &PredefinedMenuItem::paste(handle, None)?,
+            &PredefinedMenuItem::select_all(handle, None)?,
+        ],
+    )?;
+
+    let window_menu = Submenu::with_items(
+        handle,
+        "Window",
+        true,
+        &[
+            &PredefinedMenuItem::minimize(handle, None)?,
+            &PredefinedMenuItem::close_window(handle, None)?,
+        ],
+    )?;
+
+    app.set_menu(Menu::with_items(handle, &[&app_menu, &edit_menu, &window_menu])?)?;
+    Ok(())
+}
+
+/// The id of the Quit item this app owns, rather than the predefined one.
+const MENU_QUIT: &str = "gx-quit";
+
+/// Raise §7.4's question in the page: Save, Discard or Cancel.
+///
+/// One function for both ways out. The question does not depend on whether a
+/// window was closed or the app was quit, and the page's answer — `confirm_close`
+/// — releases both.
+fn ask_the_page_about_leaving(app: &tauri::AppHandle) {
+    for webview in app.webview_windows().values() {
+        let _ = webview.eval("window.dispatchEvent(new CustomEvent('ge:close.requested'));");
+    }
 }
 
 fn init_audit_logger() -> Result<AuditLogger> {
@@ -1711,9 +1832,11 @@ fn set_unsaved(state: tauri::State<'_, IpcState>, unsaved: bool) {
 #[tauri::command(rename_all = "camelCase")]
 fn confirm_close(app: tauri::AppHandle, state: tauri::State<'_, IpcState>) {
     state.closing.store(true, std::sync::atomic::Ordering::Relaxed);
-    for window in app.webview_windows().values() {
-        let _ = window.close();
-    }
+    // `exit`, not `close`. The question is raised by two different intents —
+    // closing the window and quitting the app — and the answer has to serve
+    // both. Closing windows would leave a quit half-done: the person said
+    // "discard and go", and the app would still be running.
+    app.exit(0);
 }
 
 /// Hash text for the page, so one SHA-256 serves the whole system.
