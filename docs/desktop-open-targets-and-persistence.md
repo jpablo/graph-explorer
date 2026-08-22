@@ -512,6 +512,20 @@ These changes reduce the immediate risk of wrong-record and stale-destination wr
 4. Implement `LooseFilePersistence`.
 5. Move Cmd/Ctrl+S to `ViewerState.save()`.
 6. Add dirty and external-conflict states.
+7. Complete the open handshake for **file** targets. Items 1 to 3 make this
+   possible.
+
+   Phase 1 delivered the handshake for library targets only. A library record
+   has a route. The page can therefore answer `displayed` correctly. A loose
+   file had no route. On the Home route, no viewer received the file. With a
+   project open, the page put the file text into a viewer of a different
+   record. §1 lists this failure.
+
+   A file `show` therefore keeps the `NO_WINDOW` check only. Until this item is
+   complete, `gx open <path>` can report success for a file that no viewer
+   shows. §1 lists this failure. §4 gives the rule: `gx open` prints
+   "showing ..." only after the page acknowledges the request. The product does
+   not meet this rule for file targets.
 
 ### Phase 3 — Library-origin reconciliation
 
