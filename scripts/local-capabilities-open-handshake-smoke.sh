@@ -75,12 +75,54 @@ require_cmd() {
   }
 }
 
+# Two things about this build are easy to get wrong, and BOTH present as a blank
+# window rather than as a build problem:
+#
+#   1. The frontend must be built FIRST. A release build embeds it, so a dist/
+#      rebuilt afterwards is simply ignored.
+#   2. `cargo build --release` alone is NOT enough. The embedded assets are
+#      served over the custom protocol, which is a cargo FEATURE that
+#      `cargo tauri build` sets implicitly and a raw cargo build does not. A
+#      binary without it opens a window and loads nothing: no page, no JS, no
+#      IPC — and therefore no viewer_ready, which this gate then reports as an
+#      OPEN_TIMEOUT. That reads like a broken handshake and is not one.
+print_build_instructions() {
+  echo "build in this order:"
+  echo "  sbt 'viewer/fullLinkJS' && npm run build"
+  echo "  (cd desktop/src-tauri && cargo build --release --features tauri/custom-protocol)"
+  echo
+  echo "or, equivalently, with the Tauri CLI (which sets that feature for you):"
+  echo "  cargo install tauri-cli --version '^2'   # once"
+  echo "  sbt 'viewer/fullLinkJS' && npm run build && (cd desktop/src-tauri && cargo tauri build)"
+}
+
 require_cmd jq
 require_cmd python3
 
 if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "missing release desktop binary at ${DESKTOP_BIN}" >&2
-  echo "build it first:  (cd desktop/src-tauri && cargo build --release)" >&2
+  print_build_instructions >&2
+  exit 1
+fi
+
+# A RELEASE build EMBEDS the frontend: `generate_context!` bakes `frontendDist`
+# into the binary at compile time, so a newer dist/ is simply ignored. Building
+# in the wrong order therefore produces a desktop whose Rust half expects
+# `viewer_ready` and whose page has never heard of it — which presents as a
+# blank window and an OPEN_TIMEOUT, i.e. as a broken handshake rather than as a
+# stale build. It cost a debugging cycle once; it should cost nobody another.
+stale_against_binary() {
+  [[ -e "$1" && "$1" -nt "${DESKTOP_BIN}" ]]
+}
+
+if stale_against_binary "${ROOT_DIR}/dist/index.html" \
+  || stale_against_binary "${ROOT_DIR}/desktop/src-tauri/src/main.rs"; then
+  echo "the release binary is older than what it is supposed to contain:" >&2
+  echo "  binary       $(date -r "${DESKTOP_BIN}" '+%Y-%m-%d %H:%M' 2>/dev/null)" >&2
+  echo "  dist/        $(date -r "${ROOT_DIR}/dist/index.html" '+%Y-%m-%d %H:%M' 2>/dev/null)" >&2
+  echo "  main.rs      $(date -r "${ROOT_DIR}/desktop/src-tauri/src/main.rs" '+%Y-%m-%d %H:%M' 2>/dev/null)" >&2
+  echo >&2
+  print_build_instructions >&2
   exit 1
 fi
 
@@ -89,6 +131,7 @@ fail() {
   exit 1
 }
 
+
 # A library record `gx import` would have written. Created directly rather than
 # by shelling out to gx: this gate is about the open path, and depending on the
 # CLI would make a gx bug look like a handshake bug.
@@ -96,14 +139,20 @@ seed_record() {
   local id="$1"
   mkdir -p "${LIBRARY_DIR}"
   record_file="${LIBRARY_DIR}/${id}.json"
+  # The shape upickle actually reads, not a plausible-looking one. `id` is a
+  # single-field case class and serializes as {"value": ...} rather than a bare
+  # string, and metadata carries hiddenElements/tags/autoDetectFormat. A record
+  # that does not parse is SKIPPED rather than fatal — by design — so getting
+  # this wrong presents as "no diagram in this library", which is indeed what it
+  # presented as.
   jq -n --arg id "${id}" '{
-    id: $id,
+    id: { value: $id },
     name: "handshake smoke",
     folder: { segments: [] },
     format: "DOT",
     text: "digraph G {\n  a -> b\n}\n",
     binding: null,
-    metadata: { tags: [], notes: null },
+    metadata: { hiddenElements: [], tags: [], autoDetectFormat: true },
     createdAt: 1,
     updatedAt: 1
   }' > "${record_file}"

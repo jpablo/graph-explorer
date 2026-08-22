@@ -168,7 +168,7 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     // an open could not say which record it meant — and an unbound record,
     // having no path, could not be opened at all.
     val route = DesktopOpenRequests.route(
-      openEvent(js.Dynamic.literal(kind = "library", diagramId = "architecture"))
+      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "architecture")))
     )
     assertEquals(route, Some(Route.ProjectDetail("architecture")))
 
@@ -177,11 +177,12 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     // away from whatever the user is looking at, which is strictly worse than
     // ignoring a request that names nothing.
     val unusable = List(
-      js.Dynamic.literal(kind = "library"),                       // no id
-      js.Dynamic.literal(kind = "library", diagramId = "   "),    // blank id
-      js.Dynamic.literal(kind = "loose-file", diagramId = "x"),   // newer shell
-      js.Dynamic.literal(diagramId = "architecture"),             // no kind
-      js.Dynamic.literal()
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "library")),                     // no id
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "   ")),   // blank id
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "loose-file", diagramId = "x")),  // newer shell
+      js.Dynamic.literal(target = js.Dynamic.literal(diagramId = "architecture")),            // no kind
+      js.Dynamic.literal(target = js.Dynamic.literal()),                                      // empty target
+      js.Dynamic.literal()                                                                    // no target at all
     )
     for detail <- unusable do
       assertEquals(DesktopOpenRequests.route(openEvent(detail)), None, s"detail: $detail")
@@ -195,7 +196,7 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     // bridge; what is asserted here is the decision, and the round trip is
     // covered by scripts/local-capabilities-open-handshake-smoke.sh.
     val route = DesktopOpenRequests.route(
-      openEvent(js.Dynamic.literal(kind = "library", diagramId = "missing", requestId = 7))
+      openEvent(js.Dynamic.literal(requestId = 7, target = js.Dynamic.literal(kind = "library", diagramId = "missing")))
     )
     assertEquals(route, Some(Route.ProjectDetail("missing")))
 

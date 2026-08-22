@@ -101,9 +101,13 @@ object DesktopOpenRequests:
     * become an error the user sees.
     */
   private[desktop] def route(event: dom.Event): Option[Route] =
+    // `{requestId, target: {kind, ...}}` — the request id sits beside the
+    // target, not inside it, because it identifies the REQUEST rather than
+    // anything about what was asked for (§4).
     val detail = event.asInstanceOf[js.Dynamic].selectDynamic("detail")
-    val kind   = DesktopIpc.asString(detail, "kind")
-    val id     = DesktopIpc.asString(detail, "diagramId").map(_.trim).filter(_.nonEmpty)
+    val target = detail.selectDynamic("target")
+    val kind   = DesktopIpc.asString(target, "kind")
+    val id     = DesktopIpc.asString(target, "diagramId").map(_.trim).filter(_.nonEmpty)
 
     (kind, id) match
       case (Some("library"), Some(diagramId)) => Some(Route.ProjectDetail(diagramId))
