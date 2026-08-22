@@ -21,7 +21,7 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
       val projectName = "my project"
       val projectId   = ProjectId("test")
-      val viewerState = ViewerState(projectId, graphviz)
+      val viewerState = ViewerState(ViewTarget.LibraryDiagram(projectId), graphviz)
 
       afterMicrotasks {
         // sanity check

@@ -20,6 +20,12 @@
 #   3. An open issued against a still-starting desktop is not lost (§4.1). The
 #      socket answers from process start, before the webview exists; a request
 #      in that window used to be dispatched into a page with no listener.
+#   4. A LOOSE FILE open is acknowledged too, and the acknowledgment names the
+#      document session that displayed it (§15.6, Phase 2 item 7). A file
+#      `show` used to keep only the NO_WINDOW check, so `gx open <path>`
+#      reported success for a file no viewer had. The second open of the same
+#      path is checked as well: registration is idempotent, display is not
+#      (§4.2).
 #
 # Local only, like its siblings: it needs a release desktop binary and a real
 # window, neither of which CI's `cargo test --locked` job provides.
@@ -236,6 +242,62 @@ esac
 if (( elapsed > 10000 )); then
   fail "the refusal took ${elapsed}ms — that is a timeout wearing a refusal's code"
 fi
+
+# ------------------------------------ 4. a loose file is acknowledged, by session
+#
+# The defect Phase 2 item 7 repairs. A loose file had no route, so the page
+# could not answer "displayed" for one — and a file `show` therefore did not
+# ask. It reported success as soon as it had a window.
+loose_file="${GX_HOME}/loose-smoke.dot"
+printf 'digraph G { smoke -> test }\n' > "${loose_file}"
+
+echo "opening a loose file..."
+started_at="$(python3 -c 'import time; print(int(time.time()*1000))')"
+body="$(api_show_file "${loose_file}")"
+elapsed=$(( $(python3 -c 'import time; print(int(time.time()*1000))') - started_at ))
+
+if [[ "$(api_last_status)" != "ok" ]]; then
+  echo "${body}" >&2
+  fail "a loose file open was not served (code: $(api_last_error_code))"
+fi
+
+# The acknowledgment has to say WHAT was displayed. Without this the check
+# would pass for a shell that answered before any viewer mounted, which is
+# exactly the defect.
+view_kind="$(jq -r '.result.view.kind // ""' <<<"${body}")"
+[[ "${view_kind}" == "file" ]] || {
+  echo "${body}" >&2
+  fail "the page did not acknowledge a FILE view (got '${view_kind}')"
+}
+
+session_id="$(jq -r '.result.view.sessionId // ""' <<<"${body}")"
+[[ -n "${session_id}" ]] || fail "the acknowledgment named no document session"
+
+# §13: the session id is opaque. A path in it would end up in the route URL.
+case "${session_id}" in
+  doc-*) : ;;
+  *) fail "expected an opaque session id, got '${session_id}'" ;;
+esac
+case "${session_id}" in
+  */*|*loose-smoke*) fail "the session id leaks the path: '${session_id}'" ;;
+esac
+echo "loose file acknowledged as ${session_id} in ${elapsed}ms"
+
+# §4.2: the watch already exists now. Display is a separate operation and must
+# complete the handshake again — and must land on the SAME session, or one file
+# would accumulate routes.
+echo "opening the same loose file again..."
+body="$(api_show_file "${loose_file}")"
+[[ "$(api_last_status)" == "ok" ]] || {
+  echo "${body}" >&2
+  fail "a second open of a watched file was refused (code: $(api_last_error_code))"
+}
+
+again="$(jq -r '.result.view.sessionId // ""' <<<"${body}")"
+[[ "${again}" == "${session_id}" ]] || {
+  fail "a second open minted a new session ('${again}' != '${session_id}')"
+}
+echo "second open acknowledged, same session"
 
 echo
 echo "PASS: open acknowledgment handshake"

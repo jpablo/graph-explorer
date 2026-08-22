@@ -40,7 +40,7 @@ class ImportOpsSpec extends FunSuite with TestHelpers:
       graphviz:      Graphviz,
       initialSource: Option[String] = None
   ) =
-    ViewerState(ProjectId(id), graphviz, readText = () => clipboard, initialSource = initialSource)
+    ViewerState(ViewTarget.library(id), graphviz, readText = () => clipboard, initialSource = initialSource)
 
   test("pasting Mermaid over a DOT diagram switches the selected format"):
     withGraphvizAsync { graphviz =>

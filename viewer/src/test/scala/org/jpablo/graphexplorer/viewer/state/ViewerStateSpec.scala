@@ -23,7 +23,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
 
   test("addNodeWithSmartConnection should add a node to the graph"):
     withGraphvizAsync { graphviz =>
-      val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val viewerState = ViewerState(ViewTarget.library("test"), graphviz, _ => ())
 
       afterMicrotasks {
         // sanity check
@@ -43,7 +43,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
 
   test("two consecutive addNodeWithSmartConnection should add two nodes and one arrow to the graph"):
     withGraphvizAsync { graphviz =>
-      val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val viewerState = ViewerState(ViewTarget.library("test"), graphviz, _ => ())
 
       afterMicrotasks {
         // Initial state check
@@ -62,7 +62,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
 
   test("addArrow should add an arrow to the graph"):
     withGraphvizAsync { graphviz =>
-      val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val viewerState = ViewerState(ViewTarget.library("test"), graphviz, _ => ())
 
       afterMicrotasks {
         // Initial state check
@@ -83,7 +83,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
 
   test("elementAttributes should update attributes for specific elements"):
     withGraphvizAsync { graphviz =>
-      val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val viewerState = ViewerState(ViewTarget.library("test"), graphviz, _ => ())
 
       afterMicrotasks {
         // Initial state check
@@ -166,7 +166,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
 
   test("DOT svgWithPositions updates after attribute change via toolbar path"):
     withGraphvizAsync { graphviz =>
-      val viewerState = ViewerState(ProjectId("dot-svg-test"), graphviz, _ => ())
+      val viewerState = ViewerState(ViewTarget.library("dot-svg-test"), graphviz, _ => ())
 
 
       afterMicrotasks {
@@ -200,7 +200,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
 
   test("DOT finalSVG updates after attribute change via toolbar path"):
     withGraphvizAsync { graphviz =>
-      val viewerState = ViewerState(ProjectId("dot-final-svg-test"), graphviz, _ => ())
+      val viewerState = ViewerState(ViewTarget.library("dot-final-svg-test"), graphviz, _ => ())
 
 
       afterMicrotasks {
@@ -235,8 +235,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
           |classDef default fill:#fefecc,stroke:#85df72
           |""".stripMargin
 
-      val viewerState = ViewerState(
-        ProjectId("mermaid-test"),
+      val viewerState = ViewerState(ViewTarget.library("mermaid-test"),
         graphviz,
         initialSource = Some(mermaidSource)
       )
@@ -294,8 +293,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
           |classDef default fill:#fefecc,stroke:#85df72
           |""".stripMargin
 
-      val viewerState = ViewerState(
-        ProjectId("mermaid-svg-signal-test"),
+      val viewerState = ViewerState(ViewTarget.library("mermaid-svg-signal-test"),
         graphviz,
         initialSource = Some(mermaidSource),
         logLevel = org.jpablo.graphexplorer.viewer.logging.Level.Info
@@ -352,8 +350,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
           |classDef default fill:#fefecc,stroke:#85df72
           |""".stripMargin
 
-      val viewerState = ViewerState(
-        ProjectId("mermaid-final-svg-test"),
+      val viewerState = ViewerState(ViewTarget.library("mermaid-final-svg-test"),
         graphviz,
         initialSource = Some(mermaidSource)
       )
@@ -411,8 +408,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
           |classDef default fill:#fefecc,stroke:#85df72
           |""".stripMargin
 
-      val viewerState = ViewerState(
-        ProjectId("mermaid-stable-test"),
+      val viewerState = ViewerState(ViewTarget.library("mermaid-stable-test"),
         graphviz,
         initialSource = Some(mermaidSource)
       )
@@ -467,8 +463,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
           |  style B fill:#1c398e,stroke:#85df72
           |""".stripMargin
 
-      val viewerState = ViewerState(
-        ProjectId("mermaid-style-override-test"),
+      val viewerState = ViewerState(ViewTarget.library("mermaid-style-override-test"),
         graphviz,
         initialSource = Some(mermaidSource)
       )

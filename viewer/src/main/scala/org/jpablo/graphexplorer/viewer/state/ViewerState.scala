@@ -26,7 +26,12 @@ import scala.concurrent.Future
 object ClipboardUnavailable extends Exception("Clipboard is not available")
 
 case class ViewerState(
-    projectId:                ProjectId,
+    /** What this viewer shows, and therefore how it saves (§2). One field
+      * rather than a `ProjectId` plus an `exampleName` flag, because the two
+      * could disagree, and because a loose file fits neither: it had to borrow
+      * a `ProjectId` that named no record.
+      */
+    target:                   ViewTarget,
     graphviz:                 Graphviz,
     writeText:                String => Any = _ => (),
     /** The system clipboard, read side. Injected like `writeText` so the paste
@@ -41,17 +46,7 @@ case class ViewerState(
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
     initialLeftPanelVisible:  Boolean = false,
     clientSize:               ClientSize = Normal,
-    logLevel:                 Level = Level.None,
-    /** The built-in example this state is showing, if it is showing one.
-      *
-      * ONE field rather than an `ephemeral` flag beside a name, because the two
-      * could never legitimately disagree: being an example is what makes the
-      * state ephemeral (nothing reaches localStorage or the library directory,
-      * see [[Persistence]]) AND what supplies the title — an example has no
-      * project name of its own, and a DOT graph id like `logo` is not a
-      * declared title, so `displayTitle` had nothing to fall back to.
-      */
-    exampleName:              Option[String] = None
+    logLevel:                 Level = Level.None
 )(
     // All of this state's subscriptions hang off this owner. Pass a killable owner
     // (e.g. ManualOwner killed on unmount) so navigating away releases the whole
@@ -73,6 +68,31 @@ case class ViewerState(
       UIState,
       Persistence:
 
+  /** The id this diagram is known by for display and for a share link.
+    *
+    * NOT a persistence key. `DiagramPersistence.forTarget` decides where a
+    * diagram is stored, and it reads the target rather than this value. The
+    * spellings match what the app used before the target existed, so a share
+    * URL and a `Project` keep their identity.
+    */
+  lazy val projectId: ProjectId =
+    target match
+      case ViewTarget.LibraryDiagram(id) => id
+      case ViewTarget.Example(slug, _)   => ProjectId(s"example-$slug")
+      case ViewTarget.LooseFile(session) => ProjectId(session.value)
+
+  /** The built-in example this state shows, if it shows one.
+    *
+    * Read from the target, so being an example and having an example's name
+    * cannot disagree. An example has no project name of its own, and a DOT
+    * graph id like `logo` is not a declared title, so `displayTitle` needs
+    * this to fall back to.
+    */
+  lazy val exampleName: Option[String] =
+    target match
+      case ViewTarget.Example(_, name) => Some(name)
+      case _                           => None
+
   lazy val project =
     ProjectOps(Var(Project(projectId)))
 
@@ -86,7 +106,7 @@ case class ViewerState(
     .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
 
   // persisted source can be overridden by passing a non-empty initialSource
-  val source = initialSource.getOrElse(persistedDiagramState.now().source)
+  val source = initialSource.getOrElse(persistence.initial.source)
 
   // Registry of diagram backends. InternalPhases depends only on this abstraction, not on concrete backends.
   // Public so views that present OTHER projects (the library sidebar) can ask the same

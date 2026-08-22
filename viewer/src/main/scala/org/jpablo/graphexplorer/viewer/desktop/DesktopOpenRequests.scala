@@ -33,38 +33,26 @@ object DesktopOpenRequests:
     * scoped to a mounted viewer: an open request routinely arrives while the
     * app is on Home, which is exactly when there is no viewer to attach to.
     */
-  /** @param exists
-    *   whether the library holds that record. Passed in rather than reached for
-    *   so this module stays testable without a library, and so the check
-    *   happens HERE: the shell cannot make it (D2.5 keeps it diagram-ignorant),
-    *   and acknowledging an open for a record that is not there would report
-    *   success for a page showing an empty diagram.
-    */
   def install(navigate: Route => Unit, exists: String => Boolean)(using ExecutionContext): Unit =
     if !installed then
       val handler: js.Function1[dom.Event, Unit] = event =>
         val requestId = DesktopIpc.asLong(event.asInstanceOf[js.Dynamic].selectDynamic("detail"), "requestId")
-        route(event) match
-          case Some(Route.ProjectDetail(id, _)) if !exists(id) =>
-            // Answered immediately rather than left to time out. The caller can
-            // act on "there is no such diagram"; it can do nothing useful with
-            // forty-five seconds of silence.
-            requestId.foreach(
-              complete(_, "rejected", Some("DIAGRAM_NOT_FOUND"), Some(s"no diagram '$id' in this library"))
-            )
-          case Some(target) =>
-            navigate(target)
+        decide(event, exists) match
+          case Decision.Show(route, view) =>
+            navigate(route)
             // Acknowledged only after the route is set. `gx open` is waiting on
             // this: until it arrives the shell knows only that it dispatched an
             // event, which is not evidence that anything reached the screen.
-            requestId.foreach(complete(_, "displayed"))
-          case None =>
-            // Say so rather than let the shell wait out its timeout. A request
-            // naming a record this page cannot route to is answered, not
-            // ignored — the caller deserves the reason, not a stall.
-            requestId.foreach(
-              complete(_, "rejected", Some("VIEW_REJECTED"), Some("the page could not route to that target"))
-            )
+            //
+            // The view travels with the acknowledgment (§4), so the answer says
+            // WHAT was displayed and not merely that something was.
+            requestId.foreach(complete(_, "displayed", view = Some(view)))
+          case Decision.Reject(code, message) =>
+            // Answered rather than left to time out. The caller can act on "no
+            // such diagram" or "no such document"; it can do nothing useful
+            // with forty-five seconds of silence.
+            requestId.foreach(complete(_, "rejected", Some(code), Some(message)))
+
       dom.window.addEventListener(EventName, handler)
       installed = true
 
@@ -82,7 +70,8 @@ object DesktopOpenRequests:
       requestId: Long,
       status:    String,
       code:      Option[String] = None,
-      message:   Option[String] = None
+      message:   Option[String] = None,
+      view:      Option[js.Object] = None
   )(using ExecutionContext): Unit =
     // A JS number on the wire: the id is a u64 counter that will not approach
     // 2^53 in a process lifetime, and Scala.js would otherwise send a RuntimeLong
@@ -90,29 +79,66 @@ object DesktopOpenRequests:
     val args = js.Dynamic.literal(requestId = requestId.toDouble, status = status)
     code.foreach(c => args.updateDynamic("code")(c))
     message.foreach(m => args.updateDynamic("message")(m))
+    view.foreach(v => args.updateDynamic("view")(v))
     DesktopIpc.invoke(CompleteOpen, args).failed.foreach: error =>
       dom.console.warn(s"could not acknowledge an open request: ${error.getMessage}")
 
-  /** The route an open request asks for, if it asks for one we understand.
+  /** What an open request should become.
     *
-    * Separated from the listener so the decision is testable without a window,
-    * and returns an Option rather than throwing: this is untrusted input from
-    * outside the page, and an unrecognised shape must be ignored rather than
-    * become an error the user sees.
+    * Separated from the listener so the decision is testable without a window.
+    * A rejection carries its own code, because the caller's next move differs:
+    * a missing diagram is a name to fix, a missing document is a file the shell
+    * never delivered, and an unknown kind is a version mismatch.
     */
-  private[desktop] def route(event: dom.Event): Option[Route] =
+  private[desktop] enum Decision derives CanEqual:
+    case Show(route: Route, view: js.Object)
+    case Reject(code: String, message: String)
+
+  /** @param exists
+    *   whether the library holds that record. Passed in rather than reached for
+    *   so this module stays testable without a library, and so the check
+    *   happens HERE: the shell cannot make it (D2.5 keeps it diagram-ignorant),
+    *   and acknowledging an open for a record that is not there would report
+    *   success for a page showing an empty diagram.
+    */
+  private[desktop] def decide(event: dom.Event, exists: String => Boolean): Decision =
     // `{requestId, target: {kind, ...}}` — the request id sits beside the
     // target, not inside it, because it identifies the REQUEST rather than
     // anything about what was asked for (§4).
     val detail = event.asInstanceOf[js.Dynamic].selectDynamic("detail")
     val target = detail.selectDynamic("target")
     val kind   = DesktopIpc.asString(target, "kind")
-    val id     = DesktopIpc.asString(target, "diagramId").map(_.trim).filter(_.nonEmpty)
 
-    (kind, id) match
-      case (Some("library"), Some(diagramId)) => Some(Route.ProjectDetail(diagramId))
-      // A library request with no id names nothing, and a kind we do not know
-      // is a newer shell talking to an older page. Neither is actionable, and
-      // guessing a route would navigate away from whatever the user is looking
-      // at — strictly worse than doing nothing.
-      case _ => None
+    def field(name: String) = DesktopIpc.asString(target, name).map(_.trim).filter(_.nonEmpty)
+
+    (kind, field("diagramId"), field("path")) match
+      case (Some("library"), Some(diagramId), _) if exists(diagramId) =>
+        Decision.Show(
+          Route.ProjectDetail(diagramId),
+          js.Dynamic.literal(kind = "library", diagramId = diagramId)
+        )
+
+      case (Some("library"), Some(diagramId), _) =>
+        Decision.Reject("DIAGRAM_NOT_FOUND", s"no diagram '$diagramId' in this library")
+
+      // A file is named by a PATH on the wire and by a SESSION on screen. §13
+      // allows the path here — an IPC event may carry one where the document
+      // session requires it — and stops it at the route.
+      case (Some("file"), _, Some(path)) =>
+        DesktopDocumentRegistry.find(path) match
+          case Some(session) =>
+            Decision.Show(
+              Route.LooseDocument(session.id.value),
+              js.Dynamic.literal(kind = "file", sessionId = session.id.value, revision = session.revision)
+            )
+          case None =>
+            // The shell delivers the document before it asks for the open, so
+            // no session means the delivery did not arrive. Saying so beats
+            // routing to an empty viewer and calling it displayed.
+            Decision.Reject("DOCUMENT_NOT_FOUND", "the page holds no open document for that path")
+
+      // A request naming nothing, or a kind we do not know: a newer shell
+      // talking to an older page. Guessing a route would navigate away from
+      // whatever the person is looking at — strictly worse than refusing.
+      case _ =>
+        Decision.Reject("VIEW_REJECTED", "the page could not route to that target")
