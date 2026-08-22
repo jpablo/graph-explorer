@@ -133,8 +133,14 @@ _api_call() {
     return 1
   }
 
+  # The client's own default is 10s, which is shorter than some calls are
+  # ALLOWED to take: an open waits up to 45s for the page to acknowledge, and a
+  # client that gives up first reports "unreachable" — losing the desktop's
+  # actual answer, which was on its way. Callers with a longer budget set
+  # API_TIMEOUT; everything else keeps the old default.
   local body code
-  body="$(python3 "${CONTROL_CLIENT}" "${method}" "${params}" --socket "${CONTROL_SOCKET}" 2>/dev/null)"
+  body="$(python3 "${CONTROL_CLIENT}" "${method}" "${params}" \
+    --socket "${CONTROL_SOCKET}" --timeout "${API_TIMEOUT:-10}" 2>/dev/null)"
   code=$?
 
   case "${code}" in

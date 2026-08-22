@@ -44,6 +44,12 @@ LIBRARY_DIR="${GX_HOME}/library/diagrams"
 # The control helpers read this to find the socket.
 export CONTROL_RUNTIME_FILE="${RUNTIME_FILE}"
 
+# Longer than the shell's 45s open budget. The client's 10s default expires
+# BEFORE the desktop's own timeout, so a genuine OPEN_TIMEOUT came back as
+# "unreachable" with no error code — the gate could not tell a page that never
+# answered from a socket that was never there.
+export API_TIMEOUT=60
+
 # shellcheck source=scripts/lib/control-api.sh
 source "${ROOT_DIR}/scripts/lib/control-api.sh"
 
