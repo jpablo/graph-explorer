@@ -101,23 +101,50 @@ object Reconciler:
       origin:   Option[OriginSnapshot],
       hashText: (String, LineEnding) => ContentHash
   ): ReconcilePlan =
+    planWith(binding, text, origin, hashText(text, storedWith(origin)))
+
+  /** The convention `local` must be hashed with: the origin's own, or LF if the
+    * origin is gone.
+    *
+    * Public because a caller that cannot hash synchronously has to compute
+    * `local` BEFORE it can call [[planWith]], and it must not guess how. The
+    * desktop's page is that caller: it has no SHA-256, so it applies this
+    * convention to the text and asks its shell for the digest.
+    */
+  def storedWith(origin: Option[OriginSnapshot]): LineEnding =
+    // `base` and `remote` are hashes of FILE BYTES, so `local` has to be
+    // measured the same way: the record's text as it would be written into THIS
+    // file, using the convention that file already uses (V-04).
+    //
+    // Hashing with a fixed LF made every CRLF-authored origin read `Ahead`
+    // forever — nothing had been edited, the bytes simply could not agree — and
+    // made a byte-identical regeneration land on `Diverged` instead of
+    // `Converged`, which is the conflict machine SyncState.Converged exists to
+    // prevent.
+    //
+    // With no origin on disk the state is OriginMissing whatever `local` says,
+    // and Lf is what a re-created file would get.
+    origin.map(_.lineEnding).getOrElse(LineEnding.Lf)
+
+  /** Reconcile with `local` already computed.
+    *
+    * CAUTION: `local` must be the hash of `text` stored with [[storedWith]]'s
+    * answer for this same origin. Hash it any other way and every comparison
+    * below is measuring two different things.
+    *
+    * Separate from [[plan]] because hashing is not always synchronous. The
+    * page fetches its digest over IPC, and a `Future` cannot be handed to a
+    * function this method would call.
+    */
+  def planWith(
+      binding: Option[Binding],
+      text:    String,
+      origin:  Option[OriginSnapshot],
+      local:   ContentHash
+  ): ReconcilePlan =
     binding match
       case None => ReconcilePlan.Unbound
       case Some(binding) =>
-        // `base` and `remote` are hashes of FILE BYTES, so `local` has to be
-        // measured the same way: the record's text as it would be written into
-        // THIS file, using the convention that file already uses (V-04).
-        //
-        // Hashing with a fixed LF made every CRLF-authored origin read `Ahead`
-        // forever — nothing had been edited, the bytes simply could not agree —
-        // and made a byte-identical regeneration land on `Diverged` instead of
-        // `Converged`, which is the conflict machine SyncState.Converged exists
-        // to prevent. This rule belongs beside the three-hash comparison it
-        // feeds, not in whichever tool happens to be calling.
-        //
-        // With no origin on disk the state is OriginMissing whatever `local`
-        // says, and Lf is what a re-created file would get.
-        val local = hashText(text, origin.map(_.lineEnding).getOrElse(LineEnding.Lf))
         val state = SyncState.of(binding.baseHash, local, origin.map(_.hash))
 
         val action =

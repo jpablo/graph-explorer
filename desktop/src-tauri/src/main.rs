@@ -414,6 +414,7 @@ fn main() {
             session_reply,
             viewer_ready,
             complete_open,
+            hash_text,
             library_list,
             library_read,
             library_write,
@@ -1617,6 +1618,27 @@ fn complete_open(
             let _ = sender.send(outcome);
         }
     }
+}
+
+/// Hash text for the page, so one SHA-256 serves the whole system.
+///
+/// The page reconciles a bound record against its origin (§8), and that needs
+/// `local` — the record's text hashed as it would be STORED. The page cannot
+/// compute it: `Hashing` is `MessageDigest`, which does not exist in Scala.js.
+///
+/// A second digest in the webview would be the alternative, and it would have
+/// to agree with this one byte for byte forever. `content_hash` is already
+/// pinned against `Hashing` by the shared `content-hashes.json` fixture, so
+/// routing the page through here means there is nothing new to keep in
+/// agreement.
+///
+/// The LINE ENDING is applied before the call, not here. `LineEnding.applyTo`
+/// is shared Scala the page already has, and reimplementing that convention in
+/// Rust would recreate exactly the divergence this command exists to avoid.
+/// This hashes the bytes it is given.
+#[tauri::command(rename_all = "camelCase")]
+fn hash_text(text: String) -> String {
+    content_hash(text.as_bytes())
 }
 
 /// The page's answer to a session command.
@@ -3474,6 +3496,40 @@ mod tests {
         let text = fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
         serde_json::from_str(&text).expect("fixture is valid JSON")
+    }
+
+    #[test]
+    fn hash_text_is_the_same_digest_the_fixtures_pin() {
+        // The page calls this instead of hashing for itself, so it has to
+        // return exactly what `content_hash` returns — which the fixture above
+        // pins against the JVM's `Hashing`. A separate path here would be a
+        // second implementation wearing the first one's name.
+        let doc = fixture("content-hashes.json");
+        let cases = doc["contentHashes"].as_array().expect("an array");
+        let mut checked = 0;
+
+        for case in cases {
+            if let Some(text) = case.get("text").and_then(|t| t.as_str()) {
+                assert_eq!(
+                    hash_text(text.to_string()),
+                    case["sha256"].as_str().expect("sha256"),
+                    "hash_text disagrees with the fixture for '{}'",
+                    case["name"].as_str().unwrap_or("?")
+                );
+                checked += 1;
+            }
+        }
+
+        assert!(checked >= 4, "the text cases should not have shrunk");
+    }
+
+    #[test]
+    fn hash_text_hashes_the_bytes_it_is_given_and_applies_no_convention() {
+        // The line ending is applied by the caller (shared Scala), so CRLF and
+        // LF text MUST hash differently here. If this command normalised
+        // anything, a CRLF origin would read as changed on every comparison —
+        // the exact bug the CRLF rule exists to prevent.
+        assert_ne!(hash_text("a\nb".to_string()), hash_text("a\r\nb".to_string()));
     }
 
     #[test]

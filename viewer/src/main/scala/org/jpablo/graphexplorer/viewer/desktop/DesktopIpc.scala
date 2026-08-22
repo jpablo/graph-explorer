@@ -1,8 +1,15 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
+import org.jpablo.graphexplorer.gxcore.model.ContentHash
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js
 import scala.util.{Failure, Success}
+
+/** No shell to ask. Named rather than anonymous so a caller can tell "the
+  * desktop is not here" from "the desktop refused".
+  */
+object IpcUnavailable extends Exception("desktop IPC is unavailable")
 
 /** The webview's half of the desktop boundary (architecture D3).
   *
@@ -12,8 +19,8 @@ import scala.util.{Failure, Success}
   * write — a `.dot` from anywhere, an imported project — the holder of a bearer
   * token for a general HTTP API.
   *
-  * It now calls three named Tauri commands. That is not a sandbox: page JS can
-  * still invoke them. What it buys is that the capability is *enumerated and
+  * It now calls named Tauri commands — the ones listed below. That is not a
+  * sandbox: page JS can still invoke them. What it buys is that the capability is *enumerated and
   * revocable* rather than *ambient*, and that there is no credential in the JS
   * heap to steal in the first place.
   */
@@ -49,6 +56,8 @@ object DesktopIpc:
     yield invoke.asInstanceOf[js.Function2[String, js.Any, js.Promise[js.Any]]]
 
   def available: Boolean = invoker.isDefined
+
+  private val HashText = "hash_text"
 
   def invoke(command: String, args: js.Any): Future[js.Any] =
     invoker match
@@ -86,6 +95,30 @@ object DesktopIpc:
             )
           )
         case Failure(error) => Success(failureOutcome(error))
+
+  /** Hash text the way the rest of the system hashes it (§8).
+    *
+    * The page cannot do this itself: `Hashing` is `MessageDigest`, and there is
+    * no such thing in Scala.js. A second SHA-256 in the webview would have to
+    * agree with the shell's and the JVM's byte for byte forever; asking the
+    * shell means there is nothing new to keep in agreement. The shell's digest
+    * is already pinned against the JVM's by `local-protocol/fixtures/content-hashes.json`.
+    *
+    * Pass text with its line ending ALREADY applied —
+    * `Reconciler.storedWith(origin).applyTo(text)`. The convention is shared
+    * Scala this page has; the shell hashes the bytes it is given and applies no
+    * convention of its own.
+    *
+    * Fails outside the desktop shell rather than returning a wrong answer: a
+    * hash nobody can compute has no sensible default, and a made-up one would
+    * report a phantom conflict.
+    */
+  def hashText(storedText: String)(using ExecutionContext): Future[ContentHash] =
+    if !available then Future.failed(IpcUnavailable)
+    else
+      invoke(HashText, js.Dynamic.literal(text = storedText)).map: value =>
+        if js.typeOf(value) == "string" then ContentHash.fromHex(value.asInstanceOf[String])
+        else throw IpcUnavailable
 
   /** A rejected `invoke` carries the command's `Err` value — our `IpcError`, as
     * a plain JS object. Anything else (the runtime itself failing) still has to
