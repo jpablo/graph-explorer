@@ -68,8 +68,26 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
         for
           binding <- d.binding
           path    <- binding.origin.filePath
-        yield path -> BoundRecord(ProjectId(d.id.value), d.text, binding)
+        yield pathKey(path) -> BoundRecord(ProjectId(d.id.value), d.text, binding)
       .groupMap(_._1)(_._2)
+
+  /** The spelling both sides of this comparison collapse to.
+    *
+    * The two sides arrive by different routes. The shell reports a canonical
+    * path as the platform writes it — `C:\Users\x\a.dot` on Windows. A binding
+    * stores a URI, and `filePath` decodes it back to `C:/Users/x/a.dot`,
+    * because `fromCanonicalPath` writes URI separators. One file, two
+    * spellings, and a byte comparison misses.
+    *
+    * The miss is SILENT and costly: the file reads as unbound, so it opens as a
+    * loose document beside the record that already owns it, and the two then
+    * disagree about the same file.
+    *
+    * Only the separator differs. Case is already settled — both sides resolve
+    * to the filesystem's own spelling, which `canonicalization.json` pins for
+    * both languages — and both strip Windows' `\\?\` verbatim prefix.
+    */
+  private def pathKey(path: String): String = path.replace('\\', '/')
 
   private def toDirectory(byId: Map[String, Diagram]): ProjectsDirectory =
     ProjectsDirectory(
@@ -100,7 +118,7 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
     records.signal.map(indexByOrigin).observe
 
   override def recordsBoundTo(path: String): List[BoundRecord] =
-    boundByPath.now().getOrElse(path, Nil)
+    boundByPath.now().getOrElse(pathKey(path), Nil)
 
   def getProjectContent(id: ProjectId): Signal[String] =
     records.signal.map(_.get(id.value).map(_.text).getOrElse(PersistedDiagramState.minimalGraphText))

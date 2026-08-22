@@ -100,6 +100,41 @@ class OriginReconciliationSpec extends FunSuite:
       assertEquals(library.recordsBoundTo(originPath).map(_.id.value).sorted, List("a", "b"))
       Future.unit
 
+  test("a Windows record is found by the path the shell reports"):
+    // The shell reports `C:\\Users\\x\\a.dot`. The binding stores a URI, and
+    // decoding it back yields `C:/Users/x/a.dot` — the same file, spelled with
+    // the other separator. A byte comparison misses it, and the miss is silent:
+    // the file reads as unbound and opens as a loose document.
+    //
+    // Testable on any platform, because it is string handling and not a
+    // property of the machine running the test.
+    val windows = Diagram(
+      id = DiagramId("w"),
+      name = "w",
+      folder = FolderPath.root,
+      format = "DOT",
+      text = "digraph { a }",
+      binding = Some(
+        Binding(
+          OriginUri.parse("file:///C:/Users/x/a.dot").fold(e => fail(e), identity),
+          SyncMode.Pull,
+          ContentHash.fromHex(hashOf("digraph { a }")),
+          lastSyncAt = 0L
+        )
+      ),
+      metadata = DiagramMetadata(),
+      createdAt = 1,
+      updatedAt = 1
+    )
+
+    withLibrary(windows): (_, library) =>
+      assertEquals(
+        library.recordsBoundTo("C:\\Users\\x\\a.dot").map(_.id.value),
+        List("w"),
+        "the shell's spelling of a Windows path did not reach its record"
+      )
+      Future.unit
+
   // -------------------------------------------- item 4: the record follows
 
   test("a Pull record whose origin moved adopts the file's text and its hash"):
