@@ -26,7 +26,16 @@ object Main:
     // library, the control file and the audit log together — they only work as
     // a set, since the runtime file is what names the socket for the library it
     // belongs to.
-    val gxHome  = GxHome.resolve()
+    // A refusal here is reported and exits; it must not become a stack trace.
+    // The variable is usually set by a script or a test harness, and the useful
+    // answer is which value was rejected and why.
+    val gxHome = GxHome.resolve() match
+      case Right(path) => path
+      case Left(why) =>
+        System.err.println(s"gx: $why")
+        System.exit(ExitCode.Usage)
+        return
+
     val runtime = GxHome.runtimeDir(gxHome)
     val control = runtime.resolve("control.json")
 

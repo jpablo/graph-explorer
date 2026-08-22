@@ -38,14 +38,41 @@ object GxHome:
   def resolve(
       env:      String => Option[String] = k => sys.env.get(k),
       userHome: () => Path               = () => Paths.get(sys.props.getOrElse("user.home", "."))
-  ): Path =
+  ): Either[String, Path] =
     env(EnvVar).map(_.trim).filter(_.nonEmpty) match
-      // Absolutised against the process's CWD, and normalised, so that a
-      // relative `GX_HOME=./scratch` means the same directory to every later
-      // path comparison — the library store compares paths to decide whether a
-      // name escapes its directory.
-      case Some(dir) => Paths.get(dir).toAbsolutePath.normalize()
-      case None      => userHome().resolve(DefaultDirName)
+      case None => Right(userHome().resolve(DefaultDirName))
+
+      // A RELATIVE value is refused rather than absolutised, and that is the
+      // whole point of the variable rather than a technicality.
+      //
+      // Absolutising resolves against the reading process's working directory,
+      // and the two halves do not share one: `gx` runs from the user's shell, a
+      // GUI-launched desktop from wherever the launcher put it (often `/`). So
+      // `GX_HOME=./scratch` would name two different directories and each half
+      // would be internally consistent about the wrong one — silently, which is
+      // exactly the failure this variable exists to prevent (see the note above
+      // about v0.9.4).
+      //
+      // There is no value in guessing which cwd was meant, so it is refused
+      // before either process advertises a socket or scans a library.
+      case Some(dir) =>
+        val path = Paths.get(dir)
+        if path.isAbsolute then Right(path.normalize())
+        else
+          Left(
+            s"$EnvVar must be an absolute path, but is '$dir'. " +
+              "A relative value resolves against each process's working directory, and gx and " +
+              "the desktop do not share one — they would use different libraries without saying so."
+          )
+
+  /** The resolved root, or the reason it could not be used, as a `Path` for
+    * callers that have already validated it.
+    */
+  def resolveOrThrow(
+      env:      String => Option[String] = k => sys.env.get(k),
+      userHome: () => Path               = () => Paths.get(sys.props.getOrElse("user.home", "."))
+  ): Path =
+    resolve(env, userHome).fold(message => throw IllegalArgumentException(message), identity)
 
   /** `$GX_HOME/library`, the directory `gx` and the desktop agree on. */
   def libraryDir(gxHome: Path): Path = gxHome.resolve("library")

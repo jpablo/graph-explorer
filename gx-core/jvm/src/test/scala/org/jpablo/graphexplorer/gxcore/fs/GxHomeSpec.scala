@@ -20,7 +20,7 @@ class GxHomeSpec extends FunSuite:
 
   test("with no GX_HOME it is ~/.graph-explorer") {
     assertEquals(
-      GxHome.resolve(env(), home("/Users/someone")),
+      GxHome.resolve(env(), home("/Users/someone")).toOption.get,
       Paths.get("/Users/someone/.graph-explorer")
     )
   }
@@ -30,19 +30,36 @@ class GxHomeSpec extends FunSuite:
     // `$GX_HOME/.graph-explorer` would put a hidden directory inside a path the
     // caller chose explicitly, which is the opposite of what naming one is for.
     assertEquals(
-      GxHome.resolve(env("GX_HOME" -> "/tmp/scratch"), home("/Users/someone")),
+      GxHome.resolve(env("GX_HOME" -> "/tmp/scratch"), home("/Users/someone")).toOption.get,
       Paths.get("/tmp/scratch")
     )
   }
 
-  test("a relative GX_HOME is absolutised, so later path comparisons agree") {
-    // The library store decides whether a name escapes its directory by
-    // comparing paths. A relative root would make that comparison depend on the
-    // process's working directory, which `gx` deliberately reads from the
-    // user's shell rather than its own.
-    val resolved = GxHome.resolve(env("GX_HOME" -> "scratch"), home("/Users/someone"))
-    assert(resolved.isAbsolute, s"expected an absolute path, got $resolved")
-    assertEquals(resolved.getFileName.toString, "scratch")
+  test("a relative GX_HOME is REFUSED, not absolutised") {
+    // It used to be absolutised. That made each process internally consistent
+    // and the two of them inconsistent with each other: absolutising resolves
+    // against the reading process's working directory, and `gx` runs from the
+    // user's shell while a GUI-launched desktop runs from wherever the launcher
+    // put it. The two halves would use different libraries and neither would
+    // say so — the exact failure GX_HOME exists to prevent.
+    //
+    // The desktop refuses the same values, in graph_explorer_dir_from.
+    for relative <- List("scratch", "./scratch", "../scratch", "a/b") do
+      GxHome.resolve(env("GX_HOME" -> relative), home("/Users/someone")) match
+        case Right(path) => fail(s"[$relative] should have been refused, got $path")
+        case Left(why) =>
+          assert(why.contains("absolute"), s"[$relative] the reason should name the rule: $why")
+          assert(why.contains(relative), s"[$relative] the reason should quote the value: $why")
+  }
+
+  test("an absolute GX_HOME is normalised, so both halves compare equal") {
+    // `/tmp/../tmp/scratch` and `/tmp/scratch` are one directory. The library
+    // store compares paths to decide whether a name escapes its directory, so
+    // the two spellings must fold to one — on both sides of the product.
+    assertEquals(
+      GxHome.resolve(env("GX_HOME" -> "/tmp/../tmp/scratch"), home("/Users/someone")),
+      Right(Paths.get("/tmp/scratch"))
+    )
   }
 
   test("a blank GX_HOME means unset, not the filesystem root") {
@@ -51,7 +68,7 @@ class GxHomeSpec extends FunSuite:
     // at `/library`.
     for blank <- List("", "   ") do
       assertEquals(
-        GxHome.resolve(env("GX_HOME" -> blank), home("/Users/someone")),
+        GxHome.resolve(env("GX_HOME" -> blank), home("/Users/someone")).toOption.get,
         Paths.get("/Users/someone/.graph-explorer"),
         s"blank value [$blank] should read as unset"
       )
@@ -60,7 +77,7 @@ class GxHomeSpec extends FunSuite:
   test("library and runtime hang off the same root") {
     // They are only useful as a set: the runtime file names the socket for the
     // library it belongs to, so a half-applied override splits them silently.
-    val root = GxHome.resolve(env("GX_HOME" -> "/tmp/scratch"), home("/Users/someone"))
+    val root = GxHome.resolve(env("GX_HOME" -> "/tmp/scratch"), home("/Users/someone")).toOption.get
     assertEquals(GxHome.libraryDir(root), Paths.get("/tmp/scratch/library"))
     assertEquals(GxHome.runtimeDir(root), Paths.get("/tmp/scratch/runtime"))
   }

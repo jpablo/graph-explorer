@@ -643,12 +643,32 @@ fn graph_explorer_dir_from(
     home_dir: Option<PathBuf>,
 ) -> Result<PathBuf> {
     if let Some(dir) = gx_home {
-        let dir = PathBuf::from(dir);
-        // A set-but-empty variable means "unset" here. Exporting an empty
-        // GX_HOME is how a shell script passes through an unset value, and
-        // taking it literally would put the library at the filesystem root.
-        if !dir.as_os_str().is_empty() {
-            return Ok(dir);
+        // A set-but-BLANK variable means "unset" here. `export GX_HOME="$X"`
+        // with X unset is how a shell script passes through an absent value,
+        // and taking it literally would put the library at the filesystem root.
+        // Whitespace counts as blank, matching GxHome.resolve on the Scala side
+        // — the two must agree about this or one half relocates and the other
+        // does not.
+        let trimmed = dir.to_string_lossy().trim().to_string();
+        if !trimmed.is_empty() {
+            let dir = PathBuf::from(trimmed);
+            // Refused, not absolutised. Absolutising resolves against the
+            // reading process's working directory, and the two halves do not
+            // share one: `gx` runs from the user's shell, a GUI-launched
+            // desktop from wherever the launcher put it. A relative value would
+            // name two different libraries, each half internally consistent
+            // about the wrong one. Same rule, same wording as GxHome.resolve.
+            if dir.is_relative() {
+                anyhow::bail!(
+                    "GX_HOME must be an absolute path, but is '{}'. A relative value resolves \
+                     against each process's working directory, and gx and the desktop do not \
+                     share one — they would use different libraries without saying so.",
+                    dir.display()
+                );
+            }
+            // The file-scope helper, which also refuses to pop past the
+            // root — `/..` is `/`, not an escape.
+            return Ok(normalize_dot_segments(&dir));
         }
     }
     let home_dir = home_dir.context("could not locate user home directory")?;
@@ -2516,6 +2536,61 @@ fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: Rece
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// GX_HOME has to mean the same directory to `gx` and to this shell, and a
+    /// RELATIVE value cannot: it resolves against the reading process's working
+    /// directory, and the two do not share one — `gx` runs from the user's
+    /// shell, a GUI-launched desktop from wherever the launcher put it.
+    ///
+    /// The Scala half refuses the same values in GxHome.resolve; these cases
+    /// mirror GxHomeSpec deliberately, because a rule enforced on one side only
+    /// is the divergence it was meant to prevent.
+    #[test]
+    fn a_relative_gx_home_is_refused_on_this_side_too() {
+        for relative in ["scratch", "./scratch", "../scratch", "a/b"] {
+            let result = graph_explorer_dir_from(
+                Some(std::ffi::OsString::from(relative)),
+                Some(PathBuf::from("/Users/someone")),
+            );
+            let err = result
+                .expect_err(&format!("[{relative}] should have been refused"))
+                .to_string();
+            assert!(err.contains("absolute"), "[{relative}] reason should name the rule: {err}");
+            assert!(err.contains(relative), "[{relative}] reason should quote the value: {err}");
+        }
+    }
+
+    #[test]
+    fn an_absolute_gx_home_is_normalised_the_way_java_normalises() {
+        // `/tmp/../tmp/scratch` and `/tmp/scratch` are one directory, and the
+        // two halves compare these paths.
+        let resolved = graph_explorer_dir_from(
+            Some(std::ffi::OsString::from("/tmp/../tmp/scratch")),
+            Some(PathBuf::from("/Users/someone")),
+        )
+        .unwrap();
+        assert_eq!(resolved, PathBuf::from("/tmp/scratch"));
+    }
+
+    #[test]
+    fn a_blank_gx_home_reads_as_unset_including_whitespace() {
+        // `export GX_HOME="$X"` with X unset. Scala trims before testing for
+        // empty; this used to test only for exactly-empty, so a single space
+        // put the desktop's library at a directory named " " while gx used the
+        // default home.
+        for blank in ["", "   ", "\t"] {
+            let resolved = graph_explorer_dir_from(
+                Some(std::ffi::OsString::from(blank)),
+                Some(PathBuf::from("/Users/someone")),
+            )
+            .unwrap();
+            assert_eq!(
+                resolved,
+                PathBuf::from("/Users/someone/.graph-explorer"),
+                "blank value [{blank}] should read as unset"
+            );
+        }
+    }
 
     /// Registration is idempotent; DISPLAY is not.
     ///

@@ -143,7 +143,7 @@ object LibraryStore:
     * — a half-applied override is worse than none, because it splits the library
     * from the runtime file that names its socket.
     */
-  def default(gxHome: Path = GxHome.resolve()): LibraryStore =
+  def default(gxHome: Path = GxHome.resolveOrThrow()): LibraryStore =
     LibraryStore(GxHome.libraryDir(gxHome))
 
   /** An id becomes a filename, so it must not be able to escape the directory or
