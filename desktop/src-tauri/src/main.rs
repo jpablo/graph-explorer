@@ -247,6 +247,10 @@ struct OpenOutcome {
     status: String,
     code: Option<String>,
     message: Option<String>,
+    /// What the page says it displayed (§4): a diagram id, or a document
+    /// session and its revision. Evidence of WHICH view answered, not merely
+    /// that one did.
+    view: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -1210,7 +1214,7 @@ fn dispatch_method(
                 // Registration only. `watch` is resource observation, not
                 // display (§12), so it never activates a document and never
                 // changes what the window is showing.
-                Ok(outcome) => watch_response(id, &outcome.watch, true),
+                Ok(outcome) => watch_response(id, &outcome.watch, true, serde_json::Value::Null),
                 Err(err) => {
                     context.audit_logger.log_event(
                         "watch.rejected",
@@ -1519,7 +1523,9 @@ fn await_open(
     forget_open(context, id);
 
     match outcome {
-        Ok(outcome) if outcome.status == "displayed" => Ok(serde_json::json!({ "requestId": id })),
+        Ok(outcome) if outcome.status == "displayed" => {
+            Ok(outcome.view.unwrap_or(serde_json::Value::Null))
+        }
         Ok(outcome) => {
             let code = match outcome.code.as_deref() {
                 Some("DIAGRAM_NOT_FOUND") => "DIAGRAM_NOT_FOUND",
@@ -1598,11 +1604,13 @@ fn complete_open(
     status: String,
     code: Option<String>,
     message: Option<String>,
+    view: Option<serde_json::Value>,
 ) {
     let outcome = OpenOutcome {
         status,
         code,
         message,
+        view,
     };
     if let Ok(mut pending) = state.pending_opens.lock() {
         if let Some(sender) = pending.remove(&request_id) {
@@ -2211,9 +2219,9 @@ fn show_file(
     ) {
         Ok(outcome) => {
             // Registration is idempotent; DISPLAY is not (§4.2). A watch that
-            // already existed emitted no document event, so without this a
-            // second `gx open` only raised the window and left the previous
-            // document on screen.
+            // already existed emitted no document event, so without this the
+            // page would have nothing current to route to — and a second
+            // `gx open` only raised the window over the previous document.
             if !outcome.created {
                 if let Err(err) = activate_document(app, &outcome.watch) {
                     context.audit_logger.log_event(
@@ -2228,19 +2236,39 @@ fn show_file(
                 }
             }
 
-            // An emitted event is still not proof the right viewer displayed
-            // it — that needs the acknowledgment handshake in §4 — but claiming
-            // success with no window at all was simply false.
-            if app.webview_windows().is_empty() {
-                return RpcResponse::failure(
-                    id,
-                    "NO_WINDOW",
-                    anyhow::anyhow!("the desktop has no window to show it in"),
-                );
+            // The document event above and this request are both evaluated in
+            // the same webview, in order, and the page handles the document
+            // synchronously. So the session exists by the time the page is
+            // asked to open it.
+            let target = serde_json::json!({ "kind": "file", "path": outcome.watch.path });
+            match await_open(context, app, target, &format!("'{}'", outcome.watch.path)) {
+                Ok(view) => {
+                    // Raised only AFTER the page confirmed it displayed the
+                    // file. Focusing first would bring forward a window still
+                    // showing the previous document.
+                    let focused = focus_main_window(app);
+                    context.audit_logger.log_event(
+                        "show.file",
+                        Some(&outcome.watch.path),
+                        Some("open"),
+                        "ok",
+                        None,
+                        None,
+                    );
+                    watch_response(id, &outcome.watch, focused, view)
+                }
+                Err((code, message)) => {
+                    context.audit_logger.log_event(
+                        "show.rejected",
+                        Some(&outcome.watch.path),
+                        Some("open"),
+                        "rejected",
+                        None,
+                        Some(&message),
+                    );
+                    RpcResponse::failure(id, code, message)
+                }
             }
-
-            let focused = focus_main_window(app);
-            watch_response(id, &outcome.watch, focused)
         }
         Err(err) => {
             context.audit_logger.log_event(
@@ -2262,11 +2290,17 @@ fn watch_response(
     id: Option<serde_json::Value>,
     watch: &WatchDescriptor,
     focused: bool,
+    view: serde_json::Value,
 ) -> RpcResponse {
     match serde_json::to_value(watch) {
         Ok(mut value) => {
             if let Some(object) = value.as_object_mut() {
                 object.insert("focused".to_string(), serde_json::Value::Bool(focused));
+                // Absent for a plain `watch`: registration observes a file and
+                // displays nothing, so it has no view to report (§12).
+                if !view.is_null() {
+                    object.insert("view".to_string(), view);
+                }
             }
             RpcResponse::success(id, value)
         }
