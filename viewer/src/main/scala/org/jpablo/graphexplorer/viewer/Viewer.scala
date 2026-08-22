@@ -139,6 +139,12 @@ object Viewer:
       // that is an answer).
       SessionCommands.install()
 
+      // Before `DesktopOpenRequests.install` below, which announces
+      // `viewer_ready` and releases the shell's queued opens. A `gx open` of a
+      // FILE delivers the document first and asks the page to display it
+      // second, so the document listener has to exist before either arrives.
+      DesktopBridge.install()
+
       // Installed at the WINDOW level, not per view: an open request routinely
       // arrives while the app is on Home, which is precisely when there is no
       // viewer to deliver it to.

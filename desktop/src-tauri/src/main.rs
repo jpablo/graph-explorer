@@ -2229,6 +2229,20 @@ fn show_file(
     context: &ConnectionContext,
     app: &tauri::AppHandle,
 ) -> RpcResponse {
+    // BEFORE `add_watch`, which emits the document event that carries the
+    // file's text. That event is dispatched into the page and is NOT queued the
+    // way an open request is (§4.1), so emitting it before the page is
+    // listening drops it — and the open request that follows then finds no
+    // session and answers DOCUMENT_NOT_FOUND.
+    //
+    // The control socket answers from process start, well before the webview
+    // runs, so "the desktop is up" is not "the page is listening". A `gx open`
+    // issued by a shell alias that launches the desktop lands in exactly that
+    // window.
+    if let Err((code, message)) = wait_for_page(&context.page_ready) {
+        return RpcResponse::failure(id, code, message);
+    }
+
     match add_watch(
         &context.access_policy,
         &context.watch_registry,
