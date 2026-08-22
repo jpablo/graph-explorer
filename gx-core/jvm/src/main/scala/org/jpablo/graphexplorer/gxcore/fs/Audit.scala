@@ -28,21 +28,31 @@ enum AuditEvent derives CanEqual:
   * Writes are best-effort by construction. Failing to record an action must
   * never fail the action: a full disk should not make the editor read-only.
   */
-final class Audit(path: Path):
+/** @param now the clock, injected for the same reason every other timestamp in
+  *            the CLI is: an event stamped from a hidden `currentTimeMillis`
+  *            cannot be pinned by a test, and this was the one hole left in an
+  *            otherwise complete seam.
+  */
+final class Audit(path: Path, now: () => Long = () => System.currentTimeMillis()):
   private val lock = Object()
 
   def record(event: AuditEvent): Unit =
     lock.synchronized:
       try
-        Option(path.getParent).foreach(Files.createDirectories(_))
-        val line = Audit.toJson(event) + "\n"
+        // Only a file we are about to CREATE needs its directory made and its
+        // mode set. Doing both per line cost two extra syscalls on every event,
+        // which `watch` pays once per change for as long as it runs — and
+        // testing existence still re-restricts a log deleted underneath us.
+        val existed = Files.isRegularFile(path)
+        if !existed then Option(path.getParent).foreach(Files.createDirectories(_))
+        val line = Audit.toJson(event, now()) + "\n"
         Files.write(
           path,
           line.getBytes(StandardCharsets.UTF_8),
           StandardOpenOption.CREATE,
           StandardOpenOption.APPEND
         )
-        Audit.restrictToOwner(path)
+        if !existed then Audit.restrictToOwner(path)
       catch case NonFatal(_) => () // never fail the operation being audited
 
   def entries: Vector[String] =
@@ -74,7 +84,7 @@ object Audit:
   private def obj(fields: (String, String)*): String =
     fields.map((k, v) => s""""$k":"${escape(v)}"""").mkString("{", ",", "}")
 
-  private[fs] def toJson(event: AuditEvent): String =
+  private[fs] def toJson(event: AuditEvent, timestampMs: Long): String =
     import AuditEvent.*
     val base = event match
       case Allowed(path, action)   => obj("event" -> "allowed", "path" -> path, "action" -> action)
@@ -93,4 +103,4 @@ object Audit:
       case WatchRemoved(uri)   => obj("event" -> "watch.removed", "uri" -> uri)
       case OriginMissing(path) => obj("event" -> "origin.missing", "path" -> path)
     // Timestamp is prepended rather than threaded through every case.
-    s"""{"timestampMs":${System.currentTimeMillis()},${base.drop(1)}"""
+    s"""{"timestampMs":$timestampMs,${base.drop(1)}"""

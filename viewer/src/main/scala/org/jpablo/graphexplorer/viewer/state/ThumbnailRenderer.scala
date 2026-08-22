@@ -72,25 +72,21 @@ object ThumbnailRenderer:
       telemetryContext: Seq[(String, Any)] = Nil
   )(using ExecutionContext): Signal[ReactiveSvgElement[SVG]] =
     val format = DiagramFormat.detect(dot.value)
+
+    // Every event from here carries the caller's context; going through one
+    // place is what keeps a site from silently dropping the project id.
+    def log(name: String, extra: (String, Any)*): Unit =
+      Telemetry.log(name, (telemetryContext ++ extra)*)
+
+    def cacheFields = Seq("format" -> format.toString, "cacheSize" -> ThumbnailSvgCache.size)
+
     ThumbnailSvgCache.get(format, dot.value) match
       case Some(proto) =>
-        Telemetry.log(
-          "thumb.cache.hit",
-          (telemetryContext ++ Seq(
-            "format"    -> format.toString,
-            "cacheSize" -> ThumbnailSvgCache.size
-          ))*
-        )
+        log("thumb.cache.hit", cacheFields*)
         Signal.fromValue(ThumbnailSvgCache.cloneSvg(proto))
 
       case None =>
-        Telemetry.log(
-          "thumb.cache.miss",
-          (telemetryContext ++ Seq(
-            "format"    -> format.toString,
-            "cacheSize" -> ThumbnailSvgCache.size
-          ))*
-        )
+        log("thumb.cache.miss", cacheFields*)
 
         // Adopt an SVG string (from the persistent cache, or fresh off a
         // render) as this card's element, refilling the in-memory cache on the
@@ -98,10 +94,7 @@ object ThumbnailRenderer:
         def adopt(svgHtml: String): ReactiveSvgElement[SVG] =
           val proto = parseSVG(svgHtml).ref
           ThumbnailSvgCache.put(format, dot.value, proto)
-          Telemetry.log(
-            "thumb.cache.store",
-            (telemetryContext ++ Seq("format" -> format.toString, "cacheSize" -> ThumbnailSvgCache.size))*
-          )
+          log("thumb.cache.store", cacheFields*)
           ThumbnailSvgCache.cloneSvg(proto)
 
         // ONE svg-only render (`textToSvgOnly`) straight from the source text.
@@ -116,14 +109,8 @@ object ThumbnailRenderer:
           onIdle { () =>
             val svgStartedAt = Telemetry.nowMs()
             val resultTry    = graphviz.textToSvgOnly(dot)
-            Telemetry.log(
-              "thumb.dot.textToSvg",
-              (telemetryContext ++ Seq("dtMs" -> (Telemetry.nowMs() - svgStartedAt), "ok" -> resultTry.isSuccess))*
-            )
-            Telemetry.log(
-              "thumb.dot.total",
-              (telemetryContext ++ Seq("dtMs" -> (Telemetry.nowMs() - startedAt), "ok" -> resultTry.isSuccess))*
-            )
+            log("thumb.dot.textToSvg", "dtMs" -> (Telemetry.nowMs() - svgStartedAt), "ok" -> resultTry.isSuccess)
+            log("thumb.dot.total", "dtMs" -> (Telemetry.nowMs() - startedAt), "ok" -> resultTry.isSuccess)
             resultTry.get.outerHTML
           }
 
@@ -135,15 +122,12 @@ object ThumbnailRenderer:
         // containment reduces it. Not rendering at all is the only real cure,
         // which is what the persistent cache buys on every visit after the first.
         def renderMermaid(startedAt: Double): Future[String] =
-          Telemetry.log("thumb.mermaid.start", (telemetryContext ++ Seq("sourceChars" -> dot.value.length))*)
+          log("thumb.mermaid.start", "sourceChars" -> dot.value.length)
           val backend = MermaidBackend()
           onIdle(() => backend.textToSvg(dot.value))
             .flatMap(identity)
             .map: r =>
-              Telemetry.log(
-                "thumb.mermaid.done",
-                (telemetryContext ++ Seq("dtMs" -> (Telemetry.nowMs() - startedAt), "ok" -> true))*
-              )
+              log("thumb.mermaid.done", "dtMs" -> (Telemetry.nowMs() - startedAt), "ok" -> true)
               r.svg.ref.outerHTML
 
         val startedAt = Telemetry.nowMs()
@@ -156,13 +140,10 @@ object ThumbnailRenderer:
         val html: Future[String] =
           ThumbnailDiskCache.get(format, dot.value).flatMap:
             case Some(stored) =>
-              Telemetry.log(
-                "thumb.disk.hit",
-                (telemetryContext ++ Seq("format" -> format.toString, "bytes" -> stored.length))*
-              )
+              log("thumb.disk.hit", "format" -> format.toString, "bytes" -> stored.length)
               Future.successful(stored)
             case None =>
-              Telemetry.log("thumb.disk.miss", (telemetryContext ++ Seq("format" -> format.toString))*)
+              log("thumb.disk.miss", "format" -> format.toString)
               val rendered = format match
                 case DiagramFormat.DOT     => renderDot(startedAt)
                 case DiagramFormat.Mermaid => renderMermaid(startedAt)

@@ -5,11 +5,13 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.graphviz.html.{HtmlTable, HtmlTableLayout}
 import org.jpablo.graphexplorer.graphviz.layout.RecordLabel
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.toSvgPoint
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, SvgPoint}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.RecordCellOverlay
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.formats.dot.{HtmlLabelOps, HtmlLabels, RecordTree}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{FontSize, Height, Width}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -62,11 +64,13 @@ trait RecordCellOps:
   val editingCellV = Var[Option[SelectedCell]](None)
 
   object recordCells:
-    // gv const.h defaults — private in NodeSize, mirrored here (stable).
-    private val DefFontSize   = 14.0
+    // gv const.h defaults. The numeric three come from the shared attribute
+    // objects; DefFontName does NOT — FontName.default is the UI spelling
+    // ("Times New Roman"), while layout needs the gv font name.
+    private val DefFontSize   = FontSize.default
     private val DefFontName   = "Times-Roman"
-    private val DefWidthIn    = 0.75
-    private val DefHeightIn   = 0.5
+    private val DefWidthIn    = Width.default
+    private val DefHeightIn   = Height.default
     private val PointsPerInch = 72.0
 
     private enum CellKind derives CanEqual:
@@ -97,25 +101,21 @@ trait RecordCellOps:
     def selectedCellIsHtml: Boolean =
       selectedCellV.now().exists(c => kindOf(c.nodeId).contains(CellKind.Html))
 
-    private def rankdirNow(): Rankdir =
-      fullGraphNow().elements.graphAttributes.values
-        .get(Rankdir.attrId)
-        .flatMap(attr => Rankdir.values.find(_.toString == attr.toString))
-        .getOrElse(Rankdir.TB)
-
-    def topLRNow(): Boolean = RecordTree.topLRFor(rankdirNow())
+    def topLRNow(): Boolean = RecordTree.topLRFor(graphRankDirNow())
 
     private def getNodeNow(nodeId: NodeId): Option[ViewerNode] =
       fullGraphNow().getNode(nodeId)
 
     /** The record tree of a RECORD node (record ops only). */
     def cellTreeOf(nodeId: NodeId): Option[RecordTree.Group] =
-      Option.when(kindOf(nodeId).contains(CellKind.Record))(()).flatMap: _ =>
+      if kindOf(nodeId).contains(CellKind.Record) then
         getNodeNow(nodeId).map(node => RecordTree.parse(node.label.toString))
+      else None
 
     private def htmlTableOf(nodeId: NodeId): Option[HtmlTable] =
-      Option.when(kindOf(nodeId).contains(CellKind.Html))(()).flatMap: _ =>
+      if kindOf(nodeId).contains(CellKind.Html) then
         getNodeNow(nodeId).flatMap(node => HtmlLabelOps.parseTable(node.label.toString))
+      else None
 
     /** Node-local cell boxes, from the SAME layout the engine used. */
     def cellBoxes(nodeId: NodeId): Vector[RecordCellBox] =
@@ -181,11 +181,11 @@ trait RecordCellOps:
       if !isCellEditable(nodeId) then None
       else
         for
-          group      <- nodeGroupInDom(nodeId)
-          (lx, ly)   <- clientToLocal(group, clientX, clientY)
+          group <- nodeGroupInDom(nodeId)
+          local <- clientToLocal(group, clientX, clientY)
           path <- {
             val bbox = RecordCellOverlay.ownGeometryBBox(group)
-            cellNearestLocalPoint(nodeId, lx - (bbox.x + bbox.width / 2), (bbox.y + bbox.height / 2) - ly)
+            cellNearestLocalPoint(nodeId, local.x - (bbox.x + bbox.width / 2), (bbox.y + bbox.height / 2) - local.y)
           }
         yield path
 
@@ -196,16 +196,8 @@ trait RecordCellOps:
         .filterNot(_.closest(s".${SelectableElement.exitGhostClass}") != null)
         .collectFirst { case g: dom.svg.G => g }
 
-    private def clientToLocal(group: dom.svg.G, clientX: Double, clientY: Double): Option[(Double, Double)] =
-      for
-        svgEl <- Option(group.ownerSVGElement)
-        ctm   <- Option(group.getScreenCTM())
-      yield
-        val pt = svgEl.createSVGPoint()
-        pt.x = clientX
-        pt.y = clientY
-        val local = pt.matrixTransform(ctm.inverse())
-        (local.x, local.y)
+    private def clientToLocal(group: dom.svg.G, clientX: Double, clientY: Double): Option[SvgPoint] =
+      Option(group.getScreenCTM()).map(ctm => ClientPoint(clientX, clientY).toSvgPoint(ctm))
 
     /** The port of the cell at `path`, MINTED into the label when the cell has
       * none (a fresh `f<n>`). Pure on the given graph, so arrow ops can compose

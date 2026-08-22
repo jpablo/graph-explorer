@@ -38,10 +38,15 @@ object Main:
       if debug then message => System.err.println(s"gx[protocol] $message")
       else _ => ()
 
+    // One clock for the whole process: the audit log stamps its lines from the
+    // same source as every `updatedAt` and `lastSyncAt`, so a record and the
+    // line describing it cannot disagree about when it happened.
+    val clock: () => Long = () => System.currentTimeMillis()
+
     val env = CliEnv(
       store = LibraryStore.default(gxHome),
       policy = AccessPolicy.fromEnv(),
-      audit = Audit(runtime.resolve("audit.log.jsonl")),
+      audit = Audit(runtime.resolve("audit.log.jsonl"), clock),
       // The user's shell, not the process's idea of it. v1 learned this the hard
       // way: the desktop's working directory is an artifact of how it was
       // launched, so paths must be resolved where the human typed them.
@@ -49,7 +54,7 @@ object Main:
       out = println,
       err = System.err.println,
       stdin = () => String(System.in.readAllBytes(), StandardCharsets.UTF_8), // V-16
-      now = () => System.currentTimeMillis(),
+      now = clock,
       desktopRunning = () => Main.desktopRunning(control, trace),
       rpc = (method, params) => Main.call(control, trace, method, params)
     )

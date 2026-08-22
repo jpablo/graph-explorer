@@ -68,8 +68,10 @@ trait AddNewArrowOps:
   def handleNewArrowControls(parent: dom.svg.G, selection: Option[SelectableElement], action: MouseAction): Unit =
     // Read the badge model ONCE, and read the SAME one CountBadges drew from:
     // a control decides where to stand by which edges carry a count, so the two
-    // must never disagree about that.
-    val concealed = concealedCountsNow()
+    // must never disagree about that. LAZY because this runs on every
+    // mouse-move of every drag, where no control is built and the whole
+    // O(visible nodes) count would be computed and thrown away.
+    lazy val concealed = concealedCountsNow()
     val controls =
       for
         elem <- selection.toSeq
