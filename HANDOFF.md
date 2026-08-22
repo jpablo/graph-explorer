@@ -5,13 +5,24 @@ That document is the plan. This file records the state of the work.
 
 ## 1. State
 
-Branch `viewer` is at `d85e4c99`, and `origin/viewer` holds that commit.
+Phases 0, 1 and 2 are complete.
 
-**Phases 0, 1 and 2 are complete. The Phase 2 work is NOT committed.** It is in
-the working tree: 19 changed files and 11 new source files. Commit it before you
-start Phase 3.
+Phase 2 is on branch `phase-2-loose-document-sessions`, and
+`origin/phase-2-loose-document-sessions` holds it. Three commits, split by
+domain because the seven items edit the same files in turn:
 
-All tests pass.
+- `6709b128` the page: targets, sessions, persistence, save, conflicts
+- `c676d432` the shell: a file open waits for the page
+- the documents, including this file
+
+Read the two code commits before you change either half. Their messages hold
+the reasoning, and a message cannot rot the way this file can.
+
+The branch starts at `d85e4c99`, which is where `viewer` and `origin/viewer`
+still point. **The branch is not merged.** Merge it, or continue on it, before
+you start Phase 3.
+
+All tests pass on the branch.
 
 | Suite | Count | Command |
 |---|---|---|
