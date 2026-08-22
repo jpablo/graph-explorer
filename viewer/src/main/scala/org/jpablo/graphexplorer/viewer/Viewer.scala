@@ -28,10 +28,6 @@ object Viewer:
     val router     = Router()
     val routerCmds = RouterCommands(router)
 
-    // Installed once, at the window level rather than per view: an open request
-    // routinely arrives while the app is on Home, which is precisely when there
-    // is no viewer to deliver it to.
-    DesktopOpenRequests.install(router.navigateTo)
 
     var lastRightPanelSection = RightPanelSection.none
     var lastLeftPanelVisible  = false
@@ -129,6 +125,17 @@ object Viewer:
       // timeout (D7.2 — the session tier's limit is the absence of a view, and
       // that is an answer).
       SessionCommands.install()
+
+      // Installed at the WINDOW level, not per view: an open request routinely
+      // arrives while the app is on Home, which is precisely when there is no
+      // viewer to deliver it to.
+      //
+      // And installed HERE rather than at the top of main, because installing
+      // announces `viewer_ready` — the signal the shell waits on before
+      // delivering an open. Announcing it before `Library.install` had run
+      // would let an early open be answered "no such diagram" by a library that
+      // had simply not loaded yet.
+      DesktopOpenRequests.install(router.navigateTo, id => Library.projectExists(ProjectId(id)))
 
       Graphviz.build().foreach: (graphviz: Graphviz) =>
         dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)

@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.desktop
 import org.jpablo.graphexplorer.router.Route
 import org.scalajs.dom
 
+import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 
 /** Open requests the shell cannot serve on its own.
@@ -32,11 +33,65 @@ object DesktopOpenRequests:
     * scoped to a mounted viewer: an open request routinely arrives while the
     * app is on Home, which is exactly when there is no viewer to attach to.
     */
-  def install(navigate: Route => Unit): Unit =
+  /** @param exists
+    *   whether the library holds that record. Passed in rather than reached for
+    *   so this module stays testable without a library, and so the check
+    *   happens HERE: the shell cannot make it (D2.5 keeps it diagram-ignorant),
+    *   and acknowledging an open for a record that is not there would report
+    *   success for a page showing an empty diagram.
+    */
+  def install(navigate: Route => Unit, exists: String => Boolean)(using ExecutionContext): Unit =
     if !installed then
-      val handler: js.Function1[dom.Event, Unit] = event => route(event).foreach(navigate)
+      val handler: js.Function1[dom.Event, Unit] = event =>
+        val requestId = DesktopIpc.asLong(event.asInstanceOf[js.Dynamic].selectDynamic("detail"), "requestId")
+        route(event) match
+          case Some(Route.ProjectDetail(id, _)) if !exists(id) =>
+            // Answered immediately rather than left to time out. The caller can
+            // act on "there is no such diagram"; it can do nothing useful with
+            // forty-five seconds of silence.
+            requestId.foreach(
+              complete(_, "rejected", Some("DIAGRAM_NOT_FOUND"), Some(s"no diagram '$id' in this library"))
+            )
+          case Some(target) =>
+            navigate(target)
+            // Acknowledged only after the route is set. `gx open` is waiting on
+            // this: until it arrives the shell knows only that it dispatched an
+            // event, which is not evidence that anything reached the screen.
+            requestId.foreach(complete(_, "displayed"))
+          case None =>
+            // Say so rather than let the shell wait out its timeout. A request
+            // naming a record this page cannot route to is answered, not
+            // ignored — the caller deserves the reason, not a stall.
+            requestId.foreach(
+              complete(_, "rejected", Some("VIEW_REJECTED"), Some("the page could not route to that target"))
+            )
       dom.window.addEventListener(EventName, handler)
       installed = true
+
+      // §4.1: the socket answers from process start, before this page exists,
+      // so an open issued in that window would be dispatched into a page with
+      // no listener. Announcing readiness AFTER the listener is installed is
+      // what makes the shell's queued requests safe to deliver.
+      DesktopIpc.invoke(ViewerReady, js.Dynamic.literal()).failed.foreach: error =>
+        dom.console.debug(s"viewer_ready is unavailable outside the desktop shell: ${error.getMessage}")
+
+  private val ViewerReady  = "viewer_ready"
+  private val CompleteOpen = "complete_open"
+
+  private def complete(
+      requestId: Long,
+      status:    String,
+      code:      Option[String] = None,
+      message:   Option[String] = None
+  )(using ExecutionContext): Unit =
+    // A JS number on the wire: the id is a u64 counter that will not approach
+    // 2^53 in a process lifetime, and Scala.js would otherwise send a RuntimeLong
+    // object that serde cannot read as a number.
+    val args = js.Dynamic.literal(requestId = requestId.toDouble, status = status)
+    code.foreach(c => args.updateDynamic("code")(c))
+    message.foreach(m => args.updateDynamic("message")(m))
+    DesktopIpc.invoke(CompleteOpen, args).failed.foreach: error =>
+      dom.console.warn(s"could not acknowledge an open request: ${error.getMessage}")
 
   /** The route an open request asks for, if it asks for one we understand.
     *

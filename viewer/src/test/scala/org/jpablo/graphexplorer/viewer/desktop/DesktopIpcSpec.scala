@@ -186,6 +186,19 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     for detail <- unusable do
       assertEquals(DesktopOpenRequests.route(openEvent(detail)), None, s"detail: $detail")
 
+  test("an open request for a record the library does not hold routes nowhere"):
+    // The shell cannot make this check — D2.5 keeps it diagram-ignorant — so
+    // the page has to, and has to SAY so. Navigating anyway would leave the
+    // user on an empty diagram while `gx open` reported success.
+    //
+    // The refusal itself travels through complete_open, which needs a live IPC
+    // bridge; what is asserted here is the decision, and the round trip is
+    // covered by scripts/local-capabilities-open-handshake-smoke.sh.
+    val route = DesktopOpenRequests.route(
+      openEvent(js.Dynamic.literal(kind = "library", diagramId = "missing", requestId = 7))
+    )
+    assertEquals(route, Some(Route.ProjectDetail("missing")))
+
   // ------------------------------------------------ Phase 0: target lifetime
   //
   // The listener is process-global while the target moves with navigation. With

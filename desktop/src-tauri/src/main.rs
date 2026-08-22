@@ -74,6 +74,8 @@ fn health() -> &'static str {
 struct IpcState {
     access_policy: AccessPolicy,
     pending_sessions: PendingSessions,
+    pending_opens: PendingOpens,
+    page_ready: PageReady,
     audit_logger: AuditLogger,
     watch_registry: WatchRegistry,
     watch_controllers: WatchControllers,
@@ -222,6 +224,31 @@ type RecentWriteHashes = Arc<Mutex<HashMap<String, String>>>;
 /// runs it. The channel is how the socket thread waits without holding a lock.
 type PendingSessions = Arc<Mutex<HashMap<u64, std::sync::mpsc::Sender<SessionOutcome>>>>;
 
+/// Open requests awaiting the page's acknowledgment, by request id.
+///
+/// Same shape as [[PendingSessions]] and for the same reason: dispatching an
+/// event proves only that the shell spoke, never that the right view mounted
+/// and displayed the target (§4). The channel is how the socket thread waits
+/// for the page without holding a lock.
+type PendingOpens = Arc<Mutex<HashMap<u64, std::sync::mpsc::Sender<OpenOutcome>>>>;
+
+/// Set once the webview has registered itself, with a condvar so a request that
+/// arrives during startup WAITS instead of failing.
+///
+/// §4.1: the socket answers from the moment the process starts — it is bound
+/// before the webview, which on Windows can take half a minute — so an open
+/// arriving in that window used to be dispatched into a page with no listener
+/// and silently lost.
+type PageReady = Arc<(Mutex<bool>, std::sync::Condvar)>;
+
+/// The page's answer to an open request.
+#[derive(Debug, Clone)]
+struct OpenOutcome {
+    status: String,
+    code: Option<String>,
+    message: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 struct SessionOutcome {
     ok: bool,
@@ -287,6 +314,8 @@ fn main() {
     let watch_controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
     let recent_write_hashes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
     let pending_sessions: PendingSessions = Arc::new(Mutex::new(HashMap::new()));
+    let pending_opens: PendingOpens = Arc::new(Mutex::new(HashMap::new()));
+    let page_ready: PageReady = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
 
     // The control channel comes up BEFORE tauri, and this ordering is the whole
     // point of the split above.
@@ -309,6 +338,8 @@ fn main() {
         listener,
         access_policy.clone(),
         pending_sessions.clone(),
+        pending_opens.clone(),
+        page_ready.clone(),
         request_limits.clone(),
         audit_logger.clone(),
         rate_limiter.clone(),
@@ -331,6 +362,8 @@ fn main() {
     let ipc_state = IpcState {
         access_policy: access_policy.clone(),
         pending_sessions: pending_sessions.clone(),
+        pending_opens: pending_opens.clone(),
+        page_ready: page_ready.clone(),
         audit_logger: audit_logger.clone(),
         watch_registry: watch_registry.clone(),
         watch_controllers: watch_controllers.clone(),
@@ -375,6 +408,8 @@ fn main() {
             save_document,
             list_documents,
             session_reply,
+            viewer_ready,
+            complete_open,
             library_list,
             library_read,
             library_write,
@@ -741,18 +776,6 @@ struct ShowRequest {
     target: OpenTarget,
 }
 
-/// Asks the page to display a target it alone can resolve.
-///
-/// A library record is not a file operation: it may have no origin at all, and
-/// even when it has one the record is authoritative (§2). So the shell does not
-/// watch anything here — it names the record and lets the page route to it.
-#[derive(Debug, Serialize)]
-struct OpenRequestedPayload {
-    kind: String,
-    #[serde(rename = "diagramId", skip_serializing_if = "Option::is_none")]
-    diagram_id: Option<String>,
-}
-
 #[derive(Debug, Deserialize)]
 struct UnwatchRequest {
     path: String,
@@ -842,6 +865,8 @@ fn spawn_control_server(
     listener: UnixListener,
     access_policy: AccessPolicy,
     pending_sessions: PendingSessions,
+    pending_opens: PendingOpens,
+    page_ready: PageReady,
     request_limits: RequestLimits,
     audit_logger: AuditLogger,
     rate_limiter: RequestRateLimiter,
@@ -866,6 +891,8 @@ fn spawn_control_server(
             let context = ConnectionContext {
                 access_policy: access_policy.clone(),
                 pending_sessions: pending_sessions.clone(),
+                pending_opens: pending_opens.clone(),
+                page_ready: page_ready.clone(),
                 request_limits: request_limits.clone(),
                 audit_logger: audit_logger.clone(),
                 rate_limiter: rate_limiter.clone(),
@@ -896,6 +923,8 @@ type SharedAppHandle = Arc<OnceLock<tauri::AppHandle>>;
 struct ConnectionContext {
     access_policy: AccessPolicy,
     pending_sessions: PendingSessions,
+    pending_opens: PendingOpens,
+    page_ready: PageReady,
     request_limits: RequestLimits,
     audit_logger: AuditLogger,
     rate_limiter: RequestRateLimiter,
@@ -1115,34 +1144,43 @@ fn dispatch_method(
                 // even with one the RECORD is authoritative (§2). Nothing is
                 // watched here.
                 OpenTarget::Library { diagram_id } => {
-                    let payload = OpenRequestedPayload {
-                        kind: "library".to_string(),
-                        diagram_id: Some(diagram_id.clone()),
-                    };
-                    if let Err(err) = emit_open_requested_event(app, &payload) {
-                        context.audit_logger.log_event(
-                            "show.rejected",
-                            Some(&diagram_id),
-                            Some("open"),
-                            "rejected",
-                            None,
-                            Some(&err.to_string()),
-                        );
-                        return RpcResponse::failure(id, "NO_WINDOW", err);
+                    let target =
+                        serde_json::json!({ "kind": "library", "diagramId": diagram_id });
+                    match await_open(context, app, target, &format!("'{diagram_id}'")) {
+                        Ok(_) => {
+                            // Raised only AFTER the page confirmed it displayed
+                            // the record. Focusing first would bring forward a
+                            // window still showing the previous diagram.
+                            let focused = focus_main_window(app);
+                            context.audit_logger.log_event(
+                                "show.library",
+                                Some(&diagram_id),
+                                Some("open"),
+                                "ok",
+                                None,
+                                None,
+                            );
+                            RpcResponse::success(
+                                id,
+                                serde_json::json!({
+                                    "kind": "library",
+                                    "diagramId": diagram_id,
+                                    "focused": focused
+                                }),
+                            )
+                        }
+                        Err((code, message)) => {
+                            context.audit_logger.log_event(
+                                "show.rejected",
+                                Some(&diagram_id),
+                                Some("open"),
+                                "rejected",
+                                None,
+                                Some(&message),
+                            );
+                            RpcResponse::failure(id, code, message)
+                        }
                     }
-                    let focused = focus_main_window(app);
-                    context.audit_logger.log_event(
-                        "show.library",
-                        Some(&diagram_id),
-                        Some("open"),
-                        "ok",
-                        None,
-                        None,
-                    );
-                    RpcResponse::success(
-                        id,
-                        serde_json::json!({ "kind": "library", "diagramId": diagram_id, "focused": focused }),
-                    )
                 }
 
                 OpenTarget::File { path } => show_file(id, &path, context, app),
@@ -1409,11 +1447,167 @@ fn run_session_command(
     }
 }
 
+/// How long an open waits for the page to say it displayed the target.
+///
+/// Longer than a session command's five seconds because this one may include a
+/// cold start: the socket answers before the webview exists (§4.1), and a
+/// Windows runner has been seen taking half a minute to bring one up. Still
+/// bounded — a CLI that never returns is a CLI that has to be killed.
+const OPEN_TIMEOUT: Duration = Duration::from_secs(45);
+
+static OPEN_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+/// Ask the page to display a target, and WAIT for it to say it did.
+///
+/// Dispatching an event proves only that the shell spoke. It does not prove
+/// that a viewer mounted, that it mounted the right one, or that anything
+/// reached the screen — which is why `gx open` used to report success for
+/// opens the user never saw (§4).
+fn await_open(
+    context: &ConnectionContext,
+    app: &tauri::AppHandle,
+    payload_target: serde_json::Value,
+    audit_subject: &str,
+) -> std::result::Result<serde_json::Value, (&'static str, String)> {
+    // Wait for the page to exist before speaking to it. An open issued during
+    // startup is normal — a shell alias that launches the desktop and opens a
+    // diagram does exactly this — and dispatching into a page with no listener
+    // is how that request used to vanish.
+    if let Err(err) = wait_for_page(&context.page_ready) {
+        return Err(err);
+    }
+
+    let id = OPEN_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let (sender, receiver) = std::sync::mpsc::channel::<OpenOutcome>();
+
+    match context.pending_opens.lock() {
+        Ok(mut pending) => {
+            pending.insert(id, sender);
+        }
+        Err(err) => return Err(("INTERNAL", format!("open registry lock poisoned: {err}"))),
+    }
+
+    // Registered BEFORE the page is told, so an acknowledgment that arrives
+    // immediately still finds somewhere to go.
+    let frame = serde_json::json!({ "requestId": id, "target": payload_target });
+    let script = match serde_json::to_string(&frame) {
+        Ok(json) => format!(
+            "window.dispatchEvent(new CustomEvent('ge:open.requested', {{ detail: {json} }}));"
+        ),
+        Err(err) => {
+            forget_open(context, id);
+            return Err(("INTERNAL", err.to_string()));
+        }
+    };
+
+    let windows = app.webview_windows();
+    if windows.is_empty() {
+        forget_open(context, id);
+        return Err((
+            "NO_WINDOW",
+            "the desktop has no window to show it in".to_string(),
+        ));
+    }
+    for webview in windows.values() {
+        if let Err(err) = webview.eval(&script) {
+            forget_open(context, id);
+            return Err(("NO_WINDOW", format!("could not reach the page: {err}")));
+        }
+    }
+
+    let outcome = receiver.recv_timeout(OPEN_TIMEOUT);
+    forget_open(context, id);
+
+    match outcome {
+        Ok(outcome) if outcome.status == "displayed" => Ok(serde_json::json!({ "requestId": id })),
+        Ok(outcome) => {
+            let code = match outcome.code.as_deref() {
+                Some("DIAGRAM_NOT_FOUND") => "DIAGRAM_NOT_FOUND",
+                Some("DOCUMENT_NOT_FOUND") => "DOCUMENT_NOT_FOUND",
+                Some("OPEN_DENIED") => "OPEN_DENIED",
+                _ => "VIEW_REJECTED",
+            };
+            Err((
+                code,
+                outcome
+                    .message
+                    .unwrap_or_else(|| format!("the page did not display {audit_subject}")),
+            ))
+        }
+        Err(_) => Err((
+            "OPEN_TIMEOUT",
+            format!("the page did not acknowledge {audit_subject} within {OPEN_TIMEOUT:?}"),
+        )),
+    }
+}
+
+/// Block until the webview has registered itself, or the open budget runs out.
+fn wait_for_page(page_ready: &PageReady) -> std::result::Result<(), (&'static str, String)> {
+    let (lock, condvar) = &**page_ready;
+    let ready = match lock.lock() {
+        Ok(guard) => guard,
+        Err(err) => return Err(("INTERNAL", format!("page-ready lock poisoned: {err}"))),
+    };
+    match condvar.wait_timeout_while(ready, OPEN_TIMEOUT, |ready| !*ready) {
+        Ok((_, timeout)) if timeout.timed_out() => Err((
+            "OPEN_TIMEOUT",
+            format!("the desktop's window did not come up within {OPEN_TIMEOUT:?}"),
+        )),
+        Ok(_) => Ok(()),
+        Err(err) => Err(("INTERNAL", format!("page-ready wait failed: {err}"))),
+    }
+}
+
+fn forget_open(context: &ConnectionContext, id: u64) {
+    if let Ok(mut pending) = context.pending_opens.lock() {
+        pending.remove(&id);
+    }
+}
+
 /// Drop a pending request whatever happened, so a timed-out or failed call does
 /// not leave an entry that a late reply could match.
 fn forget_session(context: &ConnectionContext, id: u64) {
     if let Ok(mut pending) = context.pending_sessions.lock() {
         pending.remove(&id);
+    }
+}
+
+/// The page announcing it is listening (§4.1).
+///
+/// Idempotent, and deliberately not tied to a route: it means "the event
+/// listeners exist", not "a diagram is open". An open request that arrived
+/// during startup is waiting on this, and every one of them wakes at once.
+#[tauri::command(rename_all = "camelCase")]
+fn viewer_ready(state: tauri::State<'_, IpcState>) {
+    let (lock, condvar) = &*state.page_ready;
+    if let Ok(mut ready) = lock.lock() {
+        *ready = true;
+        condvar.notify_all();
+    }
+}
+
+/// The page reporting what became of an open request.
+///
+/// This is what makes `gx open` honest: until the page says `displayed`, the
+/// shell knows only that it dispatched an event — not that any viewer mounted,
+/// nor that it mounted the right one.
+#[tauri::command(rename_all = "camelCase")]
+fn complete_open(
+    state: tauri::State<'_, IpcState>,
+    request_id: u64,
+    status: String,
+    code: Option<String>,
+    message: Option<String>,
+) {
+    let outcome = OpenOutcome {
+        status,
+        code,
+        message,
+    };
+    if let Ok(mut pending) = state.pending_opens.lock() {
+        if let Some(sender) = pending.remove(&request_id) {
+            let _ = sender.send(outcome);
+        }
     }
 }
 
@@ -2239,29 +2433,6 @@ fn document_changed_script(payload: &DocumentChangedEventPayload) -> Result<Stri
     ))
 }
 
-fn open_requested_script(payload: &OpenRequestedPayload) -> Result<String> {
-    let payload_json =
-        serde_json::to_string(payload).context("failed to serialize open request")?;
-    Ok(format!(
-        "window.dispatchEvent(new CustomEvent('ge:open.requested', {{ detail: {payload} }}));",
-        payload = payload_json
-    ))
-}
-
-fn emit_open_requested_event(
-    app_handle: &tauri::AppHandle,
-    payload: &OpenRequestedPayload,
-) -> Result<()> {
-    let script = open_requested_script(payload)?;
-    let windows = app_handle.webview_windows();
-    if windows.is_empty() {
-        return Err(anyhow::anyhow!("no webview windows are available"));
-    }
-    windows
-        .values()
-        .try_for_each(|webview| webview.eval(&script).map_err(anyhow::Error::from))
-}
-
 fn emit_document_changed_event(
     app_handle: &tauri::AppHandle,
     payload: &DocumentChangedEventPayload,
@@ -2686,6 +2857,69 @@ fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: Rece
 mod tests {
     use super::*;
 
+    /// An open must not be answered by the shell alone.
+    ///
+    /// Dispatching an event proves the shell spoke; it does not prove a viewer
+    /// mounted, that it mounted the RIGHT one, or that anything reached the
+    /// screen. These pin the wait mechanism — the live round trip through a
+    /// real webview is covered by
+    /// scripts/local-capabilities-open-handshake-smoke.sh, which is where a
+    /// page actually exists.
+    #[test]
+    fn an_open_waits_for_the_page_and_gives_up_rather_than_hanging() {
+        // A desktop whose window never comes up. `gx open` must return: a CLI
+        // with no timeout is a CLI that has to be killed.
+        let never_ready: PageReady = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
+        let (lock, condvar) = &*never_ready;
+        let ready = lock.lock().unwrap();
+        // Bound rather than `_`: `_` would drop the re-acquired guard on the
+        // spot, which the lint rejects precisely because it is almost never
+        // what the writer meant.
+        let (_guard, timeout) = condvar
+            .wait_timeout_while(ready, Duration::from_millis(50), |ready| !*ready)
+            .unwrap();
+        assert!(timeout.timed_out(), "a page that never reports ready must time out");
+    }
+
+    #[test]
+    fn a_page_that_reports_ready_releases_every_waiting_open() {
+        // notify_all, not notify_one: several opens can be parked during a slow
+        // start, and waking one would leave the rest to time out for no reason.
+        let page_ready: PageReady = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
+
+        let waiters: Vec<_> = (0..3)
+            .map(|_| {
+                let page_ready = page_ready.clone();
+                std::thread::spawn(move || wait_for_page(&page_ready).is_ok())
+            })
+            .collect();
+
+        // Let them park before the announcement, so this exercises the wake
+        // path rather than the already-ready shortcut.
+        std::thread::sleep(Duration::from_millis(50));
+        {
+            let (lock, condvar) = &*page_ready;
+            let mut ready = lock.lock().unwrap();
+            *ready = true;
+            condvar.notify_all();
+        }
+
+        for waiter in waiters {
+            assert!(waiter.join().unwrap(), "a parked open was not released");
+        }
+    }
+
+    #[test]
+    fn an_open_that_arrives_after_ready_does_not_wait_at_all() {
+        let page_ready: PageReady = Arc::new((Mutex::new(true), std::sync::Condvar::new()));
+        let started = std::time::Instant::now();
+        assert!(wait_for_page(&page_ready).is_ok());
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "a ready page must not make an open wait"
+        );
+    }
+
     /// GX_HOME has to mean the same directory to `gx` and to this shell, and a
     /// RELATIVE value cannot: it resolves against the reading process's working
     /// directory, and the two do not share one — `gx` runs from the user's
@@ -2874,6 +3108,10 @@ mod tests {
                 denied_roots: Vec::new(),
             },
             pending_sessions: Arc::new(Mutex::new(HashMap::new())),
+            pending_opens: Arc::new(Mutex::new(HashMap::new())),
+            // Not ready: this context models a desktop that is still starting,
+            // which is exactly the state an open has to wait out.
+            page_ready: Arc::new((Mutex::new(false), std::sync::Condvar::new())),
             request_limits: RequestLimits {
                 max_body_bytes: 1024,
                 rate_limit_max_requests: 10,
