@@ -74,6 +74,8 @@ object Cli:
       |  gx session <command> [--params J]      act on the LIVE view (needs a desktop)
       |  gx open <ref>                          show it in the desktop
       |
+      |  gx skill [<version>] [--latest]        where the agent skill lives
+      |
       |  M = detached | pull | push | sync      (default: pull)
       |  gx run --list                          the commands `run` accepts
       |
@@ -116,6 +118,7 @@ object Cli:
       case "run"     => runCommand(args, env)
       case "session" => sessionCommand(args, env)
       case "open"   => open(args, env)
+      case "skill"  => skill(args, env)
       case other =>
         env.err(s"gx: unknown command '$other'\n")
         env.err(Usage)
@@ -857,6 +860,74 @@ object Cli:
             Left(ExitCode.InvalidPathOrPolicy)
       case Left(_: RefError.NotFound) =>
         checkPolicy(env.cwd.resolve(ref), env)
+
+  // -------------------------------------------------------------- skill
+
+  /** Print where the agent skill lives, and the sentence to hand an agent.
+    *
+    * Deliberately NOT an installer. The skill is a prompt that a coding agent
+    * will load and act on, so writing it into someone's agent directory is a
+    * decision rather than a side effect of asking where it is — and every
+    * harness keeps skills somewhere different anyway. Printing a location plus
+    * the instruction works for all of them and leaves the human in the loop.
+    *
+    * Pinned to this binary by default. The skill names commands, param keys and
+    * exit codes, all of which are API that moves between releases, so an agent
+    * reading the branch tip while driving an older `gx` would be reading about
+    * commands it does not have.
+    */
+  private def skill(args: Args, env: CliEnv): Int =
+    SkillLocation.resolve(
+      requested = args.positionalAt(0),
+      latest = args.has("latest"),
+      running = buildinfo.BuildInfo.version
+    ) match
+      case Left(why) =>
+        env.err(s"gx: $why")
+        ExitCode.Usage
+
+      case Right(found) =>
+        if args.json then
+          env.out(
+            ujson.Obj(
+              "skill"   -> SkillLocation.Name,
+              "version" -> found.version,
+              "ref"     -> found.ref,
+              "pinned"  -> found.pinned,
+              "page"    -> found.page,
+              "raw"     -> found.raw
+            ).render(indent = 2)
+          )
+        else
+          env.out(s"gx ${found.version} — agent skill '${SkillLocation.Name}'")
+          env.out("")
+          env.out(s"  browse:  ${found.page}")
+          env.out(s"  fetch:   ${found.raw}")
+          env.out("")
+          env.out("Tell your coding agent:")
+          env.out("")
+          // Second person, addressed to the agent rather than about it, so the
+          // block can be pasted straight into a prompt. The URL gets a line of
+          // its own: it is the one part that must survive being copied out of a
+          // wrapped terminal intact.
+          env.out("  Read and analyze the skill at")
+          env.out(s"    ${found.raw}")
+          env.out(s"  together with ${SkillLocation.SupportingFiles.mkString(" and ")} beside it, which it links.")
+          env.out("  Check it against the `gx` on this machine, then install all three as a")
+          env.out(s"  skill named `${SkillLocation.Name}` wherever this harness keeps skills — for Claude")
+          env.out(s"  Code that is ${SkillLocation.Name}/ under .claude/skills/ in the project, or under")
+          env.out("  your home directory to have it everywhere. Keep the frontmatter intact.")
+          env.out("")
+          if found.pinned then
+            env.out(s"Pinned to ${found.ref}, the gx you are running.")
+            env.out("`gx skill --latest` prints the branch tip instead.")
+          else
+            env.out(s"This gx (${found.version}) is not a released version, so this is the tip of")
+            env.out(s"`${SkillLocation.DefaultBranch}` and may describe commands it does not have.")
+            SkillLocation.baseRelease(found.version) match
+              case Some(base) => env.out(s"Pin it to a release instead:  gx skill $base")
+              case None       => env.out("Pin it to a release instead:  gx skill <version>")
+        ExitCode.Ok
 
   // ---------------------------------------------------------- resolution
 
