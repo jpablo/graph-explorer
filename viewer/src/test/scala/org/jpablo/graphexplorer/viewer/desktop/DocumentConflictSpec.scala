@@ -27,6 +27,13 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
     DesktopDocumentRegistry.reset()
     DesktopBridge.reset()
 
+  /** What the shell sends when a watched file changes.
+    *
+    * Routed through `DesktopBridge` exactly as the real event is. The bridge
+    * only records it now — the VIEWER decides what to do, by following its own
+    * session (§10). So this exercises the whole path rather than calling the
+    * decision directly.
+    */
   private def fileChanged(text: String, path: String, revision: String) =
     DesktopBridge.DesktopMessage(text, Some(path), Some(revision))
 
@@ -36,7 +43,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
       val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
 
       afterMicrotasks {
-        DesktopBridge.applyDocumentChange(state, fileChanged("digraph G { b }", "/tmp/clean.dot", "rev-2"))
+        DesktopBridge.routeDocumentChange(fileChanged("digraph G { b }", "/tmp/clean.dot", "rev-2"))
 
         assertEquals(state.sourceText.now(), "digraph G { b }", "a clean editor must follow the file")
         assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict), None)
@@ -52,7 +59,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
       afterMicrotasks {
         state.replaceSourceDetectingFormat("digraph G { mine }") // the person types
 
-        DesktopBridge.applyDocumentChange(state, fileChanged("digraph G { theirs }", "/tmp/dirty.dot", "rev-2"))
+        DesktopBridge.routeDocumentChange(fileChanged("digraph G { theirs }", "/tmp/dirty.dot", "rev-2"))
 
         assertEquals(
           state.sourceText.now(),

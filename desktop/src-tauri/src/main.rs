@@ -1631,9 +1631,14 @@ fn run_session_command(
     match outcome {
         Ok(outcome) if outcome.ok => Ok(outcome.result),
         Ok(outcome) => Err((
+            // An ALLOWLIST, so the page cannot mint codes a caller would have
+            // to discover by reading prose. Each one here means a different
+            // next move: open something, fix the argument, or look at what is
+            // on screen. Anything else is a failure with no advice to give.
             match outcome.code.as_str() {
                 "NO_SESSION" => "NO_SESSION",
                 "INVALID_REQUEST" => "INVALID_REQUEST",
+                "VIEW_REJECTED" => "VIEW_REJECTED",
                 _ => "SESSION_FAILED",
             },
             outcome.message,

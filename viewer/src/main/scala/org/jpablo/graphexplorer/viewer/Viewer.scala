@@ -197,8 +197,6 @@ object Viewer:
           state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)(using viewOwner)
           // Similarly track the left panel visibility state between diagrams
           state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
-          DesktopBridge.attach(state)
-
           // §7.4: a loose file with an unsaved edit asks before it is left.
           // Registered per view and cleared on unmount below, so exactly one
           // guard exists and it belongs to what is on screen.
@@ -231,10 +229,11 @@ object Viewer:
 
           TopLevel(state, router, Commands(state, routerCmds), exampleName.map(exampleBanner(_, state, routerCmds)))
             .amend(onUnmountCallback { _ =>
-              // Both targets are process-global and used to outlive the view
-              // that set them, so a file event or a session query after
-              // navigation was answered by a viewer nobody was looking at.
-              DesktopBridge.detach(state)
+              // The session tier and the close question both act on "the view
+              // now on screen", so they still name one — and it used to outlive
+              // the view that set it, so a query after navigation was answered
+              // by a viewer nobody was looking at. The document bridge no
+              // longer needs one at all: a viewer follows its OWN session.
               SessionCommands.detach(state)
               router.clearNavigationGuard(leaveGuard)
               DesktopClose.detach(state)

@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import org.jpablo.graphexplorer.projects.Library
-import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, ViewerState, ViewTarget}
+import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,30 +19,9 @@ object DesktopBridge:
 
   case class DesktopMessage(text: String, path: Option[String], revision: Option[String]) derives CanEqual
 
-  private var installed                   = false
-  private var target: Option[ViewerState] = None
+  private var installed = false
 
-  private[desktop] def reset(): Unit =
-    installed = false
-    target = None
-
-  private[desktop] def currentTarget: Option[ViewerState] = target
-
-  /** Release a viewer that is going away, so nothing keeps talking to it.
-    *
-    * The listener is process-global while the target moves with navigation, so
-    * without this an unmounted viewer stays the target and every later file
-    * event is applied to it — which is how opening a loose file could write its
-    * source into whichever library record was last displayed.
-    *
-    * The identity check is not defensive padding. Laminar mounts the incoming
-    * view BEFORE unmounting the outgoing one, so the old viewer's detach
-    * arrives after the new one has already attached; clearing unconditionally
-    * would drop the live target and leave the window deaf. Reference identity
-    * (`eq`) is the question being asked — is this still the same object.
-    */
-  def detach(state: ViewerState): Unit =
-    if target.exists(_ eq state) then target = None
+  private[desktop] def reset(): Unit = installed = false
 
   /** Listen for document events, for the life of the window.
     *
@@ -73,15 +52,6 @@ object DesktopBridge:
 
       installed = true
       dom.console.info("Desktop bridge listener installed.")
-
-  /** Point the bridge at the viewer now on screen.
-    *
-    * Only the target. Listening is [[install]]'s job, and it happens once at
-    * startup — a session must be recordable before any viewer exists, because
-    * an open request routes TO a session.
-    */
-  def attach(state: ViewerState): Unit =
-    target = Some(state)
 
   /** The desktop dispatches a `CustomEvent`; some wrappers put the same object
     * on `payload` instead of `detail`, and a bare string is accepted as text.
@@ -116,80 +86,30 @@ object DesktopBridge:
           DesktopIpc.asString(detailValue, "revision").orElse(DesktopIpc.asString(payloadValue, "revision"))
       )
 
-  /** Where a document event goes (§8, item 6).
+  /** Where a document event goes (§8).
     *
-    * Separated from the listener so the decision is testable without a window,
-    * a viewer, or a desktop.
+    * To a RECORD, or to a SESSION, and never to "the viewer that happens to be
+    * on screen". This module held a process-global pointer to that viewer and
+    * applied every file event to it, which is how a loose file's source could
+    * be written into whichever library record was last displayed (§1).
+    *
+    * Now it only writes down what arrived. A bound origin reconciles against
+    * its record; a loose file lands in the registry, and the viewer showing
+    * that session follows it through an owner-scoped signal (§10). Neither
+    * needs this module to know what is on screen.
     */
   private[desktop] def routeDocumentChange(message: DesktopMessage): Unit =
     message.path.filter(Library.recordsBoundTo(_).nonEmpty) match
       case Some(path) =>
         // A BOUND origin. The record owns this file (§2), so the change
         // reconciles against the record and reaches the screen only if the
-        // record adopts it. Treating it as a loose file here would open a
-        // second, competing copy of a diagram the library already holds.
+        // record adopts it.
         OriginReconciler.reconcile(path, message.text, message.revision.getOrElse(""))
         ()
       case None =>
-        // A loose file, or a text push. Recorded FIRST, and with no viewer
-        // required: an open request routes to a SESSION, so the session has to
-        // exist before the request arrives — and an open issued on Home arrives
-        // with nothing attached, which is exactly when this used to drop the
-        // document entirely (§1).
-        val session = recordedSession(message)
-        target.foreach(applyDocumentChange(_, message, session))
-
-  /** What a document event does to the viewer that is showing that file (§7.3).
-    *
-    * The rule, in the order it is decided:
-    *
-    *   1. The editor has no edit: adopt the file. This is a reload, and it is
-    *      the normal case — the person changed the file in another tool and
-    *      wants to see it.
-    *   2. The editor has an edit, and the file changed too: a conflict. Both
-    *      versions are kept, and the editor keeps its text. §7.3 forbids the
-    *      silent replacement that used to happen here.
-    *
-    * Before this, EVERY event replaced the text. An external write while the
-    * person was typing threw the typing away with no message.
-    */
-  private[desktop] def applyDocumentChange(state: ViewerState, message: DesktopMessage): Unit =
-    applyDocumentChange(state, message, recordedSession(message))
-
-  private[desktop] def applyDocumentChange(
-      state:   ViewerState,
-      message: DesktopMessage,
-      session: Option[(DocumentSessionId, Option[DesktopDocumentRegistry.Session])]
-  ): Unit =
-    session match
-      case None =>
-        // No path, so no document. Every emitter in the shell sends one, and
-        // `/v1/push-text` now NAMES its session and arrives as a session
-        // command instead. Text with no addressee used to land in whichever
-        // viewer was on screen; there is nothing here it could correctly do.
-        dom.console.debug("Desktop bridge: a document event with no path, ignored.")
-
-      case Some((id, previous)) if !showsSession(state, id) =>
-        // The viewer is showing something else. Writing this text into it is
-        // the misrouting §1 lists — a loose file's source landing in whichever
-        // record was last displayed. The session is recorded, and `gx open`
-        // routes to it.
-        dom.console.debug("Desktop bridge: a document event for a file this viewer does not show.")
-
-      case Some((id, previous))
-          if previous.exists(_.sourceText != state.sourceText.now()) // `local` moved: an edit
-            && previous.exists(_.sourceText != message.text) =>      // `remote` moved: the file
-        // The edit stays on screen. The file's text waits in the session, and
-        // the person chooses between them (§7.3).
-        DesktopDocumentRegistry.markConflict(id, message.revision.getOrElse(""), message.text)
-
-      case _ =>
-        state.replaceSourceDetectingFormat(message.text)
-
-  private def showsSession(state: ViewerState, id: DocumentSessionId): Boolean =
-    state.target match
-      case ViewTarget.LooseFile(shown) => shown == id
-      case _                           => false
+        // A loose file, or an event naming no document at all. `record` is
+        // idempotent per path, and a message with no path records nothing.
+        recordSession(message)
 
   /** Record the open file, so a route and a save can find it.
     *

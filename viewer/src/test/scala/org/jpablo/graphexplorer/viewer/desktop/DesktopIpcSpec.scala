@@ -317,53 +317,18 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     assertEquals(after, Route.LooseDocument(first.id.value))
     DesktopDocumentRegistry.reset()
 
-  // ------------------------------------------------ Phase 0: target lifetime
+  // --------------------------------------------- the tiers that still aim
   //
-  // The listener is process-global while the target moves with navigation. With
-  // nothing ever releasing the target, an unmounted viewer stayed attached and
-  // kept receiving file events — the mechanism behind a loose file's source
-  // being persisted into whichever library record was last displayed.
-
-  test("detaching the attached viewer releases it"):
-    withGraphvizAsync { graphviz =>
-      DesktopBridge.reset()
-      val state = ViewerState(ViewTarget.library("detach-me"), graphviz)
-      DesktopBridge.attach(state)
-      assert(DesktopBridge.currentTarget.isDefined, "precondition: a viewer is attached")
-
-      DesktopBridge.detach(state)
-
-      assertEquals(
-        DesktopBridge.currentTarget,
-        None,
-        "an unmounted viewer stayed attached and kept receiving file events"
-      )
-      DesktopBridge.reset()
-      Future.unit
-    }
-
-  /** Laminar mounts the incoming view BEFORE unmounting the outgoing one, so
-    * the old viewer's detach arrives after the new one has attached. Clearing
-    * unconditionally would drop the live target and leave the window deaf.
-    */
-  test("a detach from a viewer that is no longer current leaves the live one alone"):
-    withGraphvizAsync { graphviz =>
-      DesktopBridge.reset()
-      val leaving  = ViewerState(ViewTarget.library("leaving"), graphviz)
-      val arriving = ViewerState(ViewTarget.library("arriving"), graphviz)
-
-      DesktopBridge.attach(leaving)
-      DesktopBridge.attach(arriving) // navigation: the new view mounts first
-
-      DesktopBridge.detach(leaving) // ...and only then does the old one unmount
-
-      assert(
-        DesktopBridge.currentTarget.exists(_ eq arriving),
-        "a stale detach tore down the viewer that had just arrived"
-      )
-      DesktopBridge.reset()
-      Future.unit
-    }
+  // `DesktopBridge` no longer has a target to release. A document event lands
+  // in a record or a session, and the viewer showing that session follows it
+  // through an owner-scoped signal — so there is no process-global "current
+  // viewer" for an unmounted view to keep occupying.
+  //
+  // Two tiers still name one, because their questions are ABOUT the view on
+  // screen: "what is selected", and "is there an edit to lose before this
+  // window closes". Those keep the identity check below, and it is not
+  // defensive padding: Laminar mounts the incoming view BEFORE unmounting the
+  // outgoing one, so an unconditional clear would drop the live target.
 
   test("the session tier releases a detached viewer, and keeps a current one"):
     withGraphvizAsync { graphviz =>

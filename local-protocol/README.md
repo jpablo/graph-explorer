@@ -107,16 +107,32 @@ longer be trusted.
 
 | Method | Params | Result | Tier (D7.2) |
 |---|---|---|---|
-| `status` | — | running, version, pid, socket, watches, policy, limits | — |
+| `status` | — | running, version, pid, socket, watches, policy, limits, `unsavedInPage` | — |
 | `watch` | `path` | the watch descriptor | document |
-| `show` | `path` | the watch descriptor plus `focused` | **session** |
+| `show` | `target` | the watch descriptor plus `focused` and `view` | **session** |
 | `unwatch` | `path` | `removed` | document |
 | `get-document` | `path` | `document` | document |
 | `put-document` | `path`, `text`, `baseRevision`, `source` | `document` | document |
 | `push-text` | `sessionId`, `text` | `pushed` | session |
 | `session` | `command`, `params` | whatever the page answers | **session** |
 
-`session` is the only method the shell does not answer itself. It relays the
+`show` takes a TYPED target — `{kind: "library", diagramId}` or
+`{kind: "file", path}` — not a bare path. A record and a file have different
+owners and different persistence rules, and a path cannot tell them apart; an
+unbound record has no path at all. It answers only once the page acknowledges,
+and `view` names what was displayed: a diagram id, or a document session and its
+revision.
+
+`push-text` also names its destination. It takes the `sessionId` a `show`
+answered with, and the page refuses it with `VIEW_REJECTED` when that document
+is not the one on screen. It used to carry text alone and land in whichever
+viewer was displayed.
+
+`status` reports `unsavedInPage`: whether the page holds an edit that is not on
+disk. A window close is refused while that is true, so it is worth being able to
+ask before doing anything disruptive.
+
+`session` and `push-text` are the methods the shell does not answer itself. They relay the
 frame to the webview as a `ge:session.command` event carrying a request id, and
 the page answers through the `session_reply` Tauri command; the shell correlates
 the id and replies on the socket. Five seconds, then `SESSION_TIMEOUT`. The page

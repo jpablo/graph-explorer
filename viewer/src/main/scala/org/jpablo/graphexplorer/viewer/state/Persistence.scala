@@ -74,6 +74,46 @@ trait Persistence:
     */
   val pendingLeave: Var[Option[LeaveIntent]] = Var(None)
 
+  /** The text this viewer last took from its session.
+    *
+    * Viewer-local, and that is the point of it. The decision below used to live
+    * in `DesktopBridge` against a PROCESS-GLOBAL "current viewer", so every file
+    * event had to ask "is this still the right view?" and every navigation had
+    * to remember to say goodbye. A viewer that knows what it last adopted can
+    * answer §7.3 from its own state.
+    */
+  private var lastAdopted: String = ""
+
+  /** Follow this viewer's own session (§7.3, §10).
+    *
+    * Owner-scoped: Laminar teardown ends it, so a view that leaves the screen
+    * stops listening without anything having to detach it.
+    *
+    * The rule, from the viewer's own two facts — what it last adopted, and what
+    * is in the editor now:
+    *
+    *   - the editor matches what was adopted: no edit to lose, take the file.
+    *   - the editor moved AND the file moved: both versions matter, so keep the
+    *     edit on screen and record the conflict. §7.3 forbids replacing dirty
+    *     text silently.
+    *   - the editor moved and the file did not: nothing happened.
+    */
+  private def followDocumentSession(): Unit =
+    target match
+      case ViewTarget.LooseFile(session) =>
+        lastAdopted = persistence.initial.source
+        documentSession.changes.foreach:
+          case None => ()
+          case Some(current) =>
+            val editorMoved = sourceText.now() != lastAdopted
+            val fileMoved   = current.sourceText != lastAdopted
+            if !editorMoved then
+              lastAdopted = current.sourceText
+              replaceSourceDetectingFormat(current.sourceText)
+            else if fileMoved then
+              DesktopDocumentRegistry.markConflict(session, current.revision, current.sourceText)
+      case _ => ()
+
   /** The same question as [[documentDirty]], answered now rather than observed.
     *
     * A navigation guard has to decide inside the click that asks for it (§7.4),
@@ -243,6 +283,7 @@ trait Persistence:
   def initializePersistence(): Unit =
     restorePersistedState()
     setupStateSynchronization()
+    followDocumentSession()
 
   /** Release the store when the view goes away (§10).
     *
