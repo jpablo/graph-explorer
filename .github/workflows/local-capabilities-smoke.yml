@@ -15,13 +15,13 @@ permissions:
 # Runs any JavaScript action that still targets Node 20 on Node 24 instead.
 #
 # After the v5 bump every actions/* here is natively Node 24, so this now covers
-# only the third-party actions the repo does not control (sbt/setup-sbt,
-# Swatinem/rust-cache, VirtusLab/scala-cli-setup, softprops/action-gh-release,
-# scalacenter/sbt-dependency-submission).
+# only whatever third-party action has not caught up yet.
 #
 # NOTE it does not silence the deprecation annotation — it CAUSES the "are being
-# forced to run on Node.js 24" wording. The annotation names the offenders,
-# which is how the v5 bump knew what to bump.
+# forced to run on Node.js 24" wording. That annotation is the to-do list: it
+# NAMES the offenders, which is how the v5 bump knew what to bump. Read it after
+# a run rather than keeping a list here, which rots the moment an action ships a
+# new major — as action-gh-release did, and this comment did not.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 

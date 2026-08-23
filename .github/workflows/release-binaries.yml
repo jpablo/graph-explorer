@@ -47,14 +47,15 @@ permissions:
 
 # Runs any JavaScript action that still targets Node 20 on Node 24 instead.
 #
-# After the v5 bump every actions/* here is natively Node 24, so this now covers
-# only the third-party actions the repo does not control (sbt/setup-sbt,
-# Swatinem/rust-cache, VirtusLab/scala-cli-setup, softprops/action-gh-release,
-# scalacenter/sbt-dependency-submission).
+# After the v5 bump every actions/* here is natively Node 24, and
+# action-gh-release moved to v3 for the same reason, so this now covers only
+# whatever third-party action has not caught up yet.
 #
 # NOTE it does not silence the deprecation annotation — it CAUSES the "are being
-# forced to run on Node.js 24" wording. The annotation names the offenders,
-# which is how the v5 bump knew what to bump.
+# forced to run on Node.js 24" wording. That annotation is the to-do list: it
+# NAMES the offenders, which is how the v5 bump knew what to bump and how the
+# v3 bump here was found. Read it after a release rather than keeping a list in
+# this comment, which rots the moment an action ships a new major.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   # The version this run stamps and names assets with. A PR has no tag, so it
@@ -521,7 +522,7 @@ jobs:
       # is identical for both; only publishing is withheld.
       - name: Attach assets to the Release
         if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           fail_on_unmatched_files: true
@@ -581,7 +582,7 @@ jobs:
           cat SHA256SUMS
 
       - name: Attach SHA256SUMS to the Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           fail_on_unmatched_files: true
