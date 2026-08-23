@@ -918,6 +918,10 @@ fn check_socket_path_length(path: &Path) -> Result<()> {
 #[derive(Debug, Deserialize)]
 struct PushTextRequest {
     text: String,
+    /// REQUIRED. A push with no session names no document, and the page would
+    /// have to guess which view the caller meant.
+    #[serde(rename = "sessionId")]
+    session_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1469,23 +1473,29 @@ fn dispatch_method(
             }
         }
 
+        // A push NAMES the document it is aimed at, and goes through the
+        // session tier so the page can refuse it.
+        //
+        // It used to emit a `document.changed` with a null path — text with no
+        // addressee — and the page put it into whichever viewer was on screen.
+        // That is the same defect class as an open reporting success for a file
+        // no viewer showed: the caller was told "pushed: true" whatever it hit.
+        //
+        // The session tier already answers with the view's own state and
+        // reports NO_SESSION when there is no view, so routing through it makes
+        // the answer honest without inventing a second reply mechanism.
         "push-text" => {
             let request: PushTextRequest = match serde_json::from_value(params) {
                 Ok(request) => request,
                 Err(err) => return RpcResponse::failure(id, "INVALID_REQUEST", err),
             };
-            let payload = DocumentChangedEventPayload {
-                text: request.text,
-                path: None,
-                revision: None,
-            };
-            let app = match context.app() {
-                Ok(app) => app,
-                Err((code, message)) => return RpcResponse::failure(id, code, message),
-            };
-            match emit_document_changed_event(app, &payload) {
-                Ok(()) => RpcResponse::success(id, serde_json::json!({ "pushed": true })),
-                Err(err) => RpcResponse::failure(id, "PUSH_FAILED", err),
+            let frame = serde_json::json!({
+                "command": "push-text",
+                "params": { "sessionId": request.session_id, "text": request.text },
+            });
+            match run_session_command(context, frame) {
+                Ok(_) => RpcResponse::success(id, serde_json::json!({ "pushed": true })),
+                Err((code, message)) => RpcResponse::failure(id, code, message),
             }
         }
 

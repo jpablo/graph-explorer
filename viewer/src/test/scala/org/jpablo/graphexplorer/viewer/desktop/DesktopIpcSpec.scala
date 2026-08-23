@@ -177,10 +177,11 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
       Some(DesktopBridge.DesktopMessage("digraph { a }", Some("/tmp/a.dot"), Some("c0ffee")))
     )
 
-  test("a text-only push does not forget which file is open"):
-    // `/v1/push-text` emits `{text, path: null, revision: null}` — text with no
-    // document behind it. If that ended the session, the next ⌘S would have no
-    // file to write for a file that is still very much open.
+  test("an event with no path opens no session, and ends none"):
+    // Nothing in the shell sends one any more: every emitter carries a path,
+    // and `/v1/push-text` names its session and arrives as a session command.
+    // What is left is untrusted input, and the answer to it is "nothing" —
+    // neither a new session nor the loss of an existing one.
     DesktopBridge.reset()
     DesktopDocumentRegistry.reset()
     DesktopBridge.recordSession(
@@ -192,7 +193,7 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
       DesktopDocumentRegistry.find("/tmp/a.dot").map(_.revision),
       Some("f00d")
     )
-    assertEquals(DesktopDocumentRegistry.all.size, 1, "a text push must not open a second session")
+    assertEquals(DesktopDocumentRegistry.all.size, 1, "a pathless event opened a second session")
     DesktopBridge.reset()
     DesktopDocumentRegistry.reset()
 

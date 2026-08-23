@@ -194,8 +194,11 @@ api_put() {
     '{path: $path, text: $text, baseRevision: $baseRevision, source: $source}')"
 }
 
+# push-text NAMES its document session: `api_push_text <sessionId> <text>`.
+# The session id comes from a `show` response (`.result.view.sessionId`). A push
+# with no session used to land in whichever viewer was on screen.
 api_push_text() {
-  _api_call push-text "$(_jq -n --arg text "$1" '{text: $text}')"
+  _api_call push-text "$(_jq -n --arg session "$1" --arg text "$2" '{sessionId: $session, text: $text}')"
 }
 
 # Fetch the current revision, then write against it -- what `gx set` did when no

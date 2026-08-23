@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import org.jpablo.graphexplorer.gxcore.command.{ElementRef, SessionCodec, SessionCommand}
-import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, ViewerState, ViewTarget}
 import org.scalajs.dom
 
 import scala.scalajs.js
@@ -130,6 +130,9 @@ object SessionCommands:
               state.resetView()
               Right(ujson.Null)
 
+            case SessionCommand.PushText(sessionId, text) =>
+              pushText(state, sessionId, text)
+
             case SessionCommand.WhatIsSelected =>
               Right(
                 ujson.Arr.from(
@@ -137,6 +140,30 @@ object SessionCommands:
                 )
               )
         catch case NonFatal(e) => Left(Refusal("SESSION_FAILED", s"${command.name} failed: ${e.getMessage}"))
+
+  /** Put text into the document session the caller NAMED.
+    *
+    * The check is the point. This used to arrive as a bare `{text}` and land in
+    * whichever viewer was on screen — a write with no addressee, which is the
+    * same defect class as the open that reported success for a file no viewer
+    * showed. Naming the session makes "the view on screen is not that document"
+    * an answer the caller gets instead of a silent hit on the wrong diagram.
+    *
+    * The text is NOT written to the file, and the session's base does not move.
+    * A push is an edit, so the viewer becomes dirty exactly as it would from
+    * typing — which is what makes this useful for exercising §7.3 and §7.4.
+    */
+  private def pushText(state: ViewerState, sessionId: String, text: String) =
+    DocumentSessionId.parse(sessionId) match
+      case None =>
+        Left(Refusal("INVALID_REQUEST", s"'$sessionId' is not a document session id"))
+      case Some(id) =>
+        state.target match
+          case ViewTarget.LooseFile(shown) if shown == id =>
+            state.replaceSourceDetectingFormat(text)
+            Right(ujson.Null)
+          case _ =>
+            Left(Refusal("VIEW_REJECTED", s"the view on screen is not document session '$sessionId'"))
 
   private def reply(id: Double, outcome: Either[Refusal, ujson.Value]): Unit =
     val args = outcome match

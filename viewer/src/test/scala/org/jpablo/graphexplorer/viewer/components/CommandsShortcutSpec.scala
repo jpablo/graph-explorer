@@ -38,9 +38,11 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
             };
           }
 
-          // No `__graphExplorerDesktopBridge` here, on purpose. §11 moved ⌘S
-          // onto the viewer, so the shortcut must work with no global object
-          // to reach through.
+          // The global is gone entirely now — Phase 4 removed it, and nothing
+          // ever called it. This delete is what the test asserted BEFORE that,
+          // when the object still existed and ⌘S had to work without it. Kept
+          // so the shortcut is still exercised against a page that has no
+          // desktop surface at all.
           delete window.__graphExplorerDesktopBridge;
         """
       )

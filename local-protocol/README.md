@@ -113,7 +113,7 @@ longer be trusted.
 | `unwatch` | `path` | `removed` | document |
 | `get-document` | `path` | `document` | document |
 | `put-document` | `path`, `text`, `baseRevision`, `source` | `document` | document |
-| `push-text` | `text` | `pushed` | session |
+| `push-text` | `sessionId`, `text` | `pushed` | session |
 | `session` | `command`, `params` | whatever the page answers | **session** |
 
 `session` is the only method the shell does not answer itself. It relays the

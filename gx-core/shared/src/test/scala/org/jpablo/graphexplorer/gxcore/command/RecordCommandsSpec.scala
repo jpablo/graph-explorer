@@ -189,6 +189,7 @@ class RecordCommandsSpec extends FunSuite:
       SessionCommand.AddToSelection(Set(ArrowId("e1"))),
       SessionCommand.ClearSelection,
       SessionCommand.ResetView,
+      SessionCommand.PushText("doc-abc123", "digraph G { a }"),
       SessionCommand.WhatIsSelected
     )
     for command <- commands do
@@ -200,6 +201,28 @@ class RecordCommandsSpec extends FunSuite:
     val frame = SessionCodec.encode(SessionCommand.Select(Set(NodeId("a"))))
     assertEquals(frame("command").str, "select")
     assertEquals(frame("params")("targets").arr.map(_.str).toVector, Vector("node:a"))
+
+  test("a push names the document it is aimed at, and is refused without one"):
+    // The whole point of the field. A push used to carry text alone, and the
+    // page put it into whichever viewer was on screen — a write with no
+    // addressee. A decoder that accepted a missing session would let that back.
+    assertEquals(
+      SessionCodec.decode(ujson.Obj("command" -> "push-text", "params" -> ujson.Obj("text" -> "x"))),
+      Left(CommandError.BadArgument("push-text", "missing required 'sessionId'"))
+    )
+    assertEquals(
+      SessionCodec.decode(
+        ujson.Obj("command" -> "push-text", "params" -> ujson.Obj("sessionId" -> "", "text" -> "x"))
+      ),
+      Left(CommandError.BadArgument("push-text", "missing required 'sessionId'")),
+      "a blank session names nothing either"
+    )
+    assertEquals(
+      SessionCodec.decode(
+        ujson.Obj("command" -> "push-text", "params" -> ujson.Obj("sessionId" -> "doc-a"))
+      ),
+      Left(CommandError.BadArgument("push-text", "missing required 'text'"))
+    )
 
   test("an unknown name is refused by the combined vocabulary too"):
     assertEquals(

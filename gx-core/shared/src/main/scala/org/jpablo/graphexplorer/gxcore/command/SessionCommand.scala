@@ -26,6 +26,19 @@ enum SessionCommand derives CanEqual:
   case ClearSelection
   case ResetView
 
+  /** Replace the text of ONE named document session.
+    *
+    * The session id is what makes this safe. Before it, a text push carried
+    * text and nothing else, and the page put it into whichever viewer happened
+    * to be on screen — a write aimed at no particular document, landing on
+    * whatever the person was looking at.
+    *
+    * A plain `String` rather than a `DocumentSessionId`, because that type
+    * lives in the viewer's module and this one does not depend on it. The page
+    * parses it.
+    */
+  case PushText(sessionId: String, text: String)
+
   /** Query. */
   case WhatIsSelected
 
@@ -42,10 +55,11 @@ object SessionCommand:
     case AddToSelection(_) => "add-to-selection"
     case ClearSelection    => "clear-selection"
     case ResetView         => "reset-view"
+    case PushText(_, _)    => "push-text"
     case WhatIsSelected    => "what-is-selected"
 
   val names: Vector[String] =
-    Vector("select", "add-to-selection", "clear-selection", "reset-view", "what-is-selected")
+    Vector("select", "add-to-selection", "clear-selection", "reset-view", "push-text", "what-is-selected")
 
   val tier: Tier = Tier.Session
 
@@ -63,6 +77,8 @@ object SessionCodec:
   private def params(command: SessionCommand): ujson.Obj = command match
     case SessionCommand.Select(targets)         => ujson.Obj("targets" -> refs(targets))
     case SessionCommand.AddToSelection(targets) => ujson.Obj("targets" -> refs(targets))
+    case SessionCommand.PushText(sessionId, text) =>
+      ujson.Obj("sessionId" -> sessionId, "text" -> text)
     case SessionCommand.ClearSelection | SessionCommand.ResetView | SessionCommand.WhatIsSelected =>
       ujson.Obj()
 
@@ -85,7 +101,19 @@ object SessionCodec:
       case "clear-selection"  => Right(SessionCommand.ClearSelection)
       case "reset-view"       => Right(SessionCommand.ResetView)
       case "what-is-selected" => Right(SessionCommand.WhatIsSelected)
+      case "push-text"        => pushText(params)
       case other              => Left(CommandError.UnknownCommand(other))
+
+  /** Both fields are REQUIRED. A push with no session names no document, which
+    * is the shape this command exists to stop accepting.
+    */
+  private def pushText(params: ujson.Obj): Either[CommandError, SessionCommand] =
+    for
+      sessionId <- params.value.get("sessionId").flatMap(_.strOpt).filter(_.nonEmpty)
+        .toRight(CommandError.BadArgument("push-text", "missing required 'sessionId'"))
+      text <- params.value.get("text").flatMap(_.strOpt)
+        .toRight(CommandError.BadArgument("push-text", "missing required 'text'"))
+    yield SessionCommand.PushText(sessionId, text)
 
   private def targets(command: String, params: ujson.Obj): Either[CommandError, Set[ElementId]] =
     params.value.get("targets").flatMap(_.arrOpt) match

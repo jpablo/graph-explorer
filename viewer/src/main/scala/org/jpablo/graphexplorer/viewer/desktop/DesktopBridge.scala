@@ -15,8 +15,7 @@ import scala.scalajs.js
   */
 object DesktopBridge:
 
-  private val DocumentChangedEventName         = "ge:document.changed"
-  private val DocumentChangedFallbackEventName = "document.changed"
+  private val DocumentChangedEventName = "ge:document.changed"
 
   case class DesktopMessage(text: String, path: Option[String], revision: Option[String]) derives CanEqual
 
@@ -66,18 +65,12 @@ object DesktopBridge:
       val handler: js.Function1[dom.Event, Unit] = event =>
         extractMessage(event).foreach(routeDocumentChange)
 
+      // ONE event name, and a namespaced one. The bare `document.changed` was
+      // also accepted, which meant any script on the page could push text into
+      // the viewer by dispatching a DOM event. The shell has always sent the
+      // namespaced name as well, so nothing that matters loses a listener.
       dom.window.addEventListener(DocumentChangedEventName, handler)
-      dom.window.addEventListener(DocumentChangedFallbackEventName, handler)
 
-      // Imperative fallback for desktop wrappers:
-      // window.__graphExplorerDesktopBridge.pushText("...")
-      val bridge = js.Dynamic.literal(
-        pushText = (text: String) =>
-          // Same replacement as the event path above — including the ordering
-          // rule that ImportOps.replaceSource documents.
-          target.foreach(_.replaceSourceDetectingFormat(text))
-      )
-      js.Dynamic.global.window.updateDynamic("__graphExplorerDesktopBridge")(bridge)
       installed = true
       dom.console.info("Desktop bridge listener installed.")
 
@@ -170,9 +163,11 @@ object DesktopBridge:
   ): Unit =
     session match
       case None =>
-        // A text push (`/v1/push-text`): text with no document behind it, aimed
-        // at whatever is on screen. That is what the command is for.
-        state.replaceSourceDetectingFormat(message.text)
+        // No path, so no document. Every emitter in the shell sends one, and
+        // `/v1/push-text` now NAMES its session and arrives as a session
+        // command instead. Text with no addressee used to land in whichever
+        // viewer was on screen; there is nothing here it could correctly do.
+        dom.console.debug("Desktop bridge: a document event with no path, ignored.")
 
       case Some((id, previous)) if !showsSession(state, id) =>
         // The viewer is showing something else. Writing this text into it is
