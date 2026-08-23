@@ -5,7 +5,8 @@ That document is the plan. This file records the state of the work.
 
 ## 1. State
 
-Phases 0, 1, 2 and 3 are complete, merged, and **released as `v0.9.5`**.
+**Every phase in the plan is implemented.** Phases 0 to 3 are released as
+`v0.9.5`; Phase 4 is on `viewer` and not yet released.
 
 `v0.9.5` tags `fecafd8c`, the merge that brought both phases onto `viewer`.
 `viewer` has moved on since — this file's own updates land there — so check
@@ -26,7 +27,7 @@ All tests pass.
 | Rust, desktop | 50 | `cd desktop/src-tauri && cargo test` |
 | Open handshake | 6 checks | `bash scripts/local-capabilities-open-handshake-smoke.sh` |
 
-The smoke script needs a release desktop binary. Read §7 for the build order.
+The smoke script needs a release desktop binary. Read §8 for the build order.
 
 NOTE: the graphviz corpus tally is **810**. It is the byte-exact transcription
 of the dot engine, and it must not move. A corpus diff is a regression, never a
@@ -158,10 +159,10 @@ done for `v0.9.5`:
    GraalVM native-image build, separate from the desktop's, so building the
    desktop leaves it stale. Compare `gx --version` against the branch before
    you trust any manual test: a `gx` older than the typed open targets does not
-   speak the current `show` protocol, and §9 says why that matters.
+   speak the current `show` protocol, and §10 says why that matters.
 2. **Check Cmd+Q by hand** after any change to the menu, the close handler or
    the unsaved flag. Nothing automated reaches it.
-3. Run the smoke script. It needs a release desktop binary; §7 gives the order.
+3. Run the smoke script. It needs a release desktop binary; §8 gives the order.
 
 The manual Cmd+Q check was done for `ec8bff95`, which `v0.9.5` contains: the
 dialog appears, the edit stays on screen, and Save writes the file and then
@@ -173,23 +174,57 @@ the string can appear to go backwards between two builds. Run
 `sbt --client reload` and then `show version` after tagging, and confirm it
 prints the new tag before you believe any build.
 
-## 6. Next task: Phase 4
+## 6. What Phase 4 removed
 
-Phase 4 removes the legacy global bridge. It has 5 items, and Phase 2 already
-did one of them. Check each against the code before you start:
+Phase 4 removed the legacy global bridge. Its five items, and what each became:
 
-| Item | State |
+| Item | Outcome |
 |---|---|
-| 1. Remove global `DesktopBridge.target` | Not done. The `target` var is still there. |
-| 2. Remove global `documentRef` | **Done** in Phase 2 item 5. |
-| 3. Remove direct source replacement from generic events | Partly. A text push with no path still replaces the viewer's text. |
-| 4. Remove acceptance of unaddressed legacy events | Not done. `DesktopBridge` still listens to the bare `document.changed` name. |
-| 5. Update protocol fixtures and architecture documentation | Not done. |
+| 1. Remove global `DesktopBridge.target` | Done. That module no longer names `ViewerState` at all. |
+| 2. Remove global `documentRef` | Was already done, in Phase 2 item 5. |
+| 3. Remove direct source replacement from generic events | Done, after `push-text` gained a target. |
+| 4. Remove acceptance of unaddressed legacy events | Done. The bare `document.changed` is no longer listened to. |
+| 5. Update protocol fixtures and documentation | Done. `local-protocol/README.md` had described `show` as taking a bare path since Phase 1. |
 
-CAUTION: item 3 removes the last path that `/v1/push-text` uses. Confirm that
-nothing depends on that command before you remove it.
+The keystone was a decision, not code: `/v1/push-text` now NAMES the document
+session it is aimed at. It carried text alone and landed in whichever viewer was
+on screen. Once a push names its destination, text with no addressee has no
+legitimate source — which turned items 3 and 4 from judgement calls into
+deletions.
 
-## 7. Build the desktop in this order
+A viewer now follows its OWN session through an owner-scoped signal (§10), so
+Laminar teardown ends it and nothing has to detach anything.
+
+**Two globals stay, and the code says why.** `SessionCommands` and
+`DesktopClose` ask questions that are ABOUT the view on screen — what is
+selected, is there an edit to lose before this window closes. Naming the current
+view is their meaning, not an accident. Item 1 named `DesktopBridge.target`, and
+that is the one that could go.
+
+§16's invariant now holds: the route, the persistence owner, the event target
+and the save destination all derive from one `ViewTarget`.
+
+## 7. What remains
+
+The plan is implemented. What is left was deferred on purpose, and each item
+needs a decision before it needs code:
+
+1. **§8's four resolution actions** — take the file, keep the library version,
+   write the library version to the file, detach. The divergence strip states
+   the situation and offers none of them. Two decisions first: may the page push
+   to a file on a person's behalf, and what does detaching do to a record `gx`
+   may be syncing at that moment.
+2. **Nothing watches a bound origin.** Reconciliation runs when the shell
+   reports a change, and the shell reports one only for a file it watches.
+   Decide when a watch starts for a record's origin: at startup for every bound
+   record, or when a record is opened. Until then Phase 3 is correct and
+   dormant.
+3. **A quit APPLE EVENT still discards an unsaved edit.** macOS sends one on
+   logout and restart. It bypasses the app menu, so it bypasses the Quit item
+   that asks. Tauri exposes no hook: the run loop reports `Exit` with nothing
+   preventable before it. Cmd+Q and the red button are safe.
+
+## 8. Build the desktop in this order
 
 WARNING: A wrong build order gives a blank window and an `OPEN_TIMEOUT`. This
 looks like a broken handshake. It is not.
@@ -208,31 +243,22 @@ The smoke script tests both rules before it starts. The script also uses a
 sandbox `GX_HOME`. The script does not touch your library and does not stop
 your desktop.
 
-## 8. Open questions for the user
+## 9. Open questions for the user
+
+The deferred WORK is in §7. These are questions about the repository itself:
 
 1. The repository has 49 local branches. 40 of them hold work that `viewer`
    does not contain, and there are 12 remote branches. Examples of the
    unmerged ones: `desktop-gx-v2`, `wip`, `tmp`, `travel`.
-2. The plan document uses two voices. Phase 2 item 7 and the new §15.6 text use
-   Simplified Technical English. Most of the document does not.
-3. macOS sends a QUIT APPLE EVENT on logout and restart, and a script sends the
-   same. It bypasses the app menu, so it bypasses the Quit item that asks, and
-   it terminates without a prompt. Tauri exposes no hook for it: the run loop
-   reports `Exit` with nothing preventable before it. Cmd+Q and the window's
-   red button are safe; logging out with unsaved work is not. Decide whether
-   this is worth an upstream issue or a different approach.
-4. §8's four resolution actions need two decisions before anyone builds them.
-   §3 above lists both. They are product decisions, not code decisions.
-5. Nothing watches a bound origin yet. Phase 3 reconciles a change when the
-   shell reports one, and the shell reports one only for a file it watches.
-   Decide when the desktop starts a watch for a record's origin: at startup for
-   every bound record, or when a record is opened.
+2. The plan document uses two voices. The Phase 2 item 7 text and the §15.6
+   text use Simplified Technical English. Most of the document does not.
 
-Three earlier questions are now answered. The plan's `Status:` line reports the
-implemented phases. §15.6 requires the acknowledgment for a file open. The
-desktop asks before Cmd+Q discards an edit — see §4 for what that took.
+Four earlier questions are now answered. The plan's `Status:` line reports every
+phase implemented. §15.6 requires the acknowledgment for a file open. The
+desktop asks before Cmd+Q discards an edit — §4 records what that took. And
+`/v1/push-text` names its document session, which is what let Phase 4 finish.
 
-## 9. Cautions
+## 10. Cautions
 
 - WARNING: If a development server runs, do not edit `Persistence.scala`,
   `ProjectsStorage`, or `ThumbnailDiskCache`. A server with hot reload writes
@@ -253,7 +279,7 @@ desktop asks before Cmd+Q discards an edit — see §4 for what that took.
   empty in a browser, so `/documents/<id>` there shows "No such document
   session". That is correct, and it is not a bug to chase.
 
-## 10. Other work in progress
+## 11. Other work in progress
 
 The `/simplify` slice plan continues. Two slices are complete: `viewer/state`
 and `gx-cli`. The next slice is `gx-core`. See the memory file

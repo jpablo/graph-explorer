@@ -1,6 +1,6 @@
 # Desktop Open Targets and Persistence
 
-Status: Phases 0-3 implemented; Phase 4 proposed. Reviewed against `31b72b14` (2026-08-22).
+Status: Phases 0-4 implemented. The deferred items are listed in HANDOFF.md. Reviewed against `31b72b14` (2026-08-22).
 
 Reads with:
 
