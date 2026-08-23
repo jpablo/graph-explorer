@@ -14,7 +14,7 @@ import org.jpablo.graphexplorer.router.Route
 enum LeaveIntent derives CanEqual:
   case Navigate(route: Route)
   case CloseWindow
-import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
+import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopIpc}
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
 import org.scalajs.dom
@@ -112,6 +112,30 @@ trait Persistence:
               replaceSourceDetectingFormat(current.sourceText)
             else if fileMoved then
               DesktopDocumentRegistry.markConflict(session, current.revision, current.sourceText)
+      case _ => ()
+
+  /** Listen to this record's origin, from the moment it opens (§8).
+    *
+    * The symmetric half of [[followDocumentSession]]. A loose file arrives with
+    * its text and a session; a record arrives with a BINDING and nothing
+    * listening to the file behind it. Phase 3 decided what to do with an origin
+    * change and never asked for one, so the divergence strip was reachable only
+    * after `gx open` had watched the file.
+    *
+    * Fire and forget. The reply carries the bytes and is discarded: the watch
+    * emits a document event, and that event is the one route that reconciles
+    * against the record instead of overwriting it.
+    *
+    * The watch OUTLIVES this view, and that is deliberate — see
+    * `DesktopIpc.openDocument`. Watches are keyed by path and shared with
+    * `gx watch`, so releasing one on unmount would stop a watch this page never
+    * started. What it costs is one watch per bound record visited in a session.
+    */
+  private def watchOrigin(): Unit =
+    target match
+      case ViewTarget.LibraryDiagram(id) =>
+        import scala.concurrent.ExecutionContext.Implicits.global
+        Library.originPathOf(id).foreach(DesktopIpc.openDocument)
       case _ => ()
 
   /** The same question as [[documentDirty]], answered now rather than observed.
@@ -284,6 +308,7 @@ trait Persistence:
     restorePersistedState()
     setupStateSynchronization()
     followDocumentSession()
+    watchOrigin()
 
   /** Release the store when the view goes away (§10).
     *

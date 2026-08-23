@@ -120,6 +120,22 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
   override def recordsBoundTo(path: String): List[BoundRecord] =
     boundByPath.now().getOrElse(pathKey(path), Nil)
 
+  /** The record's own binding, read directly rather than through the index.
+    *
+    * NOT through [[boundByPath]], whose keys are [[pathKey]] spellings — a form
+    * for COMPARING two paths, not a path to hand back to the shell. `filePath`
+    * gives the path as the binding stores it, which is what the shell must
+    * receive.
+    *
+    * On Windows that is `C:/Users/x/a.dot`, with URI separators, because
+    * `fromCanonicalPath` writes them. The shell normalizes through `Paths.get`,
+    * which accepts either separator, so this reaches the right file — but §7 of
+    * HANDOFF.md keeps it on the list to confirm on a real Windows machine. The
+    * last bug of this shape was silent.
+    */
+  override def originPathOf(id: ProjectId): Option[String] =
+    records.now().get(id.value).flatMap(_.binding).flatMap(_.origin.filePath)
+
   def getProjectContent(id: ProjectId): Signal[String] =
     records.signal.map(_.get(id.value).map(_.text).getOrElse(PersistedDiagramState.minimalGraphText))
 

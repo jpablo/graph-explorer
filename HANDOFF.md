@@ -23,7 +23,7 @@ All tests pass.
 
 | Suite | Count | Command |
 |---|---|---|
-| Scala, all modules | 2293 | `sbt --client testFull` |
+| Scala, all modules | 2295 | `sbt --client testFull` |
 | Rust, desktop | 50 | `cd desktop/src-tauri && cargo test` |
 | Open handshake | 6 checks | `bash scripts/local-capabilities-open-handshake-smoke.sh` |
 
@@ -154,6 +154,34 @@ Open too: a `Detached` record still shows the strip when it diverges. Detached
 means "do not synchronize", so reporting a conflict there may be noise. Not
 changed, because it is a policy call.
 
+### The watch that makes all of it run (added after Phase 3)
+
+Phase 3 decided what to do with an origin change and never asked for one.
+`DesktopIpc.OpenDocument` was defined, handled in Rust, described in the
+protocol README — and called from NOWHERE. Reconciliation runs on a document
+event, and the shell sends one only for a file it watches, so an origin edit
+reached the app only when `gx open` had watched the file. Opening the same
+record from the library was silent, and everything downstream of it — the
+whole of Phase 3 and the two buttons above — was unreachable from the UI.
+
+`Persistence.watchOrigin()` now runs at `initializePersistence`, beside
+`followDocumentSession`. A loose file arrives with its text; a record arrives
+with a binding and nothing listening behind it. This is the symmetric half.
+
+Three things about it:
+
+- **The reply is discarded.** It carries the bytes, and taking them would put
+  the file on screen without asking the record — the behaviour §8 removed.
+  `add_watch` emits a document event for a watch it CREATES, so the text
+  arrives by the one route that reconciles. A file changed while the app was
+  shut therefore reconciles at open, and the strip is there on arrival.
+- **There is no unwatch, and it must not grow one without a refcount.** Watches
+  are keyed by path and shared: `gx watch` may hold one on the same file, and
+  releasing it because a page navigated would stop a watch the page never
+  started. The cost is one watch per bound record visited in a session.
+- **A watch the shell refuses is not fatal.** The record still opens. It just
+  does not hear about the file.
+
 ## 4. Three defects that only RUNNING it found
 
 None of these came from a test. All three were found by building the desktop
@@ -253,11 +281,12 @@ The plan is implemented. What is left was deferred on purpose:
    not. Write-to-file needs a rule for which binding modes let the page write
    on a person's behalf. Detach needs that AND new plumbing: no page path can
    clear a binding, and clearing one races a `gx sync`.
-2. **Nothing watches a bound origin.** Reconciliation runs when the shell
-   reports a change, and the shell reports one only for a file it watches.
-   Decide when a watch starts for a record's origin: at startup for every bound
-   record, or when a record is opened. Until then Phase 3 is correct and
-   dormant.
+2. **Confirm the origin path on a real Windows machine.** `originPathOf`
+   returns the path as the binding stores it, which on Windows carries URI
+   separators — `C:/Users/x/a.dot`. The shell normalizes through `Paths.get`,
+   which accepts either, so it should reach the right file. Nothing has run it
+   there. The last bug of this shape opened a second copy of a record beside
+   itself and said nothing (§4).
 3. **A quit APPLE EVENT still discards an unsaved edit.** macOS sends one on
    logout and restart. It bypasses the app menu, so it bypasses the Quit item
    that asks. Tauri exposes no hook: the run loop reports `Exit` with nothing
