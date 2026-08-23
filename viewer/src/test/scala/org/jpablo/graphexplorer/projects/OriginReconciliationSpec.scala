@@ -5,7 +5,8 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.*
 import org.jpablo.graphexplorer.viewer.components.OriginStateBanner
 import org.jpablo.graphexplorer.viewer.desktop.OriginReconciler
-import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewTarget}
+import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState, ViewTarget}
+import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
 import scala.collection.mutable
@@ -19,7 +20,7 @@ import scala.scalajs.js
   * replaced its text. These assert the other behaviour: the record decides, and
   * the screen follows the record.
   */
-class OriginReconciliationSpec extends FunSuite:
+class OriginReconciliationSpec extends FunSuite with TestHelpers:
 
   private given com.raquo.airstream.ownership.Owner = com.raquo.laminar.api.L.unsafeWindowOwner
 
@@ -36,12 +37,19 @@ class OriginReconciliationSpec extends FunSuite:
       */
     var conflictOnWrite: Boolean = false
 
+    /** The paths the page asked the shell to watch, in order. */
+    val opened: mutable.Buffer[String] = mutable.Buffer.empty
+
     def install(): Unit =
       val invoke: js.Function2[String, js.Any, js.Promise[js.Any]] = (command, args) =>
         val a = args.asInstanceOf[js.Dynamic]
         command match
           case "hash_text" =>
             js.Promise.resolve[js.Any](hashOf(a.selectDynamic("text").asInstanceOf[String]))
+          case "open_document" =>
+            val path = a.selectDynamic("path").asInstanceOf[String]
+            opened += path
+            js.Promise.resolve[js.Any](js.Dynamic.literal(path = path, revision = "seed", text = ""))
           case "save_document" =>
             val path = a.selectDynamic("path").asInstanceOf[String]
             val text = a.selectDynamic("text").asInstanceOf[String]
@@ -313,3 +321,37 @@ class OriginReconciliationSpec extends FunSuite:
       OriginReconciler.reconcile(originPath, "digraph { a -> b }", hashOf("digraph { a -> b }")).map: _ =>
         assertEquals(container.textContent, "", "a Behind record asked for attention")
         container.remove()
+
+  // ------------------------------------ the watch that makes the rest run
+
+  private def unbound(id: String, text: String) =
+    Diagram(
+      id = DiagramId(id),
+      name = id,
+      folder = FolderPath.root,
+      format = "DOT",
+      text = text,
+      binding = None,
+      metadata = DiagramMetadata(),
+      createdAt = 1,
+      updatedAt = 1
+    )
+
+  test("opening a bound record asks the shell to watch its origin"):
+    // The missing link. Reconciliation runs on a document event, and the shell
+    // sends one only for a file it watches — and nothing in the page had ever
+    // asked for a watch. An origin edit therefore reached the app only after
+    // `gx open` had watched the file, and opening the same record from the
+    // library was silent.
+    withLibrary(bound("a", "digraph { a }", SyncMode.Pull, base = "digraph { a }")): (shell, _) =>
+      withGraphvizAsync: graphviz =>
+        ViewerState(ViewTarget.library("a"), graphviz, _ => ())
+        afterMicrotasks:
+          assertEquals(shell.opened.toList, List(originPath))
+
+  test("opening a record with no binding asks for no watch"):
+    withLibrary(unbound("a", "digraph { a }")): (shell, _) =>
+      withGraphvizAsync: graphviz =>
+        ViewerState(ViewTarget.library("a"), graphviz, _ => ())
+        afterMicrotasks:
+          assertEquals(shell.opened.toList, Nil, "a record with no origin asked to watch something")

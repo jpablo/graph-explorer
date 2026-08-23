@@ -66,6 +66,19 @@ trait DiagramLibrary:
     */
   def recordsBoundTo(path: String): List[BoundRecord] = Nil
 
+  /** The file this record is bound to, if it has one (§8).
+    *
+    * The other direction from [[recordsBoundTo]], and needed for the other
+    * moment. That one answers "a file changed — who cares?"; this one answers
+    * "a record is opening — which file should we listen to?". Neither derives
+    * from the other cheaply: one is a grouped index, and this is a single
+    * lookup that must not build one.
+    *
+    * `localStorage` answers None, because a browser library has no filesystem
+    * to bind to.
+    */
+  def originPathOf(id: ProjectId): Option[String] = None
+
   /** Store what reconciliation decided (§8).
     *
     * @param text

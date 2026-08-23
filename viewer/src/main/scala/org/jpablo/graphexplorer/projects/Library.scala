@@ -47,6 +47,9 @@ object Library:
   /** The records bound to a file path (§8). Empty on the browser backend. */
   def recordsBoundTo(path: String): List[BoundRecord] = backend.recordsBoundTo(path)
 
+  /** The file a record is bound to (§8). None on the browser backend. */
+  def originPathOf(id: ProjectId): Option[String] = backend.originPathOf(id)
+
   def recordReconciled(id: ProjectId, text: Option[String], base: ContentHash): Unit =
     backend.recordReconciled(id, text, base)
   def findProjectByExactSource(dot: String): Option[ProjectId] = backend.findProjectByExactSource(dot)

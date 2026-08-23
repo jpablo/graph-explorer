@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import org.jpablo.graphexplorer.gxcore.model.ContentHash
+import org.scalajs.dom
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js
@@ -63,6 +64,35 @@ object DesktopIpc:
     invoker match
       case Some(fn) => fn(command, args).toFuture
       case None     => Future.failed(js.JavaScriptException("desktop IPC is unavailable"))
+
+  /** Start watching a record's origin, so a change to it reaches the page.
+    *
+    * The MISSING link of Phase 3. Reconciliation runs when the shell reports a
+    * change, and the shell reports one only for a file it watches — but the
+    * page never asked for a watch. `open_document` was defined, handled and
+    * documented, and called from nowhere. So an origin edit reached the app
+    * only when `gx open` had watched the file, and opening the same record
+    * from the library was silent.
+    *
+    * The reply is DISCARDED on purpose. It carries the bytes, and taking them
+    * here would put the file's text on screen without asking the record — the
+    * exact behaviour §8 removed. `add_watch` emits a document event for a watch
+    * it creates, so the text arrives by the one route that reconciles it. A
+    * file that changed while the app was shut therefore reconciles at open.
+    *
+    * CAUTION: there is no matching unwatch, and this must not grow one without
+    * a refcount. Watches are keyed by PATH and shared: `gx watch` may hold one
+    * on the same file, and tearing it down because a page navigated would stop
+    * a watch the page never started.
+    */
+  def openDocument(path: String)(using ExecutionContext): Future[Unit] =
+    if !available then Future.unit
+    else
+      invoke(OpenDocument, js.Dynamic.literal(path = path)).map(_ => ()).recover:
+        case error =>
+          // A watch the shell refused is not fatal to the view. The record
+          // still opens; it just will not hear about the file.
+          dom.console.warn(s"[origin] could not watch $path: ${error.getMessage}")
 
   /** Compare-and-swap save. `baseRevision` is the revision the UI last saw, so
     * a file that moved underneath us comes back as a conflict instead of a
