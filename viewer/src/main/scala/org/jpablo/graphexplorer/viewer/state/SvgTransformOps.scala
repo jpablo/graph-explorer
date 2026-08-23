@@ -3,7 +3,8 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.utils.SvgPoint
+import org.jpablo.graphexplorer.viewer.components.toSvgPoint
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, SvgPoint}
 
 trait SvgTransformOps:
   this: ViewerState =>
@@ -160,13 +161,24 @@ trait SvgTransformOps:
     val scale        = viewBox.width / clientWidth max viewBox.height / clientHeight
     panBy(SvgPoint(dx * scale / z, dy * scale / z))
 
-  def handleWheel(wEv: dom.WheelEvent, viewBox: dom.SVGRect) =
+  def handleWheel(wEv: dom.WheelEvent, viewBox: dom.SVGRect, mainGroup: dom.svg.G) =
     val clientHeight = dom.window.innerHeight max 1
     val clientWidth  = dom.window.innerWidth max 1
 
     if wEv.metaKey && wEv.deltaY != 0 then
-      zoomValue.update: z =>
-        z - wEv.deltaY / clientHeight max minZoom
+      val oldZoom = zoomValue.now()
+      val newZoom = oldZoom - wEv.deltaY / clientHeight max minZoom
+      if newZoom != oldZoom then
+        Option(mainGroup.getScreenCTM()).foreach: ctm =>
+          val anchor = ClientPoint(wEv.clientX, wEv.clientY).toSvgPoint(ctm)
+          val origin = SvgTransformOps.transformOrigin(mainGroup)
+          cancelPanChase()
+          val pan = SvgTransformOps.anchoredPan(translateXY.now(), anchor, origin, oldZoom, newZoom)
+          targetXY = pan
+          Var.set(
+            zoomValue   -> newZoom,
+            translateXY -> pan
+          )
     else
       val z     = zoomValue.now()
       val scale = viewBox.width / clientWidth max viewBox.height / clientHeight
@@ -174,3 +186,15 @@ trait SvgTransformOps:
       // frame cost one transform write between them instead of one apiece —
       // and the refitChrome that rides on every write likewise runs per frame.
       panBy(SvgPoint(wEv.deltaX * scale / z, wEv.deltaY * scale / z))
+
+private[state] object SvgTransformOps:
+  def anchoredPan(currentPan: SvgPoint, anchor: SvgPoint, origin: SvgPoint, oldZoom: Double, newZoom: Double): SvgPoint =
+    val ratio = oldZoom / newZoom
+    SvgPoint(
+      (anchor.x + currentPan.x - origin.x) * ratio - anchor.x + origin.x,
+      (anchor.y + currentPan.y - origin.y) * ratio - anchor.y + origin.y
+    )
+
+  def transformOrigin(group: dom.svg.G): SvgPoint =
+    val values = dom.window.getComputedStyle(group).transformOrigin.split(" ").flatMap(_.stripSuffix("px").toDoubleOption)
+    SvgPoint(values.headOption.getOrElse(0.0), values.drop(1).headOption.getOrElse(0.0))

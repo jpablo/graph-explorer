@@ -78,7 +78,9 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // still applies (it runs at the listener, before the filter), so the
     // back-swipe protection above holds in both modes.
     onWheel.preventDefault(_.filter(_ => !state.view3DActiveNow).withCurrentValueOf(state.finalSVG)) --> (
-      (e, svgElemO) => svgElemO.map(s => state.handleWheel(e, s.ref.viewBox.baseVal))
+      (e, svgElemO) => svgElemO.foreach: s =>
+        val mainGroup = CanvasRoot.mainGroup(s.ref)
+        state.handleWheel(e, s.ref.viewBox.baseVal, mainGroup)
     )
   )
 

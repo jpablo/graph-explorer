@@ -40,3 +40,17 @@ class CanvasRootSpec extends FunSuite:
 
     assertEquals(CanvasRoot.mainGroup(svg), graph0)
     assertEquals(svg.children.length, 1)
+
+  test("the established canvas group survives later overlay siblings"):
+    val svg = parse(
+      """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        |  <g id="graph0"><rect/></g>
+        |</svg>""".stripMargin
+    )
+    val graph0  = CanvasRoot.mainGroup(svg)
+    val overlay = svg.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "rect")
+    overlay.setAttribute("id", "selection-rectangle")
+    svg.appendChild(overlay)
+
+    assertEquals(CanvasRoot.mainGroup(svg), graph0)
+    assertEquals(svg.querySelectorAll(":scope > g").length, 1)
