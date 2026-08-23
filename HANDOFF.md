@@ -5,20 +5,20 @@ That document is the plan. This file records the state of the work.
 
 ## 1. State
 
-Phases 0, 1, 2 and 3 are complete.
+Phases 0, 1, 2 and 3 are complete, merged, and **released as `v0.9.5`**.
 
-The work is on two branches, and neither is merged. `viewer` and
-`origin/viewer` still point at `d85e4c99`.
+`v0.9.5` tags `fecafd8c`, the merge that brought both phases onto `viewer`.
+`viewer` has moved on since — this file's own updates land there — so check
+`git log v0.9.5..HEAD` rather than assuming the tag is at the tip. The branches
+that carried this work,
+`phase-2-loose-document-sessions` and `phase-3-origin-reconciliation`, are
+merged and deleted. Every commit is reachable from `viewer`.
 
-| Branch | Tip | Holds |
-|---|---|---|
-| `phase-2-loose-document-sessions` | `8090081a` | Phase 2, 4 commits |
-| `phase-3-origin-reconciliation` | `ec8bff95` | Phase 2, Phase 3 AND the defect fixes below, 13 commits |
+The release published six binaries — desktop and `gx` for macOS, Linux and
+Windows — plus `SHA256SUMS`:
+<https://github.com/jpablo/graph-explorer/releases/tag/v0.9.5>
 
-The second branch contains the first. They are a stack, not a fork: merge
-Phase 2 first and Phase 3 rebases to nothing. Both are pushed.
-
-All tests pass on `phase-3-origin-reconciliation`.
+All tests pass.
 
 | Suite | Count | Command |
 |---|---|---|
@@ -28,7 +28,11 @@ All tests pass on `phase-3-origin-reconciliation`.
 
 The smoke script needs a release desktop binary. Read §7 for the build order.
 
-## 2. What Phase 2 added (branch `phase-2-loose-document-sessions`)
+NOTE: the graphviz corpus tally is **810**. It is the byte-exact transcription
+of the dot engine, and it must not move. A corpus diff is a regression, never a
+rebaseline.
+
+## 2. What Phase 2 added
 
 The seven items are done. The parts to know:
 
@@ -65,7 +69,7 @@ Two deviations from the plan's own sketches, both deliberate:
    holds the session id only. A revision advances on every save, and a copy in
    the target would go stale and make the next save report a false conflict.
 
-## 3. What Phase 3 added (branch `phase-3-origin-reconciliation`)
+## 3. What Phase 3 added
 
 Phase 3 gives the desktop a capability it did not have. Before it, an edit in
 the app changed the record text and left `baseHash` alone. The app never wrote
@@ -145,9 +149,10 @@ pressed the key. An AppleScript quit does not go through the menu. A synthetic
 keystroke is blocked by accessibility permissions, and its "the app is still
 running" result means nothing. Only a human can check this one.
 
-## 5. Before you release
+## 5. Before the NEXT release
 
-Phase 4 is cleanup and does not gate a release. These do:
+Phase 4 is cleanup and does not gate a release. These do, and all three were
+done for `v0.9.5`:
 
 1. **Rebuild `gx`.** `scripts/build-gx.sh` writes `gx-cli/target/gx`. It is a
    GraalVM native-image build, separate from the desktop's, so building the
@@ -158,8 +163,15 @@ Phase 4 is cleanup and does not gate a release. These do:
    the unsaved flag. Nothing automated reaches it.
 3. Run the smoke script. It needs a release desktop binary; §7 gives the order.
 
-The manual Cmd+Q check has been done for `ec8bff95`: the dialog appears, the
-edit stays on screen, and Save writes the file and then exits.
+The manual Cmd+Q check was done for `ec8bff95`, which `v0.9.5` contains: the
+dialog appears, the edit stays on screen, and Save writes the file and then
+exits.
+
+CAUTION: `sbt-dynver` computes the version ONCE, when the sbt project loads. A
+server that has been up since before the tag keeps reporting the old one, and
+the string can appear to go backwards between two builds. Run
+`sbt --client reload` and then `show version` after tagging, and confirm it
+prints the new tag before you believe any build.
 
 ## 6. Next task: Phase 4
 
