@@ -23,7 +23,7 @@ All tests pass.
 
 | Suite | Count | Command |
 |---|---|---|
-| Scala, all modules | 2283 | `sbt --client testFull` |
+| Scala, all modules | 2293 | `sbt --client testFull` |
 | Rust, desktop | 50 | `cd desktop/src-tauri && cargo test` |
 | Open handshake | 6 checks | `bash scripts/local-capabilities-open-handshake-smoke.sh` |
 
@@ -109,15 +109,50 @@ Two traps the code now guards, both found while building this:
   A failed IPC call means no comparison happened, and `InSync` would claim one
   that never did.
 
-### What Phase 3 did NOT build
+### The two resolution actions (added after Phase 3)
 
-§8 lists four resolution actions: take the file version, keep the library
-version, write the library version to the file, and detach. The strip states
-the situation and offers none of them. Each needs a decision this phase did not
-make. Decide these before you build them:
+§8 lists four: take the file version, keep the library version, write the
+library version to the file, and detach. **The first two now have buttons.**
+Both are one call to `Library.recordReconciled`, and both settle the record:
 
-- May the page push to a file on a person's behalf, or must a person ask?
-- What does detaching do to a record that `gx` may be syncing at that moment?
+| Button | Call | Record then reads |
+|---|---|---|
+| Take the file's version | `recordReconciled(id, Some(originText), originHash)` | `InSync` |
+| Keep this diagram | `recordReconciled(id, None, originHash)` | `Ahead` |
+
+The baseline has to move in BOTH. Keeping the diagram and leaving the baseline
+alone would leave base, local and remote all different, which is the definition
+of `Diverged`: the strip would come straight back and the decision would have
+changed nothing. Moving it says "I have seen the file's version and mine
+stands", and a binding that pushes carries the record on the next sync.
+
+`OriginReconciler` now keeps the origin SNAPSHOT beside the state, because the
+resolution needs the text and the hash the person was shown. It refuses to
+offer a resolution it cannot trust: a missing origin has no text, and a write
+that lost its compare-and-swap proves the file moved after the read. Both still
+report the situation, with no buttons.
+
+Fixed on the way: a push that lost its compare-and-swap recorded the divergence
+and then erased it. `perform` marked it, and the caller overwrote the mark with
+the settled state it had PREDICTED. `perform` now returns the state the action
+actually reached.
+
+**Still not built**, and each needs a decision first:
+
+- **Write the library version to the file.** `binding.mode` answers most of it
+  — a `Pull` binding says the file is the author — so the narrow question is
+  whether the button simply does not appear under `Pull` and `Detached`. That
+  leaves a diverged `Pull` record with two of the four actions. Agree that this
+  is right rather than discover it.
+- **Detach.** This one also needs new plumbing. `LibraryMapping` carries a
+  binding forward unchanged on every page write, so no page path can clear one.
+  That invariant is also what makes Phase 3 safe: today the page never changes
+  a binding, so a `gx sync` and an app edit cannot fight over one. Detach is
+  the first thing that would break it.
+
+Open too: a `Detached` record still shows the strip when it diverges. Detached
+means "do not synchronize", so reporting a conflict there may be noise. Not
+changed, because it is a policy call.
 
 ## 4. Three defects that only RUNNING it found
 
@@ -163,6 +198,11 @@ done for `v0.9.5`:
 2. **Check Cmd+Q by hand** after any change to the menu, the close handler or
    the unsaved flag. Nothing automated reaches it.
 3. Run the smoke script. It needs a release desktop binary; §8 gives the order.
+4. **Look at the divergence strip once.** Its buttons are covered by a mounted
+   DOM test, so they render and they work. What no test can show is how the
+   strip LOOKS with two buttons in it. Its CSS copies
+   `.document-conflict-banner`, which ships, so this is a look and not an
+   investigation.
 
 The manual Cmd+Q check was done for `ec8bff95`, which `v0.9.5` contains: the
 dialog appears, the edit stays on screen, and Save writes the file and then
@@ -206,14 +246,13 @@ and the save destination all derive from one `ViewTarget`.
 
 ## 7. What remains
 
-The plan is implemented. What is left was deferred on purpose, and each item
-needs a decision before it needs code:
+The plan is implemented. What is left was deferred on purpose:
 
-1. **§8's four resolution actions** — take the file, keep the library version,
-   write the library version to the file, detach. The divergence strip states
-   the situation and offers none of them. Two decisions first: may the page push
-   to a file on a person's behalf, and what does detaching do to a record `gx`
-   may be syncing at that moment.
+1. **Two of §8's four resolution actions.** Take the file and keep the library
+   version are built and have buttons; see §3. Write-to-file and detach are
+   not. Write-to-file needs a rule for which binding modes let the page write
+   on a person's behalf. Detach needs that AND new plumbing: no page path can
+   clear a binding, and clearing one races a `gx sync`.
 2. **Nothing watches a bound origin.** Reconciliation runs when the shell
    reports a change, and the shell reports one only for a file it watches.
    Decide when a watch starts for a record's origin: at startup for every bound

@@ -25,7 +25,7 @@ def TopLevel(
     // The record's counterpart to the strip above: one reports a loose file
     // that moved under an edit, the other a bound record that diverged from
     // its origin. Both are §7.3/§8 refusing to resolve a disagreement silently.
-    OriginStateBanner(state),
+    OriginStateBanner(state.target),
     div(
       cls := "flex flex-1 overflow-y-auto relative",
       LeftPanel(state, router, commands),

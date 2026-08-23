@@ -1,9 +1,12 @@
 package org.jpablo.graphexplorer.projects
 
+import com.raquo.laminar.api.L.render
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.*
+import org.jpablo.graphexplorer.viewer.components.OriginStateBanner
 import org.jpablo.graphexplorer.viewer.desktop.OriginReconciler
-import org.jpablo.graphexplorer.viewer.state.ProjectId
+import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewTarget}
+import org.scalajs.dom
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,12 +30,26 @@ class OriginReconciliationSpec extends FunSuite:
     val files: mutable.Map[String, String]   = mutable.Map.empty
     val written: mutable.Buffer[String]      = mutable.Buffer.empty
 
+    /** The file moves between the read and the write, so the shell's
+      * compare-and-swap refuses. This is the one failure the page cannot
+      * recover from with the copy it holds.
+      */
+    var conflictOnWrite: Boolean = false
+
     def install(): Unit =
       val invoke: js.Function2[String, js.Any, js.Promise[js.Any]] = (command, args) =>
         val a = args.asInstanceOf[js.Dynamic]
         command match
           case "hash_text" =>
             js.Promise.resolve[js.Any](hashOf(a.selectDynamic("text").asInstanceOf[String]))
+          case "save_document" =>
+            val path = a.selectDynamic("path").asInstanceOf[String]
+            val text = a.selectDynamic("text").asInstanceOf[String]
+            if conflictOnWrite then
+              js.Promise.reject(js.Dynamic.literal(code = "DOCUMENT_CONFLICT", currentRevision = "beef"))
+            else
+              written += path
+              js.Promise.resolve[js.Any](js.Dynamic.literal(path = path, revision = hashOf(text)))
           case "library_write" =>
             val name = a.selectDynamic("name").asInstanceOf[String]
             files(name) = a.selectDynamic("json").asInstanceOf[String]
@@ -185,3 +202,114 @@ class OriginReconciliationSpec extends FunSuite:
       yield
         assertEquals(divergedNow.get(ProjectId("a")), Some(SyncState.Diverged))
         assertEquals(settled.get(ProjectId("a")), None, "a settled record must stop asking for attention")
+
+  // ------------------------------------------ item 5: the person decides
+
+  test("taking the file's version adopts its text and settles the record"):
+    withLibrary(bound("a", "digraph { mine }", SyncMode.Sync, base = "digraph { agreed }")): (_, library) =>
+      val theirs = "digraph { theirs }"
+      OriginReconciler.reconcile(originPath, theirs, hashOf(theirs)).map: _ =>
+        OriginReconciler.takeOrigin(ProjectId("a"))
+
+        val record = library.recordsBoundTo(originPath).head
+        assertEquals(record.text, theirs, "the record did not take the file's version")
+        assertEquals(record.binding.baseHash, ContentHash.fromHex(hashOf(theirs)))
+        assertEquals(
+          OriginReconciler.unresolved.observe.now().get(ProjectId("a")),
+          None,
+          "a resolved record must stop asking for attention"
+        )
+
+  test("keeping this diagram moves only the baseline, and the record then reads Ahead"):
+    // The baseline HAS to move. Left where it was, base, local and remote stay
+    // all different — which is Diverged — and the strip would come straight
+    // back, so the decision would have changed nothing.
+    val mine = "digraph { mine }"
+    withLibrary(bound("a", mine, SyncMode.Pull, base = "digraph { agreed }")): (_, library) =>
+      val theirs = "digraph { theirs }"
+      for
+        _   <- OriginReconciler.reconcile(originPath, theirs, hashOf(theirs))
+        _    = OriginReconciler.keepRecord(ProjectId("a"))
+        kept = library.recordsBoundTo(originPath).head
+        // The SAME file, read again. Base and remote now agree and only the
+        // record differs, which is Ahead — and Ahead asks nobody anything.
+        again <- OriginReconciler.reconcile(originPath, theirs, hashOf(theirs))
+      yield
+        assertEquals(kept.text, mine, "the file's version overwrote the record")
+        assertEquals(kept.binding.baseHash, ContentHash.fromHex(hashOf(theirs)))
+        assertEquals(again.map(_._2), List(SyncState.Ahead))
+        assertEquals(OriginReconciler.unresolved.observe.now().get(ProjectId("a")), None)
+
+  test("a push that loses its compare-and-swap keeps the divergence, and offers nothing to adopt"):
+    // Base and remote agree and only the record differs, so Sync pushes. The
+    // shell refuses because the file moved after the read.
+    //
+    // Two behaviours at once. The divergence must SURVIVE: the state the write
+    // reached is reported, not the state the plan predicted, which used to
+    // overwrite the mark with the settled `Ahead` the moment it was made. And
+    // it must offer no resolution: the page's copy of the file is older than
+    // the file, so adopting it would write a version nobody was shown.
+    val onDisk = "digraph { agreed }"
+    withLibrary(bound("a", "digraph { mine }", SyncMode.Sync, base = onDisk)): (shell, library) =>
+      shell.conflictOnWrite = true
+      OriginReconciler.reconcile(originPath, onDisk, hashOf(onDisk)).map: outcomes =>
+        assertEquals(outcomes.map(_._2), List(SyncState.Diverged))
+        assertEquals(
+          OriginReconciler.unresolved.observe.now().get(ProjectId("a")),
+          Some(SyncState.Diverged),
+          "a lost compare-and-swap was recorded and then erased"
+        )
+
+        OriginReconciler.takeOrigin(ProjectId("a"))
+        assertEquals(
+          library.recordsBoundTo(originPath).head.text,
+          "digraph { mine }",
+          "a stale copy of the file was adopted"
+        )
+        assertEquals(
+          OriginReconciler.unresolved.observe.now().get(ProjectId("a")),
+          Some(SyncState.Diverged)
+        )
+
+  // ------------------------------------------------ the strip on the screen
+
+  /** Render the strip for one record, and return the element holding it.
+    *
+    * A real mount rather than an inspection of the signal. The strip's whole
+    * job is to turn an `Unresolved` into buttons, and a pattern that matches
+    * nothing compiles perfectly and shows nothing.
+    */
+  private def mountedStrip(id: String): dom.Element =
+    val container = dom.document.createElement("div")
+    dom.document.body.appendChild(container)
+    render(container, OriginStateBanner(ViewTarget.library(id)))
+    container
+
+  private def buttonLabels(container: dom.Element): List[String] =
+    container.querySelectorAll("button").toList.map(_.textContent)
+
+  test("a divergence the page can resolve shows both actions, and a click carries one out"):
+    withLibrary(bound("a", "digraph { mine }", SyncMode.Pull, base = "digraph { agreed }")): (_, library) =>
+      val theirs    = "digraph { theirs }"
+      val container = mountedStrip("a")
+
+      OriginReconciler.reconcile(originPath, theirs, hashOf(theirs)).map: _ =>
+        assertEquals(
+          buttonLabels(container),
+          List("Take the file's version", "Keep this diagram"),
+          "a diverged record was reported with nothing to do about it"
+        )
+
+        container.querySelector("button").asInstanceOf[dom.html.Button].click()
+
+        assertEquals(library.recordsBoundTo(originPath).head.text, theirs)
+        assertEquals(buttonLabels(container), Nil, "the strip stayed after the decision")
+        container.remove()
+
+  test("a record with no divergence shows no strip"):
+    val agreed = "digraph { a }"
+    withLibrary(bound("a", agreed, SyncMode.Pull, base = agreed)): (_, _) =>
+      val container = mountedStrip("a")
+      OriginReconciler.reconcile(originPath, "digraph { a -> b }", hashOf("digraph { a -> b }")).map: _ =>
+        assertEquals(container.textContent, "", "a Behind record asked for attention")
+        container.remove()
