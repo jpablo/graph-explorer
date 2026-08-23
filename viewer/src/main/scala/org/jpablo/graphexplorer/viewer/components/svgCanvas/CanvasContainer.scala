@@ -82,6 +82,12 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     )
   )
 
+private[svgCanvas] val viewOnlyChipPulseKeyframes = js.Array(
+  js.Dynamic.literal(transform = "scale(1)"),
+  js.Dynamic.literal(transform = "scale(1.15)"),
+  js.Dynamic.literal(transform = "scale(1)")
+)
+
 /** The persistent "this diagram is view-only" pill, floating top-center on the
   * canvas. The full explanation lives in its tooltip; a nudge (a click on the
   * inert canvas) plays a small scale pulse to draw the eye.
@@ -101,11 +107,7 @@ private def ViewOnlyChip(notice: EditorNotice, nudge: EventStream[Unit]) =
           el.ref
             .asInstanceOf[js.Dynamic]
             .animate(
-              js.Array(
-                js.Dynamic.literal(transform = "translateX(-50%) scale(1)"),
-                js.Dynamic.literal(transform = "translateX(-50%) scale(1.15)"),
-                js.Dynamic.literal(transform = "translateX(-50%) scale(1)")
-              ),
+              viewOnlyChipPulseKeyframes,
               js.Dynamic.literal(duration = 350, easing = "ease-out")
             )
       }
