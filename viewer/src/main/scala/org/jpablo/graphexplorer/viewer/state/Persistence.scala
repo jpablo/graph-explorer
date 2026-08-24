@@ -114,6 +114,32 @@ trait Persistence:
               DesktopDocumentRegistry.markConflict(session, current.revision, current.sourceText)
       case _ => ()
 
+  /** Follow the record when somebody else changes it (D7.3).
+    *
+    * The missing return path. `restorePersistedState` reads `persistence.initial`
+    * ONCE, and for a long time that was the only read: the library set its `Var`
+    * when a record changed under an open view, and nothing consumed it. A
+    * `gx set`, or a pull from an origin file, landed in the record correctly
+    * and stayed off the screen until the view was reopened.
+    *
+    * That also broke the two resolution buttons in §8. "Take the file's
+    * version" wrote the record, the strip cleared because the state really had
+    * resolved — and the person kept looking at the old text.
+    *
+    * Only the SOURCE is adopted here. Two gates stand in front of it, and
+    * neither is this method's: `DiagramPersistence.external` drops this
+    * viewer's own writes, and `createProjectPersistence` refuses to set its
+    * `Var` at all while this view has a write pending — it warns instead. So an
+    * event arriving here is somebody else's, made while the person was idle.
+    */
+  private def followRecord(): Unit =
+    target match
+      case ViewTarget.LibraryDiagram(_) =>
+        persistence.external.foreach: next =>
+          if sourceText.now() != next.source then
+            replaceSourceDetectingFormat(next.source)
+      case _ => ()
+
   /** Listen to this record's origin, from the moment it opens (§8).
     *
     * The symmetric half of [[followDocumentSession]]. A loose file arrives with
@@ -308,6 +334,7 @@ trait Persistence:
     restorePersistedState()
     setupStateSynchronization()
     followDocumentSession()
+    followRecord()
     watchOrigin()
 
   /** Release the store when the view goes away (§10).

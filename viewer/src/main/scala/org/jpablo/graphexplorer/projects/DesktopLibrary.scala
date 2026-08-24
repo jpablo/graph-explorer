@@ -117,6 +117,20 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
   private val boundByPath: StrictSignal[Map[String, List[BoundRecord]]] =
     records.signal.map(indexByOrigin).observe
 
+  /** One bus per record, so a view hears only writes it did not make.
+    *
+    * Fed from `createProjectPersistence`'s watcher and from nowhere else. That
+    * is the whole guarantee: an event here came from the library, never from
+    * the view that is listening.
+    */
+  private val externalBuses = scala.collection.mutable.Map.empty[String, EventBus[PersistedDiagramState]]
+
+  private def externalBus(id: String): EventBus[PersistedDiagramState] =
+    externalBuses.getOrElseUpdate(id, EventBus[PersistedDiagramState]())
+
+  override def recordChangedExternally(id: ProjectId): EventStream[PersistedDiagramState] =
+    externalBus(id.value).events
+
   override def recordsBoundTo(path: String): List[BoundRecord] =
     boundByPath.now().getOrElse(pathKey(path), Nil)
 
@@ -211,6 +225,10 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
           if fresh != state.now() then
             seededText += id.value -> fresh.source
             state.set(fresh)
+            // The ONE place an outside write is announced. Setting the `Var`
+            // above is not enough — its stream also carries this view's own
+            // writes, and a consumer cannot tell them apart.
+            externalBus(id.value).emit(fresh)
         else if latest.text != seededText.getOrElse(id.value, latest.text) then
           // Both sides changed the text. The user is looking at theirs, so it
           // wins — but silently discarding a `gx set` would be the kind of
@@ -226,11 +244,16 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
   /** Store what reconciliation decided (§8, Phase 3 item 4).
     *
     * Through `put`, so an open viewer follows: `createProjectPersistence`
-    * already watches `records` and adopts an external change when the person is
-    * not mid-edit, and warns instead of discarding when they are. That is why a
-    * raw origin event must never reach `ViewerState` on its own (item 6) — the
-    * record is the one place a change has to land, and everything else follows
-    * from there.
+    * watches `records` and sets its `Var` when the person is not mid-edit, and
+    * warns instead of discarding when they are. That is why a raw origin event
+    * must never reach `ViewerState` on its own (item 6) — the record is the one
+    * place a change has to land, and everything else follows from there.
+    *
+    * CAUTION: this comment claimed the viewer followed long before it did.
+    * Setting the `Var` is only half of it, and for a long time nothing consumed
+    * the other half: the viewer read the store ONCE at mount, so a pull landed
+    * here and stayed off the screen. `Persistence.followRecord` is the consumer.
+    * Do not read a write to this `Var` as proof that anybody saw it.
     *
     * `updatedAt` moves only when the TEXT moves. A pull changes the document;
     * advancing a stale baseline does not, and the library is sorted by that

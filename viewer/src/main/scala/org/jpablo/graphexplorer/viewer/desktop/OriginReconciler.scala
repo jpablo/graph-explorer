@@ -62,7 +62,10 @@ object OriginReconciler:
     *
     * The record adopts the text the person was shown, and the origin's hash
     * becomes the new baseline. The record then reads `InSync`, so the strip
-    * goes. A viewer showing this record follows, because it watches the record.
+    * goes. A viewer showing this record follows through
+    * `Persistence.followRecord`, which is the ONLY thing that makes that true —
+    * this comment asserted it for a day while the screen kept the old text and
+    * only the strip changed.
     */
   def takeOrigin(id: ProjectId): Unit =
     resolve(id): origin =>
@@ -158,8 +161,8 @@ object OriginReconciler:
         Future.successful(plan.state)
 
       case ReconcileAction.AdoptOrigin(text, base) =>
-        // The record takes the file's text. An open viewer follows, because it
-        // watches the record — not because anything reached it directly.
+        // The record takes the file's text. An open viewer follows through
+        // `Persistence.followRecord` — not because anything reached it directly.
         Library.recordReconciled(record.id, Some(text), base)
         Future.successful(plan.state)
 

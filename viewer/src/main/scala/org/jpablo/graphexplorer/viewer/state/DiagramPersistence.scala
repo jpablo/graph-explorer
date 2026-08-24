@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.projects.Library
 import org.jpablo.graphexplorer.viewer.desktop.LooseFilePersistence
@@ -19,6 +20,28 @@ trait DiagramPersistence:
     * viewer while it restores.
     */
   def initial: PersistedDiagramState
+
+  /** The state as somebody ELSE changed it (D7.3).
+    *
+    * `initial` is a snapshot, and for a long time it was the only way back in:
+    * the viewer read the record once at mount and never looked again. The
+    * library did its half — `createProjectPersistence` sets its `Var` when a
+    * record changes underneath an open view — and nothing consumed it. So a
+    * `gx set`, a `gx run hide`, or a pull from an origin file all landed in the
+    * record correctly and stayed invisible until the view was reopened.
+    *
+    * Empty for a store nothing else can write. An example has no durable home,
+    * and a loose file follows its SESSION instead (§7.3), which carries the
+    * conflict rule a record does not need.
+    *
+    * A store must NOT emit this viewer's own [[update]] calls back. Comparing
+    * the incoming text against what is on screen looks like it would do the
+    * same job and does not: an update carries the snapshot taken when it was
+    * scheduled, so a write made mid-transaction arrives holding text the editor
+    * has already moved past. It reads as somebody else's change, and adopting
+    * it undoes the person's last keystroke.
+    */
+  def external: EventStream[PersistedDiagramState]
 
   /** The state as the person edits it.
     *
@@ -74,6 +97,16 @@ final class LibraryDiagramPersistence(id: ProjectId, initialSource: Option[Strin
 
   lazy val initial: PersistedDiagramState = state.now()
 
+  /** Writes this view did not make.
+    *
+    * From the library's own stream, NOT from the `Var`. The `Var` carries this
+    * view's writes back as well, and no filter on the value can separate them:
+    * an echo holds the snapshot from when the write was scheduled, so it
+    * arrives carrying text the editor has already moved past — which is exactly
+    * what somebody else's change looks like.
+    */
+  def external: EventStream[PersistedDiagramState] = Library.recordChangedExternally(id)
+
   def update(next: PersistedDiagramState): Unit = state.set(next)
 
   /** §11: flush the record. A record saves on every change already, so ⌘S has
@@ -100,6 +133,9 @@ final class EphemeralPersistence(val initial: PersistedDiagramState, unsupported
     extends DiagramPersistence:
 
   private var current = initial
+
+  /** Nothing else can write here, so there is nothing to hear. */
+  def external: EventStream[PersistedDiagramState] = EventStream.empty
 
   def update(next: PersistedDiagramState): Unit = current = next
 

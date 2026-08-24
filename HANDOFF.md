@@ -23,7 +23,7 @@ All tests pass.
 
 | Suite | Count | Command |
 |---|---|---|
-| Scala, all modules | 2295 | `sbt --client testFull` |
+| Scala, all modules | 2297 | `sbt --client testFull` |
 | Rust, desktop | 50 | `cd desktop/src-tauri && cargo test` |
 | Open handshake | 6 checks | `bash scripts/local-capabilities-open-handshake-smoke.sh` |
 
@@ -214,6 +214,40 @@ pressed the key. An AppleScript quit does not go through the menu. A synthetic
 keystroke is blocked by accessibility permissions, and its "the app is still
 running" result means nothing. Only a human can check this one.
 
+### FIXED: the record never reached the screen
+
+Found 2026-08-24, testing the watch above. A file edit reached the record in
+under five seconds — and the window kept showing the old diagram.
+
+`restorePersistedState` read `persistence.initial` ONCE at mount, and
+`DiagramPersistence` offered nothing else. `createProjectPersistence` did its
+half faithfully, setting its `Var` whenever a record changed underneath an open
+view, and NOTHING consumed it. So `gx set`, `gx run hide`, and every pull from
+an origin file landed in the record correctly and stayed invisible until the
+view was reopened.
+
+This predates all of this work — the same one-shot read is in the pre-Phase-2
+code. But it made yesterday's two buttons worse than useless: "take the file's
+version" wrote the record and cleared the strip, because the state really had
+resolved, while the person kept looking at the old text.
+
+Two comments ASSERTED the missing behaviour — `DesktopLibrary.recordReconciled`
+("an open viewer follows") and `OriginReconciler.takeOrigin`. Both are corrected
+and now name `Persistence.followRecord`, which is what makes them true.
+
+The fix took two tries, and the first one is worth knowing about:
+
+- Filtering the view's own writes OUT OF THE SHARED `Var` cannot work. An echo
+  carries the snapshot taken when the write was SCHEDULED, so it arrives
+  holding text the editor has already moved past — which is indistinguishable
+  from somebody else's change. `ImportOpsSpec` caught it: a format the person
+  chose by hand was reset, because a stale echo re-ran format detection.
+- `DiagramLibrary.recordChangedExternally(id)` is the answer: a stream fed ONLY
+  from the library's records watcher. An event on it came from outside by
+  construction, so there is nothing to filter. `localStorage` returns
+  `EventStream.empty`, which is the truth and not a stub — a browser library
+  has no second writer.
+
 ### NOT FIXED: the round trip drops what it cannot parse, and a binding writes the loss to disk
 
 Found 2026-08-23, while checking the watch wiring. This one predates all of
@@ -228,9 +262,19 @@ digraph DockerDeps { ... }
 ```
 
 `gx import` stored those bytes verbatim, so the wrapper was in the record.
-OPENING the record in the viewer regenerated the source from the parsed graph.
+Editing the diagram in the viewer regenerated the source from the parsed graph.
 `@startdot` and `@enddot` are not DOT, so they did not survive, and the record
-was written back without them. No edit was needed — the visit was enough.
+was written back without them.
+
+CORRECTION: this first said the VISIT was enough — that opening the record
+rewrote it. That is wrong, and a later test disproved it: `gx capabilities` was
+opened and left alone, and its record did not move (`local == base`, comments
+intact, `updatedAt` unchanged). An edit is needed. The claim was written from
+the damaged record without checking which step damaged it.
+
+What is NOT settled is whether a file the parser REJECTS behaves the same.
+`gx capabilities` parses cleanly; `@startdot` does not. Opening an unparseable
+bound file, and touching nothing, is the case still to try.
 
 `DesktopLibrary.writeNow` has a guard for exactly this shape, "a visit is not
 an edit", which skips a write when the round trip reproduces the record. It did
