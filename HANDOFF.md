@@ -182,10 +182,11 @@ Three things about it:
 - **A watch the shell refuses is not fatal.** The record still opens. It just
   does not hear about the file.
 
-## 4. Three defects that only RUNNING it found
+## 4. Defects that only RUNNING it found
 
-None of these came from a test. All three were found by building the desktop
-and using it, and each had passed every suite.
+None of these came from a test. Each was found by building the desktop and
+using it, and each had passed every suite. The first three are FIXED. The
+fourth is not, and it is the most dangerous of them.
 
 **`gx open <path>` failed on a cold desktop.** It answered DOCUMENT_NOT_FOUND,
 and worked as soon as any diagram had been opened — a bug that disappears when
@@ -212,6 +213,56 @@ CAUTION: three test harnesses failed to reach the Cmd+Q path before a person
 pressed the key. An AppleScript quit does not go through the menu. A synthetic
 keystroke is blocked by accessibility permissions, and its "the app is still
 running" result means nothing. Only a human can check this one.
+
+### NOT FIXED: the round trip drops what it cannot parse, and a binding writes the loss to disk
+
+Found 2026-08-23, while checking the watch wiring. This one predates all of
+this work and is not caused by it.
+
+A record bound to `docker.dot` in a bun cache. The file is a PlantUML block:
+
+```
+@startdot
+digraph DockerDeps { ... }
+@enddot
+```
+
+`gx import` stored those bytes verbatim, so the wrapper was in the record.
+OPENING the record in the viewer regenerated the source from the parsed graph.
+`@startdot` and `@enddot` are not DOT, so they did not survive, and the record
+was written back without them. No edit was needed — the visit was enough.
+
+`DesktopLibrary.writeNow` has a guard for exactly this shape, "a visit is not
+an edit", which skips a write when the round trip reproduces the record. It did
+not help, and it is right not to: the round trip genuinely CHANGED the text.
+The guard defends against clock churn, not against lossy parsing.
+
+The state that left behind is the dangerous part:
+
+| | hash |
+|---|---|
+| base | the original file |
+| remote | the original file |
+| local | the record, wrapper gone |
+
+base equals remote and only local moved, which is `Ahead`. The mode was `Sync`.
+So `gx sync` would have PUSHED the wrapper-less text over a correct file, and
+`Ahead` is a resting state — nothing would have stopped to ask. `Diverged`
+would have shown the strip. `Ahead` looks settled.
+
+Restored with `gx set docker --stdin < <the file>`, which under a pushing mode
+also rewrote the origin with byte-identical content and reset the baseline. All
+three hashes agree again.
+
+What this needs, and none of it is decided:
+
+- **Which records are at risk.** Any bound file with content the parser drops:
+  PlantUML blocks, Doxygen `\dot`, a templated file, a preamble.
+- **Whether a lossy round trip may write the record at all.** The cheapest
+  guard is to compare the regenerated text against what was parsed and refuse
+  to persist a round trip that loses content, at least for a BOUND record.
+- **Whether `Ahead` is the right state for a record that never had an edit.**
+  It is arrived at here by a write nobody asked for.
 
 ## 5. Before the NEXT release
 
@@ -274,7 +325,8 @@ and the save destination all derive from one `ViewTarget`.
 
 ## 7. What remains
 
-The plan is implemented. What is left was deferred on purpose:
+The plan is implemented. Items 1 and 2 were deferred on purpose. Items 3 and 4
+are known defects with no fix.
 
 1. **Two of §8's four resolution actions.** Take the file and keep the library
    version are built and have buttons; see §3. Write-to-file and detach are
@@ -287,7 +339,16 @@ The plan is implemented. What is left was deferred on purpose:
    which accepts either, so it should reach the right file. Nothing has run it
    there. The last bug of this shape opened a second copy of a record beside
    itself and said nothing (§4).
-3. **A quit APPLE EVENT still discards an unsaved edit.** macOS sends one on
+3. **A lossy round trip can write a bound record.** See §4. Nothing decided,
+   and it is the largest open risk in this area: it damages a person's file
+   rather than confusing the app.
+4. **Nothing carries an app edit to the file.** Reconciliation has ONE trigger:
+   a document event, which means the FILE changed. An edit in the app makes the
+   record `Ahead` and stops there, whatever the mode says, until someone runs
+   `gx sync`. The watch added in §3 wired file to app; app to file has no
+   trigger at all. Decide whether a save should reconcile, and if so how a push
+   avoids fighting a `gx sync` doing the same thing.
+5. **A quit APPLE EVENT still discards an unsaved edit.** macOS sends one on
    logout and restart. It bypasses the app menu, so it bypasses the Quit item
    that asks. Tauri exposes no hook: the run loop reports `Exit` with nothing
    preventable before it. Cmd+Q and the red button are safe.
