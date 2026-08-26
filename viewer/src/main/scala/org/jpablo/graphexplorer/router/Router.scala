@@ -100,7 +100,15 @@ class Router:
 
   /** Navigate, unless the mounted view refuses. */
   def navigateTo(route: Route): Unit =
-    if leaveGuard.forall(_(route)) then forceNavigateTo(route)
+    tryNavigateTo(route)
+    ()
+
+  /** Navigate and report whether the mounted view accepted the request. */
+  def tryNavigateTo(route: Route): Boolean =
+    if leaveGuard.forall(_(route)) then
+      forceNavigateTo(route)
+      true
+    else false
 
   /** Navigate whatever the guard says.
     *

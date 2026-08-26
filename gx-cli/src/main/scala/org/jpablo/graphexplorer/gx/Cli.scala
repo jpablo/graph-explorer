@@ -156,7 +156,9 @@ object Cli:
     // desktop separately; a single `status` call answers both, and answers the
     // first one the only way that means anything — by connecting.
     val desktop = env.rpc("status", ujson.Obj()).toOption.flatMap(_.objOpt)
-    val watches = desktop.flatMap(_.get("watches")).flatMap(_.arrOpt).map(_.size).getOrElse(0)
+    val watchItems = desktop.flatMap(_.get("watches")).flatMap(_.arrOpt).toVector.flatten
+    val watchPaths = watchItems.flatMap(_.objOpt.flatMap(_.get("path")).flatMap(_.strOpt)).sorted
+    val watches    = watchItems.size
 
     // Three states, not two. The socket now answers from the moment the process
     // starts — it is bound before the webview, which on Windows can take half a
@@ -178,7 +180,8 @@ object Cli:
           "bound"           -> bound,
           "desktopRunning"  -> running,
           "desktopStarting" -> starting,
-          "desktopWatches"  -> watches
+          "desktopWatches"  -> watches,
+          "desktopWatchPaths" -> ujson.Arr.from(watchPaths.map(ujson.Str(_)))
         ).render(indent = 2)
       )
     else
@@ -660,12 +663,12 @@ object Cli:
     textOf(target, env) match
       case Left(code) => code
       case Right(text) =>
-        DiagramText.parse(text) match
+        DiagramText.parseDocument(text) match
           case Left(why) =>
             env.err(s"gx: $why")
             ExitCode.InvalidPathOrPolicy
-          case Right(graph) =>
-            DocumentCommands.run(graph, command) match
+          case Right(diagram) =>
+            DocumentCommands.run(diagram.graph, command) match
               case Left(error) =>
                 // A refusal is the desktop-less equivalent of a greyed-out menu
                 // item, and exit 4 is what the CLI already uses for "this
@@ -681,7 +684,7 @@ object Cli:
                 ExitCode.Ok
 
               case Right(CommandResult.Updated(updated)) =>
-                applyText(target, DiagramText.render(updated), args, env, source = "command")
+                applyText(target, DiagramText.render(updated, diagram.format), args, env, source = "command")
 
   /** JSON for a machine, columns for a person — the same split `ls` makes.
     *

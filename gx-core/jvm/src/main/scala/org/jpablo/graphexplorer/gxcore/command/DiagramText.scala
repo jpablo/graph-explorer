@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.gxcore.command
 import org.jpablo.graphexplorer.graphviz.Graphviz as ScalaGraphviz
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, toViewerGraph}
+import org.jpablo.graphexplorer.viewer.backends.mermaid.{MermaidFlowchartParser, toViewerGraph as mermaidToViewerGraph, viewerGraphToMermaidText}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import upickle.default.read
 
@@ -41,18 +42,17 @@ import scala.util.control.NonFatal
   */
 object DiagramText:
 
-  /** Parse, or say why not.
-    *
-    * Mermaid is refused rather than mis-parsed. Its converter needs a scan
-    * produced by mermaid.js, which is a browser dependency the viewer has and
-    * `gx` does not — so on the JVM there is no Mermaid parse at all, and
-    * pretending otherwise would silently treat a `.mmd` file as DOT.
+  case class Parsed(graph: ViewerGraph, format: DiagramFormat)
+
+  /** Parse without layout or a browser. DOT uses the shared Graphviz structure reader. Mermaid
+    * flowcharts use the platform-independent declaration reader; other Mermaid kinds are
+    * render-only and return an explicit error.
     */
-  def parse(text: String): Either[String, ViewerGraph] =
+  def parseDocument(text: String): Either[String, Parsed] =
     DiagramFormat.detect(text) match
       case DiagramFormat.Mermaid =>
-        Left("mermaid diagrams cannot be read headlessly yet (the parser needs a browser)")
-      case _ =>
+        MermaidFlowchartParser.parse(text).map(graph => Parsed(mermaidToViewerGraph(graph), DiagramFormat.Mermaid))
+      case DiagramFormat.DOT =>
         // P8: the STRUCTURE, without a layout. `parse -> resolve` is shared
         // with the layout path verbatim — same scoping, same node dedup, same
         // cgraph edge ordering — so this is not a second reading of DOT.
@@ -60,9 +60,11 @@ object DiagramText:
         // loud rather than on the strength of having read the code.
         try
           ScalaGraphviz.structureJson(text) match
-            case Right(json) => Right(toViewerGraph(read[SimpleGraph](json)))
+            case Right(json) => Right(Parsed(toViewerGraph(read[SimpleGraph](json)), DiagramFormat.DOT))
             case Left(err)   => Left(s"could not parse the diagram: $err")
         catch case NonFatal(e) => Left(s"could not parse the diagram: ${e.getMessage}")
+
+  def parse(text: String): Either[String, ViewerGraph] = parseDocument(text).map(_.graph)
 
   /** Print a graph back to DOT.
     *
@@ -85,3 +87,7 @@ object DiagramText:
     */
   def render(graph: ViewerGraph): String =
     ViewerGraph.viewerGraphToText(graph, omitInternal = true)
+
+  def render(graph: ViewerGraph, format: DiagramFormat): String = format match
+    case DiagramFormat.DOT     => render(graph)
+    case DiagramFormat.Mermaid => viewerGraphToMermaidText(graph)

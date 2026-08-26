@@ -1730,6 +1730,8 @@ fn await_open(
                 Some("DIAGRAM_NOT_FOUND") => "DIAGRAM_NOT_FOUND",
                 Some("DOCUMENT_NOT_FOUND") => "DOCUMENT_NOT_FOUND",
                 Some("OPEN_DENIED") => "OPEN_DENIED",
+                Some("PARSE_FAILED") => "PARSE_FAILED",
+                Some("ACTIVATION_REFUSED") => "ACTIVATION_REFUSED",
                 _ => "VIEW_REJECTED",
             };
             Err((
@@ -2528,6 +2530,24 @@ fn show_file(
                     watch_response(id, &outcome.watch, focused, view)
                 }
                 Err((code, message)) => {
+                    // The watch is needed before activation because its event gives the
+                    // page the bytes to parse. Roll back only a watch that this failed
+                    // request created. A shared watch has another owner and must remain.
+                    if let Err(rollback_err) = rollback_failed_open(
+                        &outcome,
+                        &context.watch_registry,
+                        &context.watch_controllers,
+                        &context.audit_logger,
+                    ) {
+                        context.audit_logger.log_event(
+                            "watch.rollback_failed",
+                            Some(&outcome.watch.path),
+                            Some("open"),
+                            "error",
+                            None,
+                            Some(&rollback_err.to_string()),
+                        );
+                    }
                     context.audit_logger.log_event(
                         "show.rejected",
                         Some(&outcome.watch.path),
@@ -2552,6 +2572,24 @@ fn show_file(
             RpcResponse::failure(id, "WATCH_FAILED", err)
         }
     }
+}
+
+/// Remove only the watch that a failed open created.
+fn rollback_failed_open(
+    outcome: &WatchOutcome,
+    watch_registry: &WatchRegistry,
+    watch_controllers: &WatchControllers,
+    audit_logger: &AuditLogger,
+) -> Result<()> {
+    if outcome.created {
+        remove_watch(
+            watch_registry,
+            watch_controllers,
+            audit_logger,
+            &outcome.watch.path,
+        )?;
+    }
+    Ok(())
 }
 
 /// The descriptor plus whether a window came forward, which is what both
@@ -3323,6 +3361,53 @@ mod tests {
                 .is_none(),
             "a different path must not collide with an existing watch"
         );
+    }
+
+    #[test]
+    fn a_failed_open_removes_only_the_watch_it_created() {
+        let dir = temp_dir_for("failed-open-watch");
+        let file = dir.join("diagram.dot");
+        fs::write(&file, "digraph G { a }").expect("seed file");
+        let path = normalize_path(&file.to_string_lossy()).expect("normal path");
+        let descriptor = WatchDescriptor {
+            path: path.clone(),
+            format: "dot".to_string(),
+            revision: content_hash(b"digraph G { a }"),
+        };
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        let controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
+        let audit = AuditLogger {
+            file_path: dir.join("audit.jsonl"),
+            write_lock: Arc::new(Mutex::new(())),
+        };
+
+        registry.lock().unwrap().insert(path.clone(), descriptor.clone());
+        rollback_failed_open(
+            &WatchOutcome {
+                watch: descriptor.clone(),
+                created: true,
+            },
+            &registry,
+            &controllers,
+            &audit,
+        )
+        .expect("rollback");
+        assert!(registry.lock().unwrap().is_empty(), "new failed-open watch leaked");
+
+        registry.lock().unwrap().insert(path.clone(), descriptor.clone());
+        rollback_failed_open(
+            &WatchOutcome {
+                watch: descriptor,
+                created: false,
+            },
+            &registry,
+            &controllers,
+            &audit,
+        )
+        .expect("shared watch remains");
+        assert!(registry.lock().unwrap().contains_key(&path), "shared watch was removed");
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     /// The paths that broke v1, now crossing the boundary they actually cross.

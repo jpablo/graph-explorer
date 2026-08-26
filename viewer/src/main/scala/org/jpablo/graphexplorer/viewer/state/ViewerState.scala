@@ -129,6 +129,7 @@ case class ViewerState(
   val currentFormat   = phases.currentFormat
   val formatSelection = phases.formatSelection
   val selectionStrategy = phases.selectionStrategy
+  val loadStatus        = phases.loadStatus
 
   // Shared read-once handles. Signal#observe allocates a PERMANENT owner-bound
   // subscription per call, so ad-hoc `.observe.now()` in per-event handlers leaked

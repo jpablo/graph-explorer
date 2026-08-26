@@ -709,6 +709,26 @@ class CliSpec extends FunSuite:
     assertEquals(parsed("desktopRunning").bool, false)
   }
 
+  tmp.test("--json lists normalized watched paths in deterministic order") { dir =>
+    val r = Run(
+      dir,
+      answer = (_, _) =>
+        Right(
+          ujson.Obj(
+            "running" -> true,
+            "watches" -> ujson.Arr(
+              ujson.Obj("path" -> "/tmp/z.dot"),
+              ujson.Obj("path" -> "/tmp/a.dot")
+            )
+          )
+        )
+    )
+    assertEquals(r("status", "--json"), ExitCode.Ok, r.stderr)
+    val parsed = ujson.read(r.stdout)
+    assertEquals(parsed("desktopWatches").num.toInt, 2)
+    assertEquals(parsed("desktopWatchPaths").arr.map(_.str).toVector, Vector("/tmp/a.dot", "/tmp/z.dot"))
+  }
+
   // -------------------------------------------------------------- policy
 
   tmp.test("a denied path is refused with exit 4 and recorded") { dir =>
@@ -873,14 +893,73 @@ class CliSpec extends FunSuite:
     assert(r.stdout.contains("list-nodes"), r.stdout)
   }
 
-  tmp.test("run on a mermaid diagram refuses rather than reading it as DOT") { dir =>
-    // The mermaid converter needs a scan produced by mermaid.js, which gx has
-    // no way to run. Silently treating a .mmd as DOT would be the worse answer.
+  tmp.test("Mermaid list commands run headlessly and return deterministic JSON") { dir =>
     val f = dir.resolve("m.mmd")
-    Files.writeString(f, "flowchart TD\n  a --> b\n")
-    val r = Run(dir)
-    assertEquals(r("run", "m.mmd", "list-nodes"), ExitCode.InvalidPathOrPolicy)
-    assert(r.stderr.contains("mermaid"), r.stderr)
+    Files.writeString(
+      f,
+      """%% comments are not elements
+        |flowchart LR
+        |  subgraph outer["Outer"]
+        |    a["Alpha<br/>line"]
+        |    subgraph inner["Inner"]
+        |      b["Beta"]
+        |    end
+        |  end
+        |  c["Gamma"]
+        |  a -->|"plain"| b
+        |  b -.->|"dashed"| c
+        |  c <-->|"both"| a
+        |  classDef active fill:#eef,stroke:#225
+        |  class a,b active
+        |""".stripMargin
+    )
+
+    def json(command: String): ujson.Value =
+      val run = Run(dir)
+      assertEquals(run("run", "m.mmd", command, "--json"), ExitCode.Ok, run.stderr)
+      ujson.read(run.stdout)
+
+    val nodes = json("list-nodes")
+    assertEquals(nodes.arr.map(_("ref").str).toVector, Vector("node:a", "node:b", "node:c"))
+    assertEquals(nodes.arr.head("label").str, "Alpha\\nline")
+
+    val arrows = json("list-arrows")
+    assertEquals(arrows.arr.size, 3)
+    assertEquals(arrows.arr.map(_("source").str).toSet, Set("node:a", "node:b", "node:c"))
+
+    val groups = json("list-groups")
+    assertEquals(groups.arr.map(_("ref").str).toVector, Vector("group:inner", "group:outer"))
+    assertEquals(groups.arr.map(_("label").str).toSet, Set("Inner", "Outer"))
+
+    val again = Run(dir)
+    assertEquals(again("run", "m.mmd", "list-arrows", "--json"), ExitCode.Ok, again.stderr)
+    assertEquals(ujson.read(again.stdout), arrows)
+  }
+
+  tmp.test("a Mermaid mutation remains Mermaid and can be read back") { dir =>
+    val file = dir.resolve("editable.mmd")
+    Files.writeString(file, "flowchart LR\n  a[Alpha]\n  a --> b\n")
+
+    val update = Run(dir)
+    assertEquals(
+      update(
+        "run",
+        "editable.mmd",
+        "set-attribute",
+        "--params",
+        """{"targets":["node:a"],"name":"fillcolor","value":"red"}"""
+      ),
+      ExitCode.Ok,
+      update.stderr
+    )
+
+    val written = Files.readString(file)
+    assert(written.startsWith("flowchart"), written)
+    assert(!written.startsWith("digraph"), written)
+
+    val readBack = Run(dir)
+    assertEquals(readBack("run", "editable.mmd", "list-nodes", "--json"), ExitCode.Ok, readBack.stderr)
+    assertEquals(ujson.read(readBack.stdout).arr.map(_("ref").str).toSet, Set("node:a", "node:b"))
   }
 
   // --------------------------------------------------------- record tier

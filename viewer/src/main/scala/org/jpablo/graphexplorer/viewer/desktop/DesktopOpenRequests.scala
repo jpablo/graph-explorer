@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import org.jpablo.graphexplorer.router.Route
+import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, ViewTarget, ViewerState}
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext
@@ -24,8 +25,15 @@ object DesktopOpenRequests:
   private val EventName = "ge:open.requested"
 
   private var installed = false
+  private var current: Option[ViewerState] = None
+  private var pending = Map.empty[Long, Pending]
 
-  private[desktop] def reset(): Unit = installed = false
+  private case class Pending(route: Route, view: js.Object)
+
+  private[desktop] def reset(): Unit =
+    installed = false
+    current = None
+    pending = Map.empty
 
   /** Listen once, for the life of the window.
     *
@@ -33,20 +41,18 @@ object DesktopOpenRequests:
     * scoped to a mounted viewer: an open request routinely arrives while the
     * app is on Home, which is exactly when there is no viewer to attach to.
     */
-  def install(navigate: Route => Unit, exists: String => Boolean)(using ExecutionContext): Unit =
+  def install(navigate: Route => Boolean, exists: String => Boolean)(using ExecutionContext): Unit =
     if !installed then
       val handler: js.Function1[dom.Event, Unit] = event =>
         val requestId = DesktopIpc.asLong(event.asInstanceOf[js.Dynamic].selectDynamic("detail"), "requestId")
         decide(event, exists) match
           case Decision.Show(route, view) =>
-            navigate(route)
-            // Acknowledged only after the route is set. `gx open` is waiting on
-            // this: until it arrives the shell knows only that it dispatched an
-            // event, which is not evidence that anything reached the screen.
-            //
-            // The view travels with the acknowledgment (§4), so the answer says
-            // WHAT was displayed and not merely that something was.
-            requestId.foreach(complete(_, "displayed", view = Some(view)))
+            requestId.foreach(id => pending = pending.updated(id, Pending(route, view)))
+            if navigate(route) then settlePending()
+            else
+              requestId.foreach: id =>
+                pending -= id
+                complete(id, "rejected", Some("ACTIVATION_REFUSED"), Some("the current diagram refused navigation"))
           case Decision.Reject(code, message) =>
             // Answered rather than left to time out. The caller can act on "no
             // such diagram" or "no such document"; it can do nothing useful
@@ -62,6 +68,50 @@ object DesktopOpenRequests:
       // what makes the shell's queued requests safe to deliver.
       DesktopIpc.invoke(ViewerReady, js.Dynamic.literal()).failed.foreach: error =>
         dom.console.debug(s"viewer_ready is unavailable outside the desktop shell: ${error.getMessage}")
+
+  /** Point the handshake at the viewer that is now on screen.
+    *
+    * Session commands attach first, then this method waits for parsing. Therefore a displayed
+    * acknowledgment means an immediate `gx session` call has a live target.
+    */
+  def attach(state: ViewerState)(using ExecutionContext): Unit =
+    current = Some(state)
+    state.loadStatus.signal.changes.foreach(_ => settlePending())(using state.owner)
+    settlePending()
+
+  def detach(state: ViewerState): Unit =
+    if current.exists(_ eq state) then current = None
+
+  private def settlePending()(using ExecutionContext): Unit =
+    current.foreach: state =>
+      pending.toVector.foreach: (requestId, request) =>
+        activation(request.route, state.target, state.loadStatus.now()) match
+          case Activation.Waiting => ()
+          case Activation.Displayed =>
+            pending -= requestId
+            complete(requestId, "displayed", view = Some(request.view))
+          case Activation.Rejected(code, message) =>
+            pending -= requestId
+            complete(requestId, "rejected", Some(code), Some(message))
+
+  private[desktop] enum Activation derives CanEqual:
+    case Waiting
+    case Displayed
+    case Rejected(code: String, message: String)
+
+  private[desktop] def activation(route: Route, target: ViewTarget, status: DiagramLoadStatus): Activation =
+    val targetMatches = (route, target) match
+      case (Route.ProjectDetail(routeId, _), ViewTarget.LibraryDiagram(projectId)) => routeId == projectId.value
+      case (Route.LooseDocument(routeId), ViewTarget.LooseFile(sessionId))         => routeId == sessionId.value
+      case _                                                                       => false
+
+    if !targetMatches then Activation.Waiting
+    else
+      status match
+        case DiagramLoadStatus.Loading         => Activation.Waiting
+        case DiagramLoadStatus.Ready           => Activation.Displayed
+        case DiagramLoadStatus.RenderOnly(_)   => Activation.Displayed
+        case DiagramLoadStatus.Failed(message) => Activation.Rejected("PARSE_FAILED", message)
 
   private val ViewerReady  = "viewer_ready"
   private val CompleteOpen = "complete_open"

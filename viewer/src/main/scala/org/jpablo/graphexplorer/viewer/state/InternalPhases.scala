@@ -25,6 +25,13 @@ case class GraphState(
     graphInSync: Boolean = true
 ) derives CanEqual
 
+/** Whether the current source has become a usable live diagram. */
+enum DiagramLoadStatus derives CanEqual:
+  case Loading
+  case Ready
+  case RenderOnly(details: String)
+  case Failed(message: String)
+
 /** Reactive text <-> graph synchronization engine.
   *
   * This component is backend-agnostic: all format-specific behavior (parsing, serialization, selection
@@ -70,6 +77,11 @@ class InternalPhases(
   // Bus for text changes that need async parsing
   private val textChangeBus = EventBus[(String, DiagramFormat, ChangeOrigin)]()
 
+  /** The desktop open handshake observes this signal. Route navigation alone is not activation:
+    * the new viewer must also accept the source before `gx open` can report success.
+    */
+  val loadStatus: Var[DiagramLoadStatus] = Var(DiagramLoadStatus.Loading)
+
   // Handle async parsing results.
   // NOTE: all side effects (editorNotice included) happen in the guarded foreach below, NOT in
   // the Future transform: flatMapSwitch abandons superseded parses, but their Futures still
@@ -106,6 +118,7 @@ class InternalPhases(
               logLevel
             )
             state.set(GraphState(text, graph, format, origin))
+            loadStatus.set(DiagramLoadStatus.Ready)
           case Left(notice) =>
             editorNotice.set(Option(notice))
             // Keep the user's text; show the placeholder graph but mark it OUT OF SYNC so
@@ -113,6 +126,10 @@ class InternalPhases(
             // document with a serialized near-empty graph). This applies to BOTH levels:
             // an Info notice (render-only kind) also means the graph doesn't model the text.
             state.set(GraphState(text, ViewerGraph.minimalWithDirected, format, origin, graphInSync = false))
+            loadStatus.set(
+              if notice.isError then DiagramLoadStatus.Failed(notice.message)
+              else DiagramLoadStatus.RenderOnly(notice.message)
+            )
     }
 
   /** Typing, paced. Only the CodeMirror-origin path goes through here: a
@@ -246,6 +263,7 @@ class InternalPhases(
     */
   private def parseTextToGraphAsync(text: String, format: DiagramFormat, origin: ChangeOrigin): Unit =
     simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
+    loadStatus.set(DiagramLoadStatus.Loading)
     textChangeBus.writer.onNext((text, format, origin))
 
   /** Replace the document AND its language in ONE observable step.
