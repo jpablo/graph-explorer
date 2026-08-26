@@ -180,6 +180,26 @@ trait Persistence:
   lazy val documentConflict: Signal[Option[DesktopDocumentRegistry.Conflict]] =
     documentSession.map(_.flatMap(_.conflict)).distinct
 
+  /** Resolve this viewer's loose-file conflict.
+    *
+    * Both answers accept the file's revision as the new save base. The viewer
+    * must also advance `lastAdopted` before the registry emits that new base.
+    * Otherwise the active session follower compares the registry update with
+    * the old base and immediately creates the same conflict again.
+    *
+    * @param adoptRemoteText
+    *   true replaces the editor with the file's text; false keeps the local
+    *   edit, which stays dirty until it is saved.
+    */
+  def resolveDocumentConflict(adoptRemoteText: Boolean): Unit =
+    target match
+      case ViewTarget.LooseFile(session) =>
+        DesktopDocumentRegistry.get(session).flatMap(_.conflict).foreach: remote =>
+          lastAdopted = remote.text
+          DesktopDocumentRegistry.acceptRemote(session)
+          if adoptRemoteText then replaceSourceDetectingFormat(remote.text)
+      case _ => ()
+
   /** ViewerSettings below is deliberately NOT branched by the target: theme,
     * panel widths and the like are app-wide preferences, and losing a theme
     * change because it was made while looking at an example would be its own bug.
