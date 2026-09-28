@@ -35,7 +35,8 @@ Graph Explorer has three parts:
 - **Mermaid.** All the diagram types of Mermaid 11 show and change while you
   type. In a flowchart, you can also select, hide, and edit the nodes.
 - **Copy and share.** Copy the diagram or the selection as SVG, or copy the
-  graph as DOT or JSON. In the web app, copy a link that holds the full diagram.
+  graph as DOT or JSON. Copy a link that holds the full diagram. The link opens
+  in the web app.
 - **Themes.** Ten themes, and an experimental 3D view.
 
 ## Desktop app
@@ -97,7 +98,8 @@ The web app can open a diagram from a link:
   `<text>` is DOT or Mermaid text, encoded with `encodeURIComponent`.
 - If a diagram in your library has the same id or the same text, that diagram
   opens. If not, the app makes a new diagram from the text.
-- To make a link, press `⌘K` and run the command "Share URL".
+- To make a link, press `⌘K` and run the command "Share URL". The desktop app
+  makes the same links, so a diagram from the desktop opens in the web app.
 - A very large diagram makes a very long link.
 
 ## Build from source
