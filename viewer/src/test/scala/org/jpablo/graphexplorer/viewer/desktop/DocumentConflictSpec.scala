@@ -220,7 +220,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
         // Clean: the guard lets it through.
         router.navigateTo(Route.Home)
         assertEquals(state.pendingLeave.now(), None)
-        assertEquals(dom.window.location.pathname, "/")
+        assertEquals(dom.window.location.pathname, Router.homePath)
 
         state.replaceSourceDetectingFormat("digraph G { unsaved }")
 
@@ -233,7 +233,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
         )
         assertEquals(
           dom.window.location.pathname,
-          "/",
+          Router.homePath,
           "the navigation happened anyway, and the unsaved edit went with it"
         )
       }
