@@ -385,12 +385,12 @@ trait RecordCellOps:
       kindOf(cell.nodeId) match
         case Some(CellKind.Record) =>
           cellTreeOf(cell.nodeId).foreach: root =>
-            commitRecord(cell.nodeId, RecordTree.setText(root, cell.path, display))
-            selectCell(cell.nodeId, cell.path)
+            if commitRecord(cell.nodeId, RecordTree.setText(root, cell.path, display)) then
+              selectCell(cell.nodeId, cell.path)
         case Some(CellKind.Html) =>
           htmlTableOf(cell.nodeId).foreach: tbl =>
-            commitHtml(cell.nodeId, HtmlLabelOps.setCellText(tbl, cell.path, display))
-            selectCell(cell.nodeId, cell.path)
+            if commitHtml(cell.nodeId, HtmlLabelOps.setCellText(tbl, cell.path, display)) then
+              selectCell(cell.nodeId, cell.path)
         case None => ()
 
     /** The node whose row is currently selected, if any. */
@@ -543,8 +543,7 @@ trait RecordCellOps:
           case CellKind.Record =>
             cellTreeOf(cell.nodeId).foreach: root =>
               val (newRoot, newPath) = RecordTree.insertSibling(root, cell.path, after)
-              commitRecord(cell.nodeId, newRoot)
-              selectCell(cell.nodeId, newPath)
+              if commitRecord(cell.nodeId, newRoot) then selectCell(cell.nodeId, newPath)
           case CellKind.Html =>
             withSelectedHtml(cell): (tbl, r, c) =>
               val at = if after then c + 1 else c
@@ -580,8 +579,7 @@ trait RecordCellOps:
         if kind == CellKind.Record then
           cellTreeOf(cell.nodeId).foreach: root =>
             val (newRoot, newPath) = RecordTree.splitCell(root, cell.path)
-            commitRecord(cell.nodeId, newRoot)
-            selectCell(cell.nodeId, newPath)
+            if commitRecord(cell.nodeId, newRoot) then selectCell(cell.nodeId, newPath)
 
     /** Backspace on a cell. Record: remove the cell. Html table: clear the
       * cell's content (a grid cell cannot disappear alone — use the row/column
@@ -594,8 +592,7 @@ trait RecordCellOps:
               case CellKind.Record =>
                 cellTreeOf(cell.nodeId).foreach: root =>
                   val (newRoot, newPath) = RecordTree.removeCell(root, cell.path)
-                  commitRecord(cell.nodeId, newRoot)
-                  selectCell(cell.nodeId, newPath)
+                  if commitRecord(cell.nodeId, newRoot) then selectCell(cell.nodeId, newPath)
               case CellKind.Html =>
                 setCellText(clamped(cell), "")
           true
@@ -608,7 +605,7 @@ trait RecordCellOps:
       do f(clamped(cell), kind)
 
     /** Run an html-table edit from the selected cell's (row, col); commit and
-      * reselect the returned path. */
+      * reselect the returned path. The reselect occurs only when the edit applies. */
     private def withSelectedHtml(cell: SelectedCell)(f: (HtmlTable, Int, Int) => (HtmlTable, RecordTree.Path)): Unit =
       for
         tbl <- htmlTableOf(cell.nodeId)
@@ -616,14 +613,21 @@ trait RecordCellOps:
         c   <- cell.path.lift(1)
       do
         val (newTbl, newPath) = f(tbl, r, c)
-        commitHtml(cell.nodeId, newTbl)
-        selectCell(cell.nodeId, newPath)
+        if commitHtml(cell.nodeId, newTbl) then selectCell(cell.nodeId, newPath)
 
-    private def commitRecord(nodeId: NodeId, root: RecordTree.Group): Unit =
+    /** Write the label. @return true when the edit applies. A caller selects
+      * the new cell only then, because a refused edit made no new cell.
+      */
+    private def commitRecord(nodeId: NodeId, root: RecordTree.Group): Boolean =
+      val applies = phases.graphEditApplies
       phases.fullGraphV.update(_.withRecordLabel(nodeId, RecordTree.serialize(root)))
+      applies
 
-    private def commitHtml(nodeId: NodeId, tbl: HtmlTable): Unit =
+    /** The same as [[commitRecord]], for an html table. */
+    private def commitHtml(nodeId: NodeId, tbl: HtmlTable): Boolean =
+      val applies = phases.graphEditApplies
       phases.fullGraphV.update(_.withHtmlLabel(nodeId, HtmlLabelOps.printTable(tbl)))
+      applies
 
   end recordCells
 

@@ -119,7 +119,9 @@ case class ViewerState(
     hiddenNodes = project.hiddenElements.signal,
     collapsedGroups = project.collapsedGroups.signal,
     editorNotice = editorNotice,
-    logLevel = logLevel
+    logLevel = logLevel,
+    keepTextWhole = () => isFileBacked,
+    refusedEdits = errorBus.writer
   )
 
   val sourceText      = phases.sourceText
@@ -330,13 +332,16 @@ case class ViewerState(
 
   /** Creates a new group with the specified elements and label. */
   def createGroupWithLabel(elementIds: ElementIds, label: String): Unit =
+    val applies = phases.graphEditApplies
     phases.fullGraphV.update(_.moveToNewGroup(elementIds, label))
-    // Select the newly created group
-    val updatedGraph = fullGraphNow()
-    val memberIds = elementIds.memberIds
-    memberIds.headOption.flatMap(updatedGraph.membership).foreach { groupId =>
-      selection.set(ElementIds.from(groupId))
-    }
+    // Select the newly created group. After a refused edit the member is still
+    // in its old group, and that group is not the new one.
+    if applies then
+      val updatedGraph = fullGraphNow()
+      val memberIds = elementIds.memberIds
+      memberIds.headOption.flatMap(updatedGraph.membership).foreach { groupId =>
+        selection.set(ElementIds.from(groupId))
+      }
 
   // -------- storage ------------
   initializePersistence()
@@ -365,11 +370,12 @@ case class ViewerState(
       attributes: Attributes = Attributes.empty,
       direction:  ArrowDirection = ArrowDirection.forward
   ): Unit =
+    val applies = phases.graphEditApplies
     phases.fullGraphV.update: fullGraph =>
       val sel                      = selection.now()
       val selectedElementId        = if sel.isEmpty then None else Some(sel.head)
       val (newGraph, newNodeId, _) = fullGraph.addNodeWithSmartConnection(selectedElementId, attributes, direction)
-      selection.set2(newNodeId)
+      if applies then selection.set2(newNodeId)
       newGraph
 
   /** `fromCell`/`toCell` name record CELLS on either end: their ports (minted
@@ -382,21 +388,23 @@ case class ViewerState(
       fromCell: Option[List[Int]] = None,
       toCell:   Option[List[Int]] = None
   ) =
+    val applies = phases.graphEditApplies
     phases.fullGraphV.update: g =>
       val (g1, fromPort) = recordCells.resolvePortIn(g, from, fromCell)
       val (g2, toPort)   = recordCells.resolvePortIn(g1, to, toCell)
       val (g3, _)        = g2.addArrow(from, to, fromPort, toPort)
-      selection.set(ElementIds.from(from))
+      if applies then selection.set(ElementIds.from(from))
       g3
 
   def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId, cell: Option[List[Int]] = None) =
+    val applies = phases.graphEditApplies
     phases.fullGraphV.update: g =>
       val endpointNode = newEndpoint match
         case ArrowEndpointId.SourceId(id) => id
         case ArrowEndpointId.TargetId(id) => id
       val (g1, port)       = recordCells.resolvePortIn(g, endpointNode, cell)
       val (g2, newArrowId) = g1.moveArrowEndpoint(arrowId, newEndpoint, port)
-      selection.set(ElementIds.from(newArrowId))
+      if applies then selection.set(ElementIds.from(newArrowId))
       g2
 
   // -------- Attribute management -----------

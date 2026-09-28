@@ -233,6 +233,7 @@ trait DiagramSelectionOps:
 
     def reverseArrowsStyle() =
       val mermaidMode = currentFormatNow() == DiagramFormat.Mermaid
+      val applies     = phases.graphEditApplies
       phases.fullGraphV.update { graph =>
         val classified = now().classify
         // Mermaid has no tail-only link form: swapping the markers of an end-only
@@ -250,15 +251,16 @@ trait DiagramSelectionOps:
             }
           else (Set.empty[ArrowId], classified.arrows)
         val newGraph = graph.reverseArrowsStyle(ElementIds(toSwap)).reverseArrows(ElementIds(toReverse))
-        followNewArrows(graph, newGraph, classified.nodes ++ classified.groups ++ toSwap)
+        if applies then followNewArrows(graph, newGraph, classified.nodes ++ classified.groups ++ toSwap)
         newGraph
       }
 
     def reverseArrows() =
+      val applies = phases.graphEditApplies
       phases.fullGraphV.update { graph =>
         val classified = now().classify
         val newGraph   = graph.reverseArrows(now())
-        followNewArrows(graph, newGraph, classified.nodes ++ classified.groups)
+        if applies then followNewArrows(graph, newGraph, classified.nodes ++ classified.groups)
         newGraph
       }
 
@@ -297,22 +299,25 @@ trait DiagramSelectionOps:
       // Deleting a collapsed box deletes the GROUP it stands for, not a
       // phantom node with the same id (see ViewerState.resolveCollapsed).
       val toRemove = resolveCollapsed(now())
+      val applies  = phases.graphEditApplies
       phases.fullGraphV.update(_.removeElements(toRemove))
-      // Nothing left to keep folded once the group itself is gone.
-      project.collapsedGroups.update(_ -- toRemove.classify.groups)
+      // Nothing left to keep folded once the group itself is gone. A refused
+      // delete keeps the group, so it also keeps the fold.
+      if applies then project.collapsedGroups.update(_ -- toRemove.classify.groups)
 
     /** Duplicates the currently selected nodes, arrows, and groups. Creates new elements with the same attributes as the selected ones.
       * Nodes are placed in the corresponding duplicated group if their original group was also selected. Arrows are duplicated connecting
       * the corresponding (potentially new) nodes. The newly created elements become the selected elements after duplication.
       */
     def duplicateSelection() =
+      val applies = phases.graphEditApplies
       phases.fullGraphV.update: graph =>
         val currentSelection = now()
         if currentSelection.isEmpty then
           graph
         else
           val (newGraph, newElements) = graph.duplicateSelection(currentSelection.classify)
-          if newElements.nonEmpty then
+          if applies && newElements.nonEmpty then
             set1(newElements)
           newGraph
 

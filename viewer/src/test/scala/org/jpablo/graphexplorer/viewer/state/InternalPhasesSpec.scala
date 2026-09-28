@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import com.raquo.airstream.core.Signal
+import com.raquo.airstream.core.{Observer, Signal}
 import com.raquo.airstream.ownership.Owner
 import com.raquo.airstream.state.{Val, Var}
 import com.raquo.laminar.api.L.unsafeWindowOwner
@@ -541,6 +541,46 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       afterMicrotasks {
         assertEquals(notice.now().map(_.level), Some(EditorNotice.Level.Error))
         assert(notice.now().exists(_.message.contains("syntax error")))
+      }
+    }
+
+  test("A graph edit that would drop content from a file is refused, with one message for each edit"):
+    // The fake backend prints `FAKE:<n>`, so an edit that applies is easy to see.
+    val commented = "// a note\ndigraph G {}"
+    val plain     = "digraph G {}"
+    var messages  = List.empty[String]
+    val phases = new InternalPhases(
+      FakeDiagramLanguages,
+      initialSource = Some(commented),
+      hiddenNodes = Val(ElementIds()),
+      pace = identity,
+      keepTextWhole = () => true,
+      refusedEdits = Observer(message => messages = messages :+ message)
+    )
+    val edited = ViewerGraph.basic(NodeId("x") -> NodeId("y"))
+    // A read of `fullGraphV` is current only while its signal has a subscriber.
+    val fullGraph = phases.fullGraph.observe
+
+    afterMicrotasks {
+      assert(!phases.graphEditApplies, "precondition: the comment blocks graph edits")
+      phases.fullGraphV.set(edited)
+      assertEquals(phases.sourceText.now(), commented, "the refused edit replaced the text")
+      assertEquals(fullGraph.now(), ViewerGraph.minimal, "the refused edit changed the graph")
+      assertEquals(messages.size, 1, s"one refused edit, one message: $messages")
+      assert(messages.head.contains("comments"), s"the message does not name the comments: $messages")
+
+      phases.fullGraphV.update(_ => edited)
+      assertEquals(messages.size, 2, s"a second refused edit sends a second message: $messages")
+
+      // The scan reads the current text: without the comment, the canvas edits again.
+      phases.sourceText.set(plain)
+    }.flatMap { _ =>
+      afterMicrotasks {
+        assert(phases.graphEditApplies, "the text has nothing to drop now")
+        phases.fullGraphV.set(edited)
+        assertEquals(fullGraph.now(), edited, "the edit did not apply")
+        assert(phases.sourceText.now().startsWith("FAKE:"), s"the edit did not print the graph: ${phases.sourceText.now()}")
+        assertEquals(messages.size, 2, s"an edit that applies sends no message: $messages")
       }
     }
 

@@ -164,6 +164,20 @@ trait Persistence:
         Library.originPathOf(id).foreach(DesktopIpc.openDocument)
       case _ => ()
 
+  /** True when a file sits behind this document: a loose file, or a record
+    * with a binding to a file (§8).
+    *
+    * A canvas edit writes the whole graph again, and the file then takes that
+    * text. So `InternalPhases` refuses a canvas edit that would drop content
+    * the graph does not model. A `def`, because a record can get or lose its
+    * binding while it is open.
+    */
+  def isFileBacked: Boolean =
+    target match
+      case ViewTarget.LooseFile(_)       => true
+      case ViewTarget.LibraryDiagram(id) => Library.originPathOf(id).isDefined
+      case ViewTarget.Example(_, _)      => false
+
   /** The same question as [[documentDirty]], answered now rather than observed.
     *
     * A navigation guard has to decide inside the click that asks for it (§7.4),

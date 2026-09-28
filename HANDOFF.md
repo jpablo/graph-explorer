@@ -23,7 +23,7 @@ All tests pass.
 
 | Suite | Count | Command |
 |---|---|---|
-| Scala, all modules | 2297 | `sbt --client testFull` |
+| Scala, all modules | 2377 | `sbt --client testFull` |
 | Rust, desktop | 50 | `cd desktop/src-tauri && cargo test` |
 | Open handshake | 6 checks | `bash scripts/local-capabilities-open-handshake-smoke.sh` |
 
@@ -185,8 +185,7 @@ Three things about it:
 ## 4. Defects that only RUNNING it found
 
 None of these came from a test. Each was found by building the desktop and
-using it, and each had passed every suite. The first three are FIXED. The
-fourth is not, and it is the most dangerous of them.
+using it, and each had passed every suite. All of them are FIXED now.
 
 **`gx open <path>` failed on a cold desktop.** It answered DOCUMENT_NOT_FOUND,
 and worked as soon as any diagram had been opened — a bug that disappears when
@@ -248,65 +247,66 @@ The fix took two tries, and the first one is worth knowing about:
   `EventStream.empty`, which is the truth and not a stub — a browser library
   has no second writer.
 
-### NOT FIXED: the round trip drops what it cannot parse, and a binding writes the loss to disk
+### FIXED: a canvas edit removed content that the graph does not model
 
-Found 2026-08-23, while checking the watch wiring. This one predates all of
-this work and is not caused by it.
+Found 2026-08-23. Fixed 2026-09-27.
 
-A record bound to `docker.dot` in a bun cache. The file is a PlantUML block:
+A canvas edit (a toolbar attribute, group, combine, delete, and so on) prints
+the whole graph again, and the new text replaces the old text. The printers
+write only what the graph models. So a canvas edit removed this content:
 
-```
-@startdot
-digraph DockerDeps { ... }
-@enddot
-```
-
-`gx import` stored those bytes verbatim, so the wrapper was in the record.
-Editing the diagram in the viewer regenerated the source from the parsed graph.
-`@startdot` and `@enddot` are not DOT, so they did not survive, and the record
-was written back without them.
-
-CORRECTION: this first said the VISIT was enough — that opening the record
-rewrote it. That is wrong, and a later test disproved it: `gx capabilities` was
-opened and left alone, and its record did not move (`local == base`, comments
-intact, `updatedAt` unchanged). An edit is needed. The claim was written from
-the damaged record without checking which step damaged it.
-
-What is NOT settled is whether a file the parser REJECTS behaves the same.
-`gx capabilities` parses cleanly; `@startdot` does not. Opening an unparseable
-bound file, and touching nothing, is the case still to try.
-
-`DesktopLibrary.writeNow` has a guard for exactly this shape, "a visit is not
-an edit", which skips a write when the round trip reproduces the record. It did
-not help, and it is right not to: the round trip genuinely CHANGED the text.
-The guard defends against clock churn, not against lossy parsing.
-
-The state that left behind is the dangerous part:
-
-| | hash |
+| Language | Content that a canvas edit removed |
 |---|---|
-| base | the original file |
-| remote | the original file |
-| local | the record, wrapper gone |
+| DOT | comments (`//`, `/* */`, `#`) and the `strict` keyword |
+| Mermaid | `%%` comments, `%%{init}%%` directives, front-matter keys other than `title`, `click` lines, `accTitle` and `accDescr`, and `direction` inside a subgraph |
 
-base equals remote and only local moved, which is `Ahead`. The mode was `Sync`.
-So `gx sync` would have PUSHED the wrapper-less text over a correct file, and
-`Ahead` is a resting state — nothing would have stopped to ask. `Diverged`
-would have shown the strip. `Ahead` looks settled.
+Some of this loss changes the diagram. Without `strict`, the duplicate edges
+come back. Without the directive, the theme changes.
 
-Restored with `gx set docker --stdin < <the file>`, which under a pushing mode
-also rewrote the origin with byte-identical content and reset the baseline. All
-three hashes agree again.
+For a bound record, the damaged text went into the record. Only the local hash
+moved, so the record was `Ahead`, and `gx sync` pushed the text over the
+correct file. `Ahead` looks settled, so nothing asked first. For a loose file,
+the next Save wrote the text.
 
-What this needs, and none of it is decided:
+`DesktopLibrary.writeNow` has a guard, "a visit is not an edit". It did not
+help, and it is right not to. The round trip really CHANGED the text. The guard
+stops clock churn, not a lossy print.
 
-- **Which records are at risk.** Any bound file with content the parser drops:
-  PlantUML blocks, Doxygen `\dot`, a templated file, a preamble.
-- **Whether a lossy round trip may write the record at all.** The cheapest
-  guard is to compare the regenerated text against what was parsed and refuse
-  to persist a round trip that loses content, at least for a BOUND record.
-- **Whether `Ahead` is the right state for a record that never had an edit.**
-  It is arrived at here by a write nobody asked for.
+CORRECTION: this section first described a `@startdot` wrapper in a bound
+file, `docker.dot`. The parser refuses that wrapper, so the viewer ignores a
+canvas edit on that file (`graphInSync` is false). The note did not record
+which step removed the wrapper, and the record no longer exists. Comments and
+`strict` are content that a canvas edit really removed, and a test shows it.
+
+What the viewer does now:
+
+- `RoundTripLoss.scan` (in `shared/`) finds the content in the table above. It
+  follows the lexical rules of each language. For example, a `//` inside a
+  quoted string is text, not a comment.
+- For a FILE-BACKED document, the setter of `InternalPhases.fullGraphV` refuses
+  a canvas edit when the scan finds something. File-backed means a loose file,
+  or a record with a binding to a file (`Persistence.isFileBacked`). The text
+  and the record stay unchanged. `errorBus` shows one message. The message
+  names the content and tells the person to edit the text instead.
+- The scan reads the current text. When the person removes that content from
+  the text, canvas edits work again.
+- A refused action does not do its follow-up. For example, a refused delete
+  does not unfold the groups, and a refused duplicate keeps the selection.
+- A record with no file behind it keeps the old behaviour. This was a
+  decision: no file can take the loss there.
+
+Tests: `RoundTripLossSpec` (shared), and `LossyCanvasEditSpec` and
+`RefusedEditFollowUpSpec` (viewer).
+
+What remains open:
+
+- `gx run <file> <mutation>` also prints the whole graph. It removes the same
+  content, `strict` too. `skills/gx/SKILL.md` says that a mutation keeps the
+  graph, and that is not true for `strict`.
+- The scan knows only the content in the table. A printer loss that is not in
+  the table can still reach a file.
+- A format switch on an empty diagram prints the graph in the new language. It
+  does not scan.
 
 ## 5. Before the NEXT release
 
@@ -383,9 +383,11 @@ are known defects with no fix.
    which accepts either, so it should reach the right file. Nothing has run it
    there. The last bug of this shape opened a second copy of a record beside
    itself and said nothing (§4).
-3. **A lossy round trip can write a bound record.** See §4. Nothing decided,
-   and it is the largest open risk in this area: it damages a person's file
-   rather than confusing the app.
+3. **`gx run` mutations still remove content from a file.** The viewer now
+   refuses a canvas edit that would remove comments, `strict`, or Mermaid
+   directives from a file-backed document (§4). `gx run <file> <mutation>`
+   prints the whole graph with the same printers and does not scan. Decide
+   whether `gx` refuses too, or only warns.
 4. **Nothing carries an app edit to the file.** Reconciliation has ONE trigger:
    a document event, which means the FILE changed. An edit in the app makes the
    record `Ahead` and stops there, whatever the mode says, until someone runs

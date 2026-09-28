@@ -65,12 +65,16 @@ trait VisibilityOps:
       val summary  = s"Delete hidden: ${kinds.nodes.size} nodes, ${kinds.arrows.size} arrows, ${kinds.groups.size} groups. Continue?"
       val proceed  = dom.window.confirm(summary)
       if proceed then
+        val applies = phases.graphEditApplies
         // Remove hidden elements from graph
         phases.fullGraphV.update(_.removeElements(hidden))
-        // Clear hidden state and selection references to removed elements
-        hiddenElements.clear()
-        selection.remove(hidden)
-        infoBus.emit("Hidden elements deleted")
+        // Clear hidden state and selection references to removed elements.
+        // A refused delete keeps the elements, so they stay hidden, and the
+        // setter already sent its own message.
+        if applies then
+          hiddenElements.clear()
+          selection.remove(hidden)
+          infoBus.emit("Hidden elements deleted")
 
   def hideNonSelectedNodes() =
     updateHiddenFromSelection((h, sel, g) => h ++ (g.nodeIds -- sel.nodeIds))
