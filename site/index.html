@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js). The same property as the app (index.html). -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-X50XSRFP8E"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-X50XSRFP8E', { anonymize_ip: true });
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Graph Explorer</title>
+    <meta name="description"
+          content="Explore and edit Graphviz (DOT) and Mermaid diagrams. A desktop app for macOS, Windows, and Linux that follows your diagram files, a command-line tool, and a web app.">
+    <link rel="canonical" href="https://graph-explorer.net/">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://graph-explorer.net/">
+    <meta property="og:title" content="Graph Explorer">
+    <meta property="og:description"
+          content="Explore and edit Graphviz and Mermaid diagrams. Desktop app for macOS, Windows, and Linux, and a web app.">
+    <meta property="og:image" content="https://graph-explorer.net/og-image.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#f7f8f6" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1d2021" media="(prefers-color-scheme: dark)">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500&display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet" href="./site.css">
+</head>
+
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="top">
+    <div class="wrap top-row">
+        <a class="brand" href="/" aria-label="Graph Explorer, home">
+            <img src="/favicon.svg" alt="" width="30" height="29">
+            <span>Graph Explorer</span>
+        </a>
+        <nav aria-label="Sections">
+            <a href="#features">Features</a>
+            <a href="#desktop">Desktop</a>
+            <a href="#gx">gx</a>
+            <a href="#download">Download</a>
+            <a href="https://github.com/jpablo/graph-explorer">GitHub</a>
+        </nav>
+        <a class="button button-small" href="/app" data-library-link>Open the web app</a>
+    </div>
+</header>
+
+<main id="main">
+
+    <section class="hero" aria-labelledby="hero-title">
+        <div class="wrap hero-text">
+            <h1 id="hero-title">Explore and edit Graphviz and Mermaid diagrams</h1>
+            <p class="lede">
+                Graph Explorer shows DOT and Mermaid text as a diagram that you can work on.
+                Select a node to change its style. Hide the parts that you do not need.
+                Drag from a node to add an arrow. Each edit also changes the source text.
+            </p>
+            <div class="actions">
+                <a class="button button-primary" href="https://github.com/jpablo/graph-explorer/releases/latest"
+                   data-download="primary">Download the desktop app</a>
+                <a class="button" href="/app" data-library-link>Open the web app</a>
+            </div>
+            <p class="release-line" data-release-line>
+                For macOS, Windows, and Linux. Free and open source under the Apache 2.0 license.
+            </p>
+        </div>
+
+        <figure class="sheet wrap-wide" aria-labelledby="sheet-caption">
+            <div class="sheet-frame">
+                <img src="./img/window-dot.webp" width="2720" height="1640" fetchpriority="high"
+                     alt="The Graph Explorer window. A DOT diagram of a checkout service is in the center, with the node orders selected. The attribute toolbar is above the diagram, and the DOT source is in a panel on the right.">
+                <!-- Positions are percentages of the screenshot. Balloons 2 and 3
+                     have a leader line to the part that they name. -->
+                <svg class="leaders" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <line x1="36.85" y1="25" x2="36.85" y2="42.3" />
+                    <line x1="15" y1="25" x2="22.5" y2="38.8" />
+                </svg>
+                <span class="leader-end" style="left: 36.85%; top: 42.3%" aria-hidden="true"></span>
+                <span class="leader-end" style="left: 22.5%; top: 38.8%" aria-hidden="true"></span>
+                <span class="balloon" style="left: 51.5%; top: 6.3%" aria-hidden="true">1</span>
+                <span class="balloon" style="left: 36.85%; top: 25%" aria-hidden="true">2</span>
+                <span class="balloon" style="left: 15%; top: 25%" aria-hidden="true">3</span>
+                <span class="balloon" style="left: 87.8%; top: 93.7%" aria-hidden="true">4</span>
+            </div>
+            <figcaption id="sheet-caption">
+                <ol class="parts">
+                    <li><span><strong>Attribute toolbar.</strong> Set the shape, fill, border, and font of the selection.</span></li>
+                    <li><span><strong>Selection.</strong> The arrows at the sides show or hide the nodes before and after it.</span></li>
+                    <li><span><strong>Groups.</strong> DOT clusters and Mermaid subgraphs. Collapse a group into one node.</span></li>
+                    <li><span><strong>Source.</strong> The DOT or Mermaid text. It changes when you edit the diagram.</span></li>
+                </ol>
+            </figcaption>
+        </figure>
+    </section>
+
+    <section class="features wrap" id="features" aria-labelledby="features-title">
+        <h2 id="features-title">One tool for the diagrams in your project</h2>
+
+        <article class="feature">
+            <h3>Find your way in a large graph</h3>
+            <div class="feature-body">
+                <p>
+                    Select a node, then show or hide the nodes before it or after it, one layer at a time or all of them.
+                    Keep only the selection, or hide it. Collapse a group into one node, or zoom into it.
+                </p>
+                <ul class="keys">
+                    <li><kbd>/</kbd> Find a node by its name</li>
+                    <li><kbd>⌘</kbd><kbd>K</kbd> Find a command</li>
+                    <li><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Move the selection along the arrows</li>
+                </ul>
+            </div>
+        </article>
+
+        <article class="feature">
+            <h3>Edit the diagram, not only the text</h3>
+            <div class="feature-body">
+                <p>
+                    Change the style of the selection from the toolbar. Drag from a node to add an arrow.
+                    Drag the end of an arrow to connect it to a different node.
+                    Put nodes into a group, and edit DOT records and HTML tables one cell at a time.
+                    You can undo each edit.
+                </p>
+            </div>
+        </article>
+
+        <article class="feature">
+            <h3>The same layout as Graphviz</h3>
+            <div class="feature-body">
+                <p>
+                    The <code>dot</code> layout engine in Graph Explorer is a port of Graphviz 13.0.1 to Scala.
+                    For the same input, it makes the same SVG as Graphviz, byte for byte.
+                    The neato, fdp, sfdp, twopi, circo, osage, and patchwork engines come from Viz.js.
+                </p>
+            </div>
+        </article>
+
+        <article class="feature feature-wide">
+            <h3>Mermaid diagrams too</h3>
+            <div class="feature-body">
+                <p>
+                    Graph Explorer shows all the diagram types of Mermaid 11: flowcharts, sequence, class, state,
+                    ER, Gantt, mind maps, C4, and more. The diagram changes while you type.
+                    In a flowchart, you can also select, hide, and edit the nodes.
+                </p>
+            </div>
+            <figure class="shot">
+                <img src="./img/window-mermaid.webp" width="2720" height="1640" loading="lazy"
+                     alt="A Mermaid flowchart of a microservice system in Graph Explorer, with the Mermaid source in a panel on the right.">
+            </figure>
+        </article>
+
+        <article class="feature">
+            <h3>Copy, share, and change the look</h3>
+            <div class="feature-body">
+                <p>
+                    Copy the diagram or the selection as SVG. Copy the graph as DOT or JSON.
+                    In the web app, copy a link that holds the full diagram.
+                    Select one of ten themes, or turn on the 3D view (experimental).
+                </p>
+            </div>
+        </article>
+    </section>
+
+    <section class="desktop canvas" id="desktop" aria-labelledby="desktop-title">
+        <div class="wrap">
+            <h2 id="desktop-title">The desktop app follows your files</h2>
+            <p class="lede">
+                Open a DOT or Mermaid file from the terminal with <code>gx open</code>.
+                When your editor or a coding agent saves the file, the diagram on the screen changes.
+            </p>
+
+            <div class="flow-sheet">
+                <div class="flow-drawing">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0.00 0.00 719.00 153.00" id="flow" role="group" aria-label="How the desktop app, gx, and your files connect">
+                        <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 148.77)">
+                            <g class="node" data-node="editor" tabindex="0" role="button" aria-label="Your editor">
+                                <polygon points="267.59,-144.77 177.17,-144.77 177.17,-108.77 267.59,-108.77 267.59,-144.77" />
+                                <text text-anchor="middle" x="222.38" y="-121.17">Your editor</text>
+                            </g>
+                            <g class="node" data-node="file" tabindex="0" role="button" aria-label="diagram.dot">
+                                <polygon points="459.39,-129.77 368.97,-129.77 368.97,-93.77 465.39,-93.77 465.39,-123.77 459.39,-129.77" />
+                                <polyline points="459.39,-129.77 459.39,-123.77" />
+                                <polyline points="465.39,-123.77 459.39,-123.77" />
+                                <text text-anchor="middle" x="417.18" y="-106.17">diagram.dot</text>
+                            </g>
+                            <g class="edge" data-from="editor" data-to="file" aria-hidden="true">
+                                <path d="M267.61,-123.33C295.25,-121.18 331.08,-118.39 360.63,-116.09" />
+                                <polygon points="360.48,-118.56 367.27,-115.57 360.1,-113.67 360.48,-118.56" class="head" />
+                                <text text-anchor="middle" x="310.22" y="-122.6">saves</text>
+                            </g>
+                            <g class="node" data-node="agent" tabindex="0" role="button" aria-label="Coding agent">
+                                <polygon points="106.17,-60.77 0,-60.77 0,-24.77 106.17,-24.77 106.17,-60.77" />
+                                <text text-anchor="middle" x="53.09" y="-37.17">Coding agent</text>
+                            </g>
+                            <g class="node" data-node="gx" tabindex="0" role="button" aria-label="gx">
+                                <polygon points="249.38,-60.77 195.38,-60.77 195.38,-24.77 249.38,-24.77 249.38,-60.77" />
+                                <text text-anchor="middle" x="222.38" y="-37.17">gx</text>
+                            </g>
+                            <g class="edge" data-from="agent" data-to="gx" aria-hidden="true">
+                                <path d="M106.56,-42.77C132.73,-42.77 163.65,-42.77 186.81,-42.77" />
+                                <polygon points="186.76,-45.22 193.76,-42.77 186.76,-40.32 186.76,-45.22" class="head" />
+                                <text text-anchor="middle" x="141.67" y="-44.32">runs</text>
+                            </g>
+                            <g class="node" data-node="desktop" tabindex="0" role="button" aria-label="Graph Explorer Desktop">
+                                <polygon points="711.18,-69.03 594.51,-69.03 594.51,-30.51 711.18,-30.51 711.18,-69.03" />
+                                <text text-anchor="middle" x="652.85" y="-50.92">Graph Explorer</text>
+                                <text text-anchor="middle" x="652.85" y="-37.42">Desktop</text>
+                            </g>
+                            <g class="edge" data-from="file" data-to="desktop" aria-hidden="true">
+                                <path d="M465.74,-99.15C500.25,-89.99 547.38,-77.49 585.57,-67.35" />
+                                <polygon points="585.98,-69.78 592.12,-65.62 584.72,-65.04 585.98,-69.78" class="head" />
+                                <text text-anchor="middle" x="538.01" y="-89.7">live reload</text>
+                            </g>
+                            <g class="edge" data-from="gx" data-to="file" aria-hidden="true">
+                                <path d="M249.78,-52.22C278.28,-62.42 324.49,-78.96 360.99,-92.02" />
+                                <polygon points="359.78,-94.19 367.19,-94.24 361.43,-89.57 359.78,-94.19" class="head" />
+                                <text text-anchor="middle" x="310.22" y="-80.89">edits</text>
+                            </g>
+                            <g class="node" data-node="library" tabindex="0" role="button" aria-label="Library ~/.graph-explorer">
+                                <polygon points="481.51,-69.03 478.51,-73.03 457.51,-73.03 454.51,-69.03 352.84,-69.03 352.84,-30.51 481.51,-30.51 481.51,-69.03" />
+                                <text text-anchor="middle" x="417.18" y="-50.92">Library</text>
+                                <text text-anchor="middle" x="417.18" y="-37.42">~/.graph-explorer</text>
+                            </g>
+                            <g class="edge" data-from="gx" data-to="library" aria-hidden="true">
+                                <path d="M249.67,-42.3C262.6,-42.09 278.41,-41.87 292.59,-41.77 308.26,-41.66 312.19,-41.06 327.84,-41.77 333.21,-42.01 338.77,-42.34 344.35,-42.72" />
+                                <polygon points="343.86,-45.14 351.02,-43.2 344.22,-40.25 343.86,-45.14" class="head" />
+                                <text text-anchor="middle" x="310.22" y="-43.32">imports</text>
+                            </g>
+                            <g class="edge" data-from="gx" data-to="desktop" aria-hidden="true">
+                                <path d="M249.69,-32.91C275.52,-23.79 316.26,-10.89 352.84,-5.77 409.47,2.16 424.78,1.44 481.51,-5.77 516.56,-10.22 554.72,-19.64 586.02,-28.62" />
+                                <polygon points="584.97,-30.87 592.37,-30.47 586.34,-26.16 584.97,-30.87" class="head" />
+                                <text text-anchor="middle" x="417.18" y="-7.32">opens</text>
+                            </g>
+                            <g class="edge" data-from="library" data-to="desktop" aria-hidden="true">
+                                <path d="M481.72,-49.77C513.86,-49.77 552.85,-49.77 585.4,-49.77" />
+                                <polygon points="585.01,-52.22 592.01,-49.77 585.01,-47.32 585.01,-52.22" class="head" />
+                                <text text-anchor="middle" x="538.01" y="-51.32">shared folder</text>
+                            </g>
+                        </g>
+                    </svg>
+                </div>
+                <p class="flow-note" aria-live="polite" data-flow-note>
+                    Select a box in the diagram to see what it does.
+                </p>
+            </div>
+
+            <ul class="points">
+                <li>
+                    <h3>Live reload</h3>
+                    <p>The app watches the files that you open. A moment after a save, the diagram shows the change.</p>
+                </li>
+                <li>
+                    <h3>Save back to the file</h3>
+                    <p>
+                        Press <kbd>⌘</kbd><kbd>S</kbd> (<kbd>Ctrl</kbd><kbd>S</kbd> on Windows and Linux)
+                        to write your edits to the file. If the file changed on disk, the app asks which version to keep.
+                    </p>
+                </li>
+                <li>
+                    <h3>A library on disk</h3>
+                    <p>
+                        Library diagrams are files in <code>~/.graph-explorer</code>. The app and gx share them,
+                        and a library diagram can stay linked to a file in your project.
+                    </p>
+                </li>
+            </ul>
+
+            <div class="compare" role="region" aria-labelledby="compare-title" tabindex="0">
+                <table>
+                    <caption id="compare-title">Desktop app and web app</caption>
+                    <thead>
+                    <tr>
+                        <th scope="col"><span class="visually-hidden">Capability</span></th>
+                        <th scope="col">Desktop app</th>
+                        <th scope="col">Web app</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <th scope="row">Explore and edit DOT and Mermaid diagrams</th>
+                        <td data-label="Desktop app">Yes</td>
+                        <td data-label="Web app">Yes</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Where your diagrams are kept</th>
+                        <td data-label="Desktop app">Files in <code>~/.graph-explorer</code></td>
+                        <td data-label="Web app">The storage of one browser</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Open a file from your disk</th>
+                        <td data-label="Desktop app">Yes, with <code>gx open</code></td>
+                        <td data-label="Web app">No. Paste the text.</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Show changes to the file at once</th>
+                        <td data-label="Desktop app">Yes</td>
+                        <td data-label="Web app">No</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Write your edits back to the file</th>
+                        <td data-label="Desktop app">Yes</td>
+                        <td data-label="Web app">No</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Control from gx and coding agents</th>
+                        <td data-label="Desktop app">Yes</td>
+                        <td data-label="Web app">No</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Share a diagram as a link</th>
+                        <td data-label="Desktop app">Not yet</td>
+                        <td data-label="Web app">Yes</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Install</th>
+                        <td data-label="Desktop app">Download for macOS, Windows, or Linux</td>
+                        <td data-label="Web app">Not necessary</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="gx wrap" id="gx" aria-labelledby="gx-title">
+        <div class="gx-text">
+            <h2 id="gx-title">gx, the command-line tool</h2>
+            <p class="lede">
+                gx reads and edits DOT and Mermaid files by their structure, not by text search.
+                Only <code>gx open</code> and <code>gx session</code> need the desktop app.
+                All other commands work in a terminal with no window.
+            </p>
+            <dl class="commands">
+                <div><dt><code>gx run</code></dt><dd>List the nodes, arrows, and groups, or change attributes, groups, and records.</dd></div>
+                <div><dt><code>gx import</code></dt><dd>Add a file to the library, linked to that file.</dd></div>
+                <div><dt><code>gx sync</code>, <code>gx watch</code></dt><dd>Keep library diagrams and their files the same, or stream changes.</dd></div>
+                <div><dt><code>gx open</code></dt><dd>Show a file or a library diagram in the desktop app.</dd></div>
+                <div><dt><code>gx session</code></dt><dd>Select elements or reset the view in the window that is open now.</dd></div>
+            </dl>
+            <h3>For coding agents</h3>
+            <p>
+                gx comes with a skill file that tells a coding agent how to use it.
+                Run <code>gx skill</code> to get its address for your version, then give it to your agent.
+            </p>
+        </div>
+        <pre class="terminal" aria-label="An example terminal session with gx"><code><span class="prompt">$</span> gx run arch.dot list-arrows
+arrow:api-&gt;db/0     source=node:api  target=node:db
+arrow:web-&gt;api/1    source=node:web  target=node:api
+
+<span class="prompt">$</span> gx run arch.dot set-attribute --params \
+    '{"targets":["node:db"],"name":"shape","value":"cylinder"}'
+
+<span class="prompt">$</span> gx open arch.dot</code></pre>
+    </section>
+
+    <section class="download canvas" id="download" aria-labelledby="download-title">
+        <div class="wrap">
+            <h2 id="download-title">Download</h2>
+
+            <dl class="title-block" data-title-block>
+                <div><dt>Release</dt><dd data-field="version"><a href="https://github.com/jpablo/graph-explorer/releases/latest">Latest</a></dd></div>
+                <div><dt>Date</dt><dd data-field="date">See GitHub</dd></div>
+                <div><dt>Checksums</dt><dd data-field="sums"><a href="https://github.com/jpablo/graph-explorer/releases/latest">SHA256SUMS</a></dd></div>
+                <div><dt>License</dt><dd><a href="https://github.com/jpablo/graph-explorer/blob/viewer/LICENSE">Apache 2.0</a></dd></div>
+            </dl>
+
+            <div class="platforms">
+                <article class="platform" data-platform="macos">
+                    <h3>macOS <span>Apple silicon</span></h3>
+                    <p class="files">
+                        <a class="button button-primary" data-asset="desktop" href="https://github.com/jpablo/graph-explorer/releases/latest">Desktop app (.dmg)</a>
+                        <a class="button" data-asset="gx" href="https://github.com/jpablo/graph-explorer/releases/latest">gx</a>
+                    </p>
+                    <p>Open the <code>.dmg</code> file and drag the app to Applications. Apple has notarized the app and gx.</p>
+                    <p>There is no build for Intel Macs.</p>
+                </article>
+                <article class="platform" data-platform="windows">
+                    <h3>Windows <span>x64</span></h3>
+                    <p class="files">
+                        <a class="button button-primary" data-asset="desktop" href="https://github.com/jpablo/graph-explorer/releases/latest">Desktop app (.exe)</a>
+                        <a class="button" data-asset="gx" href="https://github.com/jpablo/graph-explorer/releases/latest">gx.exe</a>
+                    </p>
+                    <p>The <code>.exe</code> file is the app. There is no installer.</p>
+                    <p>The files are not signed, so SmartScreen can show a warning. Select <em>More info</em>, then <em>Run anyway</em>.</p>
+                </article>
+                <article class="platform" data-platform="linux">
+                    <h3>Linux <span>x86-64</span></h3>
+                    <p class="files">
+                        <a class="button button-primary" data-asset="desktop" href="https://github.com/jpablo/graph-explorer/releases/latest">Desktop app</a>
+                        <a class="button" data-asset="gx" href="https://github.com/jpablo/graph-explorer/releases/latest">gx</a>
+                    </p>
+                    <p>The file is the app. Make it executable with <code>chmod +x</code>.</p>
+                    <p>The app needs WebKitGTK 4.1. On Debian and Ubuntu, the package is <code>libwebkit2gtk-4.1-0</code>.</p>
+                </article>
+            </div>
+
+            <p class="install-gx">
+                To install gx, put the file in a folder on your <code>PATH</code> and make it executable.
+                On macOS, the first run of gx needs an internet connection, because macOS checks the notarization.
+                The desktop app does not update itself. Download each new release from this page.
+            </p>
+        </div>
+    </section>
+
+</main>
+
+<footer class="foot">
+    <div class="wrap foot-row">
+        <p>
+            Graph Explorer is open source under the Apache 2.0 license.
+            Copyright 2025 Juan Pablo Romero and the graph-explorer contributors.
+        </p>
+        <nav aria-label="More">
+            <a href="https://github.com/jpablo/graph-explorer">Source code</a>
+            <a href="https://github.com/jpablo/graph-explorer/issues">Report a problem</a>
+            <a href="https://github.com/jpablo/graph-explorer#build-from-source">Build from source</a>
+            <a href="/app" data-library-link>Web app</a>
+        </nav>
+    </div>
+</footer>
+
+<script type="module" src="./site.js"></script>
+</body>
+</html>
