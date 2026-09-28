@@ -1,2 +1,9 @@
-/diagrams/*    /index.html   200
-/*             /index.html   200
+# Netlify rules. The first rule that matches wins.
+#
+# `/` is the product page. The `!` is necessary: `index.html` (the web app)
+# exists at `/`, and without `!` Netlify serves that file and skips the rule.
+/              /site/index.html   200!
+# The web app. Its library is at `/app` (Router.homePath). Every other path,
+# for example `/diagrams/<id>` and `/example/<slug>`, opens the app too.
+/diagrams/*    /index.html        200
+/*             /index.html        200

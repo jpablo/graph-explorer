@@ -562,7 +562,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
         state.infoBus.emit("Link copied to clipboard")
       },
       always,
-      description = Some("Copy a URL to this diagram (local only)")
+      description = Some("Copy a link that holds this diagram")
     )
     val zoomOut = Command("Zoom out", () => state.zoomOut(), always, description = Some("Zoom out the diagram"))
     val fit     = Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen"))

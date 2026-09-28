@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.utils.ShareUrl
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import scala.scalajs.js
 
-import Router.{diagrams, documents, example}
+import Router.{app, diagrams, documents, example}
 
 enum Route derives CanEqual:
   case Home
@@ -130,6 +130,7 @@ class Router:
     val sourceOpt = if hasWindow then ShareUrl.readDotParam() else None
 
     path.stripPrefix("/").split("/").filter(_.nonEmpty).toList match
+      case `app` :: Nil                  => Route.Home
       case `diagrams` :: id :: Nil       => Route.ProjectDetail(id, sourceOpt)
       case `example` :: slug :: Nil      => Route.Example(slug)
       // The id is not checked here. The router does not read the registry, in
@@ -140,12 +141,21 @@ class Router:
 
   private def buildPath(route: Route): String =
     route match
-      case Route.Home                     => "/"
+      case Route.Home                     => Router.homePath
       case Route.ProjectDetail(id, _)     => s"/$diagrams/$id"
       case Route.Example(slug)            => s"/$example/$slug"
       case Route.LooseDocument(sessionId) => s"/$documents/$sessionId"
 
 object Router:
+  /** The library. On the web, `/` is the product page, which Netlify serves
+    * from `site/index.html` (see `_redirects`). A library at `/` would show the
+    * product page on a reload. The desktop loads `/`, and `/` still falls
+    * through to Home.
+    */
+  val app = "app"
+
+  val homePath = s"/$app"
+
   val diagrams = "diagrams"
 
   /** Singular on purpose: the example FILES are served from `/examples/`, and a

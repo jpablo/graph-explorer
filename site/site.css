@@ -1,0 +1,1033 @@
+/* The product page (site/index.html).
+ *
+ * The colors come from the app's own themes in style.css: "drafting" for the
+ * light scheme and "workbench" for the dark scheme. Thus the page and the app
+ * look like one product. The gridded surface (.canvas) is the app's diagram
+ * canvas in the drafting theme.
+ */
+
+:root {
+    color-scheme: light dark;
+
+    --paper: #f7f8f6;        /* drafting base-100 */
+    --paper-2: #eef1ee;
+    --canvas: #dfe7ea;       /* drafting --gx-canvas-bg */
+    --grid: #cfdbe0;         /* drafting grid line */
+    --grid-major: #bccbd2;
+    --ink: #1d3640;          /* drafting base-content */
+    --ink-soft: #4d626b;
+    --rule: #c3ccc6;         /* drafting base-300 */
+    --action: #0b5e7d;       /* drafting primary: cyan drafting ink */
+    --action-ink: #eaf3f7;
+    --mark: #8a5a12;         /* drafting accent: the annotation color */
+    --mark-soft: #f3e7d3;
+    --code-bg: #e9eeec;
+
+    --font: "Archivo", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --gutter: 24px;
+    --max: 1120px;
+    --max-wide: 1360px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --paper: #1d2021;    /* workbench base-100 */
+        --paper-2: #232728;
+        --canvas: #191b1c;   /* workbench base-200 */
+        --grid: #262a2b;
+        --grid-major: #2f3436;
+        --ink: #e6e4df;      /* workbench base-content */
+        --ink-soft: #aeb3b0;
+        --rule: #3a4042;
+        --action: #7fb2d9;   /* workbench secondary */
+        --action-ink: #191b1c;
+        --mark: #d9a441;     /* workbench primary: amber */
+        --mark-soft: #3b3222;
+        --code-bg: #262a2b;
+    }
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 72px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    font-variation-settings: "wdth" 100;
+    -webkit-font-smoothing: antialiased;
+}
+
+img,
+svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+a {
+    color: var(--action);
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+}
+
+a:hover {
+    text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+    outline: 2px solid var(--mark);
+    outline-offset: 3px;
+}
+
+code,
+kbd,
+pre {
+    font-family: var(--mono);
+    font-size: 0.88em;
+}
+
+code {
+    background: var(--code-bg);
+    padding: 0.08em 0.3em;
+    white-space: nowrap;
+}
+
+kbd {
+    display: inline-block;
+    min-width: 1.7em;
+    padding: 0.05em 0.4em;
+    border: 1px solid var(--rule);
+    border-bottom-width: 2px;
+    background: var(--paper);
+    text-align: center;
+    line-height: 1.5;
+}
+
+kbd + kbd {
+    margin-left: 0.2em;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+    font-weight: 640;
+    line-height: 1.05;
+    letter-spacing: -0.005em;
+    text-wrap: balance;
+}
+
+/* The headings use the narrow widths of Archivo: the tall, narrow letters of
+ * the lettering on a technical drawing. */
+h1 {
+    font-size: clamp(2.5rem, 5.6vw, 4.5rem);
+    font-variation-settings: "wdth" 68;
+    font-weight: 620;
+    max-width: 12em;
+}
+
+h2 {
+    font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+    font-variation-settings: "wdth" 72;
+}
+
+h3 {
+    font-size: 1.3rem;
+    font-variation-settings: "wdth" 84;
+    line-height: 1.2;
+}
+
+p {
+    margin: 0;
+}
+
+.wrap {
+    width: min(100% - 2 * var(--gutter), var(--max));
+    margin-inline: auto;
+}
+
+.wrap-wide {
+    width: min(100% - 2 * var(--gutter), var(--max-wide));
+    margin-inline: auto;
+}
+
+.lede {
+    max-width: 62ch;
+    font-size: 1.2rem;
+    color: var(--ink-soft);
+}
+
+.skip {
+    position: absolute;
+    left: -9999px;
+}
+
+.skip:focus {
+    left: var(--gutter);
+    top: 8px;
+    z-index: 10;
+    background: var(--paper);
+    padding: 6px 10px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    min-height: 44px;
+    padding: 0.55em 1.1em;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    background: transparent;
+    font-weight: 560;
+    font-variation-settings: "wdth" 90;
+    text-decoration: none;
+    line-height: 1.2;
+}
+
+.button:hover {
+    background: var(--paper-2);
+}
+
+.button-primary {
+    border-color: var(--action);
+    background: var(--action);
+    color: var(--action-ink);
+}
+
+.button-primary:hover {
+    background: color-mix(in srgb, var(--action) 86%, var(--ink));
+}
+
+.button-small {
+    min-height: 36px;
+    padding: 0.35em 0.8em;
+    font-size: 0.95rem;
+}
+
+.button small {
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.top {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--rule);
+}
+
+.top-row {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    min-height: 60px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 660;
+    font-size: 1.15rem;
+    font-variation-settings: "wdth" 80;
+}
+
+.top nav {
+    display: flex;
+    gap: 22px;
+    margin-left: auto;
+}
+
+.top nav a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 0.98rem;
+}
+
+.top nav a:hover {
+    color: var(--ink);
+}
+
+@media (max-width: 860px) {
+    .top nav {
+        display: none;
+    }
+
+    .top .button-small {
+        margin-left: auto;
+    }
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+
+.hero {
+    padding-top: clamp(40px, 6vw, 80px);
+}
+
+.hero-text {
+    display: grid;
+    gap: 22px;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.release-line {
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+}
+
+/* The drawing sheet: the app window on the gridded canvas, with numbered
+ * balloons. A balloon on a technical drawing points to a part, and the parts
+ * list names it. Here the parts list is the caption. */
+.sheet {
+    margin-top: clamp(40px, 6vw, 72px);
+    margin-bottom: 0;
+    padding: clamp(14px, 3vw, 44px);
+    background-color: var(--canvas);
+    background-image:
+        linear-gradient(var(--grid-major) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 70px 70px, 70px 70px, 14px 14px, 14px 14px;
+    border: 1px solid var(--rule);
+}
+
+.sheet-frame {
+    position: relative;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+}
+
+.balloon {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: clamp(20px, 2.2vw, 30px);
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--mark);
+    border-radius: 50%;
+    background: var(--mark-soft);
+    color: var(--mark);
+    font-size: clamp(0.7rem, 1vw, 0.95rem);
+    font-weight: 700;
+    font-variation-settings: "wdth" 75;
+    line-height: 1;
+}
+
+.leaders {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.leaders line {
+    stroke: var(--mark);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+}
+
+.leader-end {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--mark);
+}
+
+.sheet figcaption {
+    margin-top: clamp(14px, 2.5vw, 28px);
+}
+
+.parts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px 28px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: part;
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+}
+
+.parts li {
+    counter-increment: part;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: start;
+}
+
+.parts li::before {
+    content: counter(part);
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--mark);
+    border-radius: 50%;
+    color: var(--mark);
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-variation-settings: "wdth" 75;
+}
+
+.parts li > span {
+    padding-top: 1px;
+}
+
+.parts strong {
+    color: var(--ink);
+    font-weight: 620;
+}
+
+@media (max-width: 960px) {
+    .parts {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 700px) {
+    .balloon,
+    .leaders,
+    .leader-end {
+        display: none;
+    }
+
+    .parts {
+        grid-template-columns: 1fr;
+    }
+
+    .parts li {
+        display: block;
+    }
+
+    .parts li::before {
+        display: none;
+    }
+}
+
+/* ── Features ────────────────────────────────────────────────────────────── */
+
+.features {
+    padding-block: clamp(72px, 10vw, 128px);
+}
+
+.features > h2 {
+    margin-bottom: clamp(28px, 4vw, 48px);
+    max-width: 20ch;
+}
+
+.feature {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: 16px 48px;
+    padding-block: 28px;
+    border-top: 1px solid var(--rule);
+}
+
+.feature-body {
+    display: grid;
+    gap: 16px;
+    max-width: 62ch;
+}
+
+.feature-wide .shot {
+    grid-column: 1 / -1;
+    margin: 12px 0 0;
+    border: 1px solid var(--rule);
+}
+
+.keys {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.96rem;
+    color: var(--ink-soft);
+}
+
+.keys kbd {
+    margin-right: 0.5em;
+}
+
+.keys kbd + kbd {
+    margin-left: -0.3em;
+}
+
+@media (max-width: 760px) {
+    .feature {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Gridded sections ────────────────────────────────────────────────────── */
+
+.canvas {
+    background-color: var(--canvas);
+    background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 14px 14px;
+    border-block: 1px solid var(--rule);
+    padding-block: clamp(64px, 9vw, 112px);
+}
+
+.canvas h2 + .lede {
+    margin-top: 18px;
+}
+
+/* ── Desktop ─────────────────────────────────────────────────────────────── */
+
+.flow-sheet {
+    margin-top: clamp(32px, 5vw, 56px);
+    padding: clamp(18px, 3vw, 36px);
+    background: var(--paper);
+    border: 1px solid var(--ink);
+}
+
+.flow-drawing {
+    overflow-x: auto;
+}
+
+#flow {
+    width: 100%;
+    min-width: 560px;
+    font-family: var(--font);
+    font-variation-settings: "wdth" 90;
+}
+
+#flow .node polygon,
+#flow .node polyline {
+    fill: var(--paper);
+    stroke: var(--ink);
+    stroke-width: 1.2;
+}
+
+#flow .node[data-node="desktop"] polygon {
+    stroke-width: 2.4;
+}
+
+#flow .node text {
+    fill: var(--ink);
+    font-size: 13px;
+    font-weight: 540;
+}
+
+#flow .edge path {
+    fill: none;
+    stroke: var(--ink-soft);
+    stroke-width: 1.1;
+}
+
+#flow .edge .head {
+    fill: var(--ink-soft);
+    stroke: var(--ink-soft);
+}
+
+#flow .edge text {
+    fill: var(--ink-soft);
+    font-size: 11px;
+}
+
+#flow .node {
+    cursor: pointer;
+    outline: none;
+}
+
+#flow .node:hover polygon {
+    fill: var(--paper-2);
+}
+
+#flow .node:focus-visible polygon {
+    stroke: var(--mark);
+    stroke-width: 2.4;
+}
+
+/* A selected node, as in the app: the node and its arrows stay, and the
+ * rest of the diagram fades. */
+#flow .node,
+#flow .edge {
+    transition: opacity 180ms ease;
+}
+
+#flow.has-selection .node:not(.near),
+#flow.has-selection .edge:not(.near) {
+    opacity: 0.22;
+}
+
+#flow .node.selected polygon {
+    fill: var(--mark-soft);
+    stroke: var(--mark);
+    stroke-width: 2.4;
+}
+
+#flow .edge.near path {
+    stroke: var(--mark);
+    stroke-width: 1.8;
+}
+
+#flow .edge.near .head {
+    fill: var(--mark);
+    stroke: var(--mark);
+}
+
+#flow .edge.near text {
+    fill: var(--mark);
+}
+
+/* The one animation on the page: the diagram draws itself once, when it
+ * comes into view. site.js adds .pre-draw, then replaces it with .drawing. */
+#flow.pre-draw .node,
+#flow.pre-draw .edge {
+    opacity: 0;
+}
+
+#flow.drawing .edge path {
+    stroke-dasharray: var(--len);
+    stroke-dashoffset: var(--len);
+    animation: draw 700ms ease-out forwards;
+    animation-delay: var(--delay);
+}
+
+#flow.drawing .node,
+#flow.drawing .edge .head,
+#flow.drawing .edge text {
+    opacity: 0;
+    animation: appear 260ms ease-out forwards;
+    animation-delay: var(--delay);
+}
+
+@keyframes draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes appear {
+    to {
+        opacity: 1;
+    }
+}
+
+.flow-note {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    min-height: 3.2em;
+    color: var(--ink-soft);
+}
+
+.flow-note strong {
+    color: var(--ink);
+}
+
+.points {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px 40px;
+    margin: clamp(36px, 5vw, 56px) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.points h3 {
+    font-size: 1.15rem;
+    margin-bottom: 8px;
+}
+
+.points p {
+    color: var(--ink-soft);
+}
+
+@media (max-width: 860px) {
+    .points {
+        grid-template-columns: 1fr;
+    }
+}
+
+.compare {
+    margin-top: clamp(40px, 6vw, 64px);
+    overflow-x: auto;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+}
+
+.compare table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: 0.98rem;
+}
+
+.compare caption {
+    padding: 14px 18px;
+    text-align: left;
+    font-weight: 640;
+    font-size: 1.15rem;
+    font-variation-settings: "wdth" 84;
+    border-bottom: 1px solid var(--ink);
+}
+
+.compare th,
+.compare td {
+    padding: 11px 18px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--rule);
+}
+
+.compare thead th {
+    font-weight: 620;
+    font-variation-settings: "wdth" 84;
+}
+
+.compare tbody th {
+    font-weight: 400;
+    color: var(--ink-soft);
+    width: 42%;
+}
+
+.compare td + td,
+.compare th + td,
+.compare thead th + th {
+    border-left: 1px solid var(--rule);
+}
+
+.compare tbody tr:last-child > * {
+    border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+    .compare table {
+        min-width: 0;
+    }
+
+    .compare thead {
+        display: none;
+    }
+
+    .compare tbody,
+    .compare tr,
+    .compare tbody th,
+    .compare td {
+        display: block;
+        width: auto;
+    }
+
+    .compare tr {
+        padding: 12px 18px;
+        border-bottom: 1px solid var(--rule);
+    }
+
+    .compare tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .compare tbody th,
+    .compare td {
+        padding: 0;
+        border: 0;
+    }
+
+    .compare tbody th {
+        color: var(--ink);
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .compare td + td,
+    .compare th + td {
+        border-left: 0;
+    }
+
+    .compare td::before {
+        content: attr(data-label) ": ";
+        color: var(--ink-soft);
+    }
+}
+
+/* ── gx ──────────────────────────────────────────────────────────────────── */
+
+.gx {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 40px 56px;
+    align-items: start;
+    padding-block: clamp(72px, 10vw, 128px);
+}
+
+.gx-text {
+    display: grid;
+    gap: 20px;
+}
+
+.gx h3 {
+    margin-top: 12px;
+}
+
+.commands {
+    display: grid;
+    gap: 0;
+    margin: 8px 0 0;
+    border-top: 1px solid var(--rule);
+}
+
+.commands > div {
+    display: grid;
+    grid-template-columns: minmax(10ch, 13rem) 1fr;
+    gap: 16px;
+    padding-block: 10px;
+    border-bottom: 1px solid var(--rule);
+}
+
+.commands dt code {
+    background: none;
+    padding: 0;
+    font-weight: 500;
+}
+
+.commands dd {
+    margin: 0;
+    color: var(--ink-soft);
+}
+
+.terminal {
+    position: sticky;
+    top: 84px;
+    margin: 0;
+    padding: 22px 24px;
+    overflow-x: auto;
+    background: #1d2021;
+    color: #e6e4df;
+    border: 1px solid var(--ink);
+    font-size: 0.82rem;
+    line-height: 1.65;
+}
+
+.terminal code {
+    background: none;
+    padding: 0;
+    white-space: inherit;
+    font-size: inherit;
+}
+
+.terminal .prompt {
+    color: #d9a441;
+    user-select: none;
+}
+
+@media (max-width: 900px) {
+    .gx {
+        grid-template-columns: 1fr;
+    }
+
+    .terminal {
+        position: static;
+    }
+}
+
+@media (max-width: 520px) {
+    .commands > div {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+}
+
+/* ── Download ────────────────────────────────────────────────────────────── */
+
+/* The title block of a drawing: the box in the corner that names the
+ * drawing, its revision, and its date. Here it holds the release data. */
+.title-block {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: clamp(24px, 4vw, 40px) 0 0;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+}
+
+.title-block > div {
+    padding: 10px 16px 12px;
+}
+
+.title-block > div + div {
+    border-left: 1px solid var(--ink);
+}
+
+.title-block dt {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+}
+
+.title-block dd {
+    margin: 2px 0 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    font-variation-settings: "wdth" 84;
+}
+
+@media (max-width: 700px) {
+    .title-block {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .title-block > div:nth-child(3) {
+        border-left: 0;
+    }
+
+    .title-block > div:nth-child(n + 3) {
+        border-top: 1px solid var(--ink);
+    }
+}
+
+.platforms {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 24px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+}
+
+.platform {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding: 22px 22px 26px;
+    font-size: 0.97rem;
+    color: var(--ink-soft);
+}
+
+.platform + .platform {
+    border-left: 1px solid var(--ink);
+}
+
+.platform h3 {
+    color: var(--ink);
+    font-size: 1.45rem;
+}
+
+.platform h3 span {
+    font-size: 0.95rem;
+    font-weight: 400;
+    color: var(--ink-soft);
+    margin-left: 0.3em;
+}
+
+/* The visitor's own platform, when the page can tell it. */
+.platform.is-yours {
+    background: var(--paper-2);
+    box-shadow: inset 0 4px 0 var(--action);
+}
+
+.files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 4px 0 6px;
+}
+
+.files .button {
+    font-size: 0.96rem;
+}
+
+@media (max-width: 860px) {
+    .platforms {
+        grid-template-columns: 1fr;
+    }
+
+    .platform + .platform {
+        border-left: 0;
+        border-top: 1px solid var(--ink);
+    }
+}
+
+.install-gx {
+    margin-top: 24px;
+    max-width: 72ch;
+    color: var(--ink-soft);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.foot {
+    padding-block: 40px 56px;
+    font-size: 0.93rem;
+    color: var(--ink-soft);
+}
+
+.foot-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px 40px;
+}
+
+.foot p {
+    max-width: 56ch;
+}
+
+.foot nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+}
+
+@media (max-width: 560px) {
+    :root {
+        --gutter: 16px;
+    }
+
+    .lede {
+        font-size: 1.1rem;
+    }
+}

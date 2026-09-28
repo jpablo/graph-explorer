@@ -1,0 +1,28 @@
+// The diagram in the "desktop" section of the product page.
+//
+// site/index.html holds the SVG that Graphviz makes from this file. After a
+// change here, run `python3 site/flow-svg.py` and paste its output over the
+// <svg id="flow"> element in site/index.html.
+digraph flow {
+  rankdir=LR
+  nodesep=0.35
+  ranksep=0.7
+  bgcolor="transparent"
+  node [shape=box fontname="Helvetica" fontsize=13 height=0.5 margin="0.18,0.08"]
+  edge [fontname="Helvetica" fontsize=11 arrowsize=0.7]
+
+  editor  [label="Your editor"]
+  agent   [label="Coding agent"]
+  file    [label="diagram.dot" shape=note]
+  gx      [label="gx"]
+  library [label="Library\n~/.graph-explorer" shape=folder]
+  desktop [label="Graph Explorer\nDesktop" penwidth=2]
+
+  editor  -> file    [label="saves"]
+  agent   -> gx      [label="runs"]
+  gx      -> file    [label="edits"]
+  gx      -> library [label="imports"]
+  gx      -> desktop [label="opens"]
+  file    -> desktop [label="live reload"]
+  library -> desktop [label="shared folder"]
+}

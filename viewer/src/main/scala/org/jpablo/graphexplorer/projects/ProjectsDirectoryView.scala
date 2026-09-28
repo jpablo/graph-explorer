@@ -132,7 +132,7 @@ def ProjectsDirectoryView(
       // write from here cannot clobber other settings with stale values.
       viewerSettings.set(Library.readViewerSettings())
       val t0 = Telemetry.nowMs()
-      val navDtMs = Telemetry.consumeNavigationStartMs("/")
+      val navDtMs = Telemetry.consumeNavigationStartMs(Router.homePath)
       Telemetry.log(
         "home.mount",
         "dtSinceNavMs" -> navDtMs.getOrElse(-1.0)
