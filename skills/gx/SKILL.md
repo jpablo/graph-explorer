@@ -161,8 +161,7 @@ The graph is preserved; the formatting, comments and layout of the source are no
 - Work on a copy when the source file is precious.
 
 The graph's **name and kind are preserved**: `graph MyNet { a -- b }` stays undirected and
-stays `MyNet`. (Both were silently rewritten to `digraph "G"` before v0.9.5 — on an older
-`gx`, check the diff after any mutation on an undirected graph.)
+stays `MyNet`.
 
 ## Conflict safety
 
