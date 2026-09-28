@@ -355,3 +355,29 @@ class OriginReconciliationSpec extends FunSuite with TestHelpers:
         ViewerState(ViewTarget.library("a"), graphviz, _ => ())
         afterMicrotasks:
           assertEquals(shell.opened.toList, Nil, "a record with no origin asked to watch something")
+
+  // -------------------------------------------- the record reaches the SCREEN
+
+  test("a record changed from outside reaches an open viewer"):
+    // The hop nothing checked. `restorePersistedState` read the store once at
+    // mount, so a pull landed in the record and stayed off the screen until the
+    // view was reopened — and "take the file's version" cleared the strip while
+    // the person kept looking at the old text.
+    withLibrary(bound("a", "digraph { a }", SyncMode.Pull, base = "digraph { a }")): (_, _) =>
+      withGraphvizAsync: graphviz =>
+        val state   = ViewerState(ViewTarget.library("a"), graphviz, _ => ())
+        val changed = "digraph { a -> b }"
+        OriginReconciler.reconcile(originPath, changed, hashOf(changed)).flatMap: _ =>
+          afterMicrotasks:
+            assertEquals(state.sourceText.now(), changed, "the screen did not follow the record")
+
+  test("a viewer's own edit is not echoed back over it"):
+    // The store's stream carries this viewer's writes back. Adopting them
+    // blindly would fight the person typing.
+    withLibrary(bound("a", "digraph { a }", SyncMode.Pull, base = "digraph { a }")): (_, _) =>
+      withGraphvizAsync: graphviz =>
+        val state = ViewerState(ViewTarget.library("a"), graphviz, _ => ())
+        val mine  = "digraph { mine }"
+        state.replaceSourceDetectingFormat(mine)
+        afterMicrotasks:
+          assertEquals(state.sourceText.now(), mine, "the viewer's own edit was overwritten")

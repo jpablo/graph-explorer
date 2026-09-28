@@ -47,6 +47,10 @@ object Library:
   /** The records bound to a file path (§8). Empty on the browser backend. */
   def recordsBoundTo(path: String): List[BoundRecord] = backend.recordsBoundTo(path)
 
+  /** Outside writes to a record (D7.3). Empty on the browser backend. */
+  def recordChangedExternally(id: ProjectId): com.raquo.airstream.core.EventStream[PersistedDiagramState] =
+    backend.recordChangedExternally(id)
+
   /** The file a record is bound to (§8). None on the browser backend. */
   def originPathOf(id: ProjectId): Option[String] = backend.originPathOf(id)
 

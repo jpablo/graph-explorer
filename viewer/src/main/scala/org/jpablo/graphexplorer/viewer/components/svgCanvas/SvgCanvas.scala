@@ -5,7 +5,6 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
-import org.jpablo.graphexplorer.viewer.domUtils.querySelectorT
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
@@ -42,7 +41,7 @@ def SvgCanvas(
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
 
-  val mainGroup = rawSvg.ref.querySelectorT("g").getOrElse(throw Exception("No <g> element found in the SVG"))
+  val mainGroup = CanvasRoot.mainGroup(rawSvg.ref)
   val tr        = getTranslate(mainGroup)
   val magicX    = 0.4 // TODO: Find a better way to calculate this
   val magicY    = -0.4

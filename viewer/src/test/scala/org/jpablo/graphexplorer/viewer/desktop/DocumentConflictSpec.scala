@@ -2,10 +2,11 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.state.{LeaveIntent, ViewerState, ViewTarget}
+import org.jpablo.graphexplorer.viewer.state.{LeaveIntent, SaveResult, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
 
@@ -17,15 +18,33 @@ import scala.scalajs.js
   */
 class DocumentConflictSpec extends FunSuite with TestHelpers:
 
+  private val invokes: mutable.Buffer[(String, js.Dynamic)] = mutable.Buffer.empty
+
   override def munitFixtures = List(mockStorageFixture())
 
   override def beforeEach(context: BeforeEach): Unit =
     DesktopDocumentRegistry.reset()
     DesktopBridge.reset()
+    invokes.clear()
+    js.Dynamic.global.window.__TAURI__ = null
 
   override def afterEach(context: AfterEach): Unit =
     DesktopDocumentRegistry.reset()
     DesktopBridge.reset()
+    js.Dynamic.global.window.__TAURI__ = null
+
+  private def installSavingShell(nextRevision: String): Unit =
+    val invoke: js.Function2[String, js.Any, js.Promise[js.Any]] = (command, args) =>
+      invokes += ((command, args.asInstanceOf[js.Dynamic]))
+      js.Promise.resolve[js.Any](
+        js.Dynamic.literal(path = args.asInstanceOf[js.Dynamic].path, revision = nextRevision)
+      )
+    js.Dynamic.global.window.__TAURI__ =
+      js.Dynamic.literal(core = js.Dynamic.literal(invoke = invoke))
+
+  private def saveCalls: List[js.Dynamic] =
+    invokes.toList.collect:
+      case (DesktopIpc.SaveDocument, args) => args
 
   /** What the shell sends when a watched file changes.
     *
@@ -84,6 +103,76 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
     assertEquals(resolved.map(_.revision), Some("rev-2"), "a stale base makes every later save conflict again")
     assertEquals(resolved.map(_.sourceText), Some("digraph G { theirs }"))
     assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict), None)
+  }
+
+  test("Load the file adopts the remote text and clears the active viewer conflict") {
+    withGraphvizAsync { graphviz =>
+      val local  = "digraph G { mine }"
+      val remote = "digraph G { theirs }"
+      val open   = DesktopDocumentRegistry.record("/tmp/load-file.dot", "rev-1", "digraph G { a }")
+      val state  = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+
+      afterMicrotasks {
+        state.replaceSourceDetectingFormat(local)
+        DesktopBridge.routeDocumentChange(fileChanged(remote, "/tmp/load-file.dot", "rev-2"))
+        assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict).map(_.text), Some(remote))
+
+        state.resolveDocumentConflict(adoptRemoteText = true)
+
+        assertEquals(state.sourceText.now(), remote)
+        assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict), None)
+        assertEquals(state.documentIsDirty, false)
+      }
+    }
+  }
+
+  test("Keep my edit clears the conflict, stays dirty, and saves against the remote revision") {
+    withGraphvizAsync { graphviz =>
+      val local  = "digraph G { mine }"
+      val remote = "digraph G { theirs }"
+      val open   = DesktopDocumentRegistry.record("/tmp/keep-edit.dot", "rev-1", "digraph G { a }")
+      val state  = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      installSavingShell(nextRevision = "rev-3")
+
+      afterMicrotasks {
+        state.replaceSourceDetectingFormat(local)
+        DesktopBridge.routeDocumentChange(fileChanged(remote, "/tmp/keep-edit.dot", "rev-2"))
+        assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict).map(_.text), Some(remote))
+
+        state.resolveDocumentConflict(adoptRemoteText = false)
+
+        assertEquals(state.sourceText.now(), local)
+        assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict), None)
+        assertEquals(state.documentIsDirty, true)
+      }.flatMap: _ =>
+        state.save().map: result =>
+          assertEquals(result, SaveResult.Saved)
+          assertEquals(saveCalls.size, 1)
+          assertEquals(saveCalls.head.selectDynamic("text").asInstanceOf[String], local)
+          assertEquals(saveCalls.head.selectDynamic("baseRevision").asInstanceOf[String], "rev-2")
+    }
+  }
+
+  test("a later disk change automatically loads after Load the file makes the editor clean") {
+    withGraphvizAsync { graphviz =>
+      val firstRemote = "digraph G { theirs }"
+      val laterRemote = "digraph G { later }"
+      val open        = DesktopDocumentRegistry.record("/tmp/load-then-follow.dot", "rev-1", "digraph G { a }")
+      val state       = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+
+      afterMicrotasks {
+        state.replaceSourceDetectingFormat("digraph G { mine }")
+        DesktopBridge.routeDocumentChange(fileChanged(firstRemote, "/tmp/load-then-follow.dot", "rev-2"))
+        assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict).map(_.text), Some(firstRemote))
+        state.resolveDocumentConflict(adoptRemoteText = true)
+
+        DesktopBridge.routeDocumentChange(fileChanged(laterRemote, "/tmp/load-then-follow.dot", "rev-3"))
+
+        assertEquals(state.sourceText.now(), laterRemote)
+        assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict), None)
+        assertEquals(state.documentIsDirty, false)
+      }
+    }
   }
 
   test("a library diagram is never dirty, so it never blocks a navigation") {

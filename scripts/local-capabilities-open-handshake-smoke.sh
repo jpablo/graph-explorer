@@ -211,6 +211,20 @@ fi
   || fail "a cold file open was not acknowledged as a file view"
 echo "cold file open acknowledged"
 
+# The acknowledgment is a readiness barrier, not a dispatch receipt. A session
+# command issued on the next line must see the new viewer every time.
+echo "checking immediate session readiness..."
+for attempt in 1 2 3; do
+  body="$(api_show_file "${cold_file}")"
+  [[ "$(api_last_status)" == "ok" ]] || fail "open ${attempt} failed before readiness check"
+  body="$(api_reset_view)"
+  [[ "$(api_last_status)" == "ok" ]] || {
+    echo "${body}" >&2
+    fail "reset-view failed immediately after successful open ${attempt} (code: $(api_last_error_code))"
+  }
+done
+echo "three immediate reset-view calls succeeded"
+
 echo "opening a library record against a possibly-starting desktop..."
 started_at="$(python3 -c 'import time; print(int(time.time()*1000))')"
 body="$(api_show_library "${RECORD_ID}")"
@@ -323,6 +337,33 @@ again="$(jq -r '.result.view.sessionId // ""' <<<"${body}")"
   fail "a second open minted a new session ('${again}' != '${session_id}')"
 }
 echo "second open acknowledged, same session"
+
+# A file is watched before its bytes can be delivered to the page. If parsing
+# rejects those bytes, the watch created for that failed open must be rolled
+# back. Otherwise each typo grows status by one stale path.
+bad_file="${GX_HOME}/invalid-open.dot"
+printf 'digraph G { a -> }\n' > "${bad_file}"
+before="$(api_status)"
+before_count="$(jq -r '.result.watches | length' <<<"${before}")"
+
+echo "opening an invalid diagram..."
+body="$(api_show_file "${bad_file}")"
+[[ "$(api_last_status)" == "error" ]] || fail "an invalid diagram reported success"
+[[ "$(api_last_error_code)" == "PARSE_FAILED" ]] || {
+  echo "${body}" >&2
+  fail "invalid diagram was not reported as PARSE_FAILED"
+}
+
+after="$(api_status)"
+after_count="$(jq -r '.result.watches | length' <<<"${after}")"
+[[ "${after_count}" == "${before_count}" ]] || {
+  echo "${after}" >&2
+  fail "failed open leaked a watch (${before_count} -> ${after_count})"
+}
+if jq -e --arg path "${bad_file}" '.result.watches | any(.path == $path)' <<<"${after}" >/dev/null; then
+  fail "failed-open path remains in normalized watch status"
+fi
+echo "parse failure reported and its watch rolled back"
 
 echo
 echo "PASS: open acknowledgment handshake"

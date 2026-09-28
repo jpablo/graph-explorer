@@ -26,6 +26,8 @@ trait DocumentCommandRunner:
     * `onApplied` receives the graph before and after, which is how the UI does
     * its view-level follow-up — selecting the record node that `combine` just
     * created, for instance — without that follow-up leaking into the command.
+    * It runs only when the edit applies. A file-backed document refuses an edit
+    * that would drop content from the file (see `InternalPhases.fullGraphV`).
     *
     * A refusal reaches the user rather than vanishing. The UI mostly cannot
     * produce one (a menu item is greyed out when it does not apply), but
@@ -37,10 +39,13 @@ trait DocumentCommandRunner:
       command:   DocumentCommand,
       onApplied: (before: ViewerGraph, after: ViewerGraph) => Unit = (_, _) => ()
   ): Unit =
+    // The setter of `fullGraphV` can refuse the edit. Then the follow-up must
+    // not run, for example to select a record that does not exist.
+    val applies = phases.graphEditApplies
     phases.fullGraphV.update: graph =>
       DocumentCommands.run(graph, command) match
         case Right(CommandResult.Updated(next)) =>
-          onApplied(graph, next)
+          if applies then onApplied(graph, next)
           next
 
         case Right(CommandResult.Answered(_)) =>

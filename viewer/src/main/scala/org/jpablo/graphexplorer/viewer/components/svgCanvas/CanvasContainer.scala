@@ -78,9 +78,17 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // still applies (it runs at the listener, before the filter), so the
     // back-swipe protection above holds in both modes.
     onWheel.preventDefault(_.filter(_ => !state.view3DActiveNow).withCurrentValueOf(state.finalSVG)) --> (
-      (e, svgElemO) => svgElemO.map(s => state.handleWheel(e, s.ref.viewBox.baseVal))
+      (e, svgElemO) => svgElemO.foreach: s =>
+        val mainGroup = CanvasRoot.mainGroup(s.ref)
+        state.handleWheel(e, s.ref.viewBox.baseVal, mainGroup)
     )
   )
+
+private[svgCanvas] val viewOnlyChipPulseKeyframes = js.Array(
+  js.Dynamic.literal(transform = "scale(1)"),
+  js.Dynamic.literal(transform = "scale(1.15)"),
+  js.Dynamic.literal(transform = "scale(1)")
+)
 
 /** The persistent "this diagram is view-only" pill, floating top-center on the
   * canvas. The full explanation lives in its tooltip; a nudge (a click on the
@@ -101,11 +109,7 @@ private def ViewOnlyChip(notice: EditorNotice, nudge: EventStream[Unit]) =
           el.ref
             .asInstanceOf[js.Dynamic]
             .animate(
-              js.Array(
-                js.Dynamic.literal(transform = "translateX(-50%) scale(1)"),
-                js.Dynamic.literal(transform = "translateX(-50%) scale(1.15)"),
-                js.Dynamic.literal(transform = "translateX(-50%) scale(1)")
-              ),
+              viewOnlyChipPulseKeyframes,
               js.Dynamic.literal(duration = 350, easing = "ease-out")
             )
       }

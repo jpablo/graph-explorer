@@ -40,6 +40,17 @@ final class LooseFilePersistence(session: DocumentSessionId) extends DiagramPers
   private var current = initial
 
   /** In memory, and nowhere else (§7.1). */
+
+  /** Empty: a loose file follows its SESSION, not this store (§7.3).
+    *
+    * `Persistence.followDocumentSession` already watches the session, and it
+    * carries the rule a record does not need — an external change must not
+    * replace a dirty editor silently. Emitting here as well would give one
+    * viewer two sources for the same text.
+    */
+  def external: com.raquo.airstream.core.EventStream[PersistedDiagramState] =
+    com.raquo.airstream.core.EventStream.empty
+
   def update(next: PersistedDiagramState): Unit = current = next
 
   /** §7.1: a compare-and-swap write of this session's path.

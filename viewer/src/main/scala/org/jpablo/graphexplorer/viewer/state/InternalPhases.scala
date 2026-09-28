@@ -1,9 +1,9 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import com.raquo.airstream.core.{EventStream, Signal}
+import com.raquo.airstream.core.{EventStream, Observer, Signal, Transaction}
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, RenderOnlyDiagram}
+import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, RenderOnlyDiagram, RoundTripLoss, UnmodeledContent}
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.GroupId
@@ -25,6 +25,13 @@ case class GraphState(
     graphInSync: Boolean = true
 ) derives CanEqual
 
+/** Whether the current source has become a usable live diagram. */
+enum DiagramLoadStatus derives CanEqual:
+  case Loading
+  case Ready
+  case RenderOnly(details: String)
+  case Failed(message: String)
+
 /** Reactive text <-> graph synchronization engine.
   *
   * This component is backend-agnostic: all format-specific behavior (parsing, serialization, selection
@@ -44,7 +51,14 @@ class InternalPhases(
       * what they are pinning is the text <-> graph contract, not the schedule
       * on which typing reaches it. */
     pace: EventStream[(String, DiagramFormat, ChangeOrigin)] => EventStream[(String, DiagramFormat, ChangeOrigin)] =
-      EditorPacing.pace(_)
+      EditorPacing.pace(_),
+    /** True when a graph edit must keep the whole text, because a file sits
+      * behind the document. The setter of [[fullGraphV]] reads it at each
+      * edit, because a record can get or lose its binding while it is open.
+      */
+    keepTextWhole: () => Boolean = () => false,
+    /** Receives one message for each graph edit that [[fullGraphV]] refuses. */
+    refusedEdits: Observer[String] = Observer.empty
 )(using Owner, ExecutionContext):
 
   simpleLog(s"InternalPhases: Initializing with $initialSource", logLevel)
@@ -69,6 +83,11 @@ class InternalPhases(
 
   // Bus for text changes that need async parsing
   private val textChangeBus = EventBus[(String, DiagramFormat, ChangeOrigin)]()
+
+  /** The desktop open handshake observes this signal. Route navigation alone is not activation:
+    * the new viewer must also accept the source before `gx open` can report success.
+    */
+  val loadStatus: Var[DiagramLoadStatus] = Var(DiagramLoadStatus.Loading)
 
   // Handle async parsing results.
   // NOTE: all side effects (editorNotice included) happen in the guarded foreach below, NOT in
@@ -106,6 +125,7 @@ class InternalPhases(
               logLevel
             )
             state.set(GraphState(text, graph, format, origin))
+            loadStatus.set(DiagramLoadStatus.Ready)
           case Left(notice) =>
             editorNotice.set(Option(notice))
             // Keep the user's text; show the placeholder graph but mark it OUT OF SYNC so
@@ -113,6 +133,10 @@ class InternalPhases(
             // document with a serialized near-empty graph). This applies to BOTH levels:
             // an Info notice (render-only kind) also means the graph doesn't model the text.
             state.set(GraphState(text, ViewerGraph.minimalWithDirected, format, origin, graphInSync = false))
+            loadStatus.set(
+              if notice.isError then DiagramLoadStatus.Failed(notice.message)
+              else DiagramLoadStatus.RenderOnly(notice.message)
+            )
     }
 
   /** Typing, paced. Only the CodeMirror-origin path goes through here: a
@@ -173,18 +197,58 @@ class InternalPhases(
           simpleLog("Ignoring graph edit while text and graph are out of sync (parse error)", logLevel)
           currentState
         else if newGraph != currentState.viewerGraph then
-          val serializedText =
-            languages.forFormat(currentState.format).graphToText(newGraph, omitInternal = true)
-          GraphState(
-            text = serializedText,
-            viewerGraph = newGraph,
-            format = currentState.format, // Preserve format when graph is edited
-            lastOrigin = ChangeOrigin.Graph
-          )
+          lossyEditRefusal(currentState) match
+            case Some(message) =>
+              // The text would lose content that the graph does not model, and a
+              // file would take that text. Keep the text, and tell the person.
+              simpleLog(s"Refusing a lossy graph edit: $message", logLevel)
+              // This setter runs inside the transaction of the update. The new
+              // transaction sends the message after that transaction ends.
+              Transaction(_ => refusedEdits.onNext(message))
+              currentState
+            case None =>
+              val serializedText =
+                languages.forFormat(currentState.format).graphToText(newGraph, omitInternal = true)
+              GraphState(
+                text = serializedText,
+                viewerGraph = newGraph,
+                format = currentState.format, // Preserve format when graph is edited
+                lastOrigin = ChangeOrigin.Graph
+              )
         else
           currentState
       }
     ).distinct // TODO: consider using distinctByRef
+
+  /** True when the setter of [[fullGraphV]] applies a graph edit now.
+    *
+    * It is false while the graph and the text are out of sync, and while an
+    * edit would drop content from a file. A canvas action reads it just before
+    * its update. It does its follow-up (a new selection, a fold, a message)
+    * only when the value is true, because a refused edit changed nothing.
+    */
+  def graphEditApplies: Boolean =
+    val current = state.now()
+    current.graphInSync && lossyEditRefusal(current).isEmpty
+
+  /** The message for a graph edit that would drop content from a file.
+    *
+    * The scan reads the CURRENT text. So the person can remove the content
+    * from the text, and then edit on the canvas again.
+    */
+  private def lossyEditRefusal(current: GraphState): Option[String] =
+    if !keepTextWhole() then None
+    else
+      val lost = RoundTripLoss.scan(current.text, current.format)
+      Option.when(lost.nonEmpty)(refusalMessage(lost))
+
+  private def refusalMessage(lost: Set[UnmodeledContent]): String =
+    val names = UnmodeledContent.values.toList.filter(lost.contains).map(_.label)
+    val listed = names match
+      case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
+      case _                             => names.mkString
+    s"The viewer did not apply the canvas edit, because it would remove $listed from the file. " +
+      "Make the change in the text instead."
 
   val fullGraph = fullGraphV.signal.distinct
 
@@ -246,6 +310,7 @@ class InternalPhases(
     */
   private def parseTextToGraphAsync(text: String, format: DiagramFormat, origin: ChangeOrigin): Unit =
     simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
+    loadStatus.set(DiagramLoadStatus.Loading)
     textChangeBus.writer.onNext((text, format, origin))
 
   /** Replace the document AND its language in ONE observable step.

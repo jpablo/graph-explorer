@@ -179,6 +179,10 @@ api_unwatch() {
   _api_call unwatch "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
+api_reset_view() {
+  _api_call session '{"command":"reset-view","params":{}}'
+}
+
 api_get() {
   _api_call get-document "$(_jq -n --arg path "$1" '{path: $path}')"
 }

@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.projects
 
+import com.raquo.airstream.core.EventStream
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
 import org.jpablo.graphexplorer.gxcore.model.{Binding, ContentHash}
@@ -65,6 +66,21 @@ trait DiagramLibrary:
     * browser library has no origin to bind to, because it has no filesystem.
     */
   def recordsBoundTo(path: String): List[BoundRecord] = Nil
+
+  /** The record as somebody ELSE just changed it (D7.3).
+    *
+    * A stream that only an OUTSIDE write feeds. `createProjectPersistence`
+    * hands back a `Var` that this view and the library both write to, and no
+    * consumer of that `Var` can tell the two apart: an echo of the view's own
+    * write carries the snapshot from when it was scheduled, so it arrives
+    * holding text the editor has already moved past and reads exactly like
+    * somebody else's change.
+    *
+    * Empty on `localStorage`, and that is the truth rather than a stub: a
+    * browser library has no second writer. Nothing else can change a record
+    * behind an open tab.
+    */
+  def recordChangedExternally(id: ProjectId): EventStream[PersistedDiagramState] = EventStream.empty
 
   /** The file this record is bound to, if it has one (§8).
     *

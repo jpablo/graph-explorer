@@ -114,6 +114,32 @@ trait Persistence:
               DesktopDocumentRegistry.markConflict(session, current.revision, current.sourceText)
       case _ => ()
 
+  /** Follow the record when somebody else changes it (D7.3).
+    *
+    * The missing return path. `restorePersistedState` reads `persistence.initial`
+    * ONCE, and for a long time that was the only read: the library set its `Var`
+    * when a record changed under an open view, and nothing consumed it. A
+    * `gx set`, or a pull from an origin file, landed in the record correctly
+    * and stayed off the screen until the view was reopened.
+    *
+    * That also broke the two resolution buttons in §8. "Take the file's
+    * version" wrote the record, the strip cleared because the state really had
+    * resolved — and the person kept looking at the old text.
+    *
+    * Only the SOURCE is adopted here. Two gates stand in front of it, and
+    * neither is this method's: `DiagramPersistence.external` drops this
+    * viewer's own writes, and `createProjectPersistence` refuses to set its
+    * `Var` at all while this view has a write pending — it warns instead. So an
+    * event arriving here is somebody else's, made while the person was idle.
+    */
+  private def followRecord(): Unit =
+    target match
+      case ViewTarget.LibraryDiagram(_) =>
+        persistence.external.foreach: next =>
+          if sourceText.now() != next.source then
+            replaceSourceDetectingFormat(next.source)
+      case _ => ()
+
   /** Listen to this record's origin, from the moment it opens (§8).
     *
     * The symmetric half of [[followDocumentSession]]. A loose file arrives with
@@ -138,6 +164,20 @@ trait Persistence:
         Library.originPathOf(id).foreach(DesktopIpc.openDocument)
       case _ => ()
 
+  /** True when a file sits behind this document: a loose file, or a record
+    * with a binding to a file (§8).
+    *
+    * A canvas edit writes the whole graph again, and the file then takes that
+    * text. So `InternalPhases` refuses a canvas edit that would drop content
+    * the graph does not model. A `def`, because a record can get or lose its
+    * binding while it is open.
+    */
+  def isFileBacked: Boolean =
+    target match
+      case ViewTarget.LooseFile(_)       => true
+      case ViewTarget.LibraryDiagram(id) => Library.originPathOf(id).isDefined
+      case ViewTarget.Example(_, _)      => false
+
   /** The same question as [[documentDirty]], answered now rather than observed.
     *
     * A navigation guard has to decide inside the click that asks for it (§7.4),
@@ -153,6 +193,26 @@ trait Persistence:
   /** The file changed under an edit, and both versions are kept (§7.3). */
   lazy val documentConflict: Signal[Option[DesktopDocumentRegistry.Conflict]] =
     documentSession.map(_.flatMap(_.conflict)).distinct
+
+  /** Resolve this viewer's loose-file conflict.
+    *
+    * Both answers accept the file's revision as the new save base. The viewer
+    * must also advance `lastAdopted` before the registry emits that new base.
+    * Otherwise the active session follower compares the registry update with
+    * the old base and immediately creates the same conflict again.
+    *
+    * @param adoptRemoteText
+    *   true replaces the editor with the file's text; false keeps the local
+    *   edit, which stays dirty until it is saved.
+    */
+  def resolveDocumentConflict(adoptRemoteText: Boolean): Unit =
+    target match
+      case ViewTarget.LooseFile(session) =>
+        DesktopDocumentRegistry.get(session).flatMap(_.conflict).foreach: remote =>
+          lastAdopted = remote.text
+          DesktopDocumentRegistry.acceptRemote(session)
+          if adoptRemoteText then replaceSourceDetectingFormat(remote.text)
+      case _ => ()
 
   /** ViewerSettings below is deliberately NOT branched by the target: theme,
     * panel widths and the like are app-wide preferences, and losing a theme
@@ -308,6 +368,7 @@ trait Persistence:
     restorePersistedState()
     setupStateSynchronization()
     followDocumentSession()
+    followRecord()
     watchOrigin()
 
   /** Release the store when the view goes away (§10).

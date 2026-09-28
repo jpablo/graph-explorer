@@ -156,7 +156,7 @@ object Viewer:
       // delivering an open. Announcing it before `Library.install` had run
       // would let an early open be answered "no such diagram" by a library that
       // had simply not loaded yet.
-      DesktopOpenRequests.install(router.navigateTo, id => Library.projectExists(ProjectId(id)))
+      DesktopOpenRequests.install(router.tryNavigateTo, id => Library.projectExists(ProjectId(id)))
 
       Graphviz.build().foreach: (graphviz: Graphviz) =>
         dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)
@@ -226,6 +226,10 @@ object Viewer:
           // The session tier answers from HERE (D7.2): a socket client's "what is
           // selected" has no answer anywhere else.
           SessionCommands.attach(state)
+          // The open handshake settles only after this viewer has attached and
+          // accepted its source. The session target is installed first so an
+          // immediate session command is safe after `gx open` returns.
+          DesktopOpenRequests.attach(state)
 
           TopLevel(state, router, Commands(state, routerCmds), exampleName.map(exampleBanner(_, state, routerCmds)))
             .amend(onUnmountCallback { _ =>
@@ -235,6 +239,7 @@ object Viewer:
               // by a viewer nobody was looking at. The document bridge no
               // longer needs one at all: a viewer follows its OWN session.
               SessionCommands.detach(state)
+              DesktopOpenRequests.detach(state)
               router.clearNavigationGuard(leaveGuard)
               DesktopClose.detach(state)
               dom.window.removeEventListener("beforeunload", warnOnClose)

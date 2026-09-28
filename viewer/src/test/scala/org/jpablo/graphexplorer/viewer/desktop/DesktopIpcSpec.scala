@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.desktop
 import munit.FunSuite
 import org.jpablo.graphexplorer.router.Route
 import org.jpablo.graphexplorer.gxcore.model.ContentHash
-import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
+import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
@@ -316,6 +316,28 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     assertEquals(before, after)
     assertEquals(after, Route.LooseDocument(first.id.value))
     DesktopDocumentRegistry.reset()
+
+  test("open activation waits for parsing and reports parse failures"):
+    val route  = Route.ProjectDetail("architecture")
+    val target = ViewTarget.library("architecture")
+
+    assertEquals(
+      DesktopOpenRequests.activation(route, target, DiagramLoadStatus.Loading),
+      DesktopOpenRequests.Activation.Waiting
+    )
+    assertEquals(
+      DesktopOpenRequests.activation(route, target, DiagramLoadStatus.Ready),
+      DesktopOpenRequests.Activation.Displayed
+    )
+    assertEquals(
+      DesktopOpenRequests.activation(route, target, DiagramLoadStatus.Failed("bad syntax")),
+      DesktopOpenRequests.Activation.Rejected("PARSE_FAILED", "bad syntax")
+    )
+    assertEquals(
+      DesktopOpenRequests.activation(route, ViewTarget.library("other"), DiagramLoadStatus.Ready),
+      DesktopOpenRequests.Activation.Waiting,
+      "an old live viewer must not acknowledge the new route"
+    )
 
   // --------------------------------------------- the tiers that still aim
   //
