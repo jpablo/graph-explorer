@@ -48,11 +48,22 @@
             <a href="#download">Download</a>
             <a href="https://github.com/jpablo/graph-explorer">GitHub</a>
         </nav>
-        <a class="button button-small" href="/app" data-library-link>Open the web app</a>
+        <a class="button button-small" href="/app"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>Open the web app</a>
     </div>
 </header>
 
 <main id="main">
+
+    <!-- For a visitor who has diagrams in the web app. A bookmark to
+         graph-explorer.net used to open the web app, and now opens this page.
+         site.js shows the bar, and hides it for good when the visitor closes it. -->
+    <aside class="moved-bar" aria-label="The web app moved" data-moved-bar hidden>
+        <div class="wrap moved-row">
+            <p data-moved-text>The web app moved to graph-explorer.net/app.</p>
+            <a class="button button-primary button-small" href="/app"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>Open the web app</a>
+            <button class="close" type="button" aria-label="Close" data-moved-close><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+    </aside>
 
     <section class="hero" aria-labelledby="hero-title">
         <div class="wrap hero-text">
@@ -64,9 +75,10 @@
             </p>
             <div class="actions">
                 <a class="button button-primary" href="https://github.com/jpablo/graph-explorer/releases/latest"
-                   data-download="primary">Download the desktop app</a>
-                <a class="button" href="/app" data-library-link>Open the web app</a>
+                   data-download="primary"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 19h14"/></svg><span data-download-label>Download the desktop app</span></a>
+                <a class="button" href="/app"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>Open the web app</a>
             </div>
+            <p class="library-note" data-library-note hidden></p>
             <p class="release-line" data-release-line>
                 For macOS, Windows, and Linux. Free and open source under the Apache 2.0 license.
             </p>
@@ -421,7 +433,7 @@ arrow:web-&gt;api/1    source=node:web  target=node:api
             <a href="https://github.com/jpablo/graph-explorer">Source code</a>
             <a href="https://github.com/jpablo/graph-explorer/issues">Report a problem</a>
             <a href="https://github.com/jpablo/graph-explorer#build-from-source">Build from source</a>
-            <a href="/app" data-library-link>Web app</a>
+            <a href="/app">Web app</a>
         </nav>
     </div>
 </footer>
