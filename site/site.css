@@ -19,6 +19,7 @@
     --rule: #c3ccc6;         /* drafting base-300 */
     --action: #0b5e7d;       /* drafting primary: cyan drafting ink */
     --action-ink: #eaf3f7;
+    --action-soft: #dfecf1;  /* a light wash of --action, for notices */
     --mark: #8a5a12;         /* drafting accent: the annotation color */
     --mark-soft: #f3e7d3;
     --code-bg: #e9eeec;
@@ -43,6 +44,7 @@
         --rule: #3a4042;
         --action: #7fb2d9;   /* workbench secondary */
         --action-ink: #191b1c;
+        --action-soft: #243039;
         --mark: #d9a441;     /* workbench primary: amber */
         --mark-soft: #3b3222;
         --code-bg: #262a2b;
@@ -75,6 +77,10 @@ body {
     line-height: 1.55;
     font-variation-settings: "wdth" 100;
     -webkit-font-smoothing: antialiased;
+}
+
+[hidden] {
+    display: none !important;
 }
 
 img,
@@ -216,6 +222,17 @@ p {
     line-height: 1.2;
 }
 
+.icon {
+    flex: none;
+    width: 1.15em;
+    height: 1.15em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .button:hover {
     background: var(--paper-2);
 }
@@ -296,6 +313,44 @@ p {
     }
 }
 
+/* ── The bar for returning visitors ──────────────────────────────────────── */
+
+.moved-bar {
+    background: var(--action-soft);
+    border-bottom: 1px solid var(--rule);
+}
+
+.moved-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding-block: 10px;
+}
+
+.moved-row p {
+    flex: 1 1 280px;
+    font-weight: 500;
+}
+
+.close {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
 /* ── Hero ────────────────────────────────────────────────────────────────── */
 
 .hero {
@@ -312,6 +367,10 @@ p {
     flex-wrap: wrap;
     gap: 12px;
     margin-top: 6px;
+}
+
+.library-note {
+    font-weight: 500;
 }
 
 .release-line {
