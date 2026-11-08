@@ -5,12 +5,13 @@ import org.jpablo.graphexplorer.gxcore.fs.{Documents, Hashing, LineEnding}
 
 import java.nio.file.{Files, Path}
 
-/** The bridge between the pure reconciler and a real file.
+/** These tests connect the pure reconciler to a real file.
   *
-  * `Reconciler` predicts `local` — the record's text hashed as it WOULD be
-  * stored — without writing anything. A caller that cannot write, such as the
-  * desktop's page, has to trust that prediction. This asserts it is exact
-  * against the real writer, on both line-ending conventions.
+  * `Reconciler` predicts `local`, the hash of the text of the diagram as the
+  * code WOULD store it. It writes nothing. A caller that cannot write, for
+  * example the page of the desktop, must trust that prediction. This spec
+  * makes sure that the prediction agrees with the real writer, for the two
+  * line-ending conventions.
   */
 class ReconcilerWriteSpec extends FunSuite:
 

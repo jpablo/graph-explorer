@@ -108,13 +108,13 @@ longer be trusted.
 | Method | Params | Result | Tier (D7.2) |
 |---|---|---|---|
 | `status` | — | running, version, pid, socket, watches, policy, limits, `unsavedInPage` | — |
-| `watch` | `path` | the watch descriptor | document |
-| `show` | `target` | the watch descriptor plus `focused` and `view` | **session** |
-| `unwatch` | `path` | `removed` | document |
-| `get-document` | `path` | `document` | document |
-| `put-document` | `path`, `text`, `baseRevision`, `source` | `document` | document |
-| `push-text` | `sessionId`, `text` | `pushed` | session |
-| `session` | `command`, `params` | whatever the page answers | **session** |
+| `watch` | `path` | the watch descriptor | source |
+| `show` | `target` | the watch descriptor plus `focused` and `view` | **live view** |
+| `unwatch` | `path` | `removed` | source |
+| `get-document` | `path` | `document` | source |
+| `put-document` | `path`, `text`, `baseRevision`, `source` | `document` | source |
+| `push-text` | `sessionId`, `text` | `pushed` | live view |
+| `live-view` | `command`, `params` | whatever the page answers | **live view** |
 
 `show` takes a TYPED target — `{kind: "library", diagramId}` or
 `{kind: "file", path}` — not a bare path. A record and a file have different
@@ -132,12 +132,12 @@ viewer was displayed.
 disk. A window close is refused while that is true, so it is worth being able to
 ask before doing anything disruptive.
 
-`session` and `push-text` are the methods the shell does not answer itself. They relay the
-frame to the webview as a `ge:session.command` event carrying a request id, and
-the page answers through the `session_reply` Tauri command; the shell correlates
-the id and replies on the socket. Five seconds, then `SESSION_TIMEOUT`. The page
-can refuse with `NO_SESSION` — "a desktop, but nothing on screen" — which is the
-session tier's defining limit rather than an error.
+`live-view` and `push-text` are the methods the shell does not answer itself. The shell
+sends the frame to the webview as a `ge:live-view.command` event with a request id.
+The page answers through the `live_view_reply` Tauri command. The shell matches the id
+and replies on the socket. The shell waits five seconds, then answers `LIVE_VIEW_TIMEOUT`.
+The page can refuse with `NO_LIVE_VIEW` — "a desktop, but nothing on screen". That is
+the defining limit of the live view tier, not an error.
 
 That inverts the webview's usual role: for this one tier it is a *server*. It
 gains nothing by it, since it can only answer a question the shell asked and
@@ -156,9 +156,11 @@ occur here.
 ## Error codes
 
 `INVALID_REQUEST`, `UNKNOWN_METHOD`, `RATE_LIMITED`, `PAYLOAD_TOO_LARGE`,
-`WATCH_FAILED`, `UNWATCH_FAILED`, `DOCUMENT_READ_FAILED`,
-`DOCUMENT_WRITE_FAILED`, `DOCUMENT_CONFLICT`, `PUSH_FAILED`, `NO_SESSION`,
-`SESSION_FAILED`, `SESSION_TIMEOUT`, `INTERNAL`.
+`STARTING`, `NO_WINDOW`, `WATCH_FAILED`, `UNWATCH_FAILED`,
+`DOCUMENT_NOT_FOUND`, `DOCUMENT_READ_FAILED`, `DOCUMENT_WRITE_FAILED`,
+`DOCUMENT_CONFLICT`, `DIAGRAM_NOT_FOUND`, `OPEN_DENIED`, `OPEN_TIMEOUT`,
+`PARSE_FAILED`, `ACTIVATION_REFUSED`, `VIEW_REJECTED`, `NO_LIVE_VIEW`,
+`LIVE_VIEW_FAILED`, `LIVE_VIEW_TIMEOUT`, `INTERNAL`.
 
 ## Implementations
 

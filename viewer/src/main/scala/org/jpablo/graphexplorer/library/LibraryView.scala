@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.projects
+package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
@@ -13,9 +13,10 @@ import org.jpablo.graphexplorer.viewer.widgets.{FilterChips, IconRadioGroup, Inp
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.state.{ProjectId, ThumbnailRenderer}
+import org.jpablo.graphexplorer.viewer.state.ThumbnailRenderer
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import scala.scalajs.js
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -40,10 +41,10 @@ object SortOption:
   def parse(stored: Option[String]): SortOption =
     stored.flatMap(name => values.find(_.toString == name)).getOrElse(default)
 
-/** How the library section draws its projects: thumbnail cards for browsing by
-  * shape, compact rows for scanning by name and date. Persisted as
-  * `ViewerSettings.libraryListMode`, so it names the two renderers rather than
-  * abstract "modes".
+/** How the library section shows its diagrams. Thumbnail cards help a person
+  * find a diagram by its shape. Compact rows help a person find a diagram by
+  * its name and its date. `ViewerSettings.libraryListMode` stores the value,
+  * so the cases name the two renderers and not abstract "modes".
   */
 enum LibraryViewMode derives CanEqual:
   case Cards, Rows
@@ -66,10 +67,10 @@ private def formatBadge(format: DiagramFormat) =
   * keyword (flowchart, sequence, ...) for Mermaid. Ghost, not outline — it
   * qualifies the format badge rather than competing with it.
   */
-private def kindBadge(info: ProjectCardInfo) =
+private def kindBadge(info: DiagramCardInfo) =
   info.diagramKind.map(kind => span(cls := "badge badge-xs badge-ghost shrink-0", kind))
 
-def ProjectsDirectoryView(
+def LibraryView(
     graphviz:       Graphviz,
     router:         Router,
     routerCmds:     RouterCommands,
@@ -183,7 +184,7 @@ def ProjectsDirectoryView(
     ),
     div(
       idAttr := "projects-body",
-      // Projects navbar with background
+      // The library navbar, with a background.
       div(
         cls := "navbar px-6",
         // left side
@@ -247,12 +248,12 @@ def ProjectsDirectoryView(
             cls := "h-8",
             span().plusCircleIcon,
             "Create Diagram",
-            onClick --> routerCmds.createProject.execute(Some(Some(minimalGraphText)))
+            onClick --> routerCmds.createDiagram.execute(Some(Some(minimalGraphText)))
           ).primary.small
         )
       ),
 
-      // Projects grid with search filter
+      // The grid of the diagrams, with the search filter.
       div(
         idAttr := "projects-grid",
         cls("list-mode") <-- viewModeVar.signal.map(_ == LibraryViewMode.Rows),
@@ -263,41 +264,43 @@ def ProjectsDirectoryView(
 
           val languages = DefaultDiagramLanguages(graphviz)
 
-          // Keyed on the directory alone: each entry is a synchronous localStorage read
-          // plus a full-document JSON parse, so it must NOT sit inside the search/sort/
-          // filter combine below (every debounce tick would rescan the whole library).
-          // Thumbnails stay lazy behind the IntersectionObserver regardless.
-          val cardInfoSignal: Signal[Map[ProjectId, ProjectCardInfo]] =
-            Library.directory.map: dir =>
-              dir.projects.flatMap(p => Library.projectCardInfo(p.id, languages).map(p.id -> _)).toMap
+          // The key is only the library index. Each entry is a synchronous
+          // `localStorage` read and a JSON parse of the full payload. Thus this
+          // must NOT be in the search, sort and filter combine below, because each
+          // debounce tick then reads the whole library again. The thumbnails stay
+          // lazy behind the IntersectionObserver in all cases.
+          val cardInfoSignal: Signal[Map[DiagramId, DiagramCardInfo]] =
+            Library.index.map: index =>
+              index.diagrams.flatMap(d => Library.diagramCardInfo(d.id, languages).map(d.id -> _)).toMap
 
-          Library.directory
+          Library.index
             .combineWithFn(debouncedSearch, sortOptionVar.signal, kindFilterVar.signal, cardInfoSignal, viewModeVar.signal):
-              (directory, searchTerm, sortOption, kindFilter, infos, viewMode) =>
+              (index, searchTerm, sortOption, kindFilter, infos, viewMode) =>
                 Telemetry.time(
                   "home.projects.computeCards",
-                  "projectsTotal" -> directory.projects.size,
+                  "projectsTotal" -> index.diagrams.size,
                   "searchLen"     -> searchTerm.length,
                   "sort"          -> sortOption.toString,
                   "kind"          -> kindFilter.fold("AllKinds")(_.toString),
                   "view"          -> viewMode.toString
                 ):
-                  // Search and Title-sort see what the card shows (the diagram's title for
-                  // never-renamed projects), but the stored name keeps matching too.
-                  def shownName(p: ProjectInfo) = infos.get(p.id).map(_.displayName).getOrElse(p.name)
-                  val filteredProjects = directory.projects
-                    .filter(p => s"${p.name} ${shownName(p)}".toLowerCase.contains(searchTerm.toLowerCase))
-                    .filter(p => kindFilter.forall(k => infos.get(p.id).exists(_.format == k)))
+                  // The search and the Title sort use the name that the card shows.
+                  // For a diagram that a person did not rename, that is the title of
+                  // the diagram. The stored name also still matches.
+                  def shownName(d: DiagramSummary) = infos.get(d.id).map(_.displayName).getOrElse(d.name)
+                  val filteredDiagrams = index.diagrams
+                    .filter(d => s"${d.name} ${shownName(d)}".toLowerCase.contains(searchTerm.toLowerCase))
+                    .filter(d => kindFilter.forall(k => infos.get(d.id).exists(_.format == k)))
                   val sorted =
                     sortOption match
-                      case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
-                      case SortOption.Title        => filteredProjects.sortBy(shownName(_).toLowerCase)
-                      case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
+                      case SortOption.LastModified => filteredDiagrams.sortBy(-_.lastModified)
+                      case SortOption.Title        => filteredDiagrams.sortBy(shownName(_).toLowerCase)
+                      case SortOption.CreationDate => filteredDiagrams.sortBy(-_.createdAt)
                   Telemetry.log("home.projects.cardsReady", "projectsShown" -> sorted.size)
                   val render = viewMode match
-                    case LibraryViewMode.Cards => projectCard(graphviz, router, _, _)
-                    case LibraryViewMode.Rows  => projectRow(graphviz, router, _, _)
-                  sorted.map(p => render(infos.get(p.id), p))
+                    case LibraryViewMode.Cards => diagramCard(graphviz, router, _, _)
+                    case LibraryViewMode.Rows  => diagramRow(graphviz, router, _, _)
+                  sorted.map(d => render(infos.get(d.id), d))
         }
       ),
 
@@ -440,25 +443,25 @@ private def exampleCard(
   )
 }
 
-/** The project's rendered thumbnail: content read, rendered, and wrapped to fill
-  * whatever box the caller puts it in. Shared by the card and the list row, so
-  * the two modes cannot drift in how a diagram is previewed.
+/** The rendered thumbnail of a diagram. The function reads the source, renders
+  * it, and wraps it to fill the box of the caller. The card and the list row
+  * both use it, so the two modes show a diagram preview in the same way.
   */
-private def projectThumbnail(graphviz: Graphviz, project: ProjectInfo): Signal[Div] =
-  Library.getProjectContent(project.id).distinct
+private def diagramThumbnail(graphviz: Graphviz, diagram: DiagramSummary): Signal[Div] =
+  Library.diagramSource(diagram.id).distinct
     .flatMapSwitch: str =>
       Telemetry.log(
         "home.thumb.start",
-        "projectId"   -> project.id.value,
-        "name"        -> project.name,
+        "projectId"   -> diagram.id.value,
+        "name"        -> diagram.name,
         "sourceChars" -> str.length
       )
       ThumbnailRenderer.processDotText(
         graphviz,
         DotText(str),
         telemetryContext = Seq(
-          "projectId" -> project.id.value,
-          "name"      -> project.name
+          "projectId" -> diagram.id.value,
+          "name"      -> diagram.name
         )
       )
     .map: svgElement =>
@@ -477,15 +480,15 @@ private def projectThumbnail(graphviz: Graphviz, project: ProjectInfo): Signal[D
         )
       )
 
-private def logThumbVisible(project: ProjectInfo): Unit =
-  Telemetry.log("home.thumb.visible", "projectId" -> project.id.value, "name" -> project.name)
+private def logThumbVisible(diagram: DiagramSummary): Unit =
+  Telemetry.log("home.thumb.visible", "projectId" -> diagram.id.value, "name" -> diagram.name)
 
-private def projectCard(graphviz: Graphviz, router: Router, info: Option[ProjectCardInfo], project: ProjectInfo) =
+private def diagramCard(graphviz: Graphviz, router: Router, info: Option[DiagramCardInfo], diagram: DiagramSummary) =
   val previewEnabled = Var(false)
 
   def enablePreview(): Unit =
     if !previewEnabled.now() then
-      logThumbVisible(project)
+      logThumbVisible(diagram)
       previewEnabled.set(true)
 
   div(
@@ -504,9 +507,9 @@ private def projectCard(graphviz: Graphviz, router: Router, info: Option[Project
               )
             )
           case true =>
-            projectThumbnail(graphviz, project)
+            diagramThumbnail(graphviz, diagram)
         ,
-        onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
+        onClick.preventDefault --> router.navigateTo(Route.Diagram(diagram.id.value))
       )
     ),
     div(
@@ -518,10 +521,10 @@ private def projectCard(graphviz: Graphviz, router: Router, info: Option[Project
         h2(
           cls := "card-title",
           a(
-            href := s"#/${project.id.value}",
+            href := s"#/${diagram.id.value}",
             cls  := "flex items-center gap-2 hover:text-primary transition-colors",
-            info.map(_.displayName).getOrElse(project.name),
-            onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
+            info.map(_.displayName).getOrElse(diagram.name),
+            onClick.preventDefault --> router.navigateTo(Route.Diagram(diagram.id.value))
           ),
           info.map(i => formatBadge(i.format)),
           info.flatMap(kindBadge)
@@ -529,8 +532,8 @@ private def projectCard(graphviz: Graphviz, router: Router, info: Option[Project
         // Neutral until you reach for it: a wall of cards should not read as a wall of red
         // buttons, but the hover has to say plainly that this one destroys something.
         IconButton("bi-trash", "Delete diagram", TooltipPos.left, cls := "danger")(
-          if dom.window.confirm("Are you sure you want to delete this project?") then
-            Library.deleteProject(project.id)
+          if dom.window.confirm("Delete this diagram?") then
+            Library.deleteDiagram(diagram.id)
         )
       ),
 
@@ -540,63 +543,63 @@ private def projectCard(graphviz: Graphviz, router: Router, info: Option[Project
         div(
           cls := "flex items-center gap-1",
           span().listIcon,
-          s"Last modified: ${formatDate(project.lastModified)}"
+          s"Last modified: ${formatDate(diagram.lastModified)}"
         ),
         div(
           cls := "flex items-center gap-1",
           span().fileCodeIcon,
-          s"Created: ${formatDate(project.createdAt)}"
+          s"Created: ${formatDate(diagram.createdAt)}"
         )
       )
     )
   )
 
-/** The list-mode spelling of a project: one compact, fully clickable row —
-  * a small (still lazy) thumbnail for recognition, then name, badge, dates as
-  * scannable columns. Same information as the card minus the date icons; the
-  * delete control keeps the card's exact behavior.
+/** A diagram in list mode: one compact row that a person can click at any
+  * point. The row has a small lazy thumbnail, then the name, the badge, and
+  * the dates in columns. It shows the same information as the card, without
+  * the date icons. The delete control works the same as on the card.
   */
-private def projectRow(graphviz: Graphviz, router: Router, info: Option[ProjectCardInfo], project: ProjectInfo) =
+private def diagramRow(graphviz: Graphviz, router: Router, info: Option[DiagramCardInfo], diagram: DiagramSummary) =
   val previewEnabled = Var(false)
 
   def enablePreview(): Unit =
     if !previewEnabled.now() then
-      logThumbVisible(project)
+      logThumbVisible(diagram)
       previewEnabled.set(true)
 
   div(
     cls := "project-row",
-    onClick --> router.navigateTo(Route.ProjectDetail(project.id.value)),
+    onClick --> router.navigateTo(Route.Diagram(diagram.id.value)),
     div(
       cls := "row-thumb",
       enableWhenFirstVisible(() => enablePreview()),
       // Too small a box for a "Loading preview…" legend; the bg reads as a placeholder.
       child.maybe <-- previewEnabled.signal.flatMapSwitch:
         case false => Signal.fromValue(None)
-        case true  => projectThumbnail(graphviz, project).map(Some(_))
+        case true  => diagramThumbnail(graphviz, diagram).map(Some(_))
     ),
     div(
       cls := "flex-1 min-w-0 flex items-center gap-2",
       a(
-        href := s"#/${project.id.value}",
+        href := s"#/${diagram.id.value}",
         cls  := "font-medium truncate hover:text-primary transition-colors",
-        info.map(_.displayName).getOrElse(project.name),
+        info.map(_.displayName).getOrElse(diagram.name),
         // The row already navigates; the anchor exists so middle-click and
         // "open in new tab" keep their usual meaning.
-        onClick.preventDefault.stopPropagation --> router.navigateTo(Route.ProjectDetail(project.id.value))
+        onClick.preventDefault.stopPropagation --> router.navigateTo(Route.Diagram(diagram.id.value))
       ),
       info.map(i => formatBadge(i.format)),
       info.flatMap(kindBadge)
     ),
-    span(cls := "row-date hidden sm:block", s"Modified ${formatDate(project.lastModified)}"),
-    span(cls := "row-date hidden md:block", s"Created ${formatDate(project.createdAt)}"),
+    span(cls := "row-date hidden sm:block", s"Modified ${formatDate(diagram.lastModified)}"),
+    span(cls := "row-date hidden md:block", s"Created ${formatDate(diagram.createdAt)}"),
     span(
-      // The row navigates on click; without this fence, deleting would also open
-      // the project (or, post-delete, a dead route).
+      // A click on the row opens the diagram. Without this fence, a delete also
+      // opens the diagram, or a dead route after the delete.
       onClick.stopPropagation --> Observer.empty,
       IconButton("bi-trash", "Delete diagram", TooltipPos.left, cls := "danger")(
-        if dom.window.confirm("Are you sure you want to delete this project?") then
-          Library.deleteProject(project.id)
+        if dom.window.confirm("Delete this diagram?") then
+          Library.deleteDiagram(diagram.id)
       )
     )
   )

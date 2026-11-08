@@ -24,12 +24,12 @@ import scala.util.hashing.MurmurHash3
   * warm library parses SVG strings and lays out nothing. Only the first sighting
   * of a given source pays.
   *
-  * IndexedDB rather than localStorage on purpose. localStorage is synchronous —
-  * reading a megabyte of SVG on the main thread would reintroduce, as a blocking
-  * read, the exact stall this exists to remove. It is also a database of its
-  * own, disjoint from the project data in localStorage (ProjectsStorage.rawKey):
-  * nothing here can corrupt a diagram, and dropping the whole store is always
-  * safe — the worst case is one slow scroll while it refills.
+  * The cache uses IndexedDB, not localStorage. localStorage is synchronous. A
+  * read of a megabyte of SVG on the main thread blocks, and causes the stall
+  * that this cache removes. IndexedDB is also a separate database, apart from
+  * the diagram data in localStorage (BrowserLibrary.rawKey). Thus nothing here
+  * can damage a diagram. A delete of the whole store is always safe: the worst
+  * result is one slow scroll while the cache fills again.
   */
 private[state] object ThumbnailDiskCache:
 

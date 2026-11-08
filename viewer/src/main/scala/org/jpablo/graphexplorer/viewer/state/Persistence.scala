@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
-import org.jpablo.graphexplorer.projects.Library
+import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.router.Route
 
 /** Why a view is being left, and therefore what happens once the person
@@ -30,7 +30,7 @@ trait Persistence:
     *
     * The choice is made once, in `DiagramPersistence.forTarget`, and that
     * function is total over `ViewTarget`. Before this, every viewer opened a
-    * library handle keyed by a `ProjectId`, and the only way to keep an example
+    * library handle keyed by a `DiagramId`, and the only way to keep an example
     * out of the library was to remember not to call for one. A loose file could
     * not be kept out at all.
     */
@@ -51,11 +51,11 @@ trait Persistence:
       case ViewTarget.LooseFile(session) => DesktopDocumentRegistry.signal(session)
       case _                             => Signal.fromValue(None)
 
-  /** The editor holds an edit the file does not have (§7.3, `local` vs `base`).
+  /** The editor holds an edit that the file does not have (§7.3, `local` vs `base`).
     *
-    * False for a library record, and not because a record cannot change: a
-    * record saves on every keystroke, so it is never behind. "Unsaved" is a
-    * state only a file can be in.
+    * It is false for a diagram, but a diagram can change. A diagram saves on
+    * each keystroke, so it is never behind. Only a file can be in the
+    * "unsaved" state.
     */
   lazy val documentDirty: Signal[Boolean] =
     target match
@@ -114,68 +114,70 @@ trait Persistence:
               DesktopDocumentRegistry.markConflict(session, current.revision, current.sourceText)
       case _ => ()
 
-  /** Follow the record when somebody else changes it (D7.3).
+  /** Follow the diagram when a different writer changes it (D7.3).
     *
-    * The missing return path. `restorePersistedState` reads `persistence.initial`
-    * ONCE, and for a long time that was the only read: the library set its `Var`
-    * when a record changed under an open view, and nothing consumed it. A
-    * `gx set`, or a pull from an origin file, landed in the record correctly
-    * and stayed off the screen until the view was reopened.
+    * Before, this return path did not exist. `restorePersistedState` reads
+    * `persistence.initial` ONCE. For a long time, that was the only read. The
+    * library set its `Var` when a diagram changed under an open view, and
+    * nothing used the value. A `gx set`, or a pull from an origin file, went
+    * into the diagram correctly. It did not show until the view opened again.
     *
-    * That also broke the two resolution buttons in §8. "Take the file's
-    * version" wrote the record, the strip cleared because the state really had
-    * resolved — and the person kept looking at the old text.
+    * That also broke the two resolution buttons of §8. "Take the file's
+    * version" wrote the diagram, and the strip went away because the state
+    * was resolved. But the person still saw the old text.
     *
-    * Only the SOURCE is adopted here. Two gates stand in front of it, and
-    * neither is this method's: `DiagramPersistence.external` drops this
-    * viewer's own writes, and `createProjectPersistence` refuses to set its
-    * `Var` at all while this view has a write pending — it warns instead. So an
-    * event arriving here is somebody else's, made while the person was idle.
+    * This method adopts only the SOURCE. Two gates are before it, and neither
+    * gate is in this method. `DiagramPersistence.external` removes the writes
+    * of this viewer. `createDiagramPersistence` does not set its `Var` while
+    * this view has a write that waits, and it warns. Thus an event here comes
+    * from a different writer, at a time when the person did not edit.
     */
-  private def followRecord(): Unit =
+  private def followDiagram(): Unit =
     target match
-      case ViewTarget.LibraryDiagram(_) =>
+      case ViewTarget.Diagram(_) =>
         persistence.external.foreach: next =>
           if sourceText.now() != next.source then
             replaceSourceDetectingFormat(next.source)
       case _ => ()
 
-  /** Listen to this record's origin, from the moment it opens (§8).
+  /** Listen to the origin of this diagram, from the moment that it opens (§8).
     *
-    * The symmetric half of [[followDocumentSession]]. A loose file arrives with
-    * its text and a session; a record arrives with a BINDING and nothing
-    * listening to the file behind it. Phase 3 decided what to do with an origin
-    * change and never asked for one, so the divergence strip was reachable only
-    * after `gx open` had watched the file.
+    * This is the other half of [[followDocumentSession]]. A loose file comes
+    * with its text and a session. A diagram comes with a BINDING, and nothing
+    * listens to the file behind it. Phase 3 decided what to do with an origin
+    * change, but never asked for one. Thus the divergence strip showed only
+    * after `gx open` watched the file.
     *
-    * Fire and forget. The reply carries the bytes and is discarded: the watch
-    * emits a document event, and that event is the one route that reconciles
-    * against the record instead of overwriting it.
+    * The call does not wait for a result. The reply holds the bytes, and the
+    * method discards them. The watch sends a document event. That event is
+    * the one route that reconciles against the diagram, and does not
+    * overwrite it.
     *
-    * The watch OUTLIVES this view, and that is deliberate — see
-    * `DesktopIpc.openDocument`. Watches are keyed by path and shared with
-    * `gx watch`, so releasing one on unmount would stop a watch this page never
-    * started. What it costs is one watch per bound record visited in a session.
+    * The watch stays after this view closes, and that is intentional (see
+    * `DesktopIpc.openDocument`). A watch has the path as its key, and
+    * `gx watch` shares it. A release on unmount can stop a watch that this
+    * page did not start. The cost is one watch for each bound diagram that
+    * the person opens in a session.
     */
   private def watchOrigin(): Unit =
     target match
-      case ViewTarget.LibraryDiagram(id) =>
+      case ViewTarget.Diagram(id) =>
         import scala.concurrent.ExecutionContext.Implicits.global
         Library.originPathOf(id).foreach(DesktopIpc.openDocument)
       case _ => ()
 
-  /** True when a file sits behind this document: a loose file, or a record
+  /** True when a file is behind this document: a loose file, or a diagram
     * with a binding to a file (§8).
     *
     * A canvas edit writes the whole graph again, and the file then takes that
-    * text. So `InternalPhases` refuses a canvas edit that would drop content
-    * the graph does not model. A `def`, because a record can get or lose its
-    * binding while it is open.
+    * text. Thus `InternalPhases` refuses a canvas edit that removes content
+    * that the graph does not model. This is a `def`, because a diagram can get
+    * or lose its binding while it is open.
     */
   def isFileBacked: Boolean =
     target match
       case ViewTarget.LooseFile(_)       => true
-      case ViewTarget.LibraryDiagram(id) => Library.originPathOf(id).isDefined
+      case ViewTarget.Diagram(id)        => Library.originPathOf(id).isDefined
       case ViewTarget.Example(_, _)      => false
 
   /** The same question as [[documentDirty]], answered now rather than observed.
@@ -231,13 +233,13 @@ trait Persistence:
     restoredDiagramState.format
       .flatMap(format => Try(DiagramFormat.valueOf(format)).toOption)
       .foreach(formatSelection.set)
-    // After the format, not with it: turning auto-detect on re-derives the
-    // language from the text, and it should do that over the RESTORED format.
-    // `None` means "saved before the mode existed", and those projects get the
-    // default too — an explicit `Some(false)` is the only thing that keeps it
-    // off. Safe to apply retroactively because auto-detect moves only on
-    // evidence: a stored format is overruled only by a document that plainly
-    // declares a different language, which was a mislabelled project anyway.
+    // Do this after the format, not with it. When auto-detect goes on, it gets
+    // the language from the text again, and it must do that over the RESTORED
+    // format. `None` means "saved before the mode existed", and those diagrams
+    // also get the default. Only an explicit `Some(false)` keeps it off. This
+    // is safe for old diagrams, because auto-detect changes the format only on
+    // evidence. Only a source that clearly declares a different language
+    // overrules a stored format, and that diagram had the wrong format before.
     autoDetectFormat.set(restoredDiagramState.autoDetectFormat.getOrElse(true))
 
     Var.set(
@@ -350,15 +352,15 @@ trait Persistence:
 
   /** Save this diagram, because the person asked (§11).
     *
-    * A typed operation on the viewer, so ⌘S reaches THIS diagram's store. The
-    * keyboard handler used to reach through `window.__graphExplorerDesktopBridge`
-    * for a destination that was process-global: one shared reference, whichever
-    * viewer was on screen. That is how an autosave could update one record while
-    * ⌘S wrote a different file.
+    * This is a typed operation on the viewer, so ⌘S goes to the store of THIS
+    * diagram. Before, the keyboard handler used
+    * `window.__graphExplorerDesktopBridge` to find a destination for the whole
+    * process: one shared reference, for the viewer on the screen at that time.
+    * Thus an autosave could change one diagram while ⌘S wrote a different file.
     *
-    * There is no destination to check any more. `persistence` belongs to this
-    * viewer and was chosen from this viewer's target, so a save cannot name
-    * anything else.
+    * The method has no destination to check now. `persistence` belongs to this
+    * viewer, and the target of this viewer selected it. Thus a save cannot
+    * name a different store.
     */
   def save()(using ExecutionContext): Future[SaveResult] =
     persistence.saveNow(snapshot())
@@ -368,7 +370,7 @@ trait Persistence:
     restorePersistedState()
     setupStateSynchronization()
     followDocumentSession()
-    followRecord()
+    followDiagram()
     watchOrigin()
 
   /** Release the store when the view goes away (§10).
@@ -387,16 +389,18 @@ case class PersistedDiagramState(
     projectName:    String = "",
     source:         String = "",
     format:         Option[String] = None,
-    // None for every project saved before the mode existed, which reads as off.
+    // None for each diagram that the app saved before the mode existed.
+    // `restorePersistedState` reads None as on.
     autoDetectFormat: Option[Boolean] = None
 ) derives ReadWriter
 
 object PersistedDiagramState:
   val minimalGraphText = "digraph G {\n}"
 
-  /** The name given to never-renamed projects. Display sites substitute the diagram's
-    * own declared title for it (ViewerState.displayTitle, Library.projectCardInfo);
-    * the stored name only changes when the user renames, so a rename always wins.
+  /** The name of a diagram that the person did not rename. The display uses the title
+    * that the diagram declares in place of this name (ViewerState.displayTitle,
+    * Library.diagramCardInfo). The stored name changes only when the person renames the
+    * diagram, so a rename always wins.
     */
   val defaultProjectName = "Untitled"
 

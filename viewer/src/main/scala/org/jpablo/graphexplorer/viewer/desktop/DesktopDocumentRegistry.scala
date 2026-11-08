@@ -83,7 +83,7 @@ object DesktopDocumentRegistry:
   /** The session for a path, if the page holds one.
     *
     * An exact comparison, and it needs no separator normalising the way
-    * `DesktopLibrary.recordsBoundTo` does. Both sides of this one come from the
+    * `DesktopLibrary.diagramsBoundTo` does. Both sides of this one come from the
     * shell's `watch.path`: the document event that recorded the session, and
     * the open request that looks it up. They agree by construction.
     *

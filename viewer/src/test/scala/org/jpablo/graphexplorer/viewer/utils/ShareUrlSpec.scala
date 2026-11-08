@@ -1,9 +1,9 @@
 package org.jpablo.graphexplorer.viewer.utils
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.state.ProjectId
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.utils.ShareUrl
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 import scala.scalajs.js
 
 class ShareUrlSpec extends FunSuite:
@@ -26,7 +26,7 @@ class ShareUrlSpec extends FunSuite:
   test("in the desktop app, a share link goes to the public web app, not to the webview origin") {
     stubDesktop()
 
-    val url = ShareUrl.buildForProject(ProjectId("abc123"), dot)
+    val url = ShareUrl.buildForDiagram(DiagramId("abc123"), dot)
 
     // Nobody else can open the webview origin. The link must name the site.
     assertEquals(url, s"https://graph-explorer.net/diagrams/abc123$query")
@@ -34,12 +34,12 @@ class ShareUrlSpec extends FunSuite:
 
   test("on the web, a share link keeps the origin of the page") {
     // Local dev and previews must link to themselves, not to the live site.
-    val url = ShareUrl.buildForProject(ProjectId("abc123"), dot)
+    val url = ShareUrl.buildForDiagram(DiagramId("abc123"), dot)
 
     assertEquals(url, s"${dom.window.location.origin}/diagrams/abc123$query")
   }
 
-  test("buildForProject encodes DOT and can be read back") {
+  test("buildForDiagram encodes DOT and can be read back") {
     // Minimal window/location stub for tests
     js.eval(
       """
@@ -50,10 +50,10 @@ class ShareUrlSpec extends FunSuite:
       """
     )
 
-    val pid = ProjectId("abc123")
+    val pid = DiagramId("abc123")
     val dot = "digraph G {\n  a -> b;\n  label=\"A & B\";\n}"
 
-    val url = ShareUrl.buildForProject(pid, dot)
+    val url = ShareUrl.buildForDiagram(pid, dot)
 
     // Extract query part and read it back via URLSearchParams
     val query = url.dropWhile(_ != '?')

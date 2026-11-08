@@ -1,33 +1,34 @@
-package org.jpablo.graphexplorer.projects
+package org.jpablo.graphexplorer.library
 
 import org.jpablo.graphexplorer.gxcore.command.ElementRef
 import org.jpablo.graphexplorer.gxcore.model.*
-import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
+import org.jpablo.graphexplorer.viewer.models.{DiagramId, ElementIds, GroupId}
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState
 
-/** The viewer's saved page state, as a library record and back (D7.3).
+/** The saved page state of the viewer, as a `Diagram` and back (D7.3).
   *
-  * Under D7.3 the store IS the live state, so these two are the same thing in
-  * two vocabularies rather than two things kept in sync. Every field has to
-  * survive the round trip or a UI edit would quietly drop whatever the mapping
-  * forgot.
+  * Under D7.3 the store IS the live state. Thus the two types are one thing
+  * with two sets of names, and not two things that the code keeps in sync.
+  * Each field must stay through the round trip. If not, a UI edit silently
+  * loses each field that this object forgot.
   *
-  * Two traps live here:
+  * Two traps are here:
   *
-  *   - `PersistedDiagramState.source` is the diagram TEXT, not where it came
-  *     from. The record spells it `text` and uses `origin` for provenance.
-  *   - view state is stored in the `ElementRef` spelling (`node:a`, not `a`),
-  *     because a `Set[String]` of bare ids cannot say whether `n1` meant the
-  *     node or the group. The record tier already writes this spelling, so a
-  *     headless `gx run hide` and a click in the UI produce the same bytes.
+  *   - `PersistedDiagramState.source` is the TEXT of the diagram, not the
+  *     place it came from. A `Diagram` calls it `text`, and uses `origin` for
+  *     the place.
+  *   - The view state uses the `ElementRef` form (`node:a`, not `a`).
+  *     A `Set[String]` of bare ids cannot tell if `n1` is the node or the
+  *     group. The metadata commands already write this form, so a
+  *     headless `gx run hide` and a click in the UI give the same bytes.
   */
 object LibraryMapping:
 
-  /** Ids the record carries that this viewer cannot parse are KEPT.
+  /** The mapping KEEPS the ids in a diagram that this viewer cannot parse.
     *
-    * A record may have been written by a newer `gx` that knows a kind this
-    * build does not. Dropping the unknown ones would mean opening a diagram in
-    * an older build silently deletes them on the next save.
+    * A newer `gx` can write a diagram with a kind of id that this build does
+    * not know. If this object removes the unknown ids, an older build deletes
+    * them silently on the next save of the diagram.
     */
   final case class Unparsed(hidden: Set[String], collapsed: Set[String]):
     def isEmpty: Boolean = hidden.isEmpty && collapsed.isEmpty
@@ -40,11 +41,11 @@ object LibraryMapping:
     val (collapsed, collapsedBad) = partitionRefs(diagram.metadata.collapsedGroups)
     val state = PersistedDiagramState(
       hiddenElements = ElementIds(hiddenIds),
-      // Only groups can be collapsed; anything else in the set is a record
-      // written by something that disagreed, and is preserved as unparsed
-      // rather than coerced into a GroupId it is not.
+      // Only a group can collapse. Each other id in the set comes from a
+      // writer that disagrees. This object keeps it as unparsed, and does not
+      // change it into a GroupId.
       collapsedGroups = collapsed.collect { case g: GroupId => g },
-      projectName = diagram.name,
+      projectName = diagram.metadata.name,
       source = diagram.text,
       format = Option(diagram.format).filter(_.nonEmpty),
       autoDetectFormat = diagram.metadata.autoDetectFormat
@@ -60,19 +61,19 @@ object LibraryMapping:
       now:      Long
   ): Diagram =
     val metadata = DiagramMetadata(
+      name = state.projectName,
+      folder = previous.map(_.metadata.folder).getOrElse(FolderPath.root),
       hiddenElements = state.hiddenElements.ids.map(ElementRef.render) ++ unparsed.hidden,
       collapsedGroups = state.collapsedGroups.map(ElementRef.render) ++ unparsed.collapsed,
-      // Organisation is the record's, not the page's: the viewer has no UI for
-      // tags or notes, and rebuilding metadata from the page alone would erase
-      // whatever `gx run tag` put there.
+      // The tags and the notes belong to the diagram, not to the page. The
+      // viewer has no UI for them. Metadata from the page only erases the
+      // values that `gx run tag` wrote.
       tags = previous.map(_.metadata.tags).getOrElse(Nil),
       notes = previous.map(_.metadata.notes).getOrElse(""),
       autoDetectFormat = state.autoDetectFormat
     )
     Diagram(
       id = id,
-      name = state.projectName,
-      folder = previous.map(_.folder).getOrElse(FolderPath.root),
       format = state.format.getOrElse(""),
       text = state.source,
       // Likewise the binding: the page knows nothing about origins, so a save

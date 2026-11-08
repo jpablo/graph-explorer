@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.gxcore.command
 
 import org.jpablo.graphexplorer.viewer.models.{ElementId, NodeId}
 
-/** A command on the wire: `{"command": "group", "params": {...}}`.
+/** A source command on the wire: `{"command": "group", "params": {...}}`.
   *
   * Hand-written rather than derived. A derived codec encodes the SHAPE of the
   * Scala enum — case names, field names, whatever upickle's tagging happens to
@@ -14,25 +14,25 @@ import org.jpablo.graphexplorer.viewer.models.{ElementId, NodeId}
   * The frame shape matches D4's RPC exactly, so a command IS an RPC method
   * call — there is no second envelope to learn.
   */
-object CommandCodec:
+object SourceCodec:
 
-  def encode(command: DocumentCommand): ujson.Obj =
+  def encode(command: SourceCommand): ujson.Obj =
     ujson.Obj("command" -> command.name, "params" -> params(command))
 
-  private def params(command: DocumentCommand): ujson.Obj = command match
-    case DocumentCommand.SetAttribute(targets, attribute, value) =>
+  private def params(command: SourceCommand): ujson.Obj = command match
+    case SourceCommand.SetAttribute(targets, attribute, value) =>
       ujson.Obj("targets" -> refs(targets), "name" -> attribute, "value" -> value)
-    case DocumentCommand.RemoveAttribute(targets, attribute) =>
+    case SourceCommand.RemoveAttribute(targets, attribute) =>
       ujson.Obj("targets" -> refs(targets), "name" -> attribute)
-    case DocumentCommand.ResetAttributes(targets) => ujson.Obj("targets" -> refs(targets))
-    case DocumentCommand.Group(targets, label) =>
+    case SourceCommand.ResetAttributes(targets) => ujson.Obj("targets" -> refs(targets))
+    case SourceCommand.Group(targets, label) =>
       ujson.Obj("targets" -> refs(targets), "label" -> label)
-    case DocumentCommand.Ungroup(targets)      => ujson.Obj("targets" -> refs(targets))
-    case DocumentCommand.CombineIntoRecord(ns) => ujson.Obj("nodes" -> refs(ns.map(identity[ElementId])))
-    case DocumentCommand.SplitRecord(node)     => ujson.Obj("node" -> ElementRef.render(node))
-    case DocumentCommand.TransposeRecord(node) => ujson.Obj("node" -> ElementRef.render(node))
-    case DocumentCommand.GetAttributes(targets) => ujson.Obj("targets" -> refs(targets))
-    case DocumentCommand.ListNodes | DocumentCommand.ListArrows | DocumentCommand.ListGroups =>
+    case SourceCommand.Ungroup(targets)      => ujson.Obj("targets" -> refs(targets))
+    case SourceCommand.CombineIntoRecord(ns) => ujson.Obj("nodes" -> refs(ns.map(identity[ElementId])))
+    case SourceCommand.SplitRecord(node)     => ujson.Obj("node" -> ElementRef.render(node))
+    case SourceCommand.TransposeRecord(node) => ujson.Obj("node" -> ElementRef.render(node))
+    case SourceCommand.GetAttributes(targets) => ujson.Obj("targets" -> refs(targets))
+    case SourceCommand.ListNodes | SourceCommand.ListArrows | SourceCommand.ListGroups =>
       ujson.Obj()
 
   private def refs(ids: Set[ElementId]): ujson.Arr =
@@ -41,7 +41,7 @@ object CommandCodec:
     // commands compare unequal.
     ujson.Arr.from(ids.toVector.map(ElementRef.render).sorted)
 
-  def decode(frame: ujson.Value): Either[CommandError, DocumentCommand] =
+  def decode(frame: ujson.Value): Either[CommandError, SourceCommand] =
     for
       obj <- frame.objOpt.toRight(CommandError.BadArgument("<frame>", "a command must be a JSON object"))
       name <- obj.get("command").flatMap(_.strOpt)
@@ -50,22 +50,22 @@ object CommandCodec:
       command <- decodeNamed(name, params)
     yield command
 
-  private def decodeNamed(name: String, params: ujson.Obj): Either[CommandError, DocumentCommand] =
+  private def decodeNamed(name: String, params: ujson.Obj): Either[CommandError, SourceCommand] =
     name match
       case "set-attribute" =>
         for
           targets <- targetsOf(name, params)
           attr <- stringOf(name, params, "name")
           value <- stringOf(name, params, "value")
-        yield DocumentCommand.SetAttribute(targets, attr, value)
+        yield SourceCommand.SetAttribute(targets, attr, value)
 
       case "remove-attribute" =>
         for
           targets <- targetsOf(name, params)
           attr <- stringOf(name, params, "name")
-        yield DocumentCommand.RemoveAttribute(targets, attr)
+        yield SourceCommand.RemoveAttribute(targets, attr)
 
-      case "reset-attributes" => targetsOf(name, params).map(DocumentCommand.ResetAttributes(_))
+      case "reset-attributes" => targetsOf(name, params).map(SourceCommand.ResetAttributes(_))
 
       case "group" =>
         for
@@ -73,20 +73,20 @@ object CommandCodec:
           // An unlabelled group is legal — GroupsOps defaults it — so this is
           // optional rather than required-and-often-empty.
           label = params.value.get("label").flatMap(_.strOpt).getOrElse("")
-        yield DocumentCommand.Group(targets, label)
+        yield SourceCommand.Group(targets, label)
 
-      case "ungroup" => targetsOf(name, params).map(DocumentCommand.Ungroup(_))
+      case "ungroup" => targetsOf(name, params).map(SourceCommand.Ungroup(_))
 
       case "combine-into-record" =>
-        nodesOf(name, params, "nodes").map(DocumentCommand.CombineIntoRecord(_))
+        nodesOf(name, params, "nodes").map(SourceCommand.CombineIntoRecord(_))
 
-      case "split-record"     => nodeOf(name, params).map(DocumentCommand.SplitRecord(_))
-      case "transpose-record" => nodeOf(name, params).map(DocumentCommand.TransposeRecord(_))
+      case "split-record"     => nodeOf(name, params).map(SourceCommand.SplitRecord(_))
+      case "transpose-record" => nodeOf(name, params).map(SourceCommand.TransposeRecord(_))
 
-      case "list-nodes"     => Right(DocumentCommand.ListNodes)
-      case "list-arrows"    => Right(DocumentCommand.ListArrows)
-      case "list-groups"    => Right(DocumentCommand.ListGroups)
-      case "get-attributes" => targetsOf(name, params).map(DocumentCommand.GetAttributes(_))
+      case "list-nodes"     => Right(SourceCommand.ListNodes)
+      case "list-arrows"    => Right(SourceCommand.ListArrows)
+      case "list-groups"    => Right(SourceCommand.ListGroups)
+      case "get-attributes" => targetsOf(name, params).map(SourceCommand.GetAttributes(_))
 
       case other => Left(CommandError.UnknownCommand(other))
 

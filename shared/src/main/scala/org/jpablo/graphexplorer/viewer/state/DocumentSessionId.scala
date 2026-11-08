@@ -16,14 +16,14 @@ import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
   * the registry gives the stability that a hash would give, and gives nothing
   * else away.
   *
-  * The prefix marks the id. A route holds a [[ProjectId]] value and a session
+  * The prefix marks the id. A route holds a [[org.jpablo.graphexplorer.viewer.models.DiagramId]] value and a session
   * id as the same type, `String`. The prefix makes a confusion between the two
   * visible instead of silent.
   *
-  * Beside [[ProjectId]] rather than in the desktop package, because this is the
-  * other half of [[ViewTarget]]: one identity for a library record, one for a
-  * loose file. `DesktopDocumentRegistry` stays in the desktop package, because
-  * only the shell can fill it.
+  * This type is in the shared module, and not in the desktop package, because
+  * it is the other half of [[ViewTarget]]: one identity for a diagram, and one
+  * for a loose file. `DesktopDocumentRegistry` stays in the desktop package,
+  * because only the shell can fill it.
   */
 case class DocumentSessionId(value: String) derives CanEqual
 

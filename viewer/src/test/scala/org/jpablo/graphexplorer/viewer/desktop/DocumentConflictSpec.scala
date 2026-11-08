@@ -175,16 +175,16 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
     }
   }
 
-  test("a library diagram is never dirty, so it never blocks a navigation") {
+  test("a diagram is never dirty, so it never blocks a navigation") {
     withGraphvizAsync { graphviz =>
-      val state = ViewerState(ViewTarget.library("a-record"), graphviz)
+      val state = ViewerState(ViewTarget.diagram("a-record"), graphviz)
 
       afterMicrotasks {
         state.replaceSourceDetectingFormat("digraph G { edited }")
         assertEquals(
           state.documentIsDirty,
           false,
-          "a record saves on every keystroke, so it is never behind"
+          "a diagram saves on every keystroke, so it is never behind"
         )
       }
     }
@@ -224,11 +224,11 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
 
         state.replaceSourceDetectingFormat("digraph G { unsaved }")
 
-        router.navigateTo(Route.ProjectDetail("some-record"))
+        router.navigateTo(Route.Diagram("some-record"))
 
         assertEquals(
           state.pendingLeave.now(),
-          Some(LeaveIntent.Navigate(Route.ProjectDetail("some-record"))),
+          Some(LeaveIntent.Navigate(Route.Diagram("some-record"))),
           "§7.4: the dialog must go where the click asked to go"
         )
         assertEquals(

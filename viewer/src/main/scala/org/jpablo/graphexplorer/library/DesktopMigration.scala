@@ -1,8 +1,9 @@
-package org.jpablo.graphexplorer.projects
+package org.jpablo.graphexplorer.library
 
-import org.jpablo.graphexplorer.gxcore.model.{Diagram, DiagramId}
+import org.jpablo.graphexplorer.gxcore.model.Diagram
 import org.jpablo.graphexplorer.gxcore.store.{DiagramFileName, DiagramSink, LocalStorageMigration, MigrationReport}
 import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.scalajs.dom
 
 import scala.collection.mutable
@@ -29,7 +30,7 @@ object DesktopMigration:
     */
   private val DoneKey = "graph-explorer.migrated-to-disk"
 
-  def hasRun: Boolean = ProjectStorage.readFlag(DoneKey).isDefined
+  def hasRun: Boolean = BrowserLibrary.readFlag(DoneKey).isDefined
 
   /** @param existing ids already on disk, so a re-run cannot duplicate them */
   def runOnce(existing: Set[String]): Future[Option[MigrationReport]] =
@@ -37,8 +38,8 @@ object DesktopMigration:
     else
       val sink = CollectingSink(existing)
       LocalStorageMigration.migrate(
-        directoryJson = ProjectStorage.rawDirectoryJson,
-        payloadFor = ProjectStorage.rawPayload,
+        directoryJson = BrowserLibrary.rawIndexJson,
+        payloadFor = BrowserLibrary.rawPayload,
         store = sink,
         now = () => js.Date.now().toLong
       ) match
@@ -53,7 +54,7 @@ object DesktopMigration:
             if failures.isEmpty then
               // Only now. Marking it done after a partial write would strand
               // whatever failed, with the flag saying there was nothing to do.
-              ProjectStorage.writeFlag(DoneKey, js.Date.now().toLong.toString)
+              BrowserLibrary.writeFlag(DoneKey, js.Date.now().toLong.toString)
               Some(report)
             else
               dom.console.error(

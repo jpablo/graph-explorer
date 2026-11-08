@@ -74,7 +74,7 @@ fn health() -> &'static str {
 #[derive(Clone)]
 struct IpcState {
     access_policy: AccessPolicy,
-    pending_sessions: PendingSessions,
+    pending_live_view_replies: PendingLiveViewReplies,
     pending_opens: PendingOpens,
     page_ready: PageReady,
     audit_logger: AuditLogger,
@@ -228,16 +228,16 @@ type WatchControllers = Arc<Mutex<HashMap<String, WatchController>>>;
 /// identity at all.
 type RecentWriteHashes = Arc<Mutex<HashMap<String, String>>>;
 
-/// Session requests awaiting the page's answer, by id.
+/// Live view requests that wait for the answer of the page, by id.
 ///
-/// The session tier is the only one the shell cannot answer itself (D2.5: it
-/// knows nothing about diagrams), so a request is parked here while the webview
-/// runs it. The channel is how the socket thread waits without holding a lock.
-type PendingSessions = Arc<Mutex<HashMap<u64, std::sync::mpsc::Sender<SessionOutcome>>>>;
+/// The live view tier is the only tier that the shell cannot answer itself
+/// (D2.5: it knows nothing about diagrams). So a request waits here while the
+/// webview runs it. The channel is how the socket thread waits without holding a lock.
+type PendingLiveViewReplies = Arc<Mutex<HashMap<u64, std::sync::mpsc::Sender<LiveViewOutcome>>>>;
 
 /// Open requests awaiting the page's acknowledgment, by request id.
 ///
-/// Same shape as [[PendingSessions]] and for the same reason: dispatching an
+/// Same shape as [[PendingLiveViewReplies]] and for the same reason: dispatching an
 /// event proves only that the shell spoke, never that the right view mounted
 /// and displayed the target (§4). The channel is how the socket thread waits
 /// for the page without holding a lock.
@@ -265,11 +265,11 @@ struct OpenOutcome {
 }
 
 #[derive(Debug, Clone)]
-struct SessionOutcome {
+struct LiveViewOutcome {
     ok: bool,
     result: serde_json::Value,
     /// The page's own code, so "nothing is open" reaches the caller as
-    /// `NO_SESSION` rather than as a generic failure it would have to read the
+    /// `NO_LIVE_VIEW` rather than as a generic failure it would have to read the
     /// prose to recognise.
     code: String,
     message: String,
@@ -328,7 +328,7 @@ fn main() {
     let watch_registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
     let watch_controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
     let recent_write_hashes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
-    let pending_sessions: PendingSessions = Arc::new(Mutex::new(HashMap::new()));
+    let pending_live_view_replies: PendingLiveViewReplies = Arc::new(Mutex::new(HashMap::new()));
     let pending_opens: PendingOpens = Arc::new(Mutex::new(HashMap::new()));
     let page_ready: PageReady = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
 
@@ -359,7 +359,7 @@ fn main() {
     spawn_control_server(
         listener,
         access_policy.clone(),
-        pending_sessions.clone(),
+        pending_live_view_replies.clone(),
         pending_opens.clone(),
         page_ready.clone(),
         request_limits.clone(),
@@ -384,7 +384,7 @@ fn main() {
     // the socket by its file permissions (D4).
     let ipc_state = IpcState {
         access_policy: access_policy.clone(),
-        pending_sessions: pending_sessions.clone(),
+        pending_live_view_replies: pending_live_view_replies.clone(),
         pending_opens: pending_opens.clone(),
         page_ready: page_ready.clone(),
         audit_logger: audit_logger.clone(),
@@ -445,7 +445,7 @@ fn main() {
             open_document,
             save_document,
             list_documents,
-            session_reply,
+            live_view_reply,
             viewer_ready,
             complete_open,
             hash_text,
@@ -1046,7 +1046,7 @@ fn bind_control_socket() -> Result<UnixListener> {
 fn spawn_control_server(
     listener: UnixListener,
     access_policy: AccessPolicy,
-    pending_sessions: PendingSessions,
+    pending_live_view_replies: PendingLiveViewReplies,
     pending_opens: PendingOpens,
     page_ready: PageReady,
     request_limits: RequestLimits,
@@ -1073,7 +1073,7 @@ fn spawn_control_server(
             // on the accept loop would let one idle client block every other.
             let context = ConnectionContext {
                 access_policy: access_policy.clone(),
-                pending_sessions: pending_sessions.clone(),
+                pending_live_view_replies: pending_live_view_replies.clone(),
                 pending_opens: pending_opens.clone(),
                 page_ready: page_ready.clone(),
                 request_limits: request_limits.clone(),
@@ -1106,7 +1106,7 @@ type SharedAppHandle = Arc<OnceLock<tauri::AppHandle>>;
 #[derive(Clone)]
 struct ConnectionContext {
     access_policy: AccessPolicy,
-    pending_sessions: PendingSessions,
+    pending_live_view_replies: PendingLiveViewReplies,
     pending_opens: PendingOpens,
     page_ready: PageReady,
     request_limits: RequestLimits,
@@ -1474,16 +1474,16 @@ fn dispatch_method(
         }
 
         // A push NAMES the document it is aimed at, and goes through the
-        // session tier so the page can refuse it.
+        // live view tier, so the page can refuse it.
         //
         // It used to emit a `document.changed` with a null path — text with no
         // addressee — and the page put it into whichever viewer was on screen.
         // That is the same defect class as an open reporting success for a file
         // no viewer showed: the caller was told "pushed: true" whatever it hit.
         //
-        // The session tier already answers with the view's own state and
-        // reports NO_SESSION when there is no view, so routing through it makes
-        // the answer honest without inventing a second reply mechanism.
+        // The live view tier already answers with the state of the view, and it
+        // reports NO_LIVE_VIEW when there is no view. Thus a push through it gets
+        // an honest answer, and no second reply mechanism is necessary.
         "push-text" => {
             let request: PushTextRequest = match serde_json::from_value(params) {
                 Ok(request) => request,
@@ -1493,13 +1493,13 @@ fn dispatch_method(
                 "command": "push-text",
                 "params": { "sessionId": request.session_id, "text": request.text },
             });
-            match run_session_command(context, frame) {
+            match run_live_view_command(context, frame) {
                 Ok(_) => RpcResponse::success(id, serde_json::json!({ "pushed": true })),
                 Err((code, message)) => RpcResponse::failure(id, code, message),
             }
         }
 
-        "session" => match run_session_command(context, params) {
+        "live-view" => match run_live_view_command(context, params) {
             Ok(value) => RpcResponse::success(id, value),
             Err((code, message)) => RpcResponse::failure(id, code, message),
         },
@@ -1557,39 +1557,39 @@ fn status_body(context: &ConnectionContext) -> StatusBody {
     }
 }
 
-/// How long to wait for the page to answer a session command.
+/// How long to wait for the page to answer a live view command.
 ///
 /// Generous enough that a busy render does not look like a failure, short
 /// enough that a wedged page does not hang a socket client indefinitely — the
 /// failure mode that matters, since a CLI with no timeout is a CLI that has to
 /// be killed.
-const SESSION_TIMEOUT: Duration = Duration::from_secs(5);
+const LIVE_VIEW_TIMEOUT: Duration = Duration::from_secs(5);
 
-static SESSION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+static LIVE_VIEW_REQUEST_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
-/// Relay a session command to the webview and wait for its answer.
+/// Relay a live view command to the webview and wait for its answer.
 ///
 /// This is the one place the shell is a MIDDLEMAN rather than an implementer.
 /// D2.5 keeps it diagram-ignorant and D3 keeps the page capability-free, so a
 /// question about the live view has to cross both boundaries: the shell knows
 /// who asked and how to answer them, the page knows what the answer is.
-fn run_session_command(
+fn run_live_view_command(
     context: &ConnectionContext,
     params: serde_json::Value,
 ) -> std::result::Result<serde_json::Value, (&'static str, String)> {
     let command = params
         .get("command")
         .and_then(|v| v.as_str())
-        .ok_or(("INVALID_REQUEST", "a session call needs a 'command'".to_string()))?;
+        .ok_or(("INVALID_REQUEST", "a live-view call needs a 'command'".to_string()))?;
 
-    let id = SESSION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let (sender, receiver) = std::sync::mpsc::channel::<SessionOutcome>();
+    let id = LIVE_VIEW_REQUEST_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let (sender, receiver) = std::sync::mpsc::channel::<LiveViewOutcome>();
 
-    match context.pending_sessions.lock() {
+    match context.pending_live_view_replies.lock() {
         Ok(mut pending) => {
             pending.insert(id, sender);
         }
-        Err(err) => return Err(("INTERNAL", format!("session registry lock poisoned: {err}"))),
+        Err(err) => return Err(("INTERNAL", format!("live view registry lock poisoned: {err}"))),
     }
 
     // Registered BEFORE the page is told, so a reply that arrives immediately
@@ -1600,33 +1600,33 @@ fn run_session_command(
     }
     let script = match serde_json::to_string(&frame) {
         Ok(json) => format!(
-            "window.dispatchEvent(new CustomEvent('ge:session.command', {{ detail: {json} }}));"
+            "window.dispatchEvent(new CustomEvent('ge:live-view.command', {{ detail: {json} }}));"
         ),
         Err(err) => {
-            forget_session(context, id);
+            forget_live_view_request(context, id);
             return Err(("INTERNAL", err.to_string()));
         }
     };
 
     let windows = context.app()?.webview_windows();
     if windows.is_empty() {
-        forget_session(context, id);
-        // The session tier's defining limit, reported as itself: there is no
-        // live view, so there is no answer — not an empty one.
+        forget_live_view_request(context, id);
+        // The defining limit of the live view tier, reported as itself: there is
+        // no live view, so there is no answer — not an empty one.
         return Err((
-            "NO_SESSION",
+            "NO_LIVE_VIEW",
             format!("'{command}' needs a window, and the desktop has none open"),
         ));
     }
     for webview in windows.values() {
         if let Err(err) = webview.eval(&script) {
-            forget_session(context, id);
-            return Err(("SESSION_FAILED", format!("could not reach the page: {err}")));
+            forget_live_view_request(context, id);
+            return Err(("LIVE_VIEW_FAILED", format!("could not reach the page: {err}")));
         }
     }
 
-    let outcome = receiver.recv_timeout(SESSION_TIMEOUT);
-    forget_session(context, id);
+    let outcome = receiver.recv_timeout(LIVE_VIEW_TIMEOUT);
+    forget_live_view_request(context, id);
 
     match outcome {
         Ok(outcome) if outcome.ok => Ok(outcome.result),
@@ -1636,25 +1636,25 @@ fn run_session_command(
             // next move: open something, fix the argument, or look at what is
             // on screen. Anything else is a failure with no advice to give.
             match outcome.code.as_str() {
-                "NO_SESSION" => "NO_SESSION",
+                "NO_LIVE_VIEW" => "NO_LIVE_VIEW",
                 "INVALID_REQUEST" => "INVALID_REQUEST",
                 "VIEW_REJECTED" => "VIEW_REJECTED",
-                _ => "SESSION_FAILED",
+                _ => "LIVE_VIEW_FAILED",
             },
             outcome.message,
         )),
         Err(_) => Err((
-            "SESSION_TIMEOUT",
-            format!("the page did not answer '{command}' within {SESSION_TIMEOUT:?}"),
+            "LIVE_VIEW_TIMEOUT",
+            format!("the page did not answer '{command}' within {LIVE_VIEW_TIMEOUT:?}"),
         )),
     }
 }
 
 /// How long an open waits for the page to say it displayed the target.
 ///
-/// Longer than a session command's five seconds because this one may include a
-/// cold start: the socket answers before the webview exists (§4.1), and a
-/// Windows runner has been seen taking half a minute to bring one up. Still
+/// Longer than the five seconds of a live view command, because this one can
+/// include a cold start: the socket answers before the webview exists (§4.1),
+/// and a Windows runner has been seen taking half a minute to bring one up. Still
 /// bounded — a CLI that never returns is a CLI that has to be killed.
 const OPEN_TIMEOUT: Duration = Duration::from_secs(45);
 
@@ -1773,8 +1773,8 @@ fn forget_open(context: &ConnectionContext, id: u64) {
 
 /// Drop a pending request whatever happened, so a timed-out or failed call does
 /// not leave an entry that a late reply could match.
-fn forget_session(context: &ConnectionContext, id: u64) {
-    if let Ok(mut pending) = context.pending_sessions.lock() {
+fn forget_live_view_request(context: &ConnectionContext, id: u64) {
+    if let Ok(mut pending) = context.pending_live_view_replies.lock() {
         pending.remove(&id);
     }
 }
@@ -1877,14 +1877,14 @@ fn hash_text(text: String) -> String {
     content_hash(text.as_bytes())
 }
 
-/// The page's answer to a session command.
+/// The answer of the page to a live view command.
 ///
 /// A Tauri command rather than anything the page can reach on its own: it can
 /// only ANSWER a question the shell asked, and an id nobody is waiting for is
 /// dropped. That keeps the inversion honest — the webview serves this tier
 /// without gaining the ability to initiate anything.
 #[tauri::command(rename_all = "camelCase")]
-fn session_reply(
+fn live_view_reply(
     state: tauri::State<'_, IpcState>,
     id: u64,
     ok: bool,
@@ -1892,13 +1892,13 @@ fn session_reply(
     code: Option<String>,
     message: Option<String>,
 ) {
-    let outcome = SessionOutcome {
+    let outcome = LiveViewOutcome {
         ok,
         result: result.unwrap_or(serde_json::Value::Null),
-        code: code.unwrap_or_else(|| "SESSION_FAILED".to_string()),
+        code: code.unwrap_or_else(|| "LIVE_VIEW_FAILED".to_string()),
         message: message.unwrap_or_else(|| "the page reported a failure".to_string()),
     };
-    if let Ok(mut pending) = state.pending_sessions.lock() {
+    if let Ok(mut pending) = state.pending_live_view_replies.lock() {
         if let Some(sender) = pending.remove(&id) {
             let _ = sender.send(outcome);
         }
@@ -3496,7 +3496,7 @@ mod tests {
                 allowed_roots: Vec::new(),
                 denied_roots: Vec::new(),
             },
-            pending_sessions: Arc::new(Mutex::new(HashMap::new())),
+            pending_live_view_replies: Arc::new(Mutex::new(HashMap::new())),
             pending_opens: Arc::new(Mutex::new(HashMap::new())),
             // Not ready: this context models a desktop that is still starting,
             // which is exactly the state an open has to wait out.

@@ -6,16 +6,17 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{Dialog, DialogInput, PrimaryAction, QuietAction}
 import org.scalajs.dom.KeyValue
 
-/** Renaming, in the app's own dialog vocabulary — the native `window.prompt`
-  * was the one browser-chrome interruption left in the flow. Same contract as
-  * the prompt it replaces: prefilled with the current name, Enter/Ok commits,
-  * Escape/Cancel leaves the name untouched. A blank Ok also leaves it
-  * untouched: no flow may produce a nameless project — the persistence sync
-  * refuses to store a blank name over a real one (ProjectStorage's
-  * guardedProjectName), so committing one here would only desync the
-  * on-screen title from the stored name until the next reload.
+/** The dialog that renames a diagram, in the dialog style of the app. Before,
+  * the native `window.prompt` was the last browser interruption in the flow.
+  *
+  * The dialog keeps the contract of the prompt. It starts with the current
+  * name. Enter or Ok saves the name. Escape or Cancel keeps the name. Ok with
+  * a blank name also keeps the name, because no flow can make a diagram with
+  * no name. The persistence sync does not store a blank name over a real name
+  * (`BrowserLibrary.guardedDiagramName`). Thus a blank name here only makes the
+  * title on the screen different from the stored name until the next reload.
   */
-def RenameProjectDialog(state: ViewerState) =
+def RenameDiagramDialog(state: ViewerState) =
   val modalText: Var[String] = Var("")
 
   def closeDialog() =

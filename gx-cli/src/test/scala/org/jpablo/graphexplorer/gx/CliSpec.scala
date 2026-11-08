@@ -35,7 +35,7 @@ class CliSpec extends FunSuite:
       duringWatch: () => Unit = () => (),
 
       /** The desktop's answer, if there is a desktop. Injected as a function so
-        * the session tier can be tested without a socket — which is the point
+        * the live view tier can be tested without a socket — which is the point
         * of CliEnv taking its world as a parameter (D4's channel is an
         * implementation detail `Cli` never sees).
         */
@@ -89,7 +89,7 @@ class CliSpec extends FunSuite:
     assertEquals(r("status"), ExitCode.Ok, r.stderr)
     assert(r.stdout.contains("not running"), r.stdout)
     // v1 exited 2 here, because a missing desktop meant nothing worked.
-    assert(r.stdout.contains("only `gx open` needs it"), r.stdout)
+    assert(r.stdout.contains("only `gx open` and `gx view` need it"), r.stdout)
   }
 
   tmp.test("V-09: import, ls, get and set all work with no desktop") { dir =>
@@ -179,12 +179,12 @@ class CliSpec extends FunSuite:
     assert(r.stderr.contains("unknown mode"), r.stderr)
   }
 
-  tmp.test("importing the same file twice reuses the record instead of duplicating") { dir =>
+  tmp.test("importing the same file twice reuses the diagram instead of duplicating") { dir =>
     dot(dir, "a.dot")
     val r = Run(dir)
     assertEquals(r("import", "a.dot"), ExitCode.Ok, r.stderr)
     assertEquals(r("import", "a.dot"), ExitCode.Ok, r.stderr)
-    assertEquals(r.store.list().size, 1, "a second import created a rival record for one file")
+    assertEquals(r.store.list().size, 1, "a second import created a rival diagram for one file")
     assert(r.stderr.contains("already imported"), r.stderr)
   }
 
@@ -274,20 +274,20 @@ class CliSpec extends FunSuite:
     assert(!s.stdout.contains("nothing bound"), s.stdout)
   }
 
-  /** A reconciliation that cannot be persisted is not a success. The three
-    * saves inside syncOne discarded their Either, so gx printed `Behind`,
-    * exited 0, and left the record on its old baseline — and the next run
-    * redid the same work from the same stale state, silently.
+  /** If gx cannot save a reconciliation, it is not a success. Before, the
+    * three saves in syncOne discarded their Either. Thus gx printed `Behind`,
+    * exited 0, and left the diagram on its old baseline. Then the next run did
+    * the same work again from the same stale state, silently.
     */
-  tmp.test("a sync that cannot save the record reports it and does not exit 0") { dir =>
+  tmp.test("a sync that cannot save the diagram reports it and does not exit 0") { dir =>
     val f = dot(dir, "gen.dot", "v1")
     val i = Run(dir)
     i("import", "gen.dot", "--mode", "pull")
 
     Files.writeString(f, "v2") // the origin moves, so Pull has something to save
 
-    // Readable and listable, but nothing new can be created in it — so the
-    // scan still finds the record and only the WRITE fails.
+    // gx can read and list the directory, but it cannot make a new file in
+    // it. Thus the scan still finds the diagram, and only the WRITE fails.
     val diagrams = dir.resolve("library").resolve("diagrams")
     val restore  = Files.getPosixFilePermissions(diagrams)
     Files.setPosixFilePermissions(diagrams, PosixFilePermissions.fromString("r-xr-xr-x"))
@@ -311,7 +311,7 @@ class CliSpec extends FunSuite:
   // so callers rendered both as "no diagram matches" — and the ones that fall
   // back to a PATH did so on an ambiguous name.
 
-  /** Two records deliberately sharing a name; only their ids differ. */
+  /** Two diagrams with the same name, on purpose. Only their ids are different. */
   private def twoNamed(dir: Path, name: String): Run =
     dot(dir, "a.dot", "digraph { a }")
     dot(dir, "b.dot", "digraph { b }")
@@ -349,12 +349,12 @@ class CliSpec extends FunSuite:
 
   // ------------------------------------------------- sync × line endings
   //
-  // `base` and `remote` are hashes of file BYTES, so `local` has to be measured
-  // the same way. Hashing the record's text with a fixed LF made every one of
-  // these read as a local edit that never happened.
+  // `base` and `remote` are hashes of file BYTES, so `local` must use the same
+  // measure. A hash of the text of the diagram with a fixed LF made each of
+  // these tests show a local edit that did not occur.
   //
-  // Note every OTHER sync test above uses text with no newline in it, where LF
-  // and CRLF are the same bytes — which is exactly how this survived.
+  // Each OTHER sync test above uses text with no newline. In that text, LF and
+  // CRLF are the same bytes, and that is why nobody found this bug before.
 
   private def crlf: String = "digraph G {\r\n  a -> b\r\n}\r\n"
 
@@ -477,10 +477,10 @@ class CliSpec extends FunSuite:
     assertEquals(r.sent.size, 1)
     val (method, params) = r.sent.head
     assertEquals(method, "show")
-    // The path is resolved against the user's cwd before it is sent: the
-    // desktop's working directory is an artifact of how it was launched. It now
-    // travels inside a TYPED target — a bare path could not say whether it
-    // meant a record or a loose file.
+    // gx resolves the path against the cwd of the user before it sends it. The
+    // working directory of the desktop depends only on how the desktop
+    // started. Now the path goes inside a TYPED target. A bare path could not
+    // tell if it was a diagram or a loose file.
     assertEquals(params("target")("kind").str, "file")
     assertEquals(params("target")("path").str, f.toString)
     assert(r.stdout.contains("showing"), r.stdout)
@@ -491,13 +491,13 @@ class CliSpec extends FunSuite:
     */
   /** Replaces "open resolves a library diagram to the file it is bound to".
     *
-    * It no longer does, on purpose. Flattening a record to its origin path is
-    * what discarded the record identity (§1): the desktop received a path and
-    * could not tell whether it was meant as a record or as a loose file, so an
-    * incoming file could persist into whichever record was displayed. A BOUND
-    * record still opens as a record; `--loose` is how you ask for the file.
+    * gx no longer does that, on purpose. When gx changed a diagram to its
+    * origin path, gx lost the identity of the diagram (§1). The desktop got a
+    * path and could not tell if it was a diagram or a loose file. Thus a file
+    * that came in could go into the diagram that the desktop showed. A BOUND
+    * diagram still opens as a diagram. Use `--loose` to ask for the file.
     */
-  tmp.test("a bound record still opens as a RECORD, not as its origin path") { dir =>
+  tmp.test("a bound diagram still opens as a DIAGRAM, not as its origin path") { dir =>
     dot(dir, "bound.dot")
     val i = Run(dir)
     assertEquals(i("import", "bound.dot"), ExitCode.Ok, i.stderr)
@@ -512,13 +512,12 @@ class CliSpec extends FunSuite:
 
   /** Replaces "open refuses a diagram with no origin, and says how to fix it".
     *
-    * That refusal was only ever true because an open could name nothing but a
-    * path, so a record without one had nothing to send. A record carries its
-    * own text and is perfectly displayable (§3.2), and now the request names
-    * the record itself. The unbound case is asserted under "an UNBOUND record
-    * can be opened" below.
+    * That refusal was correct only because an open could name only a path. A
+    * diagram without a path had nothing to send. A diagram has its own text,
+    * and the desktop can show it (§3.2). Now the request names the diagram.
+    * The test "an UNBOUND diagram can be opened" below covers the unbound case.
     */
-  tmp.test("an unbound record is opened, not refused for lacking an origin") { dir =>
+  tmp.test("an unbound diagram is opened, not refused for lacking an origin") { dir =>
     dot(dir, "detached.dot")
     val i = Run(dir)
     assertEquals(i("import", "detached.dot"), ExitCode.Ok, i.stderr)
@@ -558,7 +557,7 @@ class CliSpec extends FunSuite:
     */
   // ------------------------------------------- Phase 1: typed open targets
 
-  tmp.test("open sends a LIBRARY target, keeping the record identity") { dir =>
+  tmp.test("open sends a LIBRARY target, keeping the diagram identity") { dir =>
     dot(dir, "arch.dot")
     val i = Run(dir)
     i("import", "arch.dot")
@@ -574,17 +573,17 @@ class CliSpec extends FunSuite:
     assert(!params.value.contains("path"), "a library open still sent a bare path")
   }
 
-  /** Was refused outright: "not bound to a file, so there is nothing to open".
-    * True only while an open could name nothing but a path — the record has
-    * text of its own and is perfectly displayable (§3.2).
+  /** gx refused this before: "not bound to a file, so there is nothing to
+    * open". That was correct only while an open could name only a path. The
+    * diagram has its own text, and the desktop can show it (§3.2).
     */
-  tmp.test("an UNBOUND record can be opened") { dir =>
+  tmp.test("an UNBOUND diagram can be opened") { dir =>
     dot(dir, "arch.dot")
     val i = Run(dir)
     i("import", "arch.dot")
     val id = i.store.list().head.id
     i("unbind", id.value)
-    assert(!i.store.list().head.isBound, "precondition: the record has no origin")
+    assert(!i.store.list().head.isBound, "precondition: the diagram has no origin")
 
     val r = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
     assertEquals(r("open", id.value), ExitCode.Ok, r.stderr)
@@ -601,10 +600,10 @@ class CliSpec extends FunSuite:
     assertEquals(params("target")("path").str, f.toString)
   }
 
-  /** §3.3's escape hatch. Without it there is no way to say "the file, not the
-    * record bound to it" — and opening a loose file must never import it.
+  /** The exception of §3.3. Without it, you cannot say "the file, not the
+    * diagram bound to it". When you open a loose file, gx must never import it.
     */
-  tmp.test("--loose opens the file even when a record is bound to that path") { dir =>
+  tmp.test("--loose opens the file even when a diagram is bound to that path") { dir =>
     val f = dot(dir, "arch.dot")
     val i = Run(dir)
     i("import", "arch.dot")
@@ -613,7 +612,7 @@ class CliSpec extends FunSuite:
     assertEquals(r("open", "arch.dot", "--loose"), ExitCode.Ok, r.stderr)
 
     val params = r.sent.head._2
-    assertEquals(params("target")("kind").str, "file", "--loose still resolved to the record")
+    assertEquals(params("target")("kind").str, "file", "--loose still resolved to the diagram")
     assertEquals(params("target")("path").str, f.toString)
     assertEquals(i.store.list().size, 1, "--loose imported something")
   }
@@ -740,10 +739,10 @@ class CliSpec extends FunSuite:
     assert(r.stderr.contains("denied root"), r.stderr)
   }
 
-  /** The audit log is the only place `source` is recorded, so WHEN an event
-    * happened has to come from the same clock as the record it describes.
-    * Audit stamped its own `System.currentTimeMillis()` instead — the one hole
-    * in a seam every other timestamp goes through.
+  /** The audit log is the only place that records `source`. Thus the time of
+    * an event must come from the same clock as the diagram that the event is
+    * about. Before, Audit used its own `System.currentTimeMillis()`. That was
+    * the only timestamp that did not go through the injected clock.
     */
   tmp.test("an audit line is stamped from the injected clock, not the wall clock") { dir =>
     dot(dir, "a.dot")
@@ -774,7 +773,7 @@ class CliSpec extends FunSuite:
 
   // ----------------------------------------------------------------- run
 
-  /** The document tier, headless (D7.2). These are V-09's point restated for
+  /** The source tier, headless (D7.2). These are V-09's point restated for
     * the command vocabulary: none of them needs a desktop.
     */
   tmp.test("run answers a query without touching the file") { dir =>
@@ -786,7 +785,7 @@ class CliSpec extends FunSuite:
     val answer = ujson.read(r.stdout).arr
     assertEquals(answer.map(_("ref").str).toVector, Vector("node:a", "node:b"))
     assertEquals(Files.readString(f), before, "a query must not rewrite the diagram")
-    assert(r.sent.isEmpty, "the document tier must not need the desktop")
+    assert(r.sent.isEmpty, "the source tier must not need the desktop")
   }
 
   tmp.test("run applies a mutation and writes it back") { dir =>
@@ -962,9 +961,9 @@ class CliSpec extends FunSuite:
     assertEquals(ujson.read(readBack.stdout).arr.map(_("ref").str).toSet, Set("node:a", "node:b"))
   }
 
-  // --------------------------------------------------------- record tier
+  // ------------------------------------------------------- metadata tier
 
-  tmp.test("run hide stores view state without touching the origin file") { dir =>
+  tmp.test("run hide stores metadata without touching the origin file") { dir =>
     val f = dot(dir, "arch.dot", "digraph G {\n  a -> b\n}\n")
     val before = Files.readString(f)
     val i = Run(dir)
@@ -983,7 +982,7 @@ class CliSpec extends FunSuite:
     assertEquals(Files.readString(f), before, "hiding a node wrote to the origin")
   }
 
-  tmp.test("run collapse and expand round-trip through the record") { dir =>
+  tmp.test("run collapse and expand round-trip through the diagram") { dir =>
     dot(dir, "c.dot")
     val i = Run(dir)
     assertEquals(i("import", "c.dot"), ExitCode.Ok, i.stderr)
@@ -997,7 +996,7 @@ class CliSpec extends FunSuite:
     assertEquals(b.store.list().head.metadata.collapsedGroups, Set.empty[String])
   }
 
-  tmp.test("run tag, move-to-folder and rename-diagram change the record") { dir =>
+  tmp.test("run tag, move-to-folder and rename-diagram change the diagram") { dir =>
     dot(dir, "t.dot")
     val i = Run(dir)
     assertEquals(i("import", "t.dot"), ExitCode.Ok, i.stderr)
@@ -1009,75 +1008,96 @@ class CliSpec extends FunSuite:
 
     val d = r.store.list().head
     assertEquals(d.metadata.tags, List("infra", "draft"))
-    assertEquals(d.folder.render, "/systems")
-    assertEquals(d.name, "Topology")
+    assertEquals(d.metadata.folder.render, "/systems")
+    assertEquals(d.metadata.name, "Topology")
   }
 
-  tmp.test("get-record answers with the stored metadata") { dir =>
+  tmp.test("get-metadata answers with the stored metadata") { dir =>
     dot(dir, "g.dot")
     val i = Run(dir)
     assertEquals(i("import", "g.dot"), ExitCode.Ok, i.stderr)
     assertEquals(i("run", "g", "hide", "--params", """{"targets":["node:a"]}"""), ExitCode.Ok, i.stderr)
 
     val r = Run(dir)
-    assertEquals(r("run", "g", "get-record", "--json"), ExitCode.Ok, r.stderr)
+    assertEquals(r("run", "g", "get-metadata", "--json"), ExitCode.Ok, r.stderr)
     val answer = ujson.read(r.stdout)
     assertEquals(answer("hidden").arr.map(_.str).toVector, Vector("node:a"))
+    assertEquals(answer("name").str, "g")
+    assertEquals(answer("folder").str, "/")
+    // Only the metadata. The skill sends the reader to `gx ls --json` for the
+    // origin and the mode.
+    assertEquals(
+      answer.obj.keySet.toSet,
+      Set("name", "folder", "tags", "notes", "hidden", "collapsed", "autoDetectFormat")
+    )
   }
 
-  /** A record tier command needs a RECORD, and a loose file does not have one.
-    * The message says how to get one rather than only that there is none.
+  tmp.test("ls --json prints the origin and the mode of each diagram") { dir =>
+    dot(dir, "o.dot")
+    val i = Run(dir)
+    assertEquals(i("import", "o.dot", "--mode", "sync"), ExitCode.Ok, i.stderr)
+
+    val r = Run(dir)
+    assertEquals(r("ls", "--json"), ExitCode.Ok, r.stderr)
+    val entry = ujson.read(r.stdout).arr.head
+    assert(entry("origin").str.endsWith("/o.dot"), entry("origin").str)
+    assertEquals(entry("mode").str, "Sync")
+  }
+
+  /** A metadata command needs a diagram in the LIBRARY, and a loose file has no
+    * metadata. The message tells how to import the file, not only that the
+    * file has no metadata.
     */
-  tmp.test("a record command on an unimported file says to import it first") { dir =>
+  tmp.test("a metadata command on an unimported file says to import it first") { dir =>
     dot(dir, "loose.dot")
     val r = Run(dir)
     assertEquals(r("run", "loose.dot", "hide", "--params", """{"targets":["node:a"]}"""), ExitCode.InvalidPathOrPolicy)
-    assert(r.stderr.contains("no record"), r.stderr)
+    assert(r.stderr.contains("no metadata"), r.stderr)
     assert(r.stderr.contains("gx import"), r.stderr)
   }
 
-  tmp.test("a blank rename is refused and the record keeps its name") { dir =>
+  tmp.test("a blank rename is refused and the diagram keeps its name") { dir =>
     dot(dir, "n.dot")
     val i = Run(dir)
     assertEquals(i("import", "n.dot"), ExitCode.Ok, i.stderr)
 
     val r = Run(dir)
     assertEquals(r("run", "n", "rename-diagram", "--params", """{"name":"  "}"""), ExitCode.InvalidPathOrPolicy)
-    assertEquals(r.store.list().head.name, "n")
+    assertEquals(r.store.list().head.metadata.name, "n")
   }
 
   tmp.test("run --list covers both headless tiers") { dir =>
     val r = Run(dir)
     assertEquals(r("run", "--list"), ExitCode.Ok)
-    assert(r.stdout.contains("set-attribute"), r.stdout) // document
-    assert(r.stdout.contains("move-to-folder"), r.stdout) // record
+    assert(r.stdout.contains("set-attribute"), r.stdout) // source
+    assert(r.stdout.contains("move-to-folder"), r.stdout) // metadata
   }
 
-  // -------------------------------------------------------- session tier
+  // ------------------------------------------------------ live view tier
 
-  tmp.test("session sends the command and prints the query's answer") { dir =>
+  tmp.test("view sends the command and prints the query's answer") { dir =>
     val r = Run(dir, answer = (_, _) => Right(ujson.Arr(ujson.Str("node:a"), ujson.Str("node:b"))))
-    assertEquals(r("session", "what-is-selected"), ExitCode.Ok, r.stderr)
-    assertEquals(r.sent.head._1, "session")
+    assertEquals(r("view", "what-is-selected"), ExitCode.Ok, r.stderr)
+    assertEquals(r.sent.head._1, "live-view")
     assertEquals(r.sent.head._2("command").str, "what-is-selected")
     assert(r.stdout.contains("node:a"), r.stdout)
   }
 
-  tmp.test("session select carries its targets") { dir =>
+  tmp.test("view select carries its targets") { dir =>
     val r = Run(dir, answer = (_, _) => Right(ujson.Null))
-    assertEquals(r("session", "select", "--params", """{"targets":["node:a"]}"""), ExitCode.Ok, r.stderr)
+    assertEquals(r("view", "select", "--params", """{"targets":["node:a"]}"""), ExitCode.Ok, r.stderr)
     assertEquals(r.sent.head._2("params")("targets").arr.map(_.str).toVector, Vector("node:a"))
   }
 
   tmp.test("an empty selection says so rather than printing nothing") { dir =>
     val r = Run(dir, answer = (_, _) => Right(ujson.Arr()))
-    assertEquals(r("session", "what-is-selected"), ExitCode.Ok, r.stderr)
+    assertEquals(r("view", "what-is-selected"), ExitCode.Ok, r.stderr)
     assert(r.stdout.contains("nothing selected"), r.stdout)
   }
 
-  tmp.test("session without a desktop exits 2, like open") { dir =>
+  tmp.test("view without a desktop exits 2, like open") { dir =>
     val r = Run(dir)
-    assertEquals(r("session", "what-is-selected"), ExitCode.NeedsDesktop)
+    assertEquals(r("view", "what-is-selected"), ExitCode.NeedsDesktop)
     assert(r.stderr.contains("needs one"), r.stderr)
   }
 
@@ -1086,23 +1106,31 @@ class CliSpec extends FunSuite:
     */
   tmp.test("a desktop with nothing open exits 2 as well") { dir =>
     val r = Run(dir, answer = (_, _) =>
-      Left(ChannelError.Rpc("NO_SESSION", "'select' needs a window, and the desktop has none open", ujson.Obj()))
+      Left(ChannelError.Rpc("NO_LIVE_VIEW", "'select' needs a window, and the desktop has none open", ujson.Obj()))
     )
-    assertEquals(r("session", "select", "--params", """{"targets":["node:a"]}"""), ExitCode.NeedsDesktop)
+    assertEquals(r("view", "select", "--params", """{"targets":["node:a"]}"""), ExitCode.NeedsDesktop)
     assert(r.stderr.contains("needs a window"), r.stderr)
   }
 
-  tmp.test("a headless command typed at `session` points at the right verb") { dir =>
+  tmp.test("a headless command typed at `view` points at the right verb") { dir =>
     val r = Run(dir)
-    assertEquals(r("session", "list-nodes"), ExitCode.Usage)
+    assertEquals(r("view", "list-nodes"), ExitCode.Usage)
     assert(r.stderr.contains("gx run"), s"should redirect to the headless verb: ${r.stderr}")
   }
 
-  tmp.test("session --list enumerates the live-view commands only") { dir =>
+  tmp.test("view --list enumerates the live view commands only") { dir =>
     val r = Run(dir)
-    assertEquals(r("session", "--list"), ExitCode.Ok)
+    assertEquals(r("view", "--list"), ExitCode.Ok)
     assert(r.stdout.contains("what-is-selected"), r.stdout)
     assert(!r.stdout.contains("set-attribute"), s"that is a headless command: ${r.stdout}")
+  }
+
+  /** The old verb has no alias. It fails, and the message gives the new verb. */
+  tmp.test("`session` is refused, and the message names `view`") { dir =>
+    val r = Run(dir, answer = (_, _) => Right(ujson.Arr()))
+    assertEquals(r("session", "what-is-selected"), ExitCode.Usage)
+    assertEquals(r.stderr.trim, "gx: 'session' is now 'view'")
+    assert(r.sent.isEmpty, "a refused verb must not reach the desktop")
   }
 
   // -------------------------------------------------------------- basics

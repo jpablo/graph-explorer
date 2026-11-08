@@ -1,26 +1,7 @@
 package org.jpablo.graphexplorer.gxcore.model
 
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 import upickle.default.ReadWriter
-
-/** A diagram's primary key: stable, internal, never derived from anything that
-  * can change.
-  *
-  * Deliberately not the origin URI. §3.1: diagrams created in the app have no
-  * origin, one file may legitimately back several records with different
-  * metadata, and files get renamed — none of which a primary key may do. The
-  * origin is an indexed attribute instead, and URI-keying is used where it
-  * actually pays: the watch registry, where it collapses a file reached by two
-  * spellings into one poller.
-  */
-final case class DiagramId(value: String) derives ReadWriter, CanEqual
-
-object DiagramId:
-  /** Derive an id from stable external text. Used by migration so that
-    * re-running it maps an old project onto the same record instead of a second
-    * copy — idempotence by construction rather than by a lookup that could race.
-    */
-  def derivedFrom(namespace: String, key: String): DiagramId =
-    DiagramId(s"$namespace-$key")
 
 /** Where a diagram sits in the library's own hierarchy.
   *
@@ -54,22 +35,24 @@ object FolderPath:
   * answer decides whether they break the follow-the-file flow.
   */
 final case class DiagramMetadata(
+    /** Every diagram has a name, so the name has no default. */
+    name:            String,
+    folder:          FolderPath = FolderPath.root,
     hiddenElements:  Set[String] = Set.empty,
     collapsedGroups: Set[String] = Set.empty,
     tags:            List[String] = Nil,
     notes:           String = "",
-    /** Whether the viewer re-reads the document's language on every edit.
+    /** This flag controls whether the viewer detects the language of the source
+      * again after each edit.
       *
-      * Here rather than in the text because of §5.3.1's question: it survives a
-      * pull. Re-pulling a regenerated origin must not silently switch the
-      * language mode the user chose. `None` is every record written before the
-      * mode existed, and reads as off.
+      * The flag is here and not in the text because of the question in §5.3.1:
+      * the flag survives a pull. A pull from an origin that a tool generated
+      * again must not change the language mode that the user selected. `None`
+      * is the value in each diagram from before the mode existed. The viewer
+      * reads it as "on".
       */
     autoDetectFormat: Option[Boolean] = None
-) derives ReadWriter, CanEqual
-
-object DiagramMetadata:
-  val empty: DiagramMetadata = DiagramMetadata()
+) derives CanEqual
 
 /** The relationship between a diagram and an origin. */
 final case class Binding(
@@ -80,23 +63,87 @@ final case class Binding(
     lastSyncAt: Long
 ) derives ReadWriter, CanEqual
 
-/** A library record.
+/** A diagram in the library.
   *
-  * `text` is held here AND at the origin, deliberately (§3.2): detached and
-  * origin-less diagrams need text with no origin, an origin can be missing or
-  * offline while the diagram still has to render, and the three-hash comparison
-  * needs a local copy to compare against. It is a cache with explicit
-  * reconciliation, like a git working tree against a remote.
+  * The diagram holds `text`, and the origin holds it too (§3.2). This is
+  * intentional, for three reasons. A detached diagram, or a diagram with no
+  * origin, needs text without an origin. An origin can be absent or offline,
+  * and the diagram must render at that time. The three-hash comparison needs a
+  * local copy to compare with. Thus `text` is a cache with an explicit
+  * reconciliation, similar to a git working tree and its remote.
   */
 final case class Diagram(
     id:        DiagramId,
-    name:      String,
-    folder:    FolderPath,
     format:    String, // DiagramFormat.toString; a string so an unknown format round-trips
     text:      String,
     binding:   Option[Binding],
     metadata:  DiagramMetadata,
     createdAt: Long,
     updatedAt: Long
-) derives ReadWriter, CanEqual:
+) derives CanEqual:
   def isBound: Boolean = binding.isDefined
+
+object Diagram:
+
+  /** The shape of a diagram on the disk.
+    *
+    * The shape is an API: older builds of `gx` and of the desktop read the same
+    * library. Thus `name` and `folder` stay at the top level, outside
+    * `metadata`. upickle omits a field that is equal to its default, so each
+    * default here must not change.
+    */
+  private final case class Stored(
+      id:        DiagramId,
+      name:      String,
+      folder:    FolderPath,
+      format:    String,
+      text:      String,
+      binding:   Option[Binding],
+      metadata:  StoredMetadata,
+      createdAt: Long,
+      updatedAt: Long
+  ) derives ReadWriter
+
+  private final case class StoredMetadata(
+      hiddenElements:   Set[String] = Set.empty,
+      collapsedGroups:  Set[String] = Set.empty,
+      tags:             List[String] = Nil,
+      notes:            String = "",
+      autoDetectFormat: Option[Boolean] = None
+  ) derives ReadWriter
+
+  given ReadWriter[Diagram] = upickle.default.readwriter[Stored].bimap[Diagram](toStored, fromStored)
+
+  private def toStored(d: Diagram): Stored =
+    val m = d.metadata
+    Stored(
+      id = d.id,
+      name = m.name,
+      folder = m.folder,
+      format = d.format,
+      text = d.text,
+      binding = d.binding,
+      metadata = StoredMetadata(m.hiddenElements, m.collapsedGroups, m.tags, m.notes, m.autoDetectFormat),
+      createdAt = d.createdAt,
+      updatedAt = d.updatedAt
+    )
+
+  private def fromStored(s: Stored): Diagram =
+    val m = s.metadata
+    Diagram(
+      id = s.id,
+      format = s.format,
+      text = s.text,
+      binding = s.binding,
+      metadata = DiagramMetadata(
+        name = s.name,
+        folder = s.folder,
+        hiddenElements = m.hiddenElements,
+        collapsedGroups = m.collapsedGroups,
+        tags = m.tags,
+        notes = m.notes,
+        autoDetectFormat = m.autoDetectFormat
+      ),
+      createdAt = s.createdAt,
+      updatedAt = s.updatedAt
+    )

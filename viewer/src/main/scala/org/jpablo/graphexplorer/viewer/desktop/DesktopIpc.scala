@@ -12,18 +12,19 @@ import scala.util.{Failure, Success}
   */
 object IpcUnavailable extends Exception("desktop IPC is unavailable")
 
-/** The webview's half of the desktop boundary (architecture D3).
+/** The webview side of the desktop boundary (architecture D3).
   *
-  * The page used to be handed the control server's `port` and `token` on every
-  * `document.changed` event and reach the desktop by credentialed cross-origin
-  * `fetch`. That made the ONE principal that renders content the user did not
-  * write — a `.dot` from anywhere, an imported project — the holder of a bearer
-  * token for a general HTTP API.
+  * Before, the page got the `port` and the `token` of the control server with
+  * each `document.changed` event. The page then used a cross-origin `fetch`
+  * with these credentials to reach the desktop. Thus the ONE principal that
+  * shows content that the user did not write held a bearer token for a general
+  * HTTP API. That content can be a `.dot` file from any location, or an
+  * imported diagram.
   *
-  * It now calls named Tauri commands — the ones listed below. That is not a
-  * sandbox: page JS can still invoke them. What it buys is that the capability is *enumerated and
-  * revocable* rather than *ambient*, and that there is no credential in the JS
-  * heap to steal in the first place.
+  * Now the page calls named Tauri commands, which are the commands below. This
+  * is not a sandbox, because the page JS can still call them. But the
+  * capability is *enumerated and revocable*, not *ambient*. Also, the JS heap
+  * holds no credential that an attacker can steal.
   */
 object DesktopIpc:
 
@@ -65,33 +66,36 @@ object DesktopIpc:
       case Some(fn) => fn(command, args).toFuture
       case None     => Future.failed(js.JavaScriptException("desktop IPC is unavailable"))
 
-  /** Start watching a record's origin, so a change to it reaches the page.
+  /** Start a watch on the origin of a diagram, so that a change to the origin
+    * reaches the page.
     *
-    * The MISSING link of Phase 3. Reconciliation runs when the shell reports a
-    * change, and the shell reports one only for a file it watches — but the
-    * page never asked for a watch. `open_document` was defined, handled and
-    * documented, and called from nowhere. So an origin edit reached the app
-    * only when `gx open` had watched the file, and opening the same record
-    * from the library was silent.
+    * Phase 3 did NOT have this part. Reconciliation runs when the shell
+    * reports a change. The shell reports a change only for a file that it
+    * watches, but the page did not ask for a watch. The code defined, handled
+    * and documented `open_document`, but no code called it. Thus an edit to an
+    * origin reached the app only when `gx open` had a watch on the file. When
+    * a person opened the same diagram from the library, the app did not see
+    * the edit.
     *
-    * The reply is DISCARDED on purpose. It carries the bytes, and taking them
-    * here would put the file's text on screen without asking the record — the
-    * exact behaviour §8 removed. `add_watch` emits a document event for a watch
-    * it creates, so the text arrives by the one route that reconciles it. A
-    * file that changed while the app was shut therefore reconciles at open.
+    * The code DISCARDS the reply on purpose, although the reply contains the
+    * bytes. If the code uses the bytes here, the text of the file goes on the
+    * screen, and the diagram does not make a decision. §8 removed that
+    * behaviour. `add_watch` sends a document event for each watch that it
+    * creates, so the text arrives by the one route that reconciles it. Thus a
+    * file that changed while the app was closed reconciles when the app opens it.
     *
-    * CAUTION: there is no matching unwatch, and this must not grow one without
-    * a refcount. Watches are keyed by PATH and shared: `gx watch` may hold one
-    * on the same file, and tearing it down because a page navigated would stop
-    * a watch the page never started.
+    * CAUTION: there is no unwatch that matches this call. Do not add one
+    * without a reference count. The key of a watch is the PATH, and watches are
+    * shared. `gx watch` can hold a watch on the same file. If a page removes
+    * the watch when it navigates, it stops a watch that the page did not start.
     */
   def openDocument(path: String)(using ExecutionContext): Future[Unit] =
     if !available then Future.unit
     else
       invoke(OpenDocument, js.Dynamic.literal(path = path)).map(_ => ()).recover:
         case error =>
-          // A watch the shell refused is not fatal to the view. The record
-          // still opens; it just will not hear about the file.
+          // A watch that the shell refused does not stop the view. The
+          // diagram still opens, but it does not get the changes to the file.
           dom.console.warn(s"[origin] could not watch $path: ${error.getMessage}")
 
   /** Compare-and-swap save. `baseRevision` is the revision the UI last saw, so

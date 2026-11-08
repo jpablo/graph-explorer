@@ -1,13 +1,15 @@
 package org.jpablo.graphexplorer.gxcore.store
 
 import org.jpablo.graphexplorer.gxcore.model.*
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import scala.util.control.NonFatal
 
 final case class MigrationReport(
     imported: Vector[DiagramId] = Vector.empty,
-    /** Already in the store: the record for this project exists, so it was left
-      * exactly as it is. This is what makes re-running safe.
+    /** Already in the store: the store has a diagram for this browser diagram,
+      * and the migration did not change it. Thus the migration is safe when it
+      * runs again.
       */
     skipped:  Vector[DiagramId] = Vector.empty,
     failed:   Vector[(String, String)] = Vector.empty
@@ -15,44 +17,45 @@ final case class MigrationReport(
   def total: Int      = imported.size + skipped.size + failed.size
   def isEmpty: Boolean = total == 0
 
-/** Bringing the browser library onto disk (§9).
+/** The migration moves the browser library to the disk (§9).
   *
-  * The web app keeps its own `localStorage` library, unsynced and unchanged — it
-  * has no filesystem, which is the whole reason it exists. This is the one-time
-  * import the desktop offers on first v2 launch.
+  * The web app keeps its own library in `localStorage`. That library does not
+  * sync, and the migration does not change it. The web app has no file system,
+  * and that is the reason for the browser library. The desktop offers this
+  * import one time, at the first start of v2.
   *
-  * Two rules, both learned rather than assumed:
+  * Two rules apply. Both come from bugs, not from assumptions:
   *
-  *   1. **Never destructive.** Nothing here deletes or overwrites. Migration
-  *      runs against a user's entire accumulated library, and the failure mode
-  *      of getting it wrong is not "a bad import" but "their work is gone".
-  *      `ProjectsStorage` already carries scar tissue from this class of bug —
-  *      the `updateDirectory` empty-index guard and `guardedProjectName` both
-  *      exist because a blank value once reached persistence and was written
-  *      over real data.
-  *   2. **Idempotent by construction.** Ids are derived from the project id, so
-  *      a second run maps onto the same records and skips them. Idempotence via
-  *      a derived key rather than a "have I run yet?" flag, because a flag can
-  *      be lost or written before the work finishes.
+  *   1. **The migration never destroys data.** No code here deletes or
+  *      overwrites. The migration runs on all of the library of a user. If it
+  *      goes wrong, the result is not "a bad import" but "their work is gone".
+  *      `BrowserLibrary` had bugs of this type before. The empty-index guard
+  *      in `updateIndex` and `guardedDiagramName` exist because a blank value
+  *      once got into the storage and overwrote real data.
+  *   2. **The migration is idempotent because of its design.** Each id comes
+  *      from the id of the browser diagram. Thus a second run finds the same
+  *      diagrams in the store and skips them. A derived key gives the
+  *      idempotence, not a "have I run yet?" flag. A flag can be lost, or the
+  *      code can write it before the work is complete.
   *
-  * Parsing is deliberately lenient. The payloads were written by an older
-  * version whose internal types have since moved on — `ElementIds` wraps a set
-  * of a sealed trait with tagged JSON — and coupling a one-shot migration to
-  * those shapes means it breaks precisely when it is finally needed. View state
-  * is recovered on a best-effort basis: getting it wrong costs a fold, not a
-  * document.
+  * The parse is lenient on purpose. An older version wrote the payloads, and
+  * its internal types changed after that. For example, `ElementIds` wraps a set
+  * of a sealed trait with tagged JSON. A one-time migration that depends on
+  * those shapes breaks at the time when the user needs it. The migration
+  * recovers the view state if it can. If it fails, the user loses a fold, not
+  * the source.
   */
 object LocalStorageMigration:
 
-  /** Namespace for derived ids, so a migrated record is recognisable as one and
-    * cannot collide with an id minted natively.
+  /** The namespace for derived ids. With it, you can identify a migrated
+    * diagram, and its id cannot be equal to an id from `DiagramId.random`.
     */
   private val Namespace = "ls"
 
-  def idFor(projectId: String): DiagramId = DiagramId.derivedFrom(Namespace, projectId)
+  def idFor(browserDiagramId: String): DiagramId = DiagramId.derivedFrom(Namespace, browserDiagramId)
 
-  /** @param directoryJson the `graph-explorer.projects` value
-    * @param payloadFor    project id -> its `PersistedDiagramState` JSON
+  /** @param directoryJson the value of the `graph-explorer.projects` key
+    * @param payloadFor    the id of a browser diagram -> its `PersistedDiagramState` JSON
     */
   def migrate(
       directoryJson: String,
@@ -60,36 +63,36 @@ object LocalStorageMigration:
       store:         DiagramSink,
       now:           () => Long = () => System.currentTimeMillis()
   ): Either[String, MigrationReport] =
-    parseDirectory(directoryJson).map: projects =>
+    parseDirectory(directoryJson).map: browserDiagrams =>
       store.initialize()
-      projects.foldLeft(MigrationReport()): (report, project) =>
-        val id = idFor(project.id)
+      browserDiagrams.foldLeft(MigrationReport()): (report, browserDiagram) =>
+        val id = idFor(browserDiagram.id)
         if store.contains(id) then report.copy(skipped = report.skipped :+ id)
         else
-          payloadFor(project.id) match
+          payloadFor(browserDiagram.id) match
             case None =>
-              // A directory entry with no payload. v1 could produce these: a
-              // deleted project whose payload was removed but whose entry
-              // lingered, or vice versa. Recording rather than inventing an
-              // empty diagram to stand in for it.
-              report.copy(failed = report.failed :+ (project.id, "no stored payload"))
+              // An entry of the library index that has no payload. v1 could
+              // make these: a deleted browser diagram whose payload is gone but
+              // whose entry stayed, or the opposite. The migration records a
+              // failure. It does not make an empty diagram in its place.
+              report.copy(failed = report.failed :+ (browserDiagram.id, "no stored payload"))
             case Some(payload) =>
-              toDiagram(id, project, payload, now()) match
-                case Left(why) => report.copy(failed = report.failed :+ (project.id, why))
+              toDiagram(id, browserDiagram, payload, now()) match
+                case Left(why) => report.copy(failed = report.failed :+ (browserDiagram.id, why))
                 case Right(diagram) =>
                   store.write(diagram) match
-                    case Left(err) => report.copy(failed = report.failed :+ (project.id, err))
+                    case Left(err) => report.copy(failed = report.failed :+ (browserDiagram.id, err))
                     case Right(_)  => report.copy(imported = report.imported :+ id)
 
   private final case class LegacyProject(id: String, name: String, lastModified: Long, createdAt: Long)
 
   private def parseDirectory(json: String): Either[String, Vector[LegacyProject]] =
     try
-      val projects = ujson.read(json).obj.get("projects").map(_.arr).getOrElse(ujson.Arr().arr)
+      val browserDiagrams = ujson.read(json).obj.get("projects").map(_.arr).getOrElse(ujson.Arr().arr)
       Right:
-        projects.toVector.flatMap: entry =>
+        browserDiagrams.toVector.flatMap: entry =>
           val o  = entry.obj
-          // ProjectId is a case class, so it serialises as {"value": "..."};
+          // DiagramId is a case class, so it serialises as {"value": "..."};
           // accept a bare string too, in case it ever did not.
           val id = o.get("id").flatMap:
             case ujson.Str(s) => Some(s)
@@ -102,13 +105,13 @@ object LocalStorageMigration:
               lastModified = o.get("lastModified").flatMap(_.numOpt).map(_.toLong).getOrElse(0L),
               createdAt = o.get("createdAt").flatMap(_.numOpt).map(_.toLong).getOrElse(0L)
             )
-    catch case NonFatal(e) => Left(s"could not parse the projects directory: $e")
+    catch case NonFatal(e) => Left(s"could not parse the library index: $e")
 
   private def toDiagram(
-      id:      DiagramId,
-      project: LegacyProject,
-      payload: String,
-      nowMs:   Long
+      id:             DiagramId,
+      browserDiagram: LegacyProject,
+      payload:        String,
+      nowMs:          Long
   ): Either[String, Diagram] =
     try
       val o = ujson.read(payload).obj
@@ -119,7 +122,7 @@ object LocalStorageMigration:
       val text = o.get("source").flatMap(_.strOpt).getOrElse("")
 
       val name = List(
-        project.name,
+        browserDiagram.name,
         o.get("projectName").flatMap(_.strOpt).getOrElse("")
       ).find(n => n.nonEmpty && n != "Untitled").getOrElse("Untitled")
 
@@ -128,21 +131,21 @@ object LocalStorageMigration:
       Right(
         Diagram(
           id = id,
-          name = name,
-          folder = FolderPath.root,
           format = format,
           text = text,
           // Migrated diagrams have no origin: they never came from a file, and
           // inventing one would bind them to a path that does not exist.
           binding = None,
           metadata = DiagramMetadata(
+            name = name,
+            folder = FolderPath.root,
             hiddenElements = idsIn(o.get("hiddenElements")),
             // Groups by construction, so the kind is known even when the old
             // payload carried no tag.
             collapsedGroups = idsIn(o.get("collapsedGroups"), assume = Some("group"))
           ),
-          createdAt = if project.createdAt > 0 then project.createdAt else nowMs,
-          updatedAt = if project.lastModified > 0 then project.lastModified else nowMs
+          createdAt = if browserDiagram.createdAt > 0 then browserDiagram.createdAt else nowMs,
+          updatedAt = if browserDiagram.lastModified > 0 then browserDiagram.lastModified else nowMs
         )
       )
     catch case NonFatal(e) => Left(s"could not parse the stored payload: $e")

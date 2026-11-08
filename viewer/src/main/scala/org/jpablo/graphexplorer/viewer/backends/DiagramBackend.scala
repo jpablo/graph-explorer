@@ -103,10 +103,10 @@ trait DiagramBackend:
     */
   def graphToText(graph: ViewerGraph, omitInternal: Boolean): String
 
-  /** The diagram's own declared title, when the source text carries one (Mermaid
-    * frontmatter / `title` line, DOT graph-level `label`). Used as the display name for
-    * projects the user has not renamed. Must be cheap: called per keystroke while a
-    * project is still unnamed, and per library card.
+  /** The title that the diagram declares, when the source text has one (the Mermaid
+    * frontmatter or `title` line, or the DOT graph-level `label`). The app shows it as the
+    * name of a diagram that the person did not rename. It must be fast, because the app
+    * calls it on each keystroke while the diagram has no name, and for each library card.
     */
   def extractTitle(text: String): Option[String]
 

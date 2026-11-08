@@ -2,14 +2,15 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.*
-import org.jpablo.graphexplorer.projects.{DesktopLibrary, Library}
+import org.jpablo.graphexplorer.library.{DesktopLibrary, Library}
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import scala.scalajs.js
 
-/** Phase 3 item 6: a bound origin never reaches a viewer on its own.
+/** Phase 3 item 6: a bound origin never goes directly to a viewer.
   *
-  * The record owns a bound file (§2). A change to it reconciles against the
-  * record, and reaches the screen only if the record adopts it.
+  * The diagram owns a bound file (§2). A change to that file reconciles against
+  * the diagram. The change reaches the screen only if the diagram adopts it.
   */
 class OriginRoutingSpec extends FunSuite:
 
@@ -28,11 +29,9 @@ class OriginRoutingSpec extends FunSuite:
     js.Dynamic.global.window.__TAURI__ =
       js.Dynamic.literal(core = js.Dynamic.literal(invoke = invoke))
 
-  private def boundRecord =
+  private def boundDiagram =
     Diagram(
       id = DiagramId("bound"),
-      name = "bound",
-      folder = FolderPath.root,
       format = "DOT",
       text = "digraph { a }",
       binding = Some(
@@ -43,7 +42,7 @@ class OriginRoutingSpec extends FunSuite:
           lastSyncAt = 0L
         )
       ),
-      metadata = DiagramMetadata(),
+      metadata = DiagramMetadata(name = "bound", folder = FolderPath.root),
       createdAt = 1,
       updatedAt = 1
     )
@@ -52,7 +51,7 @@ class OriginRoutingSpec extends FunSuite:
     installShell()
     OriginReconciler.reset()
     DesktopDocumentRegistry.reset()
-    Library.install(DesktopLibrary(Vector(boundRecord)))
+    Library.install(DesktopLibrary(Vector(boundDiagram)))
 
   override def afterEach(context: AfterEach): Unit =
     Library.restoreDefault()

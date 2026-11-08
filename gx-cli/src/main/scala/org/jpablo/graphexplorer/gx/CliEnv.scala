@@ -23,8 +23,8 @@ final case class CliEnv(
     stdin:  () => String,
     now:    () => Long,
 
-    /** Whether a desktop is up. Only the session-tier commands care (D7.2), and
-      * they are the only ones that can fail for want of one.
+    /** Whether a desktop is up. Only the live view commands need one (D7.2), and
+      * only they fail when no desktop is up.
       *
       * Since P5 this is answered by CONNECTING rather than by reading a pid out
       * of the runtime file. A crashed desktop leaves both the file and its
@@ -58,8 +58,8 @@ object ExitCode:
   val Ok                  = 0
   val Usage               = 1
 
-  /** The command needs a window. Under v1 this meant "nothing works"; now it is
-    * only ever the session tier, and every other command has already run.
+  /** The command needs a window. Under v1 this meant "nothing works". Now only a
+    * live view command returns it, and every other command has already run.
     */
   val NeedsDesktop        = 2
   val InvalidPathOrPolicy = 4

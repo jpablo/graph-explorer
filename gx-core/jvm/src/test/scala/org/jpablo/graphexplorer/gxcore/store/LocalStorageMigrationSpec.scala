@@ -18,11 +18,11 @@ class LocalStorageMigrationSpec extends FunSuite:
   )
 
   private def directory(entries: (String, String)*): String =
-    val projects = entries
+    val diagrams = entries
       .map: (id, name) =>
         s"""{"id":{"value":"$id"},"name":"$name","lastModified":111,"createdAt":100}"""
       .mkString(",")
-    s"""{"projects":[$projects]}"""
+    s"""{"projects":[$diagrams]}"""
 
   private def payload(text: String, name: String = "Untitled"): String =
     s"""{
@@ -40,7 +40,7 @@ class LocalStorageMigrationSpec extends FunSuite:
 
   // ------------------------------------------------------------- basics
 
-  tmp.test("a project becomes a diagram, with its text under the new name") { dir =>
+  tmp.test("a browser diagram becomes a diagram on disk, with its text under the new name") { dir =>
     val s      = store(dir)
     val report = LocalStorageMigration
       .migrate(directory("p1" -> "Architecture"), _ => Some(payload("digraph G { a }")), s)
@@ -48,7 +48,7 @@ class LocalStorageMigrationSpec extends FunSuite:
 
     assertEquals(report.imported.size, 1)
     val d = s.get(LocalStorageMigration.idFor("p1")).fold(e => fail(s"$e"), identity)
-    assertEquals(d.name, "Architecture")
+    assertEquals(d.metadata.name, "Architecture")
     // The old `source` field held the TEXT; the new model calls that `text` and
     // reserves origin/source for where it came from — the opposite meaning.
     assertEquals(d.text, "digraph G { a }")
@@ -67,13 +67,13 @@ class LocalStorageMigrationSpec extends FunSuite:
     * have since changed, so parsing is lenient — and `$type` discriminators must
     * not arrive as element ids.
     */
-  /** The type tag is READ, not skipped.
+  /** The migration READS the type tag. It does not skip it.
     *
-    * It used to be discarded, which left a bare `n1` that could not say whether
-    * a hidden node or a hidden group was meant — so two different elements
-    * sharing an id became one entry, and hiding either hid both. The record
-    * tier's `hide`/`unhide` are built on these strings, so the ambiguity had to
-    * go before they were.
+    * Before, the migration discarded the tag. The result was a bare `n1`, and
+    * it could not tell if the user hid a node or a group. Thus two different
+    * elements with the same id became one entry, and when the user hid one of
+    * them, the user hid both. The metadata commands `hide`/`unhide` use these
+    * strings, so the code had to remove the ambiguity before it got them.
     */
   tmp.test("view state keeps the element KIND, so a node and a group cannot collide") { dir =>
     val s = store(dir)
@@ -118,7 +118,7 @@ class LocalStorageMigrationSpec extends FunSuite:
     val second = LocalStorageMigration.migrate(dj, pay, s).fold(e => fail(e), identity)
     assertEquals(second.imported, Vector.empty)
     assertEquals(second.skipped.size, 2)
-    assertEquals(s.list().size, 2, "a second run duplicated records")
+    assertEquals(s.list().size, 2, "a second run duplicated diagrams")
   }
 
   /** The rule the whole design hangs on. Re-running migration must never revert
@@ -140,8 +140,8 @@ class LocalStorageMigrationSpec extends FunSuite:
 
   // ------------------------------------------------------ never destroy
 
-  /** The hazard `ProjectsStorage` already carries scar tissue for: an empty
-    * index reaching persistence and being written over real data.
+  /** `BrowserLibrary` had this bug before: an empty index got into the
+    * storage and overwrote real data.
     */
   tmp.test("an EMPTY directory imports nothing and leaves a populated library alone") { dir =>
     val s = store(dir)
@@ -196,7 +196,7 @@ class LocalStorageMigrationSpec extends FunSuite:
     assertEquals(s.list().size, 2)
   }
 
-  tmp.test("a project id that is not filename-safe still lands in the diagrams directory") { dir =>
+  tmp.test("a browser diagram id that is not filename-safe still lands in the diagrams directory") { dir =>
     val s = store(dir)
     LocalStorageMigration
       .migrate(directory("../../escape" -> "A"), _ => Some(payload("x")), s)
@@ -205,10 +205,10 @@ class LocalStorageMigrationSpec extends FunSuite:
     assertEquals(s.pathOf(s.list().head.id).getParent, dir.resolve("diagrams"))
   }
 
-  tmp.test("a never-renamed project keeps the default name rather than an empty one") { dir =>
+  tmp.test("a never-renamed browser diagram keeps the default name rather than an empty one") { dir =>
     val s = store(dir)
     LocalStorageMigration
       .migrate(directory("p1" -> ""), _ => Some(payload("x", name = "Untitled")), s)
       .fold(e => fail(e), identity)
-    assertEquals(s.list().head.name, "Untitled")
+    assertEquals(s.list().head.metadata.name, "Untitled")
   }

@@ -7,9 +7,9 @@ when a path is refused by policy.
 
 The library lives in `~/.graph-explorer/library`. A loose file
 needs no library at all — `gx run ./arch.dot list-nodes` works immediately. What importing
-adds is a **record**: the stored metadata that makes tags, notes, folders, hidden elements
-and collapsed groups possible. That is the whole difference between the document tier and
-the record tier.
+adds is **metadata**: the stored data that makes tags, notes, folders, hidden elements
+and collapsed groups possible. That is the whole difference between the source tier and
+the metadata tier.
 
 ```bash
 gx import ./arch.dot --mode sync --name "Architecture"
@@ -24,8 +24,8 @@ one file is worse than a duplicate.
 Note what that uniqueness is keyed on: the **origin**, not the name. Two different files
 can both be called `infra`, and the second import gets a fresh id (`infra-2`) while keeping
 the name. So a bare name is not a safe address — `gx run infra hide ...` may act on a
-record bound to someone else's file, succeed, and report success. Check the `origin` first,
-or address the path.
+record bound to someone else's file, succeed, and report success. Check the `origin` first
+with `gx ls --json`, or address the path.
 
 ## Bindings and sync modes
 

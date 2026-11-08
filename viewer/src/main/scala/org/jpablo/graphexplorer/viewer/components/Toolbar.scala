@@ -101,9 +101,9 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
               cls   := "cursor-pointer hover:underline decoration-dotted underline-offset-4",
               title := "Rename diagram",
               text <-- projectName,
-              onClick --> all.changeProjectName.execute()
+              onClick --> all.renameDiagram.execute()
             ),
-            IconButtonTitled("bi-pencil text-[.65rem]", "Change title")(all.changeProjectName.execute())
+            IconButtonTitled("bi-pencil text-[.65rem]", "Change title")(all.renameDiagram.execute())
           )
         )
       )

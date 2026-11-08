@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import org.jpablo.graphexplorer.gxcore.command.{CommandResult, DocumentCommand, DocumentCommands}
+import org.jpablo.graphexplorer.gxcore.command.{SourceCommand, SourceCommands, SourceResult}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
 /** The UI's door into the command vocabulary (D7.1).
@@ -15,13 +15,13 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
   * What stays in the UI is what is genuinely about the VIEW: which elements to
   * select after a record is split, what to tell the user when a command is
   * refused. The command produces the new graph; the UI decides what to look at.
-  * That line is the same one D7.2 draws between the document and session tiers,
+  * That line is the same one D7.2 draws between the source and live view tiers,
   * and keeping it here is what lets the identical command run headless in `gx`.
   */
-trait DocumentCommandRunner:
+trait SourceCommandRunner:
   this: ViewerState =>
 
-  /** Run a document command against the current graph.
+  /** Run a source command against the current graph.
     *
     * `onApplied` receives the graph before and after, which is how the UI does
     * its view-level follow-up — selecting the record node that `combine` just
@@ -35,20 +35,20 @@ trait DocumentCommandRunner:
     * click and the update, and silently doing nothing is how that becomes a bug
     * report about the app "ignoring" a keystroke.
     */
-  def runDocumentCommand(
-      command:   DocumentCommand,
+  def runSourceCommand(
+      command:   SourceCommand,
       onApplied: (before: ViewerGraph, after: ViewerGraph) => Unit = (_, _) => ()
   ): Unit =
     // The setter of `fullGraphV` can refuse the edit. Then the follow-up must
     // not run, for example to select a record that does not exist.
     val applies = phases.graphEditApplies
     phases.fullGraphV.update: graph =>
-      DocumentCommands.run(graph, command) match
-        case Right(CommandResult.Updated(next)) =>
+      SourceCommands.run(graph, command) match
+        case Right(SourceResult.Updated(next)) =>
           if applies then onApplied(graph, next)
           next
 
-        case Right(CommandResult.Answered(_)) =>
+        case Right(SourceResult.Answered(_)) =>
           // A query changes nothing. The UI has no caller for one yet — it reads
           // the graph directly — but the vocabulary is one set, so running a
           // query here has to be harmless rather than an error.

@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.desktop.OriginReconciler
 import org.jpablo.graphexplorer.viewer.state.ViewTarget
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, tiny}
 
-/** This record and its origin file disagree, and a person must decide (§8).
+/** This diagram and its origin file disagree, and a person must decide (§8).
   *
   * Only the two states §5.2 calls `needsUser` appear here. `Ahead`, `Behind`
   * and `Converged` settle on their own under a mode that permits the direction,
@@ -20,20 +20,20 @@ import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, tiny}
   * which no page path has, and an answer for a `gx sync` running at that
   * moment.
   *
-  * Takes the TARGET and not the whole `ViewerState`: the origin of a record is
-  * decided by which record it is, and by nothing the viewer holds. The narrow
-  * parameter is also what makes the strip testable without building a viewer.
+  * The function takes the TARGET, not the whole `ViewerState`. The diagram
+  * alone decides its origin, and nothing in the viewer changes it. With this
+  * narrow parameter, a test of the strip needs no viewer.
   */
 def OriginStateBanner(target: ViewTarget): Div =
-  // Only a record has an origin. A loose file IS its file, and an example has
-  // neither.
-  val record =
+  // Only a diagram has an origin. A loose file IS its file, and an example has
+  // no file and no origin.
+  val diagramId =
     target match
-      case ViewTarget.LibraryDiagram(id) => Some(id)
-      case _                             => None
+      case ViewTarget.Diagram(id) => Some(id)
+      case _                      => None
 
   val unresolved =
-    record.map(OriginReconciler.unresolvedFor).getOrElse(Signal.fromValue(None))
+    diagramId.map(OriginReconciler.unresolvedFor).getOrElse(Signal.fromValue(None))
 
   div(
     child <-- unresolved.map:
@@ -43,11 +43,11 @@ def OriginStateBanner(target: ViewTarget): Div =
           "Nothing is written and nothing is lost. Choose which version to keep.",
           Button(
             "Take the file's version",
-            onClick --> (_ => record.foreach(OriginReconciler.takeOrigin))
+            onClick --> (_ => diagramId.foreach(OriginReconciler.takeOrigin))
           ).tiny,
           Button(
             "Keep this diagram",
-            onClick --> (_ => record.foreach(OriginReconciler.keepRecord))
+            onClick --> (_ => diagramId.foreach(OriginReconciler.keepDiagram))
           ).primary.tiny
         )
 

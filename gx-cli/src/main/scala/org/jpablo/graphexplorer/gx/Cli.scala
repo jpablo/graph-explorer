@@ -3,19 +3,20 @@ package org.jpablo.graphexplorer.gx
 import org.jpablo.graphexplorer.gxcore.fs.*
 import org.jpablo.graphexplorer.gxcore.model.*
 import org.jpablo.graphexplorer.gxcore.command.{
-  AnyCommand,
   CommandError,
-  CommandResult,
+  DiagramCommand,
   DiagramText,
-  DocumentCommand,
-  DocumentCommands,
-  RecordCommand,
-  SessionCodec,
-  SessionCommand,
-  RecordCommands,
-  RecordResult
+  LiveViewCodec,
+  LiveViewCommand,
+  MetadataCommand,
+  MetadataCommands,
+  MetadataResult,
+  SourceCommand,
+  SourceCommands,
+  SourceResult
 }
 import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import java.nio.file.{Path, Paths}
 import scala.util.control.NonFatal
@@ -28,25 +29,26 @@ private enum RefError derives CanEqual:
   case NotFound(ref: String)
   case Ambiguous(ref: String, matches: Vector[Diagram])
 
-/** What one reconciliation did.
+/** The result of one reconciliation.
   *
-  * `failure` is a store write that did NOT land. It used to be discarded —
-  * `env.store.save(updated)` with the Either thrown away at three sites — so
-  * `gx sync` printed Behind/Ahead and exited 0 after failing to persist the
-  * record it had just reconciled. The next run then redid the same work from
-  * the same stale baseline, silently, forever.
+  * `failure` is a store write that did NOT occur. Before, the code discarded
+  * it: three sites called `env.store.save(updated)` and ignored the Either.
+  * Thus `gx sync` printed Behind/Ahead and exited 0, but it did not save the
+  * diagram that it reconciled. The next run then did the same work again from
+  * the same stale baseline, silently, each time.
   */
 private case class SyncOutcome(diagram: Diagram, state: SyncState, failure: Option[String])
 
-/** What `gx open` decided a reference means (§3.1 of
+/** The meaning that `gx open` found for a reference (§3.1 of
   * docs/desktop-open-targets-and-persistence.md).
   *
-  * Distinct from [[Target]], which answers "library record or file on disk?"
-  * for the document tier. This one crosses the wire: the desktop has to know
-  * which it was given, because a record and a loose file have different owners
-  * and different persistence rules, and a path cannot tell them apart. Sending
-  * only a path is what made an open lose its record identity — and made an
-  * UNBOUND record unopenable, since it has no path to send.
+  * This is different from [[Target]], which answers "diagram or file on disk?"
+  * for `gx run`. This one goes to the desktop through the socket. The desktop
+  * must know which of the two it got. A diagram and a loose file have
+  * different owners and different persistence rules, and a path cannot show
+  * the difference. Before, `gx open` sent only a path, so an open lost the
+  * identity of the diagram. Also, the user could not open an UNBOUND diagram,
+  * because it has no path to send.
   */
 private enum OpenTarget derives CanEqual:
   case Library(id: DiagramId)
@@ -65,10 +67,10 @@ private enum Target derives CanEqual:
 
 /** The `gx` command surface (§8).
   *
-  * Every command here is D7.2's **document** or **record** tier, so every one of
-  * them works with no desktop running — which is the whole point of the
-  * redesign. `open` is the single session-tier command, and the only one that
-  * can fail for want of a window.
+  * Almost every command here is in the **source** tier or the **metadata** tier
+  * of D7.2, so it works with no desktop running. That is the whole point of the
+  * redesign. Only `open` and `view` act on the **live view**, and only they fail
+  * when no window is open.
   */
 object Cli:
 
@@ -84,18 +86,18 @@ object Cli:
       |  gx unbind <ref>
       |  gx sync [<ref>] [--all] [--json]       reconcile with origins
       |  gx watch [<ref>...] [--all] [--json]   stream changes to stdout
-      |  gx run <ref> <command> [--params J]    a document or record command
-      |  gx session <command> [--params J]      act on the LIVE view (needs a desktop)
+      |  gx run <ref> <command> [--params J]    a source or metadata command
+      |  gx view <command> [--params J]         act on the live view (needs a desktop)
       |  gx open <ref> [--loose]                show it in the desktop
       |                                         (--loose: the FILE at that path,
-      |                                          never the record bound to it)
+      |                                          never the diagram bound to it)
       |
       |  gx skill [<version>] [--latest]        where the agent skill lives
       |
       |  M = detached | pull | push | sync      (default: pull)
       |  gx run --list                          the commands `run` accepts
       |
-      |Everything except `open` works with no desktop running.
+      |Everything except `open` and `view` works with no desktop running.
       |""".stripMargin
 
   def run(argv: Vector[String], env: CliEnv): Int =
@@ -131,8 +133,9 @@ object Cli:
       case "unbind" => unbind(args, env)
       case "sync"   => sync(args, env)
       case "watch"  => watch(args, env)
-      case "run"     => runCommand(args, env)
-      case "session" => sessionCommand(args, env)
+      case "run"    => runCommand(args, env)
+      case "view"   => liveViewCommand(args, env)
+      case "session" => env.err("gx: 'session' is now 'view'"); ExitCode.Usage
       case "open"   => open(args, env)
       case "skill"  => skill(args, env)
       case other =>
@@ -194,7 +197,7 @@ object Cli:
       // is the one thing the number cannot mean.
       if running then env.out(s"desktop:  running (${watching(watches)})")
       else if starting then env.out("desktop:  starting (its window is not up yet)")
-      else env.out("desktop:  not running (only `gx open` needs it)")
+      else env.out("desktop:  not running (only `gx open` and `gx view` need it)")
     ExitCode.Ok
 
   /** What the desktop is following on disk, phrased so it cannot be misread as
@@ -235,10 +238,11 @@ object Cli:
                       case None =>
                         val existing = env.store.findByOrigin(origin)
                         if existing.nonEmpty then
-                          // §3.1: uniqueness on origin is a policy, not a
-                          // structural rule. Warn and reuse rather than
-                          // silently creating a second record that will fight
-                          // the first over the same file.
+                          // §3.1: one diagram for each origin is a policy, not
+                          // a structural rule. Thus gx warns and uses the
+                          // diagram again. It does not silently make a second
+                          // diagram that writes over the changes of the first
+                          // one in the same file.
                           env.err(s"gx: already imported as ${existing.head.id.value}")
                           printDiagram(existing.head, args, env)
                           ExitCode.Ok
@@ -246,12 +250,13 @@ object Cli:
                           val name = args.value("name").getOrElse(defaultName(resolved))
                           val d = Diagram(
                             id = DiagramId(freshId(name, env)),
-                            name = name,
-                            folder = args.value("folder").map(FolderPath.parse).getOrElse(FolderPath.root),
                             format = detectFormat(doc.text),
                             text = doc.text,
                             binding = Some(Binding(origin, mode, doc.hash, env.now())),
-                            metadata = DiagramMetadata.empty,
+                            metadata = DiagramMetadata(
+                              name = name,
+                              folder = args.value("folder").map(FolderPath.parse).getOrElse(FolderPath.root)
+                            ),
                             createdAt = env.now(),
                             updatedAt = env.now()
                           )
@@ -265,7 +270,7 @@ object Cli:
   private def ls(args: Args, env: CliEnv): Int =
     val all = env.store.list()
     val selected = args.value("folder").map(FolderPath.parse) match
-      case Some(f) => all.filter(_.folder.isUnder(f))
+      case Some(f) => all.filter(_.metadata.folder.isUnder(f))
       case None    => all
     if args.json then
       env.out(ujson.Arr.from(selected.map(summaryJson)).render(indent = 2))
@@ -273,7 +278,7 @@ object Cli:
     else
       for d <- selected do
         val origin = d.binding.map(b => s"  ${b.mode}  ${b.origin.value}").getOrElse("")
-        env.out(f"${d.id.value}%-28s ${d.folder.render}%-16s ${d.name}$origin")
+        env.out(f"${d.id.value}%-28s ${d.metadata.folder.render}%-16s ${d.metadata.name}$origin")
     ExitCode.Ok
 
   // ---------------------------------------------------------------- get
@@ -321,10 +326,10 @@ object Cli:
         val updated = d.copy(text = text, updatedAt = env.now())
         d.binding.filter(b => b.mode.pushes) match
           case None =>
-            // Local-only by mode: Pull keeps UI/CLI edits in the store and
-            // never writes them back (§5.3). Saving the record is the whole
-            // operation, and the divergence it creates is reported by
-            // `gx sync` rather than resolved behind the user's back.
+            // The mode keeps the edit local: Pull keeps UI/CLI edits in the
+            // store and never writes them back (§5.3). The operation only saves
+            // the diagram. `gx sync` reports the divergence that this causes.
+            // gx does not resolve it without the knowledge of the user.
             persist(updated, env): _ =>
               reportSet(updated, wroteOrigin = false, args, env); ExitCode.Ok
           case Some(binding) =>
@@ -453,10 +458,11 @@ object Cli:
 
       for (id, why) <- failures do env.err(s"gx: $id reconciled but could not be saved: $why")
 
-      // A write that did not land outranks divergence: divergence is a state
-      // the user can act on, an unsaved record is one they have not been told
-      // about. Divergence is a state, not an error (§5.2) — but a script that
-      // just pushed and wants to know whether it landed deserves a non-zero code.
+      // A write that did not occur is more important than a divergence. The
+      // user can act on a divergence, but nobody told the user about an
+      // unsaved diagram. A divergence is a state, not an error (§5.2). But a
+      // script that pushed and must know if the push occurred needs a non-zero
+      // code.
       if failures.nonEmpty then ExitCode.Unknown
       else if diverged > 0 then ExitCode.Conflict
       else ExitCode.Ok
@@ -588,7 +594,7 @@ object Cli:
 
   // ---------------------------------------------------------------- run
 
-  /** The document tier over a file (D7.2), headless.
+  /** The source tier and the metadata tier over a diagram (D7.2), headless.
     *
     * The same vocabulary the UI executes — `gx-core/command` defines it once and
     * this is the second of its three callers (D7.1). A mutation lands exactly
@@ -599,17 +605,17 @@ object Cli:
     if args.has("list") then
       // Discoverability is part of the vocabulary being a vocabulary: a name
       // nobody can enumerate is not addressable in any useful sense.
-      listNames(AnyCommand.names, args, env)
+      listNames(DiagramCommand.names, args, env)
     else
       (args.positionalAt(0), args.positionalAt(1)) match
         case (Some(_), Some(commandName)) =>
           paramsFrom(args, env) match
             case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
             case Right(params) =>
-              AnyCommand.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
+              DiagramCommand.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
                 case Left(CommandError.UnknownCommand(name)) =>
                   env.err(s"gx: unknown command '$name'")
-                  env.err(s"gx: try one of: ${AnyCommand.names.mkString(", ")}")
+                  env.err(s"gx: try one of: ${DiagramCommand.names.mkString(", ")}")
                   ExitCode.Usage
                 case Left(error) =>
                   env.err(s"gx: ${error.message}")
@@ -618,48 +624,49 @@ object Cli:
                   withTarget(args, env)(execute(_, command, args, env))
         case _ =>
           env.err("gx: run needs a diagram and a command")
-          env.err(s"gx: commands: ${AnyCommand.names.mkString(", ")}")
+          env.err(s"gx: commands: ${DiagramCommand.names.mkString(", ")}")
           ExitCode.Usage
 
-  private def execute(target: Target, command: AnyCommand, args: Args, env: CliEnv): Int =
+  private def execute(target: Target, command: DiagramCommand, args: Args, env: CliEnv): Int =
     command match
-      case AnyCommand.Doc(c) => executeDocument(target, c, args, env)
-      case AnyCommand.Rec(c) => executeRecord(target, c, args, env)
+      case DiagramCommand.Source(c)   => executeSource(target, c, args, env)
+      case DiagramCommand.Metadata(c) => executeMetadata(target, c, args, env)
 
-  /** The record tier operates on stored METADATA, so it needs a record — and a
-    * loose file on disk does not have one.
+  /** The metadata tier operates on stored METADATA, so it needs a diagram in the
+    * library. A loose file on disk has no metadata.
     *
     * Refused with the fix rather than with a shrug: `gx import` is what turns a
     * path into something that can carry tags and hidden elements, and saying so
     * is more useful than "not found".
     */
-  private def executeRecord(target: Target, command: RecordCommand, args: Args, env: CliEnv): Int =
+  private def executeMetadata(target: Target, command: MetadataCommand, args: Args, env: CliEnv): Int =
     target match
       case Target.OnDisk(path) =>
-        env.err(s"gx: '${path.getFileName}' is not in the library, so it has no record to change")
+        env.err(s"gx: '${path.getFileName}' is not in the library, so it has no metadata to change")
         env.err(s"gx: import it first:  gx import ${path.getFileName}")
         ExitCode.InvalidPathOrPolicy
 
       case Target.InLibrary(d) =>
-        RecordCommands.run(d, command) match
+        MetadataCommands.run(d, command) match
           case Left(error) =>
             env.err(s"gx: ${error.message}")
             ExitCode.InvalidPathOrPolicy
 
-          case Right(RecordResult.Answered(value)) =>
+          case Right(MetadataResult.Answered(value)) =>
             printAnswer(value, args, env)
             ExitCode.Ok
 
-          case Right(RecordResult.Updated(updated)) =>
-            // Metadata only: the record is saved, and the ORIGIN is untouched
-            // whatever the sync mode says. That is §5.3.1's split doing its job
-            // — hiding a node must never make a regenerating origin conflict.
+          case Right(MetadataResult.Updated(updated)) =>
+            // Metadata only: gx saves the diagram, and it does not change the
+            // ORIGIN in any sync mode. This is the split of §5.3.1, and it works
+            // as designed. When the user hides a node, an origin that a tool
+            // generates again must never get a conflict.
             persist(updated.copy(updatedAt = env.now()), env): saved =>
               if args.json then env.out(summaryJson(saved).render(indent = 2))
               else env.out(s"${saved.id.value}  ${command.name}")
               ExitCode.Ok
 
-  private def executeDocument(target: Target, command: DocumentCommand, args: Args, env: CliEnv): Int =
+  private def executeSource(target: Target, command: SourceCommand, args: Args, env: CliEnv): Int =
     textOf(target, env) match
       case Left(code) => code
       case Right(text) =>
@@ -668,7 +675,7 @@ object Cli:
             env.err(s"gx: $why")
             ExitCode.InvalidPathOrPolicy
           case Right(diagram) =>
-            DocumentCommands.run(diagram.graph, command) match
+            SourceCommands.run(diagram.graph, command) match
               case Left(error) =>
                 // A refusal is the desktop-less equivalent of a greyed-out menu
                 // item, and exit 4 is what the CLI already uses for "this
@@ -676,14 +683,14 @@ object Cli:
                 env.err(s"gx: ${error.message}")
                 ExitCode.InvalidPathOrPolicy
 
-              case Right(CommandResult.Answered(value)) =>
+              case Right(SourceResult.Answered(value)) =>
                 // A query never writes. This is the reason D4's channel is
                 // request/response at all — "list the nodes" has an answer, and
                 // no amount of watched state expresses one.
                 printAnswer(value, args, env)
                 ExitCode.Ok
 
-              case Right(CommandResult.Updated(updated)) =>
+              case Right(SourceResult.Updated(updated)) =>
                 applyText(target, DiagramText.render(updated, diagram.format), args, env, source = "command")
 
   /** JSON for a machine, columns for a person — the same split `ls` makes.
@@ -740,36 +747,37 @@ object Cli:
           ujson.read(text).objOpt.map(ujson.Obj.from).toRight("params must be a JSON object")
         catch case NonFatal(e) => Left(s"params is not valid JSON: ${e.getMessage}")
 
-  // ------------------------------------------------------------ session
+  // ---------------------------------------------------------- live view
 
-  /** The session tier (D7.2): the live view, so a running desktop is required.
+  /** The live view tier (D7.2): what a desktop window shows now. It needs a
+    * running desktop.
     *
-    * No `<ref>` argument, and that is the tier's whole shape rather than an
-    * omission — a session command acts on what is ON SCREEN, and the desktop
-    * already knows what that is. Naming a diagram here would be asking a
-    * question about a thing that may not be the thing being displayed.
+    * It has no `<ref>` argument, and that is the shape of the tier, not an
+    * omission. A live view command acts on what is ON SCREEN, and the desktop
+    * knows what that is. A diagram name here asks about a thing that the window
+    * possibly does not show.
     */
-  private def sessionCommand(args: Args, env: CliEnv): Int =
+  private def liveViewCommand(args: Args, env: CliEnv): Int =
     if args.has("list") then
-      listNames(SessionCommand.names, args, env)
+      listNames(LiveViewCommand.names, args, env)
     else
       args.positionalAt(0) match
         case None =>
-          env.err("gx: session needs a command")
-          env.err(s"gx: commands: ${SessionCommand.names.mkString(", ")}")
+          env.err("gx: view needs a command")
+          env.err(s"gx: commands: ${LiveViewCommand.names.mkString(", ")}")
           ExitCode.Usage
         case Some(commandName) =>
           paramsFrom(args, env) match
             case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
             case Right(params) =>
-              SessionCodec.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
+              LiveViewCodec.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
                 case Left(CommandError.UnknownCommand(name)) =>
-                  env.err(s"gx: unknown session command '$name'")
+                  env.err(s"gx: unknown live view command '$name'")
                   // The tiers are separate verbs, so naming the other one is
                   // the difference between a dead end and a next step.
-                  if AnyCommand.names.contains(name) then
+                  if DiagramCommand.names.contains(name) then
                     env.err(s"gx: '$name' is a headless command — try:  gx run <ref> $name")
-                  else env.err(s"gx: try one of: ${SessionCommand.names.mkString(", ")}")
+                  else env.err(s"gx: try one of: ${LiveViewCommand.names.mkString(", ")}")
                   ExitCode.Usage
 
                 case Left(error) =>
@@ -777,23 +785,23 @@ object Cli:
                   ExitCode.Usage
 
                 case Right(command) =>
-                  env.rpc("session", SessionCodec.encode(command)) match
+                  env.rpc("live-view", LiveViewCodec.encode(command)) match
                     case Right(result) =>
-                      if command.isQuery then printSessionAnswer(result, args, env)
+                      if command.isQuery then printLiveViewAnswer(result, args, env)
                       else env.out(command.name)
                       ExitCode.Ok
 
                     case Left(ChannelError.NoDesktop(_)) =>
-                      env.err("gx: no desktop is running, and the session tier needs one.")
+                      env.err("gx: no desktop is running, and the live view needs one.")
                       env.err("gx: (every `gx run` command works without it)")
                       ExitCode.NeedsDesktop
 
                     case Left(ChannelError.Rpc(code, message, _)) =>
-                      // NO_SESSION is "a desktop, but nothing on screen" — the
+                      // NO_LIVE_VIEW is "a desktop, but nothing on screen" — the
                       // tier's defining limit, and worth the same exit code as
                       // no desktop at all, since the caller's next move is the
                       // same: open something.
-                      if code == "NO_SESSION" then
+                      if code == "NO_LIVE_VIEW" then
                         env.err(s"gx: $message")
                         ExitCode.NeedsDesktop
                       else
@@ -804,7 +812,7 @@ object Cli:
                       env.err(s"gx: control channel error: $message")
                       ExitCode.Unknown
 
-  private def printSessionAnswer(result: ujson.Value, args: Args, env: CliEnv): Unit =
+  private def printLiveViewAnswer(result: ujson.Value, args: Args, env: CliEnv): Unit =
     if args.json then env.out(result.render(indent = 2))
     else
       result.arrOpt match
@@ -814,8 +822,8 @@ object Cli:
 
   // --------------------------------------------------------------- open
 
-  /** The one session-tier command (D7.2). It needs a live view, and there is no
-    * live view without a window — a limit of the concept, not of the CLI.
+  /** `open` acts on the live view (D7.2). It needs a window, because a live view
+    * exists only in a window. This is a limit of the concept, not of the CLI.
     *
     * What it sends is `show`: watch the file AND raise the window. The desktop
     * treats that as `watch` plus focus rather than a separate operation, so a
@@ -889,25 +897,25 @@ object Cli:
               env.err(s"gx: control channel error: $message")
               ExitCode.Unknown
 
-  /** `open` takes the same references every other command does — an id, a name,
-    * or a path — but the desktop only understands files, so a library diagram
-    * has to resolve to the origin it is bound to.
+  /** `open` takes the same references as each other command: an id, a name,
+    * or a path. But the desktop only understands files, so a diagram must
+    * resolve to the origin that it has a binding to.
     */
   private def openTarget(args: Args, env: CliEnv): Either[Int, OpenTarget] =
     val ref = args.positional.head
 
-    // `--loose` is the escape hatch of §3.3: open the FILE at this path, even
-    // if a record is bound to it. Without it there is no way to say "the file,
-    // not the record" — and opening a loose file must never import it.
+    // `--loose` is the exception of §3.3: it opens the FILE at this path, also
+    // if a diagram has a binding to it. Without it, you cannot say "the file,
+    // not the diagram". When you open a loose file, gx must never import it.
     if args.has("loose") then checkPolicy(env.cwd.resolve(ref), env).map(OpenTarget.File(_))
     else
       resolveRef(ref, env) match
         case Left(err: RefError.Ambiguous) => Left(reportRef(err, env))
 
-        // A record opens AS a record, bound or not. It used to be refused when
-        // it had no origin ("nothing to open"), which was only true while an
-        // open could name nothing but a path: the record has text of its own
-        // and is perfectly displayable (§3.2).
+        // A diagram opens AS a diagram, with or without a binding. Before, gx
+        // refused it when it had no origin ("nothing to open"). That was only
+        // true while an open could name only a path. The diagram has its own
+        // text, and the desktop can show it (§3.2).
         case Right(d) => Right(OpenTarget.Library(d.id))
 
         case Left(_: RefError.NotFound) =>
@@ -1013,7 +1021,7 @@ object Cli:
     */
   private def resolveRef(ref: String, env: CliEnv): Either[RefError, Diagram] =
     val all = env.store.list()
-    lazy val byName = all.filter(_.name == ref)
+    lazy val byName = all.filter(_.metadata.name == ref)
     lazy val byOrigin =
       val origin = FileOrigins.originOf(env.cwd.resolve(ref), env.cwd)
       all.filter(_.binding.exists(_.origin == origin))
@@ -1042,7 +1050,7 @@ object Cli:
       ExitCode.InvalidPathOrPolicy
     case RefError.Ambiguous(ref, matches) =>
       env.err(s"gx: '$ref' matches ${matches.size} diagrams — name one by id:")
-      for d <- matches do env.err(s"gx:   ${d.id.value}  ${d.name}")
+      for d <- matches do env.err(s"gx:   ${d.id.value}  ${d.metadata.name}")
       ExitCode.InvalidPathOrPolicy
 
   // ------------------------------------------------------------- helpers
@@ -1129,8 +1137,8 @@ object Cli:
   private def summaryJson(d: Diagram): ujson.Obj =
     ujson.Obj(
       "id"     -> d.id.value,
-      "name"   -> d.name,
-      "folder" -> d.folder.render,
+      "name"   -> d.metadata.name,
+      "folder" -> d.metadata.folder.render,
       "format" -> d.format,
       "origin" -> d.binding.map(b => ujson.Str(b.origin.value)).getOrElse(ujson.Null),
       "mode"   -> d.binding.map(b => ujson.Str(b.mode.toString)).getOrElse(ujson.Null)
@@ -1143,8 +1151,8 @@ object Cli:
     if args.json then env.out(summaryJson(d).render(indent = 2))
     else
       env.out(s"id:     ${d.id.value}")
-      env.out(s"name:   ${d.name}")
-      env.out(s"folder: ${d.folder.render}")
+      env.out(s"name:   ${d.metadata.name}")
+      env.out(s"folder: ${d.metadata.folder.render}")
       d.binding.foreach: b =>
         env.out(s"origin: ${b.origin.value}")
         env.out(s"mode:   ${b.mode}")

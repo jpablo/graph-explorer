@@ -211,9 +211,9 @@ fi
   || fail "a cold file open was not acknowledged as a file view"
 echo "cold file open acknowledged"
 
-# The acknowledgment is a readiness barrier, not a dispatch receipt. A session
-# command issued on the next line must see the new viewer every time.
-echo "checking immediate session readiness..."
+# The acknowledgment is a readiness barrier, not a dispatch receipt. A live view
+# command on the next line must see the new viewer every time.
+echo "checking immediate live view readiness..."
 for attempt in 1 2 3; do
   body="$(api_show_file "${cold_file}")"
   [[ "$(api_last_status)" == "ok" ]] || fail "open ${attempt} failed before readiness check"

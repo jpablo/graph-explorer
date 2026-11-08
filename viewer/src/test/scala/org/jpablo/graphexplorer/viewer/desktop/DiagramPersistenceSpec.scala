@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 /** Phase 2 item 4: the store follows the target (§6).
   *
   * The property under test is the one §6 states: a loose file cannot persist
-  * through a `ProjectId`. It is asserted by measuring the reported behaviour —
+  * through a `DiagramId`. It is asserted by measuring the reported behaviour —
   * what reaches `localStorage` — and not by reading which class was built.
   */
 class DiagramPersistenceSpec extends FunSuite with TestHelpers:
@@ -25,7 +25,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
       .flatMap(i => Option(dom.window.localStorage.key(i)))
       .filter(_.contains("graph-explorer.project."))
 
-  test("a loose file writes no project to localStorage, and a library record does") {
+  test("a loose file writes no diagram to localStorage, and a diagram does") {
     withGraphvizAsync { graphviz =>
       val open = DesktopDocumentRegistry.record("/tmp/loose.dot", "rev-1", "digraph G { a -> b }")
 
@@ -38,12 +38,12 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
         assertEquals(
           storedProjectKeys,
           Nil,
-          "a loose file must not stamp a library record — §6 exists to make this impossible"
+          "a loose file must not stamp a diagram — §6 exists to make this impossible"
         )
 
         // The same edits through a library target DO reach storage, so the
         // assertion above measures the target and not a broken test.
-        val library = ViewerState(ViewTarget.library("a-real-record"), graphviz)
+        val library = ViewerState(ViewTarget.diagram("a-real-record"), graphviz)
         library.project.name.set("a record")
         library.addNodeWithSmartConnection()
 

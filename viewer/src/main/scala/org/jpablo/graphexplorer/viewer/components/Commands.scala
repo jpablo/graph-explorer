@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components
 
-import org.jpablo.graphexplorer.projects.Library
+import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
@@ -89,38 +89,39 @@ case class Command[-A](
 class RouterCommands(router: Router):
   import Command.always
 
-  private def createProjectAndNavigate(source: Option[String] = None) =
-    val id = Library.createProjectDirectoryEntry(PersistedDiagramState.defaultProjectName)
-    router.navigateTo(Route.ProjectDetail(id.value, source))
+  private def createDiagramAndNavigate(source: Option[String] = None) =
+    val id = Library.createEmptyDiagram(PersistedDiagramState.defaultProjectName)
+    router.navigateTo(Route.Diagram(id.value, source))
 
-  val createProject =
+  val createDiagram =
     Command(
-      "Create new Project",
-      (source: Option[String]) => createProjectAndNavigate(source),
+      "Create new diagram",
+      (source: Option[String]) => createDiagramAndNavigate(source),
       always,
-      description = Some("Create a new project and navigate to it")
+      description = Some("Create a new diagram and open it")
     )
 
-  /** Copy the example being viewed into the library, under the gallery's name
-    * for it. Not `createProject`, which can only make an "Untitled": the copy
-    * of "Finite State Machine" should say so in the library.
+  /** Copy the example that the person views into the library, with the name
+    * that the gallery gives it. The `createDiagram` command above can only make
+    * an "Untitled" diagram. The copy of "Finite State Machine" must show that
+    * name in the library.
     */
   val copyExampleToLibrary =
     Command(
       "Copy example to library",
       (nameAndSource: (String, String)) =>
         val (name, source) = nameAndSource
-        val id             = Library.createNamedProject(name, source)
+        val id             = Library.createDiagram(name, source)
         // No source through the route: the payload is already written, so the
         // detail page restores the named diagram rather than seeding a fresh one.
-        router.navigateTo(Route.ProjectDetail(id.value))
+        router.navigateTo(Route.Diagram(id.value))
       ,
       always,
       description = Some("Add a copy of this example to your library")
     )
 
-  /** Open a built-in example. Deliberately NOT `createProject`: browsing the
-    * examples used to leave a copy of every one you looked at in the library.
+  /** Open a built-in example. This is NOT the `createDiagram` command. Before,
+    * the library got a copy of each example that a person looked at.
     */
   val openExample =
     Command(
@@ -139,8 +140,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   // -----------------------------------
   // miscellaneous actions
   // -----------------------------------
-  private def changeProjectNameAction(): Unit =
-    // Opens the app's own rename dialog (RenameProjectDialog) — the native
+  private def renameDiagramAction(): Unit =
+    // Opens the app's own rename dialog (RenameDiagramDialog) — the native
     // window.prompt was the one browser-chrome interruption left in the flow.
     state.renameDialogOpen.set(true)
 
@@ -532,11 +533,11 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Replace the diagram with the DOT or Mermaid source on the clipboard")
     )
 
-    val changeProjectName = Command(
-      "Change project name",
-      () => changeProjectNameAction(),
+    val renameDiagram = Command(
+      "Rename diagram",
+      () => renameDiagramAction(),
       always,
-      description = Some("Change the name of the current project")
+      description = Some("Change the name of the current diagram")
     )
 
     val exportAsSVG =
@@ -556,7 +557,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "Share URL",
       () => {
         val dot  = state.sourceText.now()
-        val url  = org.jpablo.graphexplorer.viewer.utils.ShareUrl.buildForProject(state.projectId, dot)
+        val url  = org.jpablo.graphexplorer.viewer.utils.ShareUrl.buildForDiagram(state.diagramId, dot)
         state.writeText(url)
         dom.console.info("Share URL copied to clipboard", url)
         state.infoBus.emit("Link copied to clipboard")
@@ -775,9 +776,9 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     common -> List(
       all.newNode,
       all.newBackwardsNode,
-      all.changeProjectName,
+      all.renameDiagram,
       all.moveToGroup,
-      routerCmds.createProject,
+      routerCmds.createDiagram,
       routerCmds.navigateHome
     ),
     navigation -> List(
@@ -857,8 +858,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.deleteHiddenElements
     ),
     document -> List(
-      all.changeProjectName,
-      routerCmds.createProject
+      all.renameDiagram,
+      routerCmds.createDiagram
     ),
     importFrom -> List(
       all.pasteDiagram
@@ -928,10 +929,10 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     if isSaveShortcut then
       ev.preventDefault()
       ev.stopPropagation()
-      // §11: an operation on the ACTIVE target. This used to reach through
-      // `window.__graphExplorerDesktopBridge` for a destination that was
-      // process-global — one reference shared by every viewer — so ⌘S could
-      // write a file while the autosave updated a different record.
+      // §11: an operation on the ACTIVE target. Before, this code used
+      // `window.__graphExplorerDesktopBridge` to find a destination for the
+      // whole process. All viewers used that one reference. Thus ⌘S could
+      // write a file while the autosave changed a different diagram.
       state.save().foreach:
         case SaveResult.Saved             => state.infoBus.emit("Saved")
         case SaveResult.Conflict(message) => state.errorBus.emit(message)

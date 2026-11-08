@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.gxcore.store
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.fs.FileOrigins
 import org.jpablo.graphexplorer.gxcore.model.*
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import java.nio.file.{Files, Path}
 
@@ -17,21 +18,25 @@ class LibraryStoreSpec extends FunSuite:
   private def diagram(id: String, name: String = "d", folder: FolderPath = FolderPath.root) =
     Diagram(
       id = DiagramId(id),
-      name = name,
-      folder = folder,
       format = "DOT",
       text = "digraph G { a -> b }",
       binding = None,
-      metadata = DiagramMetadata.empty,
+      metadata = DiagramMetadata(name = name, folder = folder),
       createdAt = 1,
       updatedAt = 2
     )
 
-  tmp.test("a record round trips through disk unchanged") { dir =>
+  tmp.test("a diagram round trips through disk unchanged") { dir =>
     val store = LibraryStore(dir)
     store.initialize()
     val d = diagram("one").copy(
-      metadata = DiagramMetadata(Set("n1", "n2"), Set("g1"), List("arch"), "a note"),
+      metadata = DiagramMetadata(
+        name = "d",
+        hiddenElements = Set("n1", "n2"),
+        collapsedGroups = Set("g1"),
+        tags = List("arch"),
+        notes = "a note"
+      ),
       binding = Some(
         Binding(
           FileOrigins.originOfPath("/tmp/a.dot"),
@@ -45,7 +50,7 @@ class LibraryStoreSpec extends FunSuite:
     assertEquals(store.get(d.id), Right(d))
   }
 
-  tmp.test("a missing record is NotFound, not an exception") { dir =>
+  tmp.test("a missing diagram is NotFound, not an exception") { dir =>
     val store = LibraryStore(dir)
     store.initialize()
     assertEquals(store.get(DiagramId("nope")), Left(StoreError.NotFound(DiagramId("nope"))))
@@ -57,13 +62,13 @@ class LibraryStoreSpec extends FunSuite:
     store.save(diagram("one", name = "first")).fold(e => fail(s"$e"), identity)
     store.save(diagram("one", name = "second")).fold(e => fail(s"$e"), identity)
     assertEquals(store.list().size, 1)
-    assertEquals(store.list().head.name, "second")
+    assertEquals(store.list().head.metadata.name, "second")
   }
 
-  /** §6: everything needed to render the library is recoverable by scanning, so
-    * there is no index to fall out of step with the records.
+  /** §6: a scan recovers all the data that the library view needs. Thus no
+    * index exists that can become different from the diagrams.
     */
-  tmp.test("§6: the listing is derived from the records on disk") { dir =>
+  tmp.test("§6: the listing is derived from the diagrams on disk") { dir =>
     val store = LibraryStore(dir)
     store.initialize()
     for n <- List("c", "a", "b") do store.save(diagram(n, name = n)).fold(e => fail(s"$e"), identity)
@@ -71,13 +76,14 @@ class LibraryStoreSpec extends FunSuite:
     // A second store instance, sharing nothing but the directory — as gx and the
     // desktop do.
     val other = LibraryStore(dir)
-    assertEquals(other.list().map(_.name), Vector("a", "b", "c"))
+    assertEquals(other.list().map(_.metadata.name), Vector("a", "b", "c"))
   }
 
-  /** One corrupt record — a half-written file from a killed process, or one from
-    * a future version — must not make the whole library unopenable.
+  /** One corrupt diagram must not stop the user from opening the library.
+    * Examples are a file that a killed process wrote only in part, or a file
+    * from a future version.
     */
-  tmp.test("a corrupt record is skipped, reported, and does not hide the others") { dir =>
+  tmp.test("a corrupt diagram is skipped, reported, and does not hide the others") { dir =>
     val store = LibraryStore(dir)
     store.initialize()
     store.save(diagram("good")).fold(e => fail(s"$e"), identity)
@@ -87,7 +93,7 @@ class LibraryStoreSpec extends FunSuite:
     assertEquals(store.unreadable().size, 1)
   }
 
-  tmp.test("delete removes exactly one record and reports whether it did") { dir =>
+  tmp.test("delete removes exactly one diagram and reports whether it did") { dir =>
     val store = LibraryStore(dir)
     store.initialize()
     store.save(diagram("one")).fold(e => fail(s"$e"), identity)
@@ -97,7 +103,7 @@ class LibraryStoreSpec extends FunSuite:
     assertEquals(store.list().map(_.id.value), Vector("two"))
   }
 
-  tmp.test("records are found by origin, and one origin may back several") { dir =>
+  tmp.test("diagrams are found by origin, and one origin may back several") { dir =>
     val store = LibraryStore(dir)
     store.initialize()
     val origin = FileOrigins.originOfPath("/tmp/shared.dot")

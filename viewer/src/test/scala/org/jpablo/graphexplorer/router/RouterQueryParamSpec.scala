@@ -12,7 +12,7 @@ class RouterQueryParamSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  test("Router picks up ?dot= param for ProjectDetail") {
+  test("Router picks up ?dot= param for Route.Diagram") {
     // Minimal window/location/history stub for tests
     js.eval(
       """
@@ -40,7 +40,7 @@ class RouterQueryParamSpec extends FunSuite with TestHelpers:
 
     router.currentRoute.foreach { route =>
       route match
-        case Route.ProjectDetail(id, source) =>
+        case Route.Diagram(id, source) =>
           assertEquals(id, "xyz789")
           assertEquals(source, Some("digraph G { x -> y }"))
           p.trySuccess(())

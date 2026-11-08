@@ -103,13 +103,13 @@ private[backends] object MermaidSourceScan:
       !rest.dropWhile(_.isWhitespace).startsWith("{")
     })
 
-  /** The diagram's declared title, when the source carries one: a YAML-frontmatter
-    * `title:` entry, or a standalone `title <text>` line (gantt, journey, C4, timeline,
-    * xychart, ...). Flowcharts get the frontmatter form only — they have no `title`
-    * keyword, so a node id happening to be `title` must not be read as one. Inline
-    * suffix forms (`pie showData title X`) are intentionally not chased. Only the top
-    * of the document is scanned: titles live in the header, and this runs per keystroke
-    * while a project is still unnamed.
+  /** The title that the diagram declares, when the source has one: a `title:` entry
+    * in the YAML frontmatter, or a separate `title <text>` line (gantt, journey, C4,
+    * timeline, xychart, ...). A flowchart gets only the frontmatter form. It has no
+    * `title` keyword, so a node with the id `title` must not become a title. The scan
+    * ignores inline suffix forms (`pie showData title X`) on purpose. It reads only the
+    * top of the source, because a title is in the header, and this runs on each
+    * keystroke while the diagram has no name.
     */
   def diagramTitle(text: String): Option[String] =
     val lines = text.linesIterator.map(_.trim).take(50).toList

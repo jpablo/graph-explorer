@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.gxcore.store
 
-import org.jpablo.graphexplorer.gxcore.model.{Diagram, DiagramId}
+import org.jpablo.graphexplorer.gxcore.model.Diagram
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 /** The slice of a library that a writer needs, named as a capability rather
   * than a place.
@@ -20,8 +21,9 @@ trait DiagramSink:
   /** Make the library ready to be written to. Idempotent. */
   def initialize(): Unit
 
-  /** Whether a record already exists, which is what makes re-running a
-    * migration safe rather than duplicating everything it already imported.
+  /** Tells if the diagram is already in the library. Because of this check, a
+    * migration is safe when it runs again. It does not make a second copy of
+    * each diagram that it imported before.
     */
   def contains(id: DiagramId): Boolean
 

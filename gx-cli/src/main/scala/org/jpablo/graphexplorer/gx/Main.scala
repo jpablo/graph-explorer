@@ -47,9 +47,9 @@ object Main:
       if debug then message => System.err.println(s"gx[protocol] $message")
       else _ => ()
 
-    // One clock for the whole process: the audit log stamps its lines from the
-    // same source as every `updatedAt` and `lastSyncAt`, so a record and the
-    // line describing it cannot disagree about when it happened.
+    // One clock for all of the process. The audit log gets the time of its
+    // lines from the same source as each `updatedAt` and `lastSyncAt`. Thus a
+    // diagram and the audit line about it always agree about the time.
     val clock: () => Long = () => System.currentTimeMillis()
 
     val env = CliEnv(

@@ -1,19 +1,22 @@
 package org.jpablo.graphexplorer.gxcore.store
 
-import org.jpablo.graphexplorer.gxcore.model.DiagramId
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
-/** How a diagram id becomes a file name in the library.
+
+/** The rule that changes a diagram id into a file name in the library.
   *
-  * This is a CONTRACT, not a detail: `gx` writes `diagrams/<name>.json` on the
-  * JVM, and under D7.3 the webview writes the same directory through the
-  * desktop's library commands. If the two disagreed about the name for one id,
-  * a diagram edited in the UI would silently become a second record.
+  * This is a CONTRACT, not a detail. `gx` writes `diagrams/<name>.json` on the
+  * JVM. Under D7.3, the webview writes the same directory through the library
+  * commands of the desktop. If the two used different names for one id, a
+  * diagram that the user edits in the UI would silently become a second
+  * diagram.
   *
-  * So the rule lives here, once, and both hosts call it — rather than being
-  * transcribed into Rust, which is how V-13's content-hash divergence happened.
-  * The Rust shell is deliberately NOT given this rule; it only checks that a
-  * name it is handed stays inside the directory (a containment check, which is
-  * a different question and safe to answer independently).
+  * Thus the rule is here, one time, and both hosts call it. A copy of the rule
+  * in Rust is not permitted, because a copy of this type caused the
+  * content-hash divergence of V-13. The Rust shell does NOT get this rule, on
+  * purpose. It only makes sure that a name it gets stays inside the directory.
+  * That containment check is a different question, and it is safe to answer
+  * it separately.
   */
 object DiagramFileName:
 

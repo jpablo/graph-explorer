@@ -1,8 +1,8 @@
-package org.jpablo.graphexplorer.projects
+package org.jpablo.graphexplorer.library
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.*
-import org.jpablo.graphexplorer.viewer.state.ProjectId
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -49,15 +49,13 @@ class DesktopLibrarySpec extends FunSuite:
     def uninstall(): Unit =
       js.Dynamic.global.window.__TAURI__ = null
 
-  private def record(id: String, name: String, text: String, tags: List[String] = Nil) =
+  private def diagram(id: String, name: String, text: String, tags: List[String] = Nil) =
     Diagram(
       id = DiagramId(id),
-      name = name,
-      folder = FolderPath.root,
       format = "DOT",
       text = text,
       binding = None,
-      metadata = DiagramMetadata(tags = tags),
+      metadata = DiagramMetadata(name = name, folder = FolderPath.root, tags = tags),
       createdAt = 1,
       updatedAt = 1
     )
@@ -69,22 +67,23 @@ class DesktopLibrarySpec extends FunSuite:
 
   test("the library the shell holds becomes the library the app reads"):
     withShell: shell =>
-      shell.files("a.json") = upickle.default.write(record("a", "Alpha", "digraph { a }"))
+      shell.files("a.json") = upickle.default.write(diagram("a", "Alpha", "digraph { a }"))
       DesktopLibrary.load().map: loaded =>
         val library = DesktopLibrary(loaded)
-        assertEquals(library.directoryNow().projects.map(_.name), List("Alpha"))
-        assert(library.projectExists(ProjectId("a")))
+        assertEquals(library.indexNow().diagrams.map(_.name), List("Alpha"))
+        assert(library.diagramExists(DiagramId("a")))
 
-  /** V-15. A record written with no desktop running is reflected in the UI once
-    * a desktop is there — the property D7.3 exists to provide, and the one the
-    * user hit when `gx import` left the app showing nothing.
+  /** V-15. A diagram that a tool wrote while no desktop ran shows in the UI
+    * when a desktop starts. D7.3 exists to give this property. The user found
+    * that this property did not exist when the app showed nothing after
+    * `gx import`.
     */
   test("V-15: a diagram gx imported while the app was closed is simply there"):
     withShell: shell =>
       shell.files("imported.json") =
-        upickle.default.write(record("imported", "From gx", "digraph { gx }"))
+        upickle.default.write(diagram("imported", "From gx", "digraph { gx }"))
       DesktopLibrary.load().map: loaded =>
-        assertEquals(DesktopLibrary(loaded).directoryNow().projects.map(_.name), List("From gx"))
+        assertEquals(DesktopLibrary(loaded).indexNow().diagrams.map(_.name), List("From gx"))
 
   /** The same thing while the app is RUNNING, which is what the shell's
     * `ge:library.changed` is for.
@@ -93,25 +92,25 @@ class DesktopLibrarySpec extends FunSuite:
     withShell: shell =>
       DesktopLibrary.load().flatMap: empty =>
         val library = DesktopLibrary(empty)
-        assertEquals(library.directoryNow().projects, Nil)
-        // `gx import` lands a record behind the app's back.
-        shell.files("late.json") = upickle.default.write(record("late", "Late arrival", "digraph { l }"))
+        assertEquals(library.indexNow().diagrams, Nil)
+        // `gx import` adds a diagram, and the app does not know about it.
+        shell.files("late.json") = upickle.default.write(diagram("late", "Late arrival", "digraph { l }"))
         library.refresh().map: _ =>
-          assertEquals(library.directoryNow().projects.map(_.name), List("Late arrival"))
+          assertEquals(library.indexNow().diagrams.map(_.name), List("Late arrival"))
 
-  test("a record that will not parse is skipped, not fatal to the whole library"):
+  test("a diagram that will not parse is skipped, not fatal to the whole library"):
     withShell: shell =>
-      shell.files("good.json") = upickle.default.write(record("good", "Good", "digraph { g }"))
+      shell.files("good.json") = upickle.default.write(diagram("good", "Good", "digraph { g }"))
       shell.files("bad.json") = "{ this is not a diagram"
       DesktopLibrary.load().map: loaded =>
-        assertEquals(loaded.map(_.name), Vector("Good"))
+        assertEquals(loaded.map(_.metadata.name), Vector("Good"))
 
-  test("a UI save writes the record under the name the shared rule gives it"):
+  test("a UI save writes the diagram under the name the shared rule gives it"):
     withShell: shell =>
-      shell.files("a.json") = upickle.default.write(record("a", "Alpha", "digraph { a }"))
+      shell.files("a.json") = upickle.default.write(diagram("a", "Alpha", "digraph { a }"))
       DesktopLibrary.load().map: loaded =>
         val library = DesktopLibrary(loaded)
-        val state   = library.createProjectPersistence(ProjectId("a"), None)
+        val state   = library.createDiagramPersistence(DiagramId("a"), None)
         state.update(_.copy(source = "digraph { a -> b }"))
         library.flush()
         assert(shell.writes.contains("a.json"), shell.writes.toString)
@@ -121,16 +120,16 @@ class DesktopLibrarySpec extends FunSuite:
   /** The compare-and-swap that matters in practice: a `gx run tag` landing
     * mid-edit must not be overwritten by the copy the page opened with.
     */
-  test("a save merges onto the record as it stands now, not as it was opened"):
+  test("a save merges onto the diagram as it stands now, not as it was opened"):
     withShell: shell =>
-      shell.files("a.json") = upickle.default.write(record("a", "Alpha", "digraph { a }"))
+      shell.files("a.json") = upickle.default.write(diagram("a", "Alpha", "digraph { a }"))
       DesktopLibrary.load().flatMap: loaded =>
         val library = DesktopLibrary(loaded)
-        val state   = library.createProjectPersistence(ProjectId("a"), None)
+        val state   = library.createDiagramPersistence(DiagramId("a"), None)
 
         // `gx run a tag --params {"tags":["infra"]}` while the page is open.
         shell.files("a.json") =
-          upickle.default.write(record("a", "Alpha", "digraph { a }", tags = List("infra")))
+          upickle.default.write(diagram("a", "Alpha", "digraph { a }", tags = List("infra")))
         library.refresh().map: _ =>
           state.update(_.copy(source = "digraph { a -> b }"))
           library.flush()
@@ -138,24 +137,25 @@ class DesktopLibrarySpec extends FunSuite:
           assertEquals(saved.text, "digraph { a -> b }", "the page's edit survives")
           assertEquals(saved.metadata.tags, List("infra"), "and so does the tag it never knew about")
 
-  test("deleting removes the record from disk and from the mirror"):
+  test("deleting removes the diagram from disk and from the mirror"):
     withShell: shell =>
-      shell.files("a.json") = upickle.default.write(record("a", "Alpha", "digraph { a }"))
+      shell.files("a.json") = upickle.default.write(diagram("a", "Alpha", "digraph { a }"))
       DesktopLibrary.load().map: loaded =>
         val library = DesktopLibrary(loaded)
-        library.deleteProject(ProjectId("a"))
-        assert(!library.projectExists(ProjectId("a")))
+        library.deleteDiagram(DiagramId("a"))
+        assert(!library.diagramExists(DiagramId("a")))
         assert(!shell.files.contains("a.json"), shell.files.keys.toString)
 
   test("opening a diagram and changing nothing writes nothing"):
     // Found by running it: the library sorts by `updatedAt`, so a write with no
     // edit behind it would reorder the library for having looked at a diagram.
     withShell: shell =>
-      shell.files("a.json") = upickle.default.write(record("a", "Alpha", "digraph { a }"))
+      shell.files("a.json") = upickle.default.write(diagram("a", "Alpha", "digraph { a }"))
       DesktopLibrary.load().map: loaded =>
         val library = DesktopLibrary(loaded)
-        val state   = library.createProjectPersistence(ProjectId("a"), None)
-        // Set the same value back: page state "changes", the record does not.
+        val state   = library.createDiagramPersistence(DiagramId("a"), None)
+        // Set the same value again. The page state "changes", but the diagram
+        // does not change.
         state.set(state.now())
         library.flush()
         assertEquals(shell.writes.toList, Nil, s"no write expected, got ${shell.writes}")

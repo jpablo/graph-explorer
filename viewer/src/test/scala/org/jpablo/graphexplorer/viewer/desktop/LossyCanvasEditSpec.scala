@@ -2,11 +2,11 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import com.raquo.laminar.api.L.EventBus
 import munit.FunSuite
-import org.jpablo.graphexplorer.gxcore.command.DocumentCommand
+import org.jpablo.graphexplorer.gxcore.command.SourceCommand
 import org.jpablo.graphexplorer.gxcore.model.*
-import org.jpablo.graphexplorer.projects.{DesktopLibrary, Library}
+import org.jpablo.graphexplorer.library.{DesktopLibrary, Library}
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.models.{ElementId, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{DiagramId, ElementId, NodeId}
 import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
@@ -14,22 +14,25 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.scalajs.js
 
-/** A canvas edit must not drop content from a file-backed document.
+/** A canvas edit must not remove content from a source that has a file behind
+  * it.
   *
   * A canvas edit (a toolbar attribute, group, combine, delete) prints the WHOLE
-  * graph again, and the new text replaces the old one. The graph does not model
-  * comments, the DOT `strict` keyword, or Mermaid directives and `click` lines,
-  * so the new text does not have them. For a bound record, `gx sync` then pushes
-  * that text over the correct file, because the record is `Ahead` and `Ahead`
-  * looks settled. For a loose file, the next Save writes it.
+  * graph again, and the new text replaces the old text. The graph does not
+  * model comments, the DOT `strict` keyword, or Mermaid directives and `click`
+  * lines. Thus the new text does not have them. For a bound diagram, `gx sync`
+  * then pushes that text over the origin, which has the correct content. It
+  * does this because the diagram is `Ahead`, and `Ahead` looks settled. For a
+  * loose file, the next Save writes the new text.
   *
-  * The decision: for a FILE-BACKED document (a bound library record or a loose
-  * file), refuse the edit, keep the text, and tell the person what the edit
-  * would drop. A record with no file behind it keeps the old behaviour.
+  * The decision applies to a source with a FILE behind it: a bound diagram or a
+  * loose file. For such a source, refuse the edit, keep the text, and tell the
+  * person what the edit removes. A diagram with no origin keeps the old
+  * behaviour.
   *
-  * Every test first asserts that the graph parsed. Without that, a refused edit
-  * and an edit that found no `node:api` look the same, and the test would pass
-  * for the wrong reason.
+  * Each test first asserts that the graph parsed. If it does not, a refused
+  * edit and an edit that found no `node:api` look the same. Then the test can
+  * pass for the wrong reason.
   */
 class LossyCanvasEditSpec extends FunSuite with TestHelpers:
 
@@ -47,9 +50,9 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
     OriginReconciler.reset()
     js.Dynamic.global.window.__TAURI__ = null
 
-  /** The shell calls a viewer makes while it shows a record or a file. Each one
-    * succeeds and changes nothing, because the tests read the library and the
-    * viewer, not the shell.
+  /** The shell calls that a viewer makes while it shows a diagram or a loose
+    * file. Each call succeeds and changes nothing, because the tests read the
+    * library and the viewer, not the shell.
     */
   private def installShell(): Unit =
     val invoke: js.Function2[String, js.Any, js.Promise[js.Any]] = (command, args) =>
@@ -66,11 +69,9 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
 
   private val originPath = "/tmp/lossy-origin.dot"
 
-  private def record(id: String, text: String, bound: Boolean): Diagram =
+  private def diagram(id: String, text: String, bound: Boolean): Diagram =
     Diagram(
       id = DiagramId(id),
-      name = id,
-      folder = FolderPath.root,
       format = "DOT",
       text = text,
       binding =
@@ -82,14 +83,14 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
             lastSyncAt = 0L
           )
         ),
-      metadata = DiagramMetadata(),
+      metadata = DiagramMetadata(name = id, folder = FolderPath.root),
       createdAt = 1,
       updatedAt = 1
     )
 
-  private def withLibrary(records: Diagram*)(f: DesktopLibrary => Future[Unit]): Future[Unit] =
+  private def withLibrary(diagrams: Diagram*)(f: DesktopLibrary => Future[Unit]): Future[Unit] =
     installShell()
-    val library = DesktopLibrary(records.toVector)
+    val library = DesktopLibrary(diagrams.toVector)
     Library.install(library)
     f(library)
 
@@ -100,7 +101,7 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
     () => messages
 
   private def colorApiRed(state: ViewerState): Unit =
-    state.runDocumentCommand(DocumentCommand.SetAttribute(Set[ElementId](NodeId("api")), "color", "red"))
+    state.runSourceCommand(SourceCommand.SetAttribute(Set[ElementId](NodeId("api")), "color", "red"))
 
   /** `assert`, with a message that reaches the log. In the Playwright runner a
     * failure arrives with an empty message, so a failure does not say which
@@ -142,14 +143,14 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
       |  web -> api
       |}""".stripMargin
 
-  // ------------------------------------------------ bound library records
+  // ------------------------------------------------------- bound diagrams
 
-  test("a canvas edit on a bound record keeps its comments"):
-    withLibrary(record("deps", withComments, bound = true)): library =>
+  test("a canvas edit on a bound diagram keeps its comments"):
+    withLibrary(diagram("deps", withComments, bound = true)): library =>
       withGraphvizAsync: graphviz =>
         val errors   = EventBus[String]()
         val messages = collect(errors)
-        val state    = ViewerState(ViewTarget.library("deps"), graphviz, errorBus = errors)
+        val state    = ViewerState(ViewTarget.diagram("deps"), graphviz, errorBus = errors)
         afterMicrotasks:
           assertParsed(state, withComments)
           colorApiRed(state)
@@ -157,19 +158,19 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
           afterMicrotasks:
             library.flush()
             same(state.sourceText.now(), withComments, "the canvas edit replaced the text and dropped its comments")
-            same(library.recordsBoundTo(originPath).head.text, withComments, "the record lost its comments")
+            same(library.diagramsBoundTo(originPath).head.text, withComments, "the diagram lost its comments")
             check(
               messages().exists(_.toLowerCase.contains("comment")),
               s"the refusal does not name the comments: ${messages()}"
             )
 
-  test("a canvas edit on a bound record keeps `strict`"):
+  test("a canvas edit on a bound diagram keeps `strict`"):
     val strict = "strict digraph S {\n  api -> db\n  api -> db\n}"
-    withLibrary(record("strict", strict, bound = true)): library =>
+    withLibrary(diagram("strict", strict, bound = true)): library =>
       withGraphvizAsync: graphviz =>
         val errors   = EventBus[String]()
         val messages = collect(errors)
-        val state    = ViewerState(ViewTarget.library("strict"), graphviz, errorBus = errors)
+        val state    = ViewerState(ViewTarget.diagram("strict"), graphviz, errorBus = errors)
         afterMicrotasks:
           assertParsed(state, strict)
           colorApiRed(state)
@@ -177,17 +178,17 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
           afterMicrotasks:
             library.flush()
             same(state.sourceText.now(), strict, "the canvas edit dropped `strict`")
-            same(library.recordsBoundTo(originPath).head.text, strict)
+            same(library.diagramsBoundTo(originPath).head.text, strict)
             check(messages().exists(_.toLowerCase.contains("strict")), s"the refusal does not name `strict`: ${messages()}")
 
-  test("a canvas edit on a bound record with nothing to drop still applies"):
+  test("a canvas edit on a bound diagram with nothing to drop still applies"):
     // No false alarm: a document the printer can reproduce edits as before.
     val plain = "digraph Deps {\n  api -> db\n}"
-    withLibrary(record("plain", plain, bound = true)): library =>
+    withLibrary(diagram("plain", plain, bound = true)): library =>
       withGraphvizAsync: graphviz =>
         val errors   = EventBus[String]()
         val messages = collect(errors)
-        val state    = ViewerState(ViewTarget.library("plain"), graphviz, errorBus = errors)
+        val state    = ViewerState(ViewTarget.diagram("plain"), graphviz, errorBus = errors)
         afterMicrotasks:
           assertParsed(state, plain)
           colorApiRed(state)
@@ -195,7 +196,7 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
           afterMicrotasks:
             library.flush()
             check(state.sourceText.now().contains("color=\"red\""), s"the edit did not apply: ${state.sourceText.now()}")
-            check(library.recordsBoundTo(originPath).head.text.contains("color=\"red\""), "the edit did not reach the record")
+            check(library.diagramsBoundTo(originPath).head.text.contains("color=\"red\""), "the edit did not reach the diagram")
             same(messages(), Nil)
 
   // ---------------------------------------------------------- loose files
@@ -245,14 +246,15 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
 
   // ------------------------------------------------------ out of scope
 
-  test("a canvas edit on a record with no file behind it still rewrites the text"):
-    // The scope of the decision: no file sits behind this record, so nothing
-    // on disk can take the loss. It keeps the old behaviour.
-    withLibrary(record("local", withComments, bound = false)): _ =>
+  test("a canvas edit on a diagram with no file behind it still rewrites the text"):
+    // This test shows the limit of the decision. This diagram has no origin,
+    // so no file on disk can lose content. Thus the diagram keeps the old
+    // behaviour.
+    withLibrary(diagram("local", withComments, bound = false)): _ =>
       withGraphvizAsync: graphviz =>
         val errors   = EventBus[String]()
         val messages = collect(errors)
-        val state    = ViewerState(ViewTarget.library("local"), graphviz, errorBus = errors)
+        val state    = ViewerState(ViewTarget.diagram("local"), graphviz, errorBus = errors)
         afterMicrotasks:
           assertParsed(state, withComments)
           colorApiRed(state)

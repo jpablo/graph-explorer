@@ -11,13 +11,13 @@ import scala.concurrent.{ExecutionContext, Future}
 
 /** A loose file: the file itself is the store (§7).
   *
-  * The file is authoritative (§2). There is no record, so there is nothing to
-  * autosave into, and §7.1 keeps every edit in memory until the person asks for
-  * a save. A save is then a compare-and-swap on the revision the page holds.
+  * The file is authoritative (§2). There is no diagram, so autosave has no
+  * target. §7.1 keeps each edit in memory until the person asks for a save. A
+  * save is then a compare-and-swap on the revision that the page holds.
   *
-  * Direct autosave is NOT inherited from library persistence. A write to a file
-  * that another tool also edits needs the conflict answer that §7.3 defines,
-  * and a keystroke is not a moment to make that decision.
+  * This class does NOT get direct autosave from library persistence. A write to
+  * a file that another tool also edits needs the conflict answer that §7.3
+  * defines. A keystroke is not the correct moment for that decision.
   */
 final class LooseFilePersistence(session: DocumentSessionId) extends DiagramPersistence:
 
@@ -41,12 +41,13 @@ final class LooseFilePersistence(session: DocumentSessionId) extends DiagramPers
 
   /** In memory, and nowhere else (§7.1). */
 
-  /** Empty: a loose file follows its SESSION, not this store (§7.3).
+  /** Empty: a loose file gets its changes from its SESSION, not from this store
+    * (§7.3).
     *
-    * `Persistence.followDocumentSession` already watches the session, and it
-    * carries the rule a record does not need — an external change must not
-    * replace a dirty editor silently. Emitting here as well would give one
-    * viewer two sources for the same text.
+    * `Persistence.followDocumentSession` already watches the session. It also
+    * has a rule that a diagram does not need: an external change must not
+    * replace a dirty editor silently. If this stream also sends events, one
+    * viewer gets two sources for the same text.
     */
   def external: com.raquo.airstream.core.EventStream[PersistedDiagramState] =
     com.raquo.airstream.core.EventStream.empty

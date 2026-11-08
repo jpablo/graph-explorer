@@ -12,7 +12,7 @@ import scala.scalajs.js
 
 /** A refused canvas edit must not do the view follow-up of an applied edit.
   *
-  * `runDocumentCommand` calls `onApplied` inside the update, before the setter
+  * `runSourceCommand` calls `onApplied` inside the update, before the setter
   * of `fullGraphV` decides. For a file-backed document with comments, the
   * setter refuses the edit. Then `combine` must not select a record node that
   * the graph does not have.
@@ -148,8 +148,9 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
     state.selection.deleteSelection()
 
   test("a refused delete keeps the selected groups folded"):
-    // The fold is metadata of the record. A delete that did not happen must
-    // not unfold a group that is still there.
+    // The fold is not part of the source. For a loose file, the fold is part
+    // of the live view. A delete that did not happen must not unfold a group
+    // that is still there.
     onLooseFile(commentedCluster)(foldAndDelete): (state, errors, _) =>
       check(state.sourceText.now() == commentedCluster, s"the refused delete replaced the text: ${state.sourceText.now()}")
       check(

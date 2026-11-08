@@ -7,18 +7,18 @@ import org.scalajs.dom
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 
-/** Open requests the shell cannot serve on its own.
+/** The open requests that the shell cannot do alone.
   *
-  * A LOOSE FILE arrives as `ge:document.changed`, because the shell can read it
-  * and hand over the bytes. A LIBRARY RECORD cannot: the shell knows nothing
-  * about diagrams (D2.5), the record rather than any file is authoritative for
-  * it (§2 of docs/desktop-open-targets-and-persistence.md), and an unbound
-  * record has no path to read at all. So `show` with a library target names the
-  * record and the page routes to it.
+  * A LOOSE FILE comes as `ge:document.changed`, because the shell can read the
+  * file and give the bytes. The shell cannot do this for a DIAGRAM. The shell
+  * knows nothing about diagrams (D2.5). The diagram, and not a file, is the
+  * authority for its source (§2 of docs/desktop-open-targets-and-persistence.md).
+  * A diagram without a binding has no path to read. Thus `show` with a library
+  * target names the diagram, and the page goes to its route.
   *
-  * That naming is the point. Before this, `gx open` resolved every reference to
-  * a path and the diagram id was discarded, so an open could not say WHICH
-  * record it meant — and an unbound one could not be opened at all.
+  * That name is the important part. Before, `gx open` changed each reference
+  * to a path and discarded the diagram id. Thus an open could not tell WHICH
+  * diagram it was for, and a diagram without a binding could not open.
   */
 object DesktopOpenRequests:
 
@@ -71,8 +71,8 @@ object DesktopOpenRequests:
 
   /** Point the handshake at the viewer that is now on screen.
     *
-    * Session commands attach first, then this method waits for parsing. Therefore a displayed
-    * acknowledgment means an immediate `gx session` call has a live target.
+    * Live view commands attach first, then this method waits for parsing. Therefore a displayed
+    * acknowledgment means an immediate `gx view` call has a live target.
     */
   def attach(state: ViewerState)(using ExecutionContext): Unit =
     current = Some(state)
@@ -101,9 +101,9 @@ object DesktopOpenRequests:
 
   private[desktop] def activation(route: Route, target: ViewTarget, status: DiagramLoadStatus): Activation =
     val targetMatches = (route, target) match
-      case (Route.ProjectDetail(routeId, _), ViewTarget.LibraryDiagram(projectId)) => routeId == projectId.value
-      case (Route.LooseDocument(routeId), ViewTarget.LooseFile(sessionId))         => routeId == sessionId.value
-      case _                                                                       => false
+      case (Route.Diagram(routeId, _), ViewTarget.Diagram(diagramId))  => routeId == diagramId.value
+      case (Route.LooseFile(routeId), ViewTarget.LooseFile(sessionId)) => routeId == sessionId.value
+      case _                                                           => false
 
     if !targetMatches then Activation.Waiting
     else
@@ -145,11 +145,11 @@ object DesktopOpenRequests:
     case Reject(code: String, message: String)
 
   /** @param exists
-    *   whether the library holds that record. Passed in rather than reached for
-    *   so this module stays testable without a library, and so the check
-    *   happens HERE: the shell cannot make it (D2.5 keeps it diagram-ignorant),
-    *   and acknowledging an open for a record that is not there would report
-    *   success for a page showing an empty diagram.
+    *   whether the library has that diagram. The caller gives this function,
+    *   so a test of this module needs no library. The check also occurs HERE,
+    *   because the shell cannot do it (D2.5 keeps the shell ignorant of
+    *   diagrams). An acknowledgment for a diagram that is not there reports
+    *   success for a page that shows an empty diagram.
     */
   private[desktop] def decide(event: dom.Event, exists: String => Boolean): Decision =
     // `{requestId, target: {kind, ...}}` — the request id sits beside the
@@ -164,7 +164,7 @@ object DesktopOpenRequests:
     (kind, field("diagramId"), field("path")) match
       case (Some("library"), Some(diagramId), _) if exists(diagramId) =>
         Decision.Show(
-          Route.ProjectDetail(diagramId),
+          Route.Diagram(diagramId),
           js.Dynamic.literal(kind = "library", diagramId = diagramId)
         )
 
@@ -178,7 +178,7 @@ object DesktopOpenRequests:
         DesktopDocumentRegistry.find(path) match
           case Some(session) =>
             Decision.Show(
-              Route.LooseDocument(session.id.value),
+              Route.LooseFile(session.id.value),
               js.Dynamic.literal(kind = "file", sessionId = session.id.value, revision = session.revision)
             )
           case None =>

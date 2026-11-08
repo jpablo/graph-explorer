@@ -80,7 +80,7 @@ gx import arch.dot               # add the file to the library, linked to it
 gx open arch.dot                 # show the file in the desktop app
 ```
 
-Only `gx open` and `gx session` need the desktop app. All other commands work
+Only `gx open` and `gx view` need the desktop app. All other commands work
 with no window. Run `gx help` for the full list.
 
 **Coding agents.** [`skills/gx`](skills/gx/SKILL.md) is a skill that tells a

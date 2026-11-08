@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer
 import buildinfo.BuildInfo
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.projects.{DesktopLibrary, DesktopMigration, Library, ProjectsDirectoryView}
+import org.jpablo.graphexplorer.library.{DesktopLibrary, DesktopMigration, Library, LibraryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
@@ -13,20 +13,19 @@ import org.jpablo.graphexplorer.viewer.desktop.{
   DesktopDocumentRegistry,
   DesktopIpc,
   DesktopOpenRequests,
-  SessionCommands
+  LiveViewCommands
 }
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{
   DocumentSessionId,
   LeaveIntent,
   PersistedDiagramState,
-  ProjectId,
   RightPanelSection,
   ViewerState,
   ViewTarget
 }
 import org.scalajs.dom.{document, window, URLSearchParams}
-import org.jpablo.graphexplorer.viewer.models.ClientSize
+import org.jpablo.graphexplorer.viewer.models.{ClientSize, DiagramId}
 import org.jpablo.graphexplorer.viewer.utils.ShareUrl
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small, tiny}
 
@@ -91,21 +90,21 @@ object Viewer:
 
     // D7.3: on the desktop the library IS the store on disk, so it has to be
     // in place BEFORE anything reads it — the share-URL branch below asks
-    // `projectExists` before a single route renders, and answering that from
+    // `diagramExists` before a single route renders, and answering that from
     // the browser library and then swapping backends would open the wrong
     // diagram. On the web there is nothing to wait for.
     val libraryReady: scala.concurrent.Future[Unit] =
       if !DesktopIpc.available then scala.concurrent.Future.successful(())
       else
         for
-          onDisk  <- DesktopLibrary.load()
-          _       <- DesktopMigration.runOnce(onDisk.map(_.id.value).toSet)
-          // Re-read rather than reuse `onDisk`: the migration may have just
-          // added records, and starting with a mirror that omits them would
-          // show an empty library until the first external change.
-          records <- DesktopLibrary.load()
+          onDisk   <- DesktopLibrary.load()
+          _        <- DesktopMigration.runOnce(onDisk.map(_.id.value).toSet)
+          // Read the library again, and do not use `onDisk`. The migration can
+          // add diagrams. A mirror without them shows an empty library until
+          // the first external change.
+          diagrams <- DesktopLibrary.load()
         yield
-          Library.install(DesktopLibrary(records))
+          Library.install(DesktopLibrary(diagrams))
           // Writes are debounced, so edits can exist only in memory. A closing
           // window must not take them with it — `localStorage` never needed
           // this because it wrote on the spot.
@@ -120,26 +119,26 @@ object Viewer:
       // If a share URL (?dot=...) is present, resolve it immediately:
       val sharedDot = ShareUrl.readDotParam()
       sharedDot.foreach: dot =>
-        // The link path embeds the project id (/diagrams/<id>?dot=...): when that project
-        // exists locally, open IT — matching by exact source alone forked a new "Untitled"
-        // copy every time the owner revisited their own link after an edit.
-        ShareUrl.readProjectIdFromPath().filter(Library.projectExists) match
+        // The path of the link holds the diagram id (/diagrams/<id>?dot=...). When that
+        // diagram is in the local library, open IT. A match by exact source alone made a
+        // new "Untitled" copy each time the owner opened their own link after an edit.
+        ShareUrl.readDiagramIdFromPath().filter(Library.diagramExists) match
           case Some(pathId) =>
-            router.navigateTo(Route.ProjectDetail(pathId.value))
+            router.navigateTo(Route.Diagram(pathId.value))
           case None =>
-            Library.findProjectByExactSource(dot) match
+            Library.findDiagramBySource(dot) match
               case Some(existingId) =>
-                router.navigateTo(Route.ProjectDetail(existingId.value))
+                router.navigateTo(Route.Diagram(existingId.value))
               case None =>
-                // Create a new project initialized with the provided DOT
-                val newId = Library.createProjectDirectoryEntry(PersistedDiagramState.defaultProjectName)
-                router.navigateTo(Route.ProjectDetail(newId.value, Some(dot)))
+                // Create a new diagram with the DOT text from the link.
+                val newId = Library.createEmptyDiagram(PersistedDiagramState.defaultProjectName)
+                router.navigateTo(Route.Diagram(newId.value, Some(dot)))
 
-      // Before any route is chosen: a session client asking "what is selected"
-      // while the app sits on its library page deserves "nothing is open", not a
-      // timeout (D7.2 — the session tier's limit is the absence of a view, and
-      // that is an answer).
-      SessionCommands.install()
+      // Before any route is chosen: a socket client can ask "what is selected"
+      // while the app is on its library page. The answer must be "nothing is
+      // open", not a timeout (D7.2: the limit of the live view tier is the
+      // absence of a view, and that is an answer).
+      LiveViewCommands.install()
 
       // Before `DesktopOpenRequests.install` below, which announces
       // `viewer_ready` and releases the shell's queued opens. A `gx open` of a
@@ -156,7 +155,7 @@ object Viewer:
       // delivering an open. Announcing it before `Library.install` had run
       // would let an early open be answered "no such diagram" by a library that
       // had simply not loaded yet.
-      DesktopOpenRequests.install(router.tryNavigateTo, id => Library.projectExists(ProjectId(id)))
+      DesktopOpenRequests.install(router.tryNavigateTo, id => Library.diagramExists(DiagramId(id)))
 
       Graphviz.build().foreach: (graphviz: Graphviz) =>
         dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)
@@ -172,10 +171,11 @@ object Viewer:
           val exampleName = target match
             case ViewTarget.Example(_, name) => Some(name)
             case _                           => None
-          // Owner scoped to this project visit: killed when the view unmounts, so the
-          // ViewerState's subscriptions (phases, persistence, theme, panels...) — and the
-          // whole object graph they retain — are released instead of leaking one full
-          // ViewerState per navigation on the never-killed window owner.
+          // An owner for this one diagram visit. The code kills it when the view
+          // unmounts. Thus the subscriptions of the ViewerState (phases, persistence,
+          // theme, panels...) and the whole object graph that they keep are released.
+          // Without it, each navigation leaks one full ViewerState on the window owner,
+          // which nothing kills.
           val viewOwner = new ManualOwner
           val state =
             ViewerState(
@@ -223,22 +223,22 @@ object Viewer:
               event.preventDefault()
               event.asInstanceOf[js.Dynamic].updateDynamic("returnValue")("")
           dom.window.addEventListener("beforeunload", warnOnClose)
-          // The session tier answers from HERE (D7.2): a socket client's "what is
+          // The live view tier answers from HERE (D7.2): a socket client's "what is
           // selected" has no answer anywhere else.
-          SessionCommands.attach(state)
+          LiveViewCommands.attach(state)
           // The open handshake settles only after this viewer has attached and
-          // accepted its source. The session target is installed first so an
-          // immediate session command is safe after `gx open` returns.
+          // accepted its source. `LiveViewCommands` gets its target first, so a
+          // live view command immediately after `gx open` is safe.
           DesktopOpenRequests.attach(state)
 
           TopLevel(state, router, Commands(state, routerCmds), exampleName.map(exampleBanner(_, state, routerCmds)))
             .amend(onUnmountCallback { _ =>
-              // The session tier and the close question both act on "the view
+              // The live view tier and the close question both act on "the view
               // now on screen", so they still name one — and it used to outlive
               // the view that set it, so a query after navigation was answered
               // by a viewer nobody was looking at. The document bridge no
               // longer needs one at all: a viewer follows its OWN session.
-              SessionCommands.detach(state)
+              LiveViewCommands.detach(state)
               DesktopOpenRequests.detach(state)
               router.clearNavigationGuard(leaveGuard)
               DesktopClose.detach(state)
@@ -258,7 +258,7 @@ object Viewer:
           * place holds what the shell sent, and a reload of this route shows
           * the file again rather than an empty diagram.
           */
-        def looseDocumentView(sessionId: String) =
+        def looseFileView(sessionId: String) =
           DocumentSessionId.parse(sessionId).filter(DesktopDocumentRegistry.get(_).isDefined) match
             case Some(session) =>
               diagramView(ViewTarget.LooseFile(session), source = None)
@@ -272,10 +272,10 @@ object Viewer:
           div(
             child <-- router.currentRoute.map:
               case Route.Home =>
-                ProjectsDirectoryView(graphviz, router, routerCmds, viewerSettings, setTheme)
+                LibraryView(graphviz, router, routerCmds, viewerSettings, setTheme)
 
-              case Route.ProjectDetail(id, source) =>
-                diagramView(ViewTarget.library(id), source)
+              case Route.Diagram(id, source) =>
+                diagramView(ViewTarget.diagram(id), source)
 
               case Route.Example(slug) =>
                 DotExamples.bySlug.get(slug) match
@@ -296,8 +296,8 @@ object Viewer:
                     // that just looks broken.
                     unknownExample(slug, routerCmds)
 
-              case Route.LooseDocument(sessionId) =>
-                looseDocumentView(sessionId)
+              case Route.LooseFile(sessionId) =>
+                looseFileView(sessionId)
           )
 
         render(document.querySelector("#app"), app)

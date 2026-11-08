@@ -26,10 +26,10 @@ import scala.concurrent.Future
 object ClipboardUnavailable extends Exception("Clipboard is not available")
 
 case class ViewerState(
-    /** What this viewer shows, and therefore how it saves (§2). One field
-      * rather than a `ProjectId` plus an `exampleName` flag, because the two
-      * could disagree, and because a loose file fits neither: it had to borrow
-      * a `ProjectId` that named no record.
+    /** What this viewer shows, and thus how it saves (§2). This is one field,
+      * not a `DiagramId` and an `exampleName` flag, because the two could
+      * disagree. A loose file also fits neither: it had to use a `DiagramId`
+      * that named no diagram.
       */
     target:                   ViewTarget,
     graphviz:                 Graphviz,
@@ -48,13 +48,13 @@ case class ViewerState(
     clientSize:               ClientSize = Normal,
     logLevel:                 Level = Level.None
 )(
-    // All of this state's subscriptions hang off this owner. Pass a killable owner
-    // (e.g. ManualOwner killed on unmount) so navigating away releases the whole
-    // instance instead of pinning it for the session (previous leak: one full
-    // ViewerState retained per project visit).
+    // All the subscriptions of this state use this owner. Give an owner that you
+    // can kill (for example, a ManualOwner that unmount kills). Then a navigation
+    // releases the whole instance, and the session does not keep it. The earlier
+    // leak kept one full ViewerState for each diagram visit.
     using val owner: Owner = unsafeWindowOwner
 ) extends SvgTransformOps,
-      DocumentCommandRunner,
+      SourceCommandRunner,
       DiagramSelectionOps,
       RecordCellOps,
       KeyboardNavOps,
@@ -68,25 +68,25 @@ case class ViewerState(
       UIState,
       Persistence:
 
-  /** The id this diagram is known by for display and for a share link.
+  /** The id of this view, for the display and for a share link.
     *
-    * NOT a persistence key. `DiagramPersistence.forTarget` decides where a
-    * diagram is stored, and it reads the target rather than this value. The
-    * spellings match what the app used before the target existed, so a share
-    * URL and a `Project` keep their identity.
+    * It is NOT a key for storage. `DiagramPersistence.forTarget` decides where
+    * the app stores a diagram, and it reads the target, not this value. The
+    * spellings are the same as before the target existed, so a share URL and
+    * a `Project` keep their identity.
     */
-  lazy val projectId: ProjectId =
+  lazy val diagramId: DiagramId =
     target match
-      case ViewTarget.LibraryDiagram(id) => id
-      case ViewTarget.Example(slug, _)   => ProjectId(s"example-$slug")
-      case ViewTarget.LooseFile(session) => ProjectId(session.value)
+      case ViewTarget.Diagram(id)        => id
+      case ViewTarget.Example(slug, _)   => DiagramId(s"example-$slug")
+      case ViewTarget.LooseFile(session) => DiagramId(session.value)
 
   /** The built-in example this state shows, if it shows one.
     *
-    * Read from the target, so being an example and having an example's name
-    * cannot disagree. An example has no project name of its own, and a DOT
-    * graph id like `logo` is not a declared title, so `displayTitle` needs
-    * this to fall back to.
+    * The value comes from the target, so the kind of the view and the name of
+    * the example cannot disagree. An example has no stored name, and a DOT
+    * graph id like `logo` is not a declared title. Thus `displayTitle` uses
+    * this name when it has no other name.
     */
   lazy val exampleName: Option[String] =
     target match
@@ -94,7 +94,7 @@ case class ViewerState(
       case _                           => None
 
   lazy val project =
-    ProjectOps(Var(Project(projectId)))
+    ProjectOps(Var(Project(diagramId)))
 
   val undoEvent: EventBus[Unit]        = EventBus()
   val redoEvent: EventBus[Unit]        = EventBus()
@@ -109,8 +109,8 @@ case class ViewerState(
   val source = initialSource.getOrElse(persistence.initial.source)
 
   // Registry of diagram backends. InternalPhases depends only on this abstraction, not on concrete backends.
-  // Public so views that present OTHER projects (the library sidebar) can ask the same
-  // registry for their display titles instead of growing a second copy of the rule.
+  // It is public, so a view of OTHER diagrams (the library sidebar) can ask this registry
+  // for their display titles. Without it, that view needs a second copy of the rule.
   val languages = DefaultDiagramLanguages(graphviz)
 
   val phases = InternalPhases(
@@ -182,10 +182,11 @@ case class ViewerState(
       if value == auto then autoDetectFormat.set(true)
       else setDiagramFormat(DiagramFormat.valueOf(value))
 
-  /** The title shown for this project: the user's chosen name, or — while the project is
-    * still unnamed — the diagram's own declared title (Mermaid frontmatter / `title` line,
-    * DOT graph label). Display-only substitution: the stored name changes only when the
-    * user renames, so a rename always wins and a source-title change follows live.
+  /** The title that the app shows for this diagram. It is the name that the person
+    * gave. While the diagram has no name, it is the title that the diagram declares (the
+    * Mermaid frontmatter or `title` line, or the DOT graph label). This change is only for
+    * the display. The stored name changes only when the person renames the diagram. Thus a
+    * rename always wins, and a change to the source title shows immediately.
     */
   val displayTitle: Signal[String] =
     project.name.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>

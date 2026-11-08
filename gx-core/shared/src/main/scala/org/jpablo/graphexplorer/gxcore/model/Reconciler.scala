@@ -48,9 +48,9 @@ enum ReconcilePlan derives CanEqual:
   case Unbound
 
   /** @param local
-    *   the record's text hashed as it would be STORED at the origin. Carried
-    *   out because callers report it: a divergence is only legible if the user
-    *   can see which two versions disagree.
+    *   the hash of the text of the diagram, as the origin would STORE it. The
+    *   plan returns it because callers report it. The user can understand a
+    *   divergence only if the user can see the two versions that disagree.
     */
   case Bound(state: SyncState, action: ReconcileAction, local: ContentHash)
 
@@ -68,17 +68,17 @@ object ReconcilePlan:
       case Unbound             => ReconcileAction.DoNothing
       case Bound(_, action, _) => action
 
-/** Deciding what a diagram and its origin owe each other.
+/** The reconciler decides what to do so that a diagram and its origin agree.
   *
-  * PURE, and that is the point. `gx sync` held this logic as a private method
-  * of the command-line tool, so the app could not reach it: an edit in the app
-  * changed the record text, left `baseHash` alone, and waited for someone to
-  * run `gx sync`. The edit was never lost, but it never reached the file
-  * either.
+  * The reconciler is PURE, and that is its purpose. Before, `gx sync` held this
+  * logic as a private method of the command-line tool, so the app could not use
+  * it. An edit in the app changed the text of the diagram and did not change
+  * `baseHash`. Then the edit waited for a person to run `gx sync`. The edit was
+  * never lost, but it also never got to the file.
   *
-  * The I/O stays with the caller. `gx` reads and writes files directly; the
-  * desktop's page has no filesystem and asks its shell. Both ask this the same
-  * question and get the same answer.
+  * The caller does the I/O. `gx` reads and writes files directly. The page of
+  * the desktop has no file system, so it asks its shell. Both ask the
+  * reconciler the same question and get the same answer.
   *
   * See §8 of docs/desktop-open-targets-and-persistence.md, and §5.2 of
   * docs/sources-and-library-architecture.md.
@@ -86,14 +86,16 @@ object ReconcilePlan:
 object Reconciler:
 
   /** @param binding
-    *   the diagram's binding, or None if it has no origin.
+    *   the binding of the diagram, or None if the diagram has no origin.
     * @param text
-    *   the record's text — the `local` side of the three-hash comparison.
+    *   the text of the diagram. It is the `local` side of the three-hash
+    *   comparison.
     * @param origin
-    *   what the caller read at the origin, or None if it is gone.
+    *   what the caller read at the origin, or None if the origin is gone.
     * @param hashText
-    *   how to hash text as it would be STORED. A platform supplies this:
-    *   `Hashing.ofText` on the JVM, and the shell's own digest in the page.
+    *   the function that hashes text as the origin would STORE it. Each
+    *   platform supplies it: `Hashing.ofText` on the JVM, and the digest of the
+    *   shell in the page.
     */
   def plan(
       binding:  Option[Binding],
@@ -112,18 +114,17 @@ object Reconciler:
     * convention to the text and asks its shell for the digest.
     */
   def storedWith(origin: Option[OriginSnapshot]): LineEnding =
-    // `base` and `remote` are hashes of FILE BYTES, so `local` has to be
-    // measured the same way: the record's text as it would be written into THIS
-    // file, using the convention that file already uses (V-04).
+    // `base` and `remote` are hashes of FILE BYTES, so `local` must use the
+    // same measure. It is the text of the diagram as the code would write it
+    // into THIS file, with the convention that the file uses now (V-04).
     //
-    // Hashing with a fixed LF made every CRLF-authored origin read `Ahead`
-    // forever — nothing had been edited, the bytes simply could not agree — and
-    // made a byte-identical regeneration land on `Diverged` instead of
-    // `Converged`, which is the conflict machine SyncState.Converged exists to
-    // prevent.
+    // A hash with a fixed LF made each origin with CRLF line ends show `Ahead`
+    // permanently. Nobody edited it, but the bytes could not agree. Also, a
+    // regeneration with identical bytes got `Diverged` and not `Converged`.
+    // SyncState.Converged exists to prevent that false conflict.
     //
-    // With no origin on disk the state is OriginMissing whatever `local` says,
-    // and Lf is what a re-created file would get.
+    // If the origin is not on the disk, the state is OriginMissing for all
+    // values of `local`. A file that the code makes again gets Lf.
     origin.map(_.lineEnding).getOrElse(LineEnding.Lf)
 
   /** Reconcile with `local` already computed.

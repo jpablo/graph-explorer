@@ -358,7 +358,7 @@ deletions.
 A viewer now follows its OWN session through an owner-scoped signal (§10), so
 Laminar teardown ends it and nothing has to detach anything.
 
-**Two globals stay, and the code says why.** `SessionCommands` and
+**Two globals stay, and the code says why.** `LiveViewCommands` and
 `DesktopClose` ask questions that are ABOUT the view on screen — what is
 selected, is there an edit to lose before this window closes. Naming the current
 view is their meaning, not an accident. Item 1 named `DesktopBridge.target`, and

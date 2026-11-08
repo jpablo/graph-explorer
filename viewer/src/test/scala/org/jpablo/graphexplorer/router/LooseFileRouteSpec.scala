@@ -14,7 +14,7 @@ import scala.scalajs.js
   * The route holds an opaque session id, and holds no path (§13). A route that
   * held the path would put that path in the URL and in the browser history.
   */
-class LooseDocumentRouteSpec extends FunSuite with TestHelpers:
+class LooseFileRouteSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
@@ -46,7 +46,7 @@ class LooseDocumentRouteSpec extends FunSuite with TestHelpers:
     val router = Router()
 
     router.currentRoute.foreach:
-      case Route.LooseDocument(sessionId) =>
+      case Route.LooseFile(sessionId) =>
         assertEquals(sessionId, "doc-abc123")
         done.trySuccess(())
       case other =>
@@ -62,7 +62,7 @@ class LooseDocumentRouteSpec extends FunSuite with TestHelpers:
     given Owner = unsafeWindowOwner
 
     val router = Router()
-    router.navigateTo(Route.LooseDocument("doc-abc123"))
+    router.navigateTo(Route.LooseFile("doc-abc123"))
 
     assertEquals(dom.window.location.pathname, "/documents/doc-abc123")
   }

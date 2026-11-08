@@ -24,9 +24,10 @@ enum SyncMode derives CanEqual:
   case Sync
 
 object SyncMode:
-  /** Stored by name, so adding a mode does not renumber the existing ones. An
-    * unrecognised name reads as Detached: a record written by a newer version
-    * must not start syncing under a mode this one does not understand.
+  /** The store keeps each mode by its name, so a new mode does not change the
+    * numbers of the other modes. A name that this version does not know reads
+    * as Detached. A diagram from a newer version must not start to sync in a
+    * mode that this version does not understand.
     */
   given upickle.default.ReadWriter[SyncMode] =
     upickle.default

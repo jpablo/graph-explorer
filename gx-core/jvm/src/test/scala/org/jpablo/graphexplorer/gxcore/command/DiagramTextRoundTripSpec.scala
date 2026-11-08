@@ -32,12 +32,12 @@ class DiagramTextRoundTripSpec extends FunSuite:
   test("a filled node survives a round trip") {
     val filled = DiagramText
       .parse("""digraph "G" { "a" -> "b" }""")
-      .map(g => DocumentCommands.run(g, DocumentCommand.SetAttribute(Set(NodeId("a")), "fillcolor", "red")))
+      .map(g => SourceCommands.run(g, SourceCommand.SetAttribute(Set(NodeId("a")), "fillcolor", "red")))
       .fold(fail(_), identity)
       .fold(e => fail(e.message), identity)
 
     val text = filled match
-      case CommandResult.Updated(g) => DiagramText.render(g)
+      case SourceResult.Updated(g) => DiagramText.render(g)
       case other                    => fail(s"expected an update, got $other")
 
     // The synthetic sub-attribute is an internal spelling of `style="filled"`

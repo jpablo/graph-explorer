@@ -129,21 +129,21 @@ object OriginUri:
         throw IllegalStateException(s"OriginUri built with an unknown scheme: $u")
       )
 
-    /** The filesystem path a `file:` URI denotes, or None for other schemes.
+    /** The file system path of a `file:` URI, or None for other schemes.
       *
-      * CAUTION: this is NOT the inverse of `fromCanonicalPath` on Windows. That
+      * CAUTION: on Windows, this is NOT the inverse of `fromCanonicalPath`. That
       * encoder writes URI separators, so `C:\\Users\\x\\a.dot` comes back as
-      * `C:/Users/x/a.dot` — the same file, spelled the other way.
+      * `C:/Users/x/a.dot`. It is the same file, in the other form.
       *
-      * Pass the result to `Paths.get`, which accepts either separator, and
-      * every caller here does. Do NOT compare it to a path some other process
-      * reported: the desktop shell writes the platform's own separator, so a
-      * byte comparison misses and misses SILENTLY — the file reads as unbound
-      * and opens a second time beside the record that already owns it.
-      * `DesktopLibrary.recordsBoundTo` collapses both spellings for that
-      * reason.
+      * Give the result to `Paths.get`, which accepts both separators. Each
+      * caller here does that. Do NOT compare the result with a path from a
+      * different process. The desktop shell writes the separator of the
+      * platform, so a byte comparison fails, and it fails SILENTLY. Then the
+      * file shows as unbound, and it opens a second time next to the diagram
+      * that has a binding to it. `DesktopLibrary.diagramsBoundTo` makes the two
+      * spellings equal for that reason.
       *
-      * `OriginUriSpec` pins this shape.
+      * `OriginUriSpec` tests this shape.
       */
     def filePath: Option[String] =
       Option.when(u.startsWith("file://")):
@@ -155,9 +155,10 @@ object OriginUri:
 
   given CanEqual[OriginUri, OriginUri] = CanEqual.derived
 
-  /** Stored as the canonical string. Reading does NOT re-canonicalize: a record
-    * written on one machine may name a path that does not exist on this one, and
-    * silently rewriting it would change the identity the record is keyed by.
+  /** The store keeps the canonical string. A read does NOT canonicalize it
+    * again. A diagram from a different machine can name a path that is not on
+    * this machine. A silent change to that path would change the identity that
+    * the code uses to find the diagram.
     */
   given upickle.default.ReadWriter[OriginUri] =
     upickle.default.readwriter[String].bimap[OriginUri](_.value, identity)

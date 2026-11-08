@@ -387,6 +387,15 @@ over the wire.
 
 #### D7.2 — Three tiers, split by what the operation is *about*
 
+> **Rename, 2026-11-08.** The tiers are now **Source** (was Document), **Metadata**
+> (was Record), and **Live view** (was Session). `CONTEXT.md` defines them. The
+> protocol names changed with the tiers: `gx session` → `gx view`, the RPC method
+> `session` → `live-view`, `get-record` → `get-metadata`, `NO_SESSION` →
+> `NO_LIVE_VIEW`, `SESSION_FAILED` → `LIVE_VIEW_FAILED`, `SESSION_TIMEOUT` →
+> `LIVE_VIEW_TIMEOUT`, the event `ge:session.command` → `ge:live-view.command`, and
+> the Tauri command `session_reply` → `live_view_reply`. The text below keeps the
+> old names, because it tells the history of the design.
+
 | Tier | Operates on | Examples | Headless? |
 |---|---|---|---|
 | **Document** | the diagram text | `add-arrow`, `set-attribute`, `rename-node`, `list-nodes` | **Yes** — `gx` parses and writes |

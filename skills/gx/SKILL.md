@@ -2,7 +2,7 @@
 name: gx
 description: Read, query and edit graph diagrams from the command line with `gx`, the Graph Explorer CLI — list a DOT or Mermaid file's nodes/edges/groups, set attributes, group and hide elements, keep a file synced with the diagram library, and show it in the Graph Explorer desktop app. Use whenever a task involves .dot/.gv/.mmd diagram files, asks what a diagram contains, asks to restyle or restructure one, or asks to open/visualize a graph.
 license: Apache-2.0
-compatibility: Requires the `gx` binary on PATH (Graph Explorer; download from https://github.com/jpablo/graph-explorer/releases). Everything except `gx open` and `gx session` runs headless — no desktop app and no display needed.
+compatibility: Requires the `gx` binary on PATH (Graph Explorer; download from https://github.com/jpablo/graph-explorer/releases). Everything except `gx open` and `gx view` runs headless — no desktop app and no display needed.
 ---
 
 # Driving Graph Explorer with `gx`
@@ -11,7 +11,7 @@ compatibility: Requires the `gx` binary on PATH (Graph Explorer; download from h
 DOT/Mermaid into a graph, applies a named command, and writes the graph back — so you can
 say "set `fillcolor` on these three nodes" without writing a regex over someone's DOT.
 
-**Everything except `gx open` and `gx session` works with no GUI running.** Do not start
+**Everything except `gx open` and `gx view` works with no GUI running.** Do not start
 the desktop app to inspect or edit a diagram.
 
 ## Before anything else
@@ -45,8 +45,8 @@ Every command takes a `<ref>`, and a ref is resolved in this order:
 Ambiguity is reported, never guessed at.
 
 A loose file on disk needs no setup — `gx run ./arch.dot list-nodes` works immediately.
-But **the record tier only exists for library diagrams**; on a loose file those commands
-refuse with exit 4 and tell you to `gx import` it first.
+But **only a library diagram has metadata**. On a loose file, a metadata command refuses
+with exit 4 and tells you to `gx import` the file first.
 
 ⚠️ **A name match is not proof you have the right diagram.** The library is global, so a
 name like `infra` may already belong to a diagram bound to a completely different file.
@@ -55,7 +55,7 @@ the wrong file. Before acting on a library ref you did not import yourself, chec
 is bound to:
 
 ```bash
-gx ls --json      # or: gx run <ref> get-record --json
+gx ls --json      # prints the origin and the sync mode of each diagram
 ```
 
 and confirm the `origin` is the file you mean. Addressing the **path** instead of the name
@@ -65,16 +65,16 @@ sidesteps the question entirely, and is the safer default when you have a path i
 
 | Tier | Verb | Operates on | Needs a desktop? |
 |---|---|---|---|
-| Document | `gx run <ref> <cmd>` | the diagram **text** — nodes, edges, attributes | no |
-| Record | `gx run <ref> <cmd>` | stored **metadata** — hidden elements, tags, folder | no (library only) |
-| Session | `gx session <cmd>` | the **live view** — selection, viewport | **yes** |
+| Source | `gx run <ref> <cmd>` | the **source**, the DOT or Mermaid text — nodes, edges, attributes | no |
+| Metadata | `gx run <ref> <cmd>` | stored **metadata** — hidden elements, tags, folder | no (library only) |
+| Live view | `gx view <cmd>` | the **live view** — selection, viewport | **yes** |
 
-`gx run` accepts document and record commands interchangeably; the tier decides what gets
-written, not how you spell the call.
+`gx run` accepts source commands and metadata commands with the same syntax. The tier
+decides what `gx run` writes, not how you spell the call.
 
 ```bash
 gx run --list        # every headless command name
-gx session --list    # the five live-view commands
+gx view --list       # the live view commands
 ```
 
 ## Reading a diagram
@@ -187,7 +187,7 @@ This is the only reason to need the desktop app. If none is running it exits **2
 says so — that is not a failure of the task, it is a missing window. Report it and carry
 on with the headless work.
 
-`gx session select --params '{"targets":["node:api"]}'` and friends act on whatever is
+`gx view select --params '{"targets":["node:api"]}'` and friends act on whatever is
 currently on screen — there is no `<ref>`, because the live view already knows what it is
 displaying.
 

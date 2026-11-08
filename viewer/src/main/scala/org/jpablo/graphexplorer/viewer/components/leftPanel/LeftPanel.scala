@@ -2,27 +2,28 @@ package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.projects.Library
+import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Commands
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
-import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.IconButton
 
-/** Display titles for the projects in the library, by the same rule the library page uses:
-  * the stored name, or the diagram's own declared title while the project is unnamed.
+/** The titles to show for the diagrams in the library. The rule is the same as on the
+  * library page: the stored name, or the title that the diagram declares while it has no name.
   *
-  * Keyed on the SET of project ids, not on the directory value: the directory is rewritten
-  * on every keystroke (a lastModified bump), and each name costs a payload read plus a
-  * title scan. The open project is the only one whose title can change while you type, and
-  * the list above reads that one straight from `state.displayTitle`.
+  * The key is the SET of diagram ids, not the value of the library index. Each keystroke
+  * writes the index again (a new lastModified). Each name costs a payload read and a title
+  * scan. Only the title of the open diagram can change while a person types, and the list
+  * above reads that title directly from `state.displayTitle`.
   */
-private def displayNames(state: ViewerState): Signal[Map[ProjectId, String]] =
-  Library.directory
-    .map(_.projects.map(_.id))
+private def displayNames(state: ViewerState): Signal[Map[DiagramId, String]] =
+  Library.index
+    .map(_.diagrams.map(_.id))
     .distinct
     .map: ids =>
-      ids.flatMap(id => Library.projectCardInfo(id, state.languages).map(id -> _.displayName)).toMap
+      ids.flatMap(id => Library.diagramCardInfo(id, state.languages).map(id -> _.displayName)).toMap
 
 def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
   div(
@@ -51,32 +52,33 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
               "Library"
             ),
             IconButton("bi-plus-circle", "Create Diagram")(
-              commands.routerCmds.createProject.execute(Some(Some(minimalGraphText)))
+              commands.routerCmds.createDiagram.execute(Some(Some(minimalGraphText)))
             )
           )
         ),
 
-        // Projects list - now takes remaining height
+        // The list of the diagrams. It takes the rest of the height.
         div(
           cls := "grow overflow-y-auto",
           ul(
             cls := "menu menu-sm w-full",
-            children <-- Library.directory.combineWithFn(displayNames(state), state.displayTitle, state.project.signal):
-              (directory, names, openTitle, openProject) =>
-                directory.projects.sortBy(-_.createdAt).map { project =>
-                  // The open project's title can change as you type, so it reads live;
-                  // the rest come from the snapshot taken when the library last changed.
+            children <-- Library.index.combineWithFn(displayNames(state), state.displayTitle, state.project.signal):
+              (index, names, openTitle, openDiagram) =>
+                index.diagrams.sortBy(-_.createdAt).map { diagram =>
+                  // The title of the open diagram can change while a person types, so
+                  // the list reads it live. The other titles come from the snapshot of
+                  // the last library change.
                   val shown =
-                    if project.id == openProject.id then openTitle
-                    else names.getOrElse(project.id, project.name)
+                    if diagram.id == openDiagram.id then openTitle
+                    else names.getOrElse(diagram.id, diagram.name)
                   li(
                     a(
                       cls := "flex items-center gap-2",
                       // Not daisyUI's `menu-active`: that inverts the row to near-black, which
                       // shouts where the rest of the chrome marks "current" with a quiet tint.
-                      cls("gx-row-active") <-- state.project.signal.map(_.id == project.id),
+                      cls("gx-row-active") <-- state.project.signal.map(_.id == diagram.id),
                       div(cls := "truncate", shown),
-                      onClick --> router.navigateTo(Route.ProjectDetail(project.id.value))
+                      onClick --> router.navigateTo(Route.Diagram(diagram.id.value))
                     )
                   )
                 }

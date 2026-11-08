@@ -10,14 +10,14 @@ import Router.{app, diagrams, documents, example}
 
 enum Route derives CanEqual:
   case Home
-  case ProjectDetail(uuid: String, source: Option[String] = None)
+  case Diagram(id: String, source: Option[String] = None)
 
-  /** A built-in example, opened WITHOUT adding it to the library.
+  /** A built-in example that opens WITHOUT a copy in the library.
     *
-    * Its own route rather than a flag on ProjectDetail: an example has no
-    * ProjectId to name, and the distinction has to survive a reload and the back
-    * button — clicking an example used to mint a library copy purely as a way to
-    * have something to navigate to.
+    * It has its own route, and not a flag on [[Diagram]]. An example has no
+    * DiagramId, and the difference must stay after a reload and the back
+    * button. Before, a click on an example made a copy in the library, only to
+    * have a destination for the navigation.
     */
   case Example(slug: String)
 
@@ -27,12 +27,12 @@ enum Route derives CanEqual:
     * into a URL. The browser keeps a URL in its history, and a path holds
     * private information.
     *
-    * A loose file needs a route because a route is a destination. Before this,
-    * a loose file had none: `gx open <path>` on Home reached no viewer, and
-    * with a project open it put the file text into the viewer of a different
-    * record. `DesktopDocumentRegistry` maps the id back to the file.
+    * A loose file needs a route, because a route is a destination. Before
+    * this, a loose file had no route. On Home, `gx open <path>` reached no
+    * viewer. With a diagram open, it put the file text into the viewer of a
+    * different diagram. `DesktopDocumentRegistry` maps the id back to the file.
     */
-  case LooseDocument(sessionId: String)
+  case LooseFile(sessionId: String)
 
 class Router:
   given Owner = unsafeWindowOwner
@@ -131,20 +131,20 @@ class Router:
 
     path.stripPrefix("/").split("/").filter(_.nonEmpty).toList match
       case `app` :: Nil                  => Route.Home
-      case `diagrams` :: id :: Nil       => Route.ProjectDetail(id, sourceOpt)
+      case `diagrams` :: id :: Nil       => Route.Diagram(id, sourceOpt)
       case `example` :: slug :: Nil      => Route.Example(slug)
       // The id is not checked here. The router does not read the registry, in
       // the same way that it does not read the library for `diagrams`. The view
       // holds that check, because only the view can show the answer.
-      case `documents` :: session :: Nil => Route.LooseDocument(session)
+      case `documents` :: session :: Nil => Route.LooseFile(session)
       case _                             => Route.Home
 
   private def buildPath(route: Route): String =
     route match
-      case Route.Home                     => Router.homePath
-      case Route.ProjectDetail(id, _)     => s"/$diagrams/$id"
-      case Route.Example(slug)            => s"/$example/$slug"
-      case Route.LooseDocument(sessionId) => s"/$documents/$sessionId"
+      case Route.Home                 => Router.homePath
+      case Route.Diagram(id, _)       => s"/$diagrams/$id"
+      case Route.Example(slug)        => s"/$example/$slug"
+      case Route.LooseFile(sessionId) => s"/$documents/$sessionId"
 
 object Router:
   /** The library. On the web, `/` is the product page, which Netlify serves

@@ -180,7 +180,7 @@ api_unwatch() {
 }
 
 api_reset_view() {
-  _api_call session '{"command":"reset-view","params":{}}'
+  _api_call live-view '{"command":"reset-view","params":{}}'
 }
 
 api_get() {

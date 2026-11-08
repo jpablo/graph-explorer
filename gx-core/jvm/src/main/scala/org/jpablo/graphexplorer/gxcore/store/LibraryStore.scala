@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.gxcore.store
 
 import org.jpablo.graphexplorer.gxcore.fs.{AtomicFiles, GxHome}
 import org.jpablo.graphexplorer.gxcore.model.*
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -12,28 +13,30 @@ enum StoreError derives CanEqual:
   case Unreadable(id: DiagramId, message: String)
   case Io(message: String)
 
-/** The library on disk.
+/** The library on the disk.
   *
   * {{{
   * ~/.graph-explorer/library/
-  *   folders.json          the virtual tree, including empty folders
-  *   diagrams/<id>.json    one record: text + metadata + binding
+  *   folders.json          the virtual tree, with the empty folders
+  *   diagrams/<id>.json    one diagram: text + metadata + binding
   * }}}
   *
-  * **One file per diagram, on purpose.** `gx` and the desktop are separate
-  * processes writing concurrently; a single library file would make every
-  * unrelated edit a write conflict between them. Per-record files mean two
-  * processes editing different diagrams never collide, and each record write
-  * reuses the same atomic path as a document write.
+  * **One file for each diagram, on purpose.** `gx` and the desktop are
+  * different processes, and they can write at the same time. With one library
+  * file, each edit would cause a write conflict between them, also when the
+  * edits are not related. With one file for each diagram, two processes that
+  * edit different diagrams never collide. Each write of a diagram uses the same
+  * atomic path as a write of an origin file.
   *
-  * **The listing is derivable.** Everything needed to render the library can be
-  * recovered by scanning `diagrams/`. `folders.json` holds only what scanning
-  * cannot recover — the tree's shape, including folders with nothing in them —
-  * so losing or corrupting it costs organisation, never content.
+  * **The code can derive the list.** A scan of `diagrams/` recovers all the
+  * data that the library view needs. `folders.json` holds only the data that a
+  * scan cannot recover: the shape of the tree, with the empty folders. If that
+  * file is lost or corrupt, the user loses the organization, but never the
+  * content.
   *
-  * Store records are also just `file:` resources, which is why `gx import`
-  * reaches a running UI with no message sent: the desktop observes the new
-  * record with the same watcher it uses for origins (§6).
+  * Each diagram in the store is also only a `file:` resource. Thus `gx import`
+  * gets to a UI that runs, and it sends no message: the desktop sees the new
+  * diagram with the same watcher that it uses for origins (§6).
   */
 final class LibraryStore(val root: Path) extends DiagramSink:
   import LibraryStore.*
@@ -73,15 +76,16 @@ final class LibraryStore(val root: Path) extends DiagramSink:
     try Files.deleteIfExists(pathOf(id))
     catch case NonFatal(_) => false
 
-  /** Every readable record.
+  /** Each diagram that the store can read.
     *
-    * A record that fails to parse is SKIPPED rather than failing the listing.
-    * One corrupt file — a half-written record from a killed process, or one
-    * written by a future version — must not make the whole library unopenable.
-    * [[unreadable]] reports them so they are visible rather than merely ignored.
+    * If a diagram does not parse, the list SKIPS it, and the list does not
+    * fail. With one corrupt file, the user must still be able to open the library.
+    * Examples are a diagram that a killed process wrote only in part, or a
+    * diagram from a future version. [[unreadable]] reports these files, so
+    * that the user can see them.
     */
   def list(): Vector[Diagram] =
-    scan().flatMap(_.toOption).sortBy(d => (d.folder.render, d.name.toLowerCase, d.id.value))
+    scan().flatMap(_.toOption).sortBy(d => (d.metadata.folder.render, d.metadata.name.toLowerCase, d.id.value))
 
   def unreadable(): Vector[StoreError] = scan().flatMap(_.left.toOption)
 
@@ -102,21 +106,23 @@ final class LibraryStore(val root: Path) extends DiagramSink:
             catch case NonFatal(e) => Left(StoreError.Unreadable(id, e.toString))
       finally stream.close()
 
-  /** Records bound to an origin.
+  /** The diagrams that have a binding to an origin.
     *
-    * Plural because §3.1 permits it: one file may back several records with
-    * different metadata. The watch registry still polls that file once.
+    * The result is plural because §3.1 permits it: one file can be the origin
+    * of several diagrams with different metadata. Also then, the watch registry
+    * polls that file only one time.
     */
   def findByOrigin(origin: OriginUri): Vector[Diagram] =
     list().filter(_.binding.exists(_.origin == origin))
 
   // ------------------------------------------------------------ folders
 
-  /** The tree, including folders that hold nothing.
+  /** The tree, with the folders that hold nothing.
     *
-    * Folders containing diagrams are recovered from the records themselves, so
-    * this file only has to carry the ones that would otherwise vanish — which
-    * is what makes losing it survivable.
+    * The code recovers each folder that contains diagrams from the diagrams.
+    * Thus this file holds only the folders that the code cannot recover in a
+    * different way. Because of this, the library survives the loss of this
+    * file.
     */
   def folders(): Vector[FolderPath] =
     val declared =
@@ -124,7 +130,7 @@ final class LibraryStore(val root: Path) extends DiagramSink:
       else
         try upickle.default.read[Vector[FolderPath]](Files.readString(foldersFile, StandardCharsets.UTF_8))
         catch case NonFatal(_) => Vector.empty
-    val fromDiagrams = list().map(_.folder)
+    val fromDiagrams = list().map(_.metadata.folder)
     (declared ++ fromDiagrams ++ Vector(FolderPath.root)).distinct.sortBy(_.render)
 
   def saveFolders(paths: Vector[FolderPath]): Either[StoreError, Unit] =

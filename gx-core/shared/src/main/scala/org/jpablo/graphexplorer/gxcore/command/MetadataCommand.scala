@@ -2,8 +2,8 @@ package org.jpablo.graphexplorer.gxcore.command
 
 import org.jpablo.graphexplorer.viewer.models.{ElementId, GroupId}
 
-/** The record tier: operations on stored METADATA, never on the diagram text
-  * (D7.2).
+/** The metadata tier: operations on the stored METADATA of a diagram, never on
+  * its source (D7.2).
   *
   * The split is the one `sources-and-library-architecture.md` §5.3.1 draws and
   * calls a design rule rather than bookkeeping: anything here survives a pull,
@@ -12,11 +12,11 @@ import org.jpablo.graphexplorer.viewer.models.{ElementId, GroupId}
   * clearest cases: neither changes a byte of DOT, which is why they are here and
   * not with `set-attribute`.
   *
-  * Headless for the same reason the document tier is: this is state, on disk, so
-  * `gx` can read and write it with no window anywhere.
+  * This tier is headless for the same reason as the source tier. The metadata
+  * is state on disk, so `gx` can read and write it with no window.
   */
-enum RecordCommand derives CanEqual:
-  /** View state. */
+enum MetadataCommand derives CanEqual:
+  /** Hidden elements and collapsed groups. */
   case Hide(targets: Set[ElementId])
   case Unhide(targets: Set[ElementId])
   case UnhideAll
@@ -32,17 +32,17 @@ enum RecordCommand derives CanEqual:
   case Rename(newName: String)
 
   /** Query. */
-  case GetRecord
+  case GetMetadata
 
-  def name: String = RecordCommand.nameOf(this)
+  def name: String = MetadataCommand.nameOf(this)
 
   def isQuery: Boolean = this match
-    case GetRecord => true
+    case GetMetadata => true
     case _         => false
 
-object RecordCommand:
+object MetadataCommand:
 
-  def nameOf(command: RecordCommand): String = command match
+  def nameOf(command: MetadataCommand): String = command match
     case Hide(_)         => "hide"
     case Unhide(_)       => "unhide"
     case UnhideAll       => "unhide-all"
@@ -54,7 +54,7 @@ object RecordCommand:
     case SetNotes(_)     => "set-notes"
     case MoveToFolder(_) => "move-to-folder"
     case Rename(_)       => "rename-diagram"
-    case GetRecord       => "get-record"
+    case GetMetadata       => "get-metadata"
 
   val names: Vector[String] = Vector(
     "hide",
@@ -68,7 +68,7 @@ object RecordCommand:
     "set-notes",
     "move-to-folder",
     "rename-diagram",
-    "get-record"
+    "get-metadata"
   )
 
-  val tier: Tier = Tier.Record
+  val tier: Tier = Tier.Metadata

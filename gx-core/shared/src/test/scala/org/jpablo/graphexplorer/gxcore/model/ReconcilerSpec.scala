@@ -95,10 +95,10 @@ class ReconcilerSpec extends FunSuite:
   // ------------------------------------------------- the CRLF rule, moved here
 
   test("a CRLF origin nobody has touched is InSync, not Ahead") {
-    // The rule this phase moved out of the command-line tool. `local` is the
-    // record's text as it would be written into THIS file, so it is hashed with
-    // the file's own convention. Hashing with a fixed LF made every
-    // CRLF-authored origin read `Ahead` forever, with nothing edited.
+    // This phase moved this rule out of the command-line tool. `local` is the
+    // text of the diagram as the code would write it into THIS file. Thus the
+    // hash uses the convention of the file. A hash with a fixed LF made each
+    // origin with CRLF line ends show `Ahead` permanently, with no edit.
     val text   = "digraph G {\na -> b\n}"
     val origin = snapshot(text, LineEnding.Crlf)
     val result = Reconciler.plan(

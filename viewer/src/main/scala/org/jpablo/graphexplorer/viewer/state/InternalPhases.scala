@@ -52,9 +52,9 @@ class InternalPhases(
       * on which typing reaches it. */
     pace: EventStream[(String, DiagramFormat, ChangeOrigin)] => EventStream[(String, DiagramFormat, ChangeOrigin)] =
       EditorPacing.pace(_),
-    /** True when a graph edit must keep the whole text, because a file sits
+    /** True when a graph edit must keep the whole text, because a file is
       * behind the document. The setter of [[fullGraphV]] reads it at each
-      * edit, because a record can get or lose its binding while it is open.
+      * edit, because a diagram can get or lose its binding while it is open.
       */
     keepTextWhole: () => Boolean = () => false,
     /** Receives one message for each graph edit that [[fullGraphV]] refuses. */

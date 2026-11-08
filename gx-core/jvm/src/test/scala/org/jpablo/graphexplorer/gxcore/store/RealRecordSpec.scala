@@ -2,20 +2,21 @@ package org.jpablo.graphexplorer.gxcore.store
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.*
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import java.nio.file.{Files, Paths}
 
-/** The bytes `gx` actually writes, read back by the shared codec.
+/** The shared codec reads the bytes that `gx` really writes.
   *
-  * `local-protocol/fixtures/library-record.json` was produced by running the
-  * real CLI — `gx import`, then `gx run demo hide` — against a scratch library.
-  * Under D7.3 the webview reads these same bytes, so what this pins is that a
-  * record is readable by something other than the code that wrote it.
+  * The real CLI made `local-protocol/fixtures/library-record.json`. The steps
+  * were `gx import`, then `gx run demo hide`, on a temporary library. Under
+  * D7.3, the webview reads these same bytes. Thus this spec makes sure that
+  * other code can read a diagram, not only the code that wrote it.
   *
-  * The interesting part is what the file does NOT contain. upickle omits
-  * defaults, so `metadata` carries only `hiddenElements`; `tags`, `notes` and
-  * `autoDetectFormat` are absent entirely. A reader that required them would
-  * pass every synthetic test and fail on the first real library.
+  * The important part is what the file does NOT contain. upickle omits
+  * defaults, so `metadata` holds only `hiddenElements`. `tags`, `notes` and
+  * `autoDetectFormat` are not in the file at all. A reader that requires them
+  * passes each synthetic test and fails on the first real library.
   */
 class RealRecordSpec extends FunSuite:
 
@@ -24,13 +25,13 @@ class RealRecordSpec extends FunSuite:
 
   private lazy val text = Files.readString(fixture)
 
-  test("a record written by the real gx parses"):
+  test("a diagram written by the real gx parses"):
     val d = upickle.default.read[Diagram](text)
     assertEquals(d.id, DiagramId("demo"))
-    assertEquals(d.name, "demo")
+    assertEquals(d.metadata.name, "demo")
     assertEquals(d.format, "DOT")
     assert(d.text.startsWith("digraph Demo"), d.text)
-    assert(d.isBound, "gx import binds the record to its origin")
+    assert(d.isBound, "gx import binds the diagram to its origin")
 
   test("the view state a headless `gx run hide` wrote is there, in ElementRef spelling"):
     val d = upickle.default.read[Diagram](text)

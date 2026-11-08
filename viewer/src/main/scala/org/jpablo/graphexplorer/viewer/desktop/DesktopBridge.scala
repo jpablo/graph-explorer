@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
-import org.jpablo.graphexplorer.projects.Library
+import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
 import org.scalajs.dom
 
@@ -86,24 +86,26 @@ object DesktopBridge:
           DesktopIpc.asString(detailValue, "revision").orElse(DesktopIpc.asString(payloadValue, "revision"))
       )
 
-  /** Where a document event goes (§8).
+  /** The destination of a document event (§8).
     *
-    * To a RECORD, or to a SESSION, and never to "the viewer that happens to be
-    * on screen". This module held a process-global pointer to that viewer and
-    * applied every file event to it, which is how a loose file's source could
-    * be written into whichever library record was last displayed (§1).
+    * A document event goes to a DIAGRAM or to a SESSION. It never goes to "the
+    * viewer that happens to be on screen". Before, this module held a
+    * process-global pointer to that viewer and applied each file event to it.
+    * Because of this, the source of a loose file could go into the diagram that
+    * the screen showed last (§1).
     *
-    * Now it only writes down what arrived. A bound origin reconciles against
-    * its record; a loose file lands in the registry, and the viewer showing
-    * that session follows it through an owner-scoped signal (§10). Neither
-    * needs this module to know what is on screen.
+    * Now the module only writes down the event that arrived. A bound origin
+    * reconciles against its diagram. A loose file goes into the registry, and
+    * the viewer that shows that session gets its changes through an
+    * owner-scoped signal (§10). Thus neither path needs this module to know
+    * what is on the screen.
     */
   private[desktop] def routeDocumentChange(message: DesktopMessage): Unit =
-    message.path.filter(Library.recordsBoundTo(_).nonEmpty) match
+    message.path.filter(Library.diagramsBoundTo(_).nonEmpty) match
       case Some(path) =>
-        // A BOUND origin. The record owns this file (§2), so the change
-        // reconciles against the record and reaches the screen only if the
-        // record adopts it.
+        // A BOUND origin. The diagram owns this file (§2). Thus the change
+        // reconciles against the diagram, and it reaches the screen only if
+        // the diagram adopts it.
         OriginReconciler.reconcile(path, message.text, message.revision.getOrElse(""))
         ()
       case None =>

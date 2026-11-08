@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.models.*
 
 import scala.collection.immutable.VectorMap
 
-/** The document tier, run against a real graph.
+/** The source tier, run against a real graph.
   *
   * The property worth protecting is D7.1's: a command must do *exactly* what
   * the corresponding `Ops` call does, because the UI's menu item and a socket
@@ -15,7 +15,7 @@ import scala.collection.immutable.VectorMap
   * fails if the two ever drift, which is the failure the vocabulary exists to
   * prevent.
   */
-class DocumentCommandsSpec extends FunSuite:
+class SourceCommandsSpec extends FunSuite:
 
   private def graph: ViewerGraph =
     ViewerGraph(
@@ -38,20 +38,20 @@ class DocumentCommandsSpec extends FunSuite:
       )
     )
 
-  private def run(command: DocumentCommand, g: ViewerGraph = graph) =
-    DocumentCommands.run(g, command)
+  private def run(command: SourceCommand, g: ViewerGraph = graph) =
+    SourceCommands.run(g, command)
 
-  private def updated(command: DocumentCommand, g: ViewerGraph = graph): ViewerGraph =
+  private def updated(command: SourceCommand, g: ViewerGraph = graph): ViewerGraph =
     run(command, g).fold(e => fail(e.message), _.updatedGraph.getOrElse(fail("expected a graph")))
 
-  private def answer(command: DocumentCommand, g: ViewerGraph = graph): ujson.Value =
+  private def answer(command: SourceCommand, g: ViewerGraph = graph): ujson.Value =
     run(command, g).fold(e => fail(e.message), _.answer.getOrElse(fail("expected an answer")))
 
   // ------------------------------------------------ the vocabulary IS the ops
 
   test("set-attribute does exactly what updateAttributes does"):
     val targets = Set[ElementId](NodeId("a"), NodeId("c"))
-    val viaCommand = updated(DocumentCommand.SetAttribute(targets, "color", "red"))
+    val viaCommand = updated(SourceCommand.SetAttribute(targets, "color", "red"))
     val viaOps = graph.updateAttributes(
       ElementIds(targets),
       AttributeUpdates(
@@ -65,7 +65,7 @@ class DocumentCommandsSpec extends FunSuite:
 
   test("remove-attribute does exactly what the op does"):
     val targets = Set[ElementId](NodeId("a"))
-    val viaCommand = updated(DocumentCommand.RemoveAttribute(targets, "label"))
+    val viaCommand = updated(SourceCommand.RemoveAttribute(targets, "label"))
     val viaOps =
       graph.updateAttributes(ElementIds(targets), AttributeUpdates.remove(Set(AttributeId("label"))))
     assertEquals(viaCommand.elements, viaOps.elements)
@@ -75,7 +75,7 @@ class DocumentCommandsSpec extends FunSuite:
 
   test("group does exactly what moveToNewGroup does"):
     val targets = Set[ElementId](NodeId("a"), NodeId("b"))
-    val viaCommand = updated(DocumentCommand.Group(targets, "cluster"))
+    val viaCommand = updated(SourceCommand.Group(targets, "cluster"))
     val viaOps     = graph.moveToNewGroup(ElementIds(targets), "cluster")
     assertEquals(viaCommand.elements, viaOps.elements)
 
@@ -96,7 +96,7 @@ class DocumentCommandsSpec extends FunSuite:
   // ---------------------------------------------------------------- queries
 
   test("list-nodes answers with references and labels, in a stable order"):
-    val result = answer(DocumentCommand.ListNodes).arr
+    val result = answer(SourceCommand.ListNodes).arr
     assertEquals(result.map(_("ref").str).toVector, Vector("node:a", "node:b", "node:c"))
     assertEquals(result.head("label").str, "Ay")
 
@@ -104,30 +104,30 @@ class DocumentCommandsSpec extends FunSuite:
     // "no label" and "an empty label" are the same thing in the model, since a
     // label is an AttrValue and an absent one is empty. A client asking what
     // the nodes are called should not have to know that.
-    val result = answer(DocumentCommand.ListNodes).arr
+    val result = answer(SourceCommand.ListNodes).arr
     assertEquals(result.last("label"), ujson.Null)
 
   test("list-arrows answers with both endpoints"):
-    val result = answer(DocumentCommand.ListArrows).arr
+    val result = answer(SourceCommand.ListArrows).arr
     assertEquals(result.map(_("ref").str).toVector, Vector("arrow:a->b", "arrow:b->c"))
     assertEquals(result.head("source").str, "node:a")
     assertEquals(result.head("target").str, "node:b")
 
   test("list-groups answers with references and labels"):
-    val result = answer(DocumentCommand.ListGroups).arr
+    val result = answer(SourceCommand.ListGroups).arr
     assertEquals(result.map(_("ref").str).toVector, Vector("group:g1"))
     assertEquals(result.head("label").str, "Group One")
 
   test("get-attributes answers keyed by reference"):
-    val result = answer(DocumentCommand.GetAttributes(Set(NodeId("a"), NodeId("b"))))
+    val result = answer(SourceCommand.GetAttributes(Set(NodeId("a"), NodeId("b"))))
     assertEquals(result("node:a")("label").str, "Ay")
     assertEquals(result("node:b")("label").str, "Bee")
 
   test("a query returns no graph, and a mutation returns no answer"):
     // The distinction a caller depends on to know whether it must write
     // anything back.
-    assert(run(DocumentCommand.ListNodes).exists(_.updatedGraph.isEmpty))
-    assert(run(DocumentCommand.ResetAttributes(Set(NodeId("a")))).exists(_.answer.isEmpty))
+    assert(run(SourceCommand.ListNodes).exists(_.updatedGraph.isEmpty))
+    assert(run(SourceCommand.ResetAttributes(Set(NodeId("a")))).exists(_.answer.isEmpty))
 
   // ------------------------------------------------------------ refusals
 
@@ -135,14 +135,14 @@ class DocumentCommandsSpec extends FunSuite:
     // The UI greys out the menu item. A socket client has no menu, so the
     // applicability check has to live with the command rather than the button —
     // otherwise headless callers get a no-op that looks like success.
-    run(DocumentCommand.SplitRecord(NodeId("a"))) match
+    run(SourceCommand.SplitRecord(NodeId("a"))) match
       case Left(CommandError.NotApplicable(command, detail)) =>
         assertEquals(command, "split-record")
         assert(detail.contains("node:a"), detail)
       case other => fail(s"expected NotApplicable, got $other")
 
   test("transposing a node that is not a record is refused"):
-    assert(run(DocumentCommand.TransposeRecord(NodeId("a"))).isLeft)
+    assert(run(SourceCommand.TransposeRecord(NodeId("a"))).isLeft)
 
   test("a command naming an element that does not exist is refused"):
     // The reason this rule exists, found by writing the test that assumed the
@@ -152,14 +152,14 @@ class DocumentCommandsSpec extends FunSuite:
     // exist. On a socket it shows immediately: one stale `node:foo` from an
     // agent would silently add a node to the user's diagram, and the reply
     // would say the command succeeded.
-    run(DocumentCommand.SetAttribute(Set(NodeId("ghost")), "color", "red")) match
+    run(SourceCommand.SetAttribute(Set(NodeId("ghost")), "color", "red")) match
       case Left(CommandError.NotApplicable(command, detail)) =>
         assertEquals(command, "set-attribute")
         assert(detail.contains("node:ghost"), detail)
       case other => fail(s"expected NotApplicable, got $other")
 
   test("the refusal names every missing element, not just the first"):
-    run(DocumentCommand.SetAttribute(Set(NodeId("ghost"), NodeId("a"), NodeId("wraith")), "color", "red")) match
+    run(SourceCommand.SetAttribute(Set(NodeId("ghost"), NodeId("a"), NodeId("wraith")), "color", "red")) match
       case Left(CommandError.NotApplicable(_, detail)) =>
         assert(detail.contains("node:ghost"), detail)
         assert(detail.contains("node:wraith"), detail)
@@ -169,12 +169,12 @@ class DocumentCommandsSpec extends FunSuite:
   test("a query naming a missing element is refused too"):
     // A query that silently answers about nothing is as misleading as a
     // mutation that silently does nothing.
-    assert(run(DocumentCommand.GetAttributes(Set(ArrowId("nope")))).isLeft)
+    assert(run(SourceCommand.GetAttributes(Set(ArrowId("nope")))).isLeft)
 
   test("the check covers all three kinds"):
-    assert(run(DocumentCommand.RemoveAttribute(Set(ArrowId("nope")), "style")).isLeft)
-    assert(run(DocumentCommand.Ungroup(Set(GroupId("nope")))).isLeft)
-    assert(run(DocumentCommand.Ungroup(Set(GroupId("g1")))).isRight)
+    assert(run(SourceCommand.RemoveAttribute(Set(ArrowId("nope")), "style")).isLeft)
+    assert(run(SourceCommand.Ungroup(Set(GroupId("nope")))).isLeft)
+    assert(run(SourceCommand.Ungroup(Set(GroupId("g1")))).isRight)
 
   // ------------------------------------------------------- wire to behaviour
 
@@ -189,10 +189,10 @@ class DocumentCommandsSpec extends FunSuite:
         "value"   -> "blue"
       )
     )
-    val decoded = CommandCodec.decode(frame).fold(e => fail(e.message), identity)
+    val decoded = SourceCodec.decode(frame).fold(e => fail(e.message), identity)
     assertEquals(
       updated(decoded).elements,
-      updated(DocumentCommand.SetAttribute(Set(NodeId("a")), "color", "blue")).elements
+      updated(SourceCommand.SetAttribute(Set(NodeId("a")), "color", "blue")).elements
     )
 
   private def attr(g: ViewerGraph, node: String, name: String): Option[String] =
