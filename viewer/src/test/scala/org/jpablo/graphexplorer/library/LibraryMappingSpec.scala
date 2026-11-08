@@ -1,15 +1,20 @@
 package org.jpablo.graphexplorer.library
 
+import com.raquo.airstream.ownership.Owner
+import com.raquo.airstream.state.Var
+import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.*
 import org.jpablo.graphexplorer.viewer.models.{ArrowId, DiagramId, ElementIds, GroupId, NodeId}
-import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, MetadataOps}
 
 /** D7.3 makes the store the live state, so this mapping is not only a
   * convenience. It is the only protection against a UI save that loses the
   * data that the diagram has and the page does not have.
   */
 class LibraryMappingSpec extends FunSuite:
+
+  private given Owner = unsafeWindowOwner
 
   private val diagram = Diagram(
     id = DiagramId("d1"),
@@ -37,27 +42,30 @@ class LibraryMappingSpec extends FunSuite:
   )
 
   private def roundTrip(d: Diagram, now: Long = 99): Diagram =
-    val (state, unparsed) = LibraryMapping.toPersisted(d)
-    LibraryMapping.toDiagram(d.id, state, Some(d), unparsed, now)
+    LibraryMapping.mergeViewerSave(d.id, LibraryMapping.toSnapshot(d), Some(d), now)
+
+  /** The snapshot of a viewer that opened `d` and made `edit` to its metadata. */
+  private def viewerEdit(d: Diagram)(edit: MetadataOps => Unit): DiagramSnapshot =
+    val opened = LibraryMapping.toSnapshot(d)
+    val ops    = MetadataOps(Var(opened.metadata))
+    edit(ops)
+    opened.copy(metadata = ops.now())
 
   test("a diagram survives the round trip through the page"):
     val after = roundTrip(diagram)
     assertEquals(after.copy(updatedAt = diagram.updatedAt), diagram)
 
   test("the page's `source` is the diagram's `text`, which is the trap"):
-    // PersistedDiagramState.source is the diagram TEXT, not its origin. Reading
+    // DiagramSnapshot.source is the diagram TEXT, not its origin. Reading
     // it as provenance is the mistake the new model renamed the field to stop.
-    val (state, _) = LibraryMapping.toPersisted(diagram)
-    assertEquals(state.source, "digraph G { a -> b }")
+    assertEquals(LibraryMapping.toSnapshot(diagram).source, "digraph G { a -> b }")
 
   test("view state keeps the ElementRef spelling, so a node and a group cannot collide"):
-    val state = PersistedDiagramState(
-      hiddenElements = ElementIds(Set(NodeId("n1"), GroupId("n1"), ArrowId("e1"))),
-      collapsedGroups = Set(GroupId("g1")),
-      projectName = "P",
-      source = "digraph G {}"
-    )
-    val d = LibraryMapping.toDiagram(DiagramId("x"), state, None, LibraryMapping.Unparsed.none, 1)
+    val snapshot = DiagramSnapshot.minimal(Some("digraph G {}"))
+    val ops      = MetadataOps(Var(snapshot.metadata))
+    ops.hiddenElements.set(ElementIds(Set(NodeId("n1"), GroupId("n1"), ArrowId("e1"))))
+    ops.collapsedGroups.set(Set(GroupId("g1")))
+    val d = LibraryMapping.mergeViewerSave(DiagramId("x"), snapshot.copy(metadata = ops.now()), None, 1)
     assertEquals(d.metadata.hiddenElements, Set("node:n1", "group:n1", "arrow:e1"))
     assertEquals(d.metadata.collapsedGroups, Set("group:g1"))
 
@@ -65,46 +73,64 @@ class LibraryMappingSpec extends FunSuite:
     // The page has no UI for these fields. If the code builds the diagram again
     // from the page only, it silently removes the result of `gx run tag`, the
     // binding from `gx import`, and the folder of the diagram.
-    val (state, unparsed) = LibraryMapping.toPersisted(diagram)
-    val edited = state.copy(source = "digraph G { a -> c }")
-    val after  = LibraryMapping.toDiagram(diagram.id, edited, Some(diagram), unparsed, 99)
+    val edited = LibraryMapping.toSnapshot(diagram).copy(source = "digraph G { a -> c }")
+    val after  = LibraryMapping.mergeViewerSave(diagram.id, edited, Some(diagram), 99)
     assertEquals(after.text, "digraph G { a -> c }")
     assertEquals(after.metadata.tags, List("infra"))
     assertEquals(after.metadata.notes, "a note")
     assertEquals(after.metadata.folder, FolderPath.parse("/systems"))
     assertEquals(after.binding, diagram.binding)
 
+  test("the stored diagram owns the folder, the tags and the notes, even when the snapshot holds others"):
+    // The viewer adopts the whole metadata, so its snapshot holds a folder,
+    // tags and notes. They are an old copy: the library owns them.
+    val stale = LibraryMapping.toSnapshot(diagram)
+    val now = diagram.copy(metadata =
+      diagram.metadata.copy(folder = FolderPath.parse("/moved"), tags = List("new"), notes = "new note")
+    )
+    val after = LibraryMapping.mergeViewerSave(diagram.id, stale, Some(now), 99)
+    assertEquals(after.metadata.folder, FolderPath.parse("/moved"))
+    assertEquals(after.metadata.tags, List("new"))
+    assertEquals(after.metadata.notes, "new note")
+
+  test("the viewer owns the name, the hidden set, the collapsed set and autoDetectFormat"):
+    val edited = viewerEdit(diagram): ops =>
+      ops.name.set("Renamed")
+      ops.hiddenElements.set(ElementIds(Set(NodeId("b"))))
+      ops.collapsedGroups.set(Set(GroupId("g2")))
+      ops.autoDetectFormat.set(false)
+    val after = LibraryMapping.mergeViewerSave(diagram.id, edited, Some(diagram), 99)
+    assertEquals(after.metadata.name, "Renamed")
+    assertEquals(after.metadata.hiddenElements, Set("node:b"))
+    assertEquals(after.metadata.collapsedGroups, Set("group:g2"))
+    assertEquals(after.metadata.autoDetectFormat, Some(false))
+
   test("createdAt is the diagram's, updatedAt is now"):
     val after = roundTrip(diagram, now = 12345)
     assertEquals(after.createdAt, 1L)
     assertEquals(after.updatedAt, 12345L)
 
-  test("a ref this build cannot parse is KEPT, not dropped"):
+  test("a ref this build cannot parse survives a viewer edit of the hidden set"):
     // A newer `gx` wrote this diagram, and that `gx` knows a kind that this
-    // build does not know. If `LibraryMapping` drops the ref, an older build that
+    // build does not know. If the viewer drops the ref, an older build that
     // opens the diagram deletes the ref on the next save. Then data is lost,
     // and no error shows.
-    val forward = diagram.copy(metadata =
-      diagram.metadata.copy(hiddenElements = Set("node:a", "sparkle:z"))
-    )
-    val (state, unparsed) = LibraryMapping.toPersisted(forward)
-    assertEquals(state.hiddenElements.ids.size, 1, "only the known ref reaches the page")
-    assertEquals(unparsed.hidden, Set("sparkle:z"))
-    val after = LibraryMapping.toDiagram(forward.id, state, Some(forward), unparsed, 9)
-    assertEquals(after.metadata.hiddenElements, Set("node:a", "sparkle:z"))
+    val forward = diagram.copy(metadata = diagram.metadata.copy(hiddenElements = Set("node:a", "future:x")))
+    val edited  = viewerEdit(forward)(_.hiddenElements.update(_ + NodeId("b")))
+    val after   = LibraryMapping.mergeViewerSave(forward.id, edited, Some(forward), 9)
+    assertEquals(after.metadata.hiddenElements, Set("node:a", "node:b", "future:x"))
 
-  test("a non-group in collapsedGroups is preserved rather than coerced"):
-    val odd = diagram.copy(metadata = diagram.metadata.copy(collapsedGroups = Set("group:g1", "node:a")))
-    val (state, unparsed) = LibraryMapping.toPersisted(odd)
-    assertEquals(state.collapsedGroups, Set(GroupId("g1")))
-    val after = LibraryMapping.toDiagram(odd.id, state, Some(odd), unparsed, 9)
-    assertEquals(after.metadata.collapsedGroups, Set("group:g1", "node:a"))
+  test("a non-group ref in collapsedGroups survives a collapse"):
+    val odd    = diagram.copy(metadata = diagram.metadata.copy(collapsedGroups = Set("group:g1", "node:a")))
+    val edited = viewerEdit(odd)(_.collapsedGroups.update(_ + GroupId("g2")))
+    val after  = LibraryMapping.mergeViewerSave(odd.id, edited, Some(odd), 9)
+    assertEquals(after.metadata.collapsedGroups, Set("group:g1", "group:g2", "node:a"))
 
   test("a format the diagram does not name reads as absent, and stays absent"):
-    val unknown = diagram.copy(format = "")
-    val (state, unparsed) = LibraryMapping.toPersisted(unknown)
-    assertEquals(state.format, None)
-    assertEquals(LibraryMapping.toDiagram(unknown.id, state, Some(unknown), unparsed, 9).format, "")
+    val unknown  = diagram.copy(format = "")
+    val snapshot = LibraryMapping.toSnapshot(unknown)
+    assertEquals(snapshot.format, None)
+    assertEquals(LibraryMapping.mergeViewerSave(unknown.id, snapshot, Some(unknown), 9).format, "")
 
   test("autoDetectFormat survives, because it is a view setting that outlives a pull"):
     assertEquals(roundTrip(diagram).metadata.autoDetectFormat, Some(true))
@@ -140,24 +166,22 @@ class LibraryMappingSpec extends FunSuite:
       |}""".stripMargin
 
   test("the viewer can open a diagram `gx import` created"):
-    val d = upickle.default.read[Diagram](realDiagram)
-    val (state, unparsed) = LibraryMapping.toPersisted(d)
-    assertEquals(state.projectName, "demo")
-    assertEquals(state.source, "digraph Demo {\n  api -> db\n}\n")
-    assertEquals(state.format, Some("DOT"))
-    assert(unparsed.isEmpty, s"nothing should be unparseable: $unparsed")
+    val d        = upickle.default.read[Diagram](realDiagram)
+    val snapshot = LibraryMapping.toSnapshot(d)
+    assertEquals(snapshot.metadata.name, "demo")
+    assertEquals(snapshot.source, "digraph Demo {\n  api -> db\n}\n")
+    assertEquals(snapshot.format, Some("DOT"))
+    assertEquals(snapshot.metadata, d.metadata, "the metadata reaches the viewer as it is")
 
   test("a headless `gx run hide` reaches the page as a hidden node"):
     // This is D7.3's whole claim, at the one point the viewer can check it:
     // view state written with no window open arrives as view state.
     val d = upickle.default.read[Diagram](realDiagram)
-    val (state, _) = LibraryMapping.toPersisted(d)
-    assertEquals(state.hiddenElements.ids, Set(NodeId("db")))
+    assertEquals(MetadataOps.hiddenIn(LibraryMapping.toSnapshot(d).metadata).ids, Set(NodeId("db")))
 
   test("saving it back does not unbind what gx bound"):
-    val d = upickle.default.read[Diagram](realDiagram)
-    val (state, unparsed) = LibraryMapping.toPersisted(d)
-    val saved = LibraryMapping.toDiagram(d.id, state.copy(source = "digraph Demo {}"), Some(d), unparsed, 7)
+    val d     = upickle.default.read[Diagram](realDiagram)
+    val saved = LibraryMapping.mergeViewerSave(d.id, LibraryMapping.toSnapshot(d).copy(source = "digraph Demo {}"), Some(d), 7)
     assertEquals(saved.binding, d.binding)
     assertEquals(saved.text, "digraph Demo {}")
     assertEquals(saved.metadata.hiddenElements, Set("node:db"))

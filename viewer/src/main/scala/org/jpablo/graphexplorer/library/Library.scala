@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.gxcore.model.ContentHash
 import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ViewerSettings}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ViewerSettings}
 
 /** The library the app talks to, whichever one it is (D7.3).
   *
@@ -36,7 +36,7 @@ object Library:
   def index: Signal[LibraryIndex] = backend.index
   def indexNow(): LibraryIndex    = backend.indexNow()
 
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[PersistedDiagramState] =
+  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
     backend.createDiagramPersistence(id, initialSource)
 
   def createEmptyDiagram(name: String): DiagramId = backend.createEmptyDiagram(name)
@@ -49,7 +49,7 @@ object Library:
   def diagramsBoundTo(path: String): List[BoundDiagram] = backend.diagramsBoundTo(path)
 
   /** The writes to a diagram from outside this view (D7.3). Empty on the browser backend. */
-  def diagramChangedExternally(id: DiagramId): com.raquo.airstream.core.EventStream[PersistedDiagramState] =
+  def diagramChangedExternally(id: DiagramId): com.raquo.airstream.core.EventStream[DiagramSnapshot] =
     backend.diagramChangedExternally(id)
 
   /** The file that is the origin of a diagram (§8). None on the browser backend. */

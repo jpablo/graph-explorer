@@ -21,7 +21,7 @@ trait DiagramPersistence:
   /** The state to open with. A snapshot: the value does not change under the
     * viewer while it restores.
     */
-  def initial: PersistedDiagramState
+  def initial: DiagramSnapshot
 
   /** The state after a change from a DIFFERENT writer (D7.3).
     *
@@ -43,7 +43,7 @@ trait DiagramPersistence:
     * older than the editor. It looks like a change from a different writer, and
     * its adoption undoes the last keystroke of the person.
     */
-  def external: EventStream[PersistedDiagramState]
+  def external: EventStream[DiagramSnapshot]
 
   /** The state while the person edits it.
     *
@@ -52,10 +52,10 @@ trait DiagramPersistence:
     * conflict and can affect external tools. A diagram does not have these
     * problems.
     */
-  def update(state: PersistedDiagramState): Unit
+  def update(state: DiagramSnapshot): Unit
 
   /** Save now, because the person asked (§11). */
-  def saveNow(state: PersistedDiagramState)(using ExecutionContext): Future[SaveResult]
+  def saveNow(state: DiagramSnapshot)(using ExecutionContext): Future[SaveResult]
 
   /** Release what the store holds. Called when the view unmounts. */
   def close(): Unit
@@ -96,10 +96,10 @@ object DiagramPersistence:
   */
 final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) extends DiagramPersistence:
 
-  private val state: Var[PersistedDiagramState] =
+  private val state: Var[DiagramSnapshot] =
     Library.createDiagramPersistence(id, initialSource)
 
-  lazy val initial: PersistedDiagramState = state.now()
+  lazy val initial: DiagramSnapshot = state.now()
 
   /** Writes this view did not make.
     *
@@ -109,16 +109,16 @@ final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) ext
     * arrives carrying text the editor has already moved past — which is exactly
     * what somebody else's change looks like.
     */
-  def external: EventStream[PersistedDiagramState] = Library.diagramChangedExternally(id)
+  def external: EventStream[DiagramSnapshot] = Library.diagramChangedExternally(id)
 
-  def update(next: PersistedDiagramState): Unit = state.set(next)
+  def update(next: DiagramSnapshot): Unit = state.set(next)
 
   /** §11: flush the diagram. A diagram already saves on each change, so ⌘S
     * must force the write out, and not decide what to write. The binding and
     * the sync mode of the diagram control a push to an origin file. Phase 3
     * moves that engine into `gx-core`.
     */
-  def saveNow(next: PersistedDiagramState)(using ExecutionContext): Future[SaveResult] =
+  def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
     Library.flush()
     Future.successful(SaveResult.Saved)
@@ -134,23 +134,23 @@ final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) ext
   * An example uses this. §7.2 also names it as the honest store for the parts
   * of a loose file that have nowhere to go.
   */
-final class EphemeralPersistence(val initial: PersistedDiagramState, unsupportedMessage: String)
+final class EphemeralPersistence(val initial: DiagramSnapshot, unsupportedMessage: String)
     extends DiagramPersistence:
 
   private var current = initial
 
   /** Nothing else can write here, so there is nothing to hear. */
-  def external: EventStream[PersistedDiagramState] = EventStream.empty
+  def external: EventStream[DiagramSnapshot] = EventStream.empty
 
-  def update(next: PersistedDiagramState): Unit = current = next
+  def update(next: DiagramSnapshot): Unit = current = next
 
-  def saveNow(next: PersistedDiagramState)(using ExecutionContext): Future[SaveResult] =
+  def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
     Future.successful(SaveResult.Unsupported(unsupportedMessage))
 
   def close(): Unit = ()
 
-  private[state] def latest: PersistedDiagramState = current
+  private[state] def latest: DiagramSnapshot = current
 
 object EphemeralPersistence:
 
@@ -160,6 +160,6 @@ object EphemeralPersistence:
     */
   def example(initialSource: Option[String], name: String): EphemeralPersistence =
     EphemeralPersistence(
-      PersistedDiagramState.minimal(initialSource).copy(projectName = name),
+      DiagramSnapshot.minimal(initialSource).modify(_.metadata.name).setTo(name),
       "Copy this example to your library before you save it"
     )

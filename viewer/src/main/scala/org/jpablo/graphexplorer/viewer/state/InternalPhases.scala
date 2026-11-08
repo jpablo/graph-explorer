@@ -44,6 +44,19 @@ class InternalPhases(
     initialSource: Option[String] = None,
     hiddenNodes:   Signal[HiddenElements],
     collapsedGroups: Signal[Set[GroupId]] = Signal.fromValue(Set.empty),
+    /** Auto-detect: the language FOLLOWS the document instead of being asserted
+      * over it.
+      *
+      * ON by default, which is safe for exactly one reason: it moves only on
+      * evidence. A document that declares nothing keeps whatever is selected —
+      * this consults `declared`, never `detect`, so there is no fallback for it
+      * to yank an existing selection to. Asserting a language by hand turns it
+      * off (see `ViewerState.setDiagramFormat`).
+      *
+      * The flag is part of the metadata of a diagram. Thus `ViewerState` gives
+      * a view of its metadata `Var` here, and the flag has one copy.
+      */
+    val autoDetectFormat: Var[Boolean] = Var(true),
     editorNotice:  Var[Option[EditorNotice]] = Var(None),
     val logLevel:  Level = Level.None,
     /** Pacing applied to CodeMirror-origin re-parses — see [[EditorPacing]].
@@ -353,17 +366,6 @@ class InternalPhases(
     g.nodeIds.isEmpty && g.arrowIds.isEmpty &&
       g.groupIds.forall(_ == GroupId(ViewerGraphElements.defaultRootId.value))
 
-  /** Auto-detect: the language FOLLOWS the document instead of being asserted
-    * over it.
-    *
-    * ON by default, which is safe for exactly one reason: it moves only on
-    * evidence. A document that declares nothing keeps whatever is selected —
-    * this consults `declared`, never `detect`, so there is no fallback for it
-    * to yank an existing selection to. Asserting a language by hand turns it
-    * off (see `ViewerState.setDiagramFormat`).
-    */
-  val autoDetectFormat: Var[Boolean] = Var(true)
-
   /** Move the selection to whatever the text declares, if that is something else.
     *
     * Through `replaceDocument` rather than `formatSelection.set` so the switch
@@ -383,7 +385,14 @@ class InternalPhases(
 
   // Turning it on acts on the document already open, rather than waiting for the
   // next keystroke to prove itself.
-  autoDetectFormat.signal.changes.filter(identity).foreach(_ => applyAutoDetect(state.now().text))
+  autoDetectFormat.signal.changes.filter(identity).foreach(_ => applyAutoDetectNow())
+
+  /** Apply auto-detect to the text on the screen now, if it is on.
+    *
+    * The restore of a diagram calls this after it sets the stored format. The
+    * flag can be on before and after the restore, and then it does not change.
+    */
+  def applyAutoDetectNow(): Unit = applyAutoDetect(state.now().text)
 
   // Re-parse the current text when the user switches the selected format.
   formatSelection.signal.changes.foreach: newFormat =>

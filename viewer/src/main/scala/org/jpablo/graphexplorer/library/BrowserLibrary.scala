@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.storedString
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ViewerSettings}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ViewerSettings}
 import upickle.default.*
 
 case class DiagramSummary(
@@ -92,18 +92,18 @@ object BrowserLibrary extends DiagramLibrary:
     * @param initialSource
     *   the source to use when `localStorage` has no state for the diagram.
     * @return
-    *   a `Var` that holds the `PersistedDiagramState` and saves each change.
+    *   a `Var` that holds the `DiagramSnapshot` and saves each change.
     */
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[PersistedDiagramState] =
-    val initialState   = PersistedDiagramState.minimal(initialSource)
+  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
+    val initialState   = DiagramSnapshot.minimal(initialSource)
     val diagramStorage = storedString(diagramKey(id), initial = write(initialState))
     // One observation for the storage of each diagram. It starts the
     // `localStorage` sync, and the reads below use it.
     val diagramStorageNow = diagramStorage.signal.observe
-    // Initialize storage ~> PersistedDiagramState
-    val persistedDiagramState: Var[PersistedDiagramState] =
+    // Initialize storage ~> DiagramSnapshot
+    val diagramSnapshot: Var[DiagramSnapshot] =
       try
-        Var(read[PersistedDiagramState](diagramStorageNow.now()))
+        Var(read[DiagramSnapshot](diagramStorageNow.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e, defaulting to initial state")
@@ -113,12 +113,12 @@ object BrowserLibrary extends DiagramLibrary:
     // runs per keystroke, and only a blank incoming name (the accident path)
     // has to look at the old payload.
     def storedPayloadName: String =
-      try read[PersistedDiagramState](diagramStorageNow.now()).projectName
+      try read[DiagramSnapshot](diagramStorageNow.now()).metadata.name
       catch case _: Throwable => ""
 
-    // synchronize PersistedDiagramState ~> storage
-    persistedDiagramState.signal.distinct.changes.foreach: state =>
-      val guarded = state.copy(projectName = guardedDiagramName(state.projectName, storedPayloadName))
+    // synchronize DiagramSnapshot ~> storage
+    diagramSnapshot.signal.distinct.changes.foreach: state =>
+      val guarded = state.modify(_.metadata.name).setTo(guardedDiagramName(state.metadata.name, storedPayloadName))
       // Write the payload of the diagram.
       diagramStorage.set(write(guarded))
       // Write the time and the name into the entry in the library index.
@@ -127,9 +127,9 @@ object BrowserLibrary extends DiagramLibrary:
           .using: entry =>
             entry.copy(
               lastModified = System.currentTimeMillis(),
-              name = guardedDiagramName(guarded.projectName, entry.name)
+              name = guardedDiagramName(guarded.metadata.name, entry.name)
             )
-    persistedDiagramState
+    diagramSnapshot
 
   /** Retrieves the persisted viewer settings.
     *
@@ -177,8 +177,8 @@ object BrowserLibrary extends DiagramLibrary:
     * immediately.
     *
     * The usual create path puts the source in the route, and it gives the
-    * name `defaultProjectName`. That path cannot set a different name. On the
-    * first change, the payload sync writes `name = state.projectName` into the
+    * name `defaultDiagramName`. That path cannot set a different name. On the
+    * first change, the payload sync writes `name = state.metadata.name` into the
     * index entry, so it replaces a name that only the entry has. This method
     * writes the payload first, so the payload and the entry have the same name
     * from the start. The diagram page then restores the payload, because
@@ -189,7 +189,7 @@ object BrowserLibrary extends DiagramLibrary:
     val id = createEmptyDiagram(name)
     writeLocalStorage(
       diagramKey(id),
-      write(PersistedDiagramState.minimal(Some(source)).copy(projectName = name))
+      write(DiagramSnapshot.minimal(Some(source)).modify(_.metadata.name).setTo(name))
     )
     id
 
@@ -206,14 +206,14 @@ object BrowserLibrary extends DiagramLibrary:
     *   a Signal that holds the source of the diagram.
     */
   def diagramSource(id: DiagramId): Signal[String] =
-    val diagramStorage = storedString(diagramKey(id), write(PersistedDiagramState.empty))
+    val diagramStorage = storedString(diagramKey(id), write(DiagramSnapshot.empty))
     diagramStorage.signal.map: stateStr =>
       try
-        read[PersistedDiagramState](stateStr).source
+        read[DiagramSnapshot](stateStr).source
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
-          PersistedDiagramState.minimalGraphText
+          DiagramSnapshot.minimalGraphText
 
   // ----------------- Private methods -----------------
 
@@ -251,8 +251,8 @@ object BrowserLibrary extends DiagramLibrary:
     *
     * The accident has the same shape. On 2026-08-02, a stale incremental
     * bundle crashed during render, and the viewer stayed half initialized.
-    * The state sync ran while `projectName` still held "" from before the
-    * restore. The sync then erased a real stored name in the payload AND in
+    * The state sync ran while the name in the state still held "" from before
+    * the restore. The sync then erased a real stored name in the payload AND in
     * the index entry ("Groups" became "").
     *
     * No user flow gives a diagram a blank name, because `RenameDiagramDialog`
@@ -326,14 +326,14 @@ object BrowserLibrary extends DiagramLibrary:
     */
   def diagramCardInfo(id: DiagramId, languages: DiagramLanguages): Option[DiagramCardInfo] =
     try
-      val state = read[PersistedDiagramState](readLocalStorage(diagramKey(id), write(PersistedDiagramState.empty)))
+      val state = read[DiagramSnapshot](readLocalStorage(diagramKey(id), write(DiagramSnapshot.empty)))
       val format = state.format
         .flatMap(f => scala.util.Try(DiagramFormat.valueOf(f)).toOption)
         .getOrElse(DiagramFormat.detect(state.source))
-      val name    = state.projectName
+      val name    = state.metadata.name
       val backend = languages.forFormat(format)
       val displayName =
-        if name.trim.nonEmpty && name != PersistedDiagramState.defaultProjectName then name
+        if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
         else backend.extractTitle(state.source).getOrElse(name)
       Some(DiagramCardInfo(format, displayName, backend.diagramKind(state.source)))
     catch case _: Throwable => None
@@ -346,7 +346,7 @@ object BrowserLibrary extends DiagramLibrary:
   def findDiagramBySource(dot: String): Option[DiagramId] =
     indexNow().diagrams.collectFirst(Function.unlift { summary =>
       try
-        val state = read[PersistedDiagramState](readLocalStorage(diagramKey(summary.id), write(PersistedDiagramState.empty)))
+        val state = read[DiagramSnapshot](readLocalStorage(diagramKey(summary.id), write(DiagramSnapshot.empty)))
         if state.source == dot then Some(summary.id) else None
       catch
         case _: Throwable => None

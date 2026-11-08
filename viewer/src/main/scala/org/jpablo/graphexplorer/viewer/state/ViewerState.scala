@@ -16,6 +16,7 @@ import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
+import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
 import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
 
@@ -72,8 +73,8 @@ case class ViewerState(
     *
     * It is NOT a key for storage. `DiagramPersistence.forTarget` decides where
     * the app stores a diagram, and it reads the target, not this value. The
-    * spellings are the same as before the target existed, so a share URL and
-    * a `Project` keep their identity.
+    * spellings are the same as before the target existed, so a share URL
+    * keeps its identity.
     */
   lazy val diagramId: DiagramId =
     target match
@@ -93,8 +94,14 @@ case class ViewerState(
       case ViewTarget.Example(_, name) => Some(name)
       case _                           => None
 
-  lazy val project =
-    ProjectOps(Var(Project(diagramId)))
+  /** The metadata of this diagram: ONE `Var`, and typed views over it.
+    *
+    * It starts empty, and `restorePersistedState` sets it from the store. A
+    * loose file and an example have no metadata in the library. Their
+    * metadata stays here, in memory.
+    */
+  lazy val metadata: MetadataOps =
+    MetadataOps(Var(DiagramMetadata(name = "")))
 
   val undoEvent: EventBus[Unit]        = EventBus()
   val redoEvent: EventBus[Unit]        = EventBus()
@@ -116,8 +123,9 @@ case class ViewerState(
   val phases = InternalPhases(
     languages = languages,
     initialSource = if source.isEmpty then None else Some(source),
-    hiddenNodes = project.hiddenElements.signal,
-    collapsedGroups = project.collapsedGroups.signal,
+    hiddenNodes = metadata.hiddenElements.signal,
+    collapsedGroups = metadata.collapsedGroups.signal,
+    autoDetectFormat = metadata.autoDetectFormat,
     editorNotice = editorNotice,
     logLevel = logLevel,
     keepTextWhole = () => isFileBacked,
@@ -157,7 +165,7 @@ case class ViewerState(
   def setDiagramFormat(format: DiagramFormat): Unit =
     Var.set(autoDetectFormat -> false, formatSelection -> format)
 
-  val autoDetectFormat = phases.autoDetectFormat
+  val autoDetectFormat: Var[Boolean] = metadata.autoDetectFormat
 
   /** The format selector's three options as ONE string, since a `<select>` has
     * one value: the sentinel, or a format's name.
@@ -189,8 +197,8 @@ case class ViewerState(
     * rename always wins, and a change to the source title shows immediately.
     */
   val displayTitle: Signal[String] =
-    project.name.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
-      if name.trim.nonEmpty && name != PersistedDiagramState.defaultProjectName then name
+    metadata.name.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
+      if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
       else languages.forFormat(format).extractTitle(source).getOrElse(name)
 
   /** Presentation metadata for every available format, in display order (drives the selector UI). */
@@ -230,8 +238,8 @@ case class ViewerState(
   private val pacedSourceText = EditorPacing.paceSignal(sourceText.signal)
 
   private val viewDiffersFromSource =
-    project.hiddenElements.signal
-      .combineWithFn(project.collapsedGroups.signal)((hidden, collapsed) => hidden.nonEmpty || collapsed.nonEmpty)
+    metadata.hiddenElements.signal
+      .combineWithFn(metadata.collapsedGroups.signal)((hidden, collapsed) => hidden.nonEmpty || collapsed.nonEmpty)
       .distinct
 
   /** The render inputs for ONE backend, with `visibleText` serialized in THAT
@@ -286,7 +294,7 @@ case class ViewerState(
             concealedCounts = concealedCountsNow(),
             onToggleConcealed =
               (n, succSide) => if succSide then toggleSuccessors(Set(n)) else togglePredecessors(Set(n)),
-            collapsedCounts = fullGraphNow().collapsedMemberCounts(project.collapsedGroups.now()),
+            collapsedCounts = fullGraphNow().collapsedMemberCounts(metadata.collapsedGroups.now()),
             onToggleCollapsed = { n =>
               selection.set2(n)
               selection.toggleCollapse()
@@ -467,10 +475,10 @@ case class ViewerState(
     * render time); the inverse restores the full structure.
     */
   def collapseAllGroups(): Unit =
-    project.collapsedGroups.set(fullGraphNow().groupIds - ViewerGraphElements.defaultRootId)
+    metadata.collapsedGroups.set(fullGraphNow().groupIds - ViewerGraphElements.defaultRootId)
 
   def expandAllGroups(): Unit =
-    project.collapsedGroups.set(Set.empty)
+    metadata.collapsedGroups.set(Set.empty)
 
   /** Fold or unfold ONE group. Deliberately independent of the selection, unlike
     * `selection.toggleCollapse()`: the Elements panel acts on the row you click,
@@ -478,7 +486,7 @@ case class ViewerState(
     * would be its own bug.
     */
   def toggleGroupCollapsed(groupId: GroupId): Unit =
-    project.collapsedGroups.update(gs => if gs.contains(groupId) then gs - groupId else gs + groupId)
+    metadata.collapsedGroups.update(gs => if gs.contains(groupId) then gs - groupId else gs + groupId)
 
   /** Whether `groupId` is folded IN ITS OWN RIGHT. A group nested inside a
     * folded ancestor is not reported here — it draws no box of its own (see
@@ -487,7 +495,7 @@ case class ViewerState(
     * otherwise would lie.
     */
   def isGroupCollapsed(groupId: GroupId): Signal[Boolean] =
-    project.collapsedGroups.signal.map(_.contains(groupId))
+    metadata.collapsedGroups.signal.map(_.contains(groupId))
 
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
     phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(resolveCollapsed(elementIds)))

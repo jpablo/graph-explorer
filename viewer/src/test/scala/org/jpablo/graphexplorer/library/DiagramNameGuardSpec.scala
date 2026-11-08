@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.library
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState
+import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 import upickle.default.read
@@ -24,8 +24,8 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
   private def payloadKey(id: DiagramId): String =
     s"[StoredString]graph-explorer.project.${id.value}"
 
-  private def storedPayload(id: DiagramId): PersistedDiagramState =
-    read[PersistedDiagramState](dom.window.localStorage.getItem(payloadKey(id)))
+  private def storedPayload(id: DiagramId): DiagramSnapshot =
+    read[DiagramSnapshot](dom.window.localStorage.getItem(payloadKey(id)))
 
   private def entryName(id: DiagramId): Option[String] =
     BrowserLibrary.indexNow().diagrams.find(_.id == id).map(_.name)
@@ -44,9 +44,9 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     val state = BrowserLibrary.createDiagramPersistence(id, None)
 
     // The write a half-initialized viewer makes: name still pre-restore "", source live.
-    state.set(state.now().copy(projectName = "", source = "digraph G { a }"))
+    state.set(state.now().modify(_.metadata.name).setTo("").copy(source = "digraph G { a }"))
 
-    assertEquals(storedPayload(id).projectName, "Groups", "the payload keeps its name")
+    assertEquals(storedPayload(id).metadata.name, "Groups", "the payload keeps its name")
     assertEquals(entryName(id), Some("Groups"), "the index entry keeps its name")
     assertEquals(storedPayload(id).source, "digraph G { a }", "the guard protects one field, not the whole write")
 
@@ -55,9 +55,9 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     val id    = BrowserLibrary.createDiagram("Groups", "digraph G {}")
     val state = BrowserLibrary.createDiagramPersistence(id, None)
 
-    state.set(state.now().copy(projectName = "   "))
+    state.set(state.now().modify(_.metadata.name).setTo("   "))
 
-    assertEquals(storedPayload(id).projectName, "Groups")
+    assertEquals(storedPayload(id).metadata.name, "Groups")
     assertEquals(entryName(id), Some("Groups"))
 
   test("a real rename still reaches both the payload and the index entry"):
@@ -65,9 +65,9 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     val id    = BrowserLibrary.createDiagram("Old name", "digraph G {}")
     val state = BrowserLibrary.createDiagramPersistence(id, None)
 
-    state.set(state.now().copy(projectName = "New name"))
+    state.set(state.now().modify(_.metadata.name).setTo("New name"))
 
-    assertEquals(storedPayload(id).projectName, "New name")
+    assertEquals(storedPayload(id).metadata.name, "New name")
     assertEquals(entryName(id), Some("New name"))
 
   test("a real name repairs a payload the accident already blanked"):
@@ -76,7 +76,7 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     dom.window.localStorage.setItem(payloadKey(id), """{"projectName":"","source":"digraph G {}"}""")
     val state = BrowserLibrary.createDiagramPersistence(id, None)
 
-    state.set(state.now().copy(projectName = "Groups"))
+    state.set(state.now().modify(_.metadata.name).setTo("Groups"))
 
-    assertEquals(storedPayload(id).projectName, "Groups")
+    assertEquals(storedPayload(id).metadata.name, "Groups")
     assertEquals(entryName(id), Some("Groups"))

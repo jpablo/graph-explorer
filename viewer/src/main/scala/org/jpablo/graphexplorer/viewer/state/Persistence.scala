@@ -14,6 +14,8 @@ import org.jpablo.graphexplorer.router.Route
 enum LeaveIntent derives CanEqual:
   case Navigate(route: Route)
   case CloseWindow
+import org.jpablo.graphexplorer.gxcore.command.ElementRef
+import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
 import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopIpc}
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
@@ -126,16 +128,28 @@ trait Persistence:
     * version" wrote the diagram, and the strip went away because the state
     * was resolved. But the person still saw the old text.
     *
-    * This method adopts only the SOURCE. Two gates are before it, and neither
-    * gate is in this method. `DiagramPersistence.external` removes the writes
-    * of this viewer. `createDiagramPersistence` does not set its `Var` while
-    * this view has a write that waits, and it warns. Thus an event here comes
-    * from a different writer, at a time when the person did not edit.
+    * This method adopts the whole snapshot: the source and the metadata.
+    * Before, it adopted only the source. Thus a `gx run hide` did not show,
+    * and the viewer kept its old hidden set. The next edit in the viewer then
+    * wrote that old set back, and the change from `gx` was lost with no
+    * message (`FollowMetadataSpec`).
+    *
+    * Two gates are before this method, and neither gate is in it.
+    * `DiagramPersistence.external` removes the writes of this viewer.
+    * `createDiagramPersistence` does not set its `Var` while this view has a
+    * write that waits, and it warns. Thus an event here comes from a different
+    * writer, at a time when the person did not edit.
+    *
+    * The adoption writes nothing. After it, the snapshot of this viewer is the
+    * snapshot that the store holds, and the "a visit is not an edit" guard of
+    * the store skips it. The adoption does not touch the selection or the
+    * viewport, because neither is in the snapshot.
     */
   private def followDiagram(): Unit =
     target match
       case ViewTarget.Diagram(_) =>
         persistence.external.foreach: next =>
+          if metadata.now() != next.metadata then metadata.set(next.metadata)
           if sourceText.now() != next.source then
             replaceSourceDetectingFormat(next.source)
       case _ => ()
@@ -225,12 +239,10 @@ trait Persistence:
 
   /** Restores the persisted state values to the current ViewerState. */
   private def restorePersistedState(): Unit =
-    val restoredDiagramState   = persistence.initial
+    val restoredDiagram        = persistence.initial
     val restoredViewerSettings = viewerSettings.now()
 
-    project.hiddenElements.set(restoredDiagramState.hiddenElements)
-    project.collapsedGroups.set(restoredDiagramState.collapsedGroups)
-    restoredDiagramState.format
+    restoredDiagram.format
       .flatMap(format => Try(DiagramFormat.valueOf(format)).toOption)
       .foreach(formatSelection.set)
     // Do this after the format, not with it. When auto-detect goes on, it gets
@@ -240,10 +252,17 @@ trait Persistence:
     // is safe for old diagrams, because auto-detect changes the format only on
     // evidence. Only a source that clearly declares a different language
     // overrules a stored format, and that diagram had the wrong format before.
-    autoDetectFormat.set(restoredDiagramState.autoDetectFormat.getOrElse(true))
+    //
+    // The restore writes `Some(true)` in place of `None`, as the code did
+    // before the metadata had one `Var`. Thus the first edit saves the flag
+    // one time (see `DesktopLibrary.writeNow`). The view of the flag is
+    // distinct, so the restore does not always change it. Thus the restore
+    // applies auto-detect itself.
+    val restoredMetadata = restoredDiagram.metadata
+    metadata.set(restoredMetadata.copy(autoDetectFormat = Some(restoredMetadata.autoDetectFormat.getOrElse(true))))
+    phases.applyAutoDetectNow()
 
     Var.set(
-      project.name -> restoredDiagramState.projectName,
       // app settings
       leftPanelVisible -> restoredViewerSettings.leftPanelVisible,
       rightPanelActiveSection -> Try(RightPanelSection.fromOrdinal(restoredViewerSettings.rightPanelTabIndex)).getOrElse(
@@ -270,15 +289,12 @@ trait Persistence:
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
   private def setupStateSynchronization(): Unit =
-    // synchronize ViewerState ~> PersistedState
+    // synchronize ViewerState ~> DiagramSnapshot
     Signal
       .combine(
-        project.hiddenElements.signal,
-        project.collapsedGroups.signal,
-        project.name.signal,
+        metadata.signal,
         sourceText.signal,
-        formatSelection.signal,
-        autoDetectFormat.signal
+        formatSelection.signal
       )
       .changes
       .distinct
@@ -340,14 +356,11 @@ trait Persistence:
     * constructions would drift, and a ⌘S that wrote a different shape from the
     * autosave is the kind of difference nobody sees until a field goes missing.
     */
-  def snapshot(): PersistedDiagramState =
-    PersistedDiagramState(
-      hiddenElements = project.hiddenElements.now(),
-      collapsedGroups = project.collapsedGroups.now(),
-      projectName = project.name.now(),
+  def snapshot(): DiagramSnapshot =
+    DiagramSnapshot(
       source = sourceText.now(),
       format = Some(formatSelection.now().toString),
-      autoDetectFormat = Some(autoDetectFormat.now())
+      metadata = metadata.now()
     )
 
   /** Save this diagram, because the person asked (§11).
@@ -382,19 +395,15 @@ trait Persistence:
     */
   def closePersistence(): Unit = persistence.close()
 
-case class PersistedDiagramState(
-    hiddenElements: HiddenElements = ElementIds(),
-    // Folded groups, like hiddenElements: a view setting, saved with the page.
-    collapsedGroups: Set[GroupId] = Set.empty,
-    projectName:    String = "",
-    source:         String = "",
-    format:         Option[String] = None,
-    // None for each diagram that the app saved before the mode existed.
-    // `restorePersistedState` reads None as on.
-    autoDetectFormat: Option[Boolean] = None
-) derives ReadWriter
+/** One diagram as the viewer saves it: the source, the format, and the metadata.
+  *
+  * The metadata is the type of `gx-core`, so the viewer and the library have
+  * one model of it. `format` is the name of a `DiagramFormat`. It is a string,
+  * so an unknown format round-trips.
+  */
+final case class DiagramSnapshot(source: String, format: Option[String], metadata: DiagramMetadata) derives CanEqual
 
-object PersistedDiagramState:
+object DiagramSnapshot:
   val minimalGraphText = "digraph G {\n}"
 
   /** The name of a diagram that the person did not rename. The display uses the title
@@ -402,17 +411,64 @@ object PersistedDiagramState:
     * Library.diagramCardInfo). The stored name changes only when the person renames the
     * diagram, so a rename always wins.
     */
-  val defaultProjectName = "Untitled"
+  val defaultDiagramName = "Untitled"
 
-  val empty = minimal()
+  val empty: DiagramSnapshot = minimal()
 
-  def minimal(source: Option[String] = None) =
-    PersistedDiagramState(
-      hiddenElements = ElementIds(),
-      collapsedGroups = Set.empty,
-      projectName = defaultProjectName,
+  def minimal(source: Option[String] = None): DiagramSnapshot =
+    DiagramSnapshot(
       source = source.getOrElse(minimalGraphText),
-      format = None
+      format = None,
+      metadata = DiagramMetadata(name = defaultDiagramName)
+    )
+
+  /** The shape of a diagram in the browser library (`localStorage`).
+    *
+    * The shape is an API: each browser holds payloads in it, and
+    * `LocalStorageMigration` reads it. Thus the field names, the types, the
+    * order and the defaults must not change. upickle omits a field that is
+    * equal to its default. `BrowserPayloadSpec` pins the JSON.
+    *
+    * The browser library has never stored a folder, tags or notes. A read
+    * gives their defaults, and a write drops them. The sets are typed, so they
+    * cannot hold a ref that this build does not parse. Only this viewer writes
+    * the browser library, so such a ref does not occur there.
+    */
+  private final case class Stored(
+      hiddenElements: ElementIds = ElementIds(),
+      // Folded groups, like hiddenElements: a view setting, saved with the page.
+      collapsedGroups: Set[GroupId] = Set.empty,
+      projectName:    String = "",
+      source:         String = "",
+      format:         Option[String] = None,
+      // None for each diagram that the app saved before the mode existed.
+      // `restorePersistedState` reads None as on.
+      autoDetectFormat: Option[Boolean] = None
+  ) derives ReadWriter
+
+  given ReadWriter[DiagramSnapshot] = readwriter[Stored].bimap[DiagramSnapshot](toStored, fromStored)
+
+  private def toStored(snapshot: DiagramSnapshot): Stored =
+    val m = snapshot.metadata
+    Stored(
+      hiddenElements = MetadataOps.hiddenIn(m),
+      collapsedGroups = MetadataOps.collapsedIn(m),
+      projectName = m.name,
+      source = snapshot.source,
+      format = snapshot.format,
+      autoDetectFormat = m.autoDetectFormat
+    )
+
+  private def fromStored(stored: Stored): DiagramSnapshot =
+    DiagramSnapshot(
+      source = stored.source,
+      format = stored.format,
+      metadata = DiagramMetadata(
+        name = stored.projectName,
+        hiddenElements = MetadataOps.render(stored.hiddenElements),
+        collapsedGroups = stored.collapsedGroups.map(ElementRef.render),
+        autoDetectFormat = stored.autoDetectFormat
+      )
     )
 
 case class ViewerSettings(

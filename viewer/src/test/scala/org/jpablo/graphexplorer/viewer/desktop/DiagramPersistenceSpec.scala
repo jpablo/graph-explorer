@@ -20,7 +20,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
   override def beforeEach(context: BeforeEach): Unit = DesktopDocumentRegistry.reset()
   override def afterEach(context: AfterEach): Unit   = DesktopDocumentRegistry.reset()
 
-  private def storedProjectKeys: List[String] =
+  private def storedDiagramKeys: List[String] =
     (0 until dom.window.localStorage.length).toList
       .flatMap(i => Option(dom.window.localStorage.key(i)))
       .filter(_.contains("graph-explorer.project."))
@@ -32,11 +32,11 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
       val loose = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
 
       afterMicrotasks {
-        loose.project.name.set("renamed while looking at a file")
+        loose.metadata.name.set("renamed while looking at a file")
         loose.addNodeWithSmartConnection()
 
         assertEquals(
-          storedProjectKeys,
+          storedDiagramKeys,
           Nil,
           "a loose file must not stamp a diagram — §6 exists to make this impossible"
         )
@@ -44,10 +44,10 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
         // The same edits through a library target DO reach storage, so the
         // assertion above measures the target and not a broken test.
         val library = ViewerState(ViewTarget.diagram("a-real-record"), graphviz)
-        library.project.name.set("a record")
+        library.metadata.name.set("a record")
         library.addNodeWithSmartConnection()
 
-        assertEquals(storedProjectKeys.size, 1)
+        assertEquals(storedDiagramKeys.size, 1)
       }
     }
   }
@@ -60,7 +60,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
       afterMicrotasks {
         assertEquals(state.sourceText.now(), "digraph G { x -> y }")
         // §13: the base name is the title. The path is not.
-        assertEquals(state.project.name.now(), "opened.dot")
+        assertEquals(state.metadata.name.now(), "opened.dot")
       }
     }
   }
@@ -68,7 +68,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
   test("an example reports that it has nowhere to save") {
     val example = DiagramPersistence.forTarget(ViewTarget.Example("logo", "Logo"), Some("digraph G { a }"))
 
-    assertEquals(example.initial.projectName, "Logo")
+    assertEquals(example.initial.metadata.name, "Logo")
     example.saveNow(example.initial).map: result =>
       assert(
         result match
@@ -76,7 +76,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
           case _                         => false,
         s"an example must say it cannot be saved, got $result"
       )
-      assertEquals(storedProjectKeys, Nil)
+      assertEquals(storedDiagramKeys, Nil)
   }
 
   test("a loose save refuses when its session is gone") {

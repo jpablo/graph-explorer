@@ -4,7 +4,7 @@ import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
-import org.jpablo.graphexplorer.viewer.state.{NavDirection, PersistedDiagramState, RightPanelSection, SaveResult, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, NavDirection, RightPanelSection, SaveResult, ViewerState}
 import org.scalajs.dom.KeyValue
 import org.scalajs.dom
 
@@ -90,7 +90,7 @@ class RouterCommands(router: Router):
   import Command.always
 
   private def createDiagramAndNavigate(source: Option[String] = None) =
-    val id = Library.createEmptyDiagram(PersistedDiagramState.defaultProjectName)
+    val id = Library.createEmptyDiagram(DiagramSnapshot.defaultDiagramName)
     router.navigateTo(Route.Diagram(id.value, source))
 
   val createDiagram =

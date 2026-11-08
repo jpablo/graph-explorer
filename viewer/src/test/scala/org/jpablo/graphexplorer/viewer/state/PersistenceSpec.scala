@@ -14,13 +14,13 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  def storedProjectKey(diagramId: DiagramId): String =
+  def storedDiagramKey(diagramId: DiagramId): String =
     s"[StoredString]graph-explorer.project.${diagramId.value}"
 
   test("Adding a node with smart connection should store the diagram in localStorage") {
     withGraphvizAsync { graphviz =>
 
-      val projectName = "my project"
+      val diagramName = "my diagram"
       val diagramId   = DiagramId("test")
       val viewerState = ViewerState(ViewTarget.Diagram(diagramId), graphviz)
 
@@ -30,7 +30,7 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
         assertEquals(dom.window.localStorage.length, 0)
 
-        viewerState.project.name.set(projectName)
+        viewerState.metadata.name.set(diagramName)
         viewerState.addNodeWithSmartConnection()
 
         assertEquals(
@@ -39,11 +39,11 @@ class PersistenceSpec extends FunSuite with TestHelpers:
           "Should have two items in localStorage: one for the diagram and one for the graph explorer version"
         )
 
-        val storedProjectStr = dom.window.localStorage.getItem(storedProjectKey(diagramId))
+        val storedDiagramStr = dom.window.localStorage.getItem(storedDiagramKey(diagramId))
 
         assertEquals(
-          storedProjectStr,
-          s"""{"projectName":"$projectName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}","format":"DOT","autoDetectFormat":true}"""
+          storedDiagramStr,
+          s"""{"projectName":"$diagramName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}","format":"DOT","autoDetectFormat":true}"""
         )
 
         // ---- verify ---

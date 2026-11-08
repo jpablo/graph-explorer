@@ -20,7 +20,7 @@ import org.jpablo.graphexplorer.viewer.widgets.*
   * canvas starts right under the toolbar (see the top-bar design study: an
   * always-on second bar reads as two half-empty bars).
   */
-def AttributesToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
+def AttributesToolbar(diagramName: Signal[String], commands: Commands, state: ViewerState) =
   import commands.all
 
   val hiddenCount  = state.hiddenElements.signal.map(_.size)

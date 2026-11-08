@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
 import org.jpablo.graphexplorer.gxcore.model.{Binding, ContentHash}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState
+import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot
 
 /** A diagram that has a binding to an origin file (§8).
   *
@@ -40,7 +40,7 @@ trait DiagramLibrary:
 
   def indexNow(): LibraryIndex
 
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[PersistedDiagramState]
+  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot]
 
   def createEmptyDiagram(name: String): DiagramId
 
@@ -81,7 +81,7 @@ trait DiagramLibrary:
     * library has no second writer, so nothing can change a diagram behind an
     * open tab.
     */
-  def diagramChangedExternally(id: DiagramId): EventStream[PersistedDiagramState] = EventStream.empty
+  def diagramChangedExternally(id: DiagramId): EventStream[DiagramSnapshot] = EventStream.empty
 
   /** The file that is the origin of this diagram, if it has one (§8).
     *

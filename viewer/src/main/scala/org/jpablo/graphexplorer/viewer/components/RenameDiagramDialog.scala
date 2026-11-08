@@ -25,14 +25,14 @@ def RenameDiagramDialog(state: ViewerState) =
   def saveAndClose(): Unit =
     // Blank input is not a rename — same outcome as Cancel (see above).
     val newName = modalText.now()
-    if newName.trim.nonEmpty then state.project.name.set(newName)
+    if newName.trim.nonEmpty then state.metadata.name.set(newName)
     closeDialog()
 
   div(
     idAttr := "rename-project-dialog",
     // Prefill on every open, not once at build: the name may have changed since.
     state.renameDialogOpen.signal --> { open =>
-      if open then modalText.set(state.project.name.now())
+      if open then modalText.set(state.metadata.name.now())
     },
     child(
       Dialog(onDismiss = () => closeDialog())(

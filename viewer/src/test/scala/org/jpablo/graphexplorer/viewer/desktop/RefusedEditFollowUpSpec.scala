@@ -143,7 +143,7 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
   private def foldAndDelete(state: ViewerState): Unit =
     val groups = state.phases.fullGraphV.now().groupIds
     check(groups.contains(group), s"precondition: the graph has $group, but has $groups")
-    state.project.collapsedGroups.set(Set(group))
+    state.metadata.collapsedGroups.set(Set(group))
     state.selection.set2(group)
     state.selection.deleteSelection()
 
@@ -154,8 +154,8 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
     onLooseFile(commentedCluster)(foldAndDelete): (state, errors, _) =>
       check(state.sourceText.now() == commentedCluster, s"the refused delete replaced the text: ${state.sourceText.now()}")
       check(
-        state.project.collapsedGroups.now() == Set(group),
-        s"the refused delete unfolded the group: ${state.project.collapsedGroups.now()}"
+        state.metadata.collapsedGroups.now() == Set(group),
+        s"the refused delete unfolded the group: ${state.metadata.collapsedGroups.now()}"
       )
       check(errors.size == 1, s"one refused edit must send one message: $errors")
 
@@ -163,8 +163,8 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
     onLooseFile(plainCluster)(foldAndDelete): (state, errors, _) =>
       check(state.sourceText.now() != plainCluster, "the delete did not apply")
       check(
-        state.project.collapsedGroups.now().isEmpty,
-        s"the deleted group is still folded: ${state.project.collapsedGroups.now()}"
+        state.metadata.collapsedGroups.now().isEmpty,
+        s"the deleted group is still folded: ${state.metadata.collapsedGroups.now()}"
       )
       check(errors.isEmpty, s"an edit that applies sends no message: $errors")
 

@@ -17,9 +17,9 @@ import org.jpablo.graphexplorer.viewer.desktop.{
 }
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{
+  DiagramSnapshot,
   DocumentSessionId,
   LeaveIntent,
-  PersistedDiagramState,
   RightPanelSection,
   ViewerState,
   ViewTarget
@@ -131,7 +131,7 @@ object Viewer:
                 router.navigateTo(Route.Diagram(existingId.value))
               case None =>
                 // Create a new diagram with the DOT text from the link.
-                val newId = Library.createEmptyDiagram(PersistedDiagramState.defaultProjectName)
+                val newId = Library.createEmptyDiagram(DiagramSnapshot.defaultDiagramName)
                 router.navigateTo(Route.Diagram(newId.value, Some(dot)))
 
       // Before any route is chosen: a socket client can ask "what is selected"

@@ -2,8 +2,8 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import org.jpablo.graphexplorer.viewer.state.{
   DiagramPersistence,
+  DiagramSnapshot,
   DocumentSessionId,
-  PersistedDiagramState,
   SaveResult
 }
 
@@ -27,15 +27,15 @@ final class LooseFilePersistence(session: DocumentSessionId) extends DiagramPers
     * groups, tags, notes, a folder. Those start empty here and stay in memory.
     * The UI labels them as not saved, and Phase 2 item 6 adds that label.
     */
-  lazy val initial: PersistedDiagramState =
+  lazy val initial: DiagramSnapshot =
     DesktopDocumentRegistry.get(session) match
       case Some(open) =>
-        PersistedDiagramState.minimal(Some(open.sourceText)).copy(projectName = open.baseName)
+        DiagramSnapshot.minimal(Some(open.sourceText)).modify(_.metadata.name).setTo(open.baseName)
       case None =>
         // The route named a session the registry does not hold. A viewer opens
         // on an empty diagram rather than on the text of some other file, and
         // `saveNow` below refuses, because there is no path to write to.
-        PersistedDiagramState.minimal()
+        DiagramSnapshot.minimal()
 
   private var current = initial
 
@@ -49,10 +49,10 @@ final class LooseFilePersistence(session: DocumentSessionId) extends DiagramPers
     * replace a dirty editor silently. If this stream also sends events, one
     * viewer gets two sources for the same text.
     */
-  def external: com.raquo.airstream.core.EventStream[PersistedDiagramState] =
+  def external: com.raquo.airstream.core.EventStream[DiagramSnapshot] =
     com.raquo.airstream.core.EventStream.empty
 
-  def update(next: PersistedDiagramState): Unit = current = next
+  def update(next: DiagramSnapshot): Unit = current = next
 
   /** §7.1: a compare-and-swap write of this session's path.
     *
@@ -61,7 +61,7 @@ final class LooseFilePersistence(session: DocumentSessionId) extends DiagramPers
     * here would go stale, and a stale base revision turns every second save
     * into a conflict.
     */
-  def saveNow(next: PersistedDiagramState)(using ExecutionContext): Future[SaveResult] =
+  def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
     DesktopDocumentRegistry.get(session) match
       case None =>
@@ -88,4 +88,4 @@ final class LooseFilePersistence(session: DocumentSessionId) extends DiagramPers
     */
   def close(): Unit = ()
 
-  private[desktop] def latest: PersistedDiagramState = current
+  private[desktop] def latest: DiagramSnapshot = current

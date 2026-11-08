@@ -14,7 +14,7 @@ import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, Diagra
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.state.ThumbnailRenderer
-import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
+import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 

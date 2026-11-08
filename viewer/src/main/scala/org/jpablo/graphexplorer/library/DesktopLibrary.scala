@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.gxcore.store.DiagramFileName
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages}
 import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState
+import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -30,22 +30,16 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
 
   given owner: Owner = unsafeWindowOwner
 
-  /** Scala 3 strict equality. Here a comparison of two page states is
-    * correct, because it tells if the diagram changed. No other type must
-    * compare with a page state by accident.
-    */
-  private given CanEqual[PersistedDiagramState, PersistedDiagramState] = CanEqual.derived
-
   private val diagrams: Var[Map[String, Diagram]] =
     Var(seed.map(d => d.id.value -> d).toMap)
 
-  /** Page state still waiting to be written, by diagram id.
+  /** Snapshots still waiting to be written, by diagram id.
     *
     * An entry here separates two cases. In one case, the diagram changed and
     * the page must follow it. In the other case, the diagram changed while
     * the person typed. The two cases have different correct answers.
     */
-  private var pending: Map[String, PersistedDiagramState] = Map.empty
+  private var pending: Map[String, DiagramSnapshot] = Map.empty
 
   /** The text that each open diagram had at the start. With it, the library
     * can tell an external edit to the SAME field from an external edit to a
@@ -127,12 +121,12 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
     * buses. That is the full guarantee: an event here comes from the library,
     * and never from the view that listens.
     */
-  private val externalBuses = scala.collection.mutable.Map.empty[String, EventBus[PersistedDiagramState]]
+  private val externalBuses = scala.collection.mutable.Map.empty[String, EventBus[DiagramSnapshot]]
 
-  private def externalBus(id: String): EventBus[PersistedDiagramState] =
-    externalBuses.getOrElseUpdate(id, EventBus[PersistedDiagramState]())
+  private def externalBus(id: String): EventBus[DiagramSnapshot] =
+    externalBuses.getOrElseUpdate(id, EventBus[DiagramSnapshot]())
 
-  override def diagramChangedExternally(id: DiagramId): EventStream[PersistedDiagramState] =
+  override def diagramChangedExternally(id: DiagramId): EventStream[DiagramSnapshot] =
     externalBus(id.value).events
 
   override def diagramsBoundTo(path: String): List[BoundDiagram] =
@@ -155,7 +149,7 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
     diagrams.now().get(id.value).flatMap(_.binding).flatMap(_.origin.filePath)
 
   def diagramSource(id: DiagramId): Signal[String] =
-    diagrams.signal.map(_.get(id.value).map(_.text).getOrElse(PersistedDiagramState.minimalGraphText))
+    diagrams.signal.map(_.get(id.value).map(_.text).getOrElse(DiagramSnapshot.minimalGraphText))
 
   def findDiagramBySource(dot: String): Option[DiagramId] =
     diagrams.now().values.collectFirst { case d if d.text == dot => d.id }
@@ -168,7 +162,7 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
       val backend = languages.forFormat(format)
       val name = d.metadata.name
       val displayName =
-        if name.trim.nonEmpty && name != PersistedDiagramState.defaultProjectName then name
+        if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
         else backend.extractTitle(d.text).getOrElse(name)
       DiagramCardInfo(format, displayName, backend.diagramKind(d.text))
 
@@ -182,7 +176,7 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
     val d = Diagram(
       id = id,
       format = "",
-      text = PersistedDiagramState.minimalGraphText,
+      text = DiagramSnapshot.minimalGraphText,
       binding = None,
       metadata = DiagramMetadata(name = name, folder = FolderPath.root),
       createdAt = now,
@@ -205,26 +199,25 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
       .failed
       .foreach(e => dom.console.error(s"could not delete ${id.value}: ${e.getMessage}"))
 
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[PersistedDiagramState] =
-    val existing = diagrams.now().get(id.value)
-    val (initial, unparsed) = existing match
-      case Some(d) => LibraryMapping.toPersisted(d)
-      case None    => (PersistedDiagramState.minimal(initialSource), LibraryMapping.Unparsed.none)
+  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
+    val initial =
+      diagrams.now().get(id.value).fold(DiagramSnapshot.minimal(initialSource))(LibraryMapping.toSnapshot)
 
     seededText += id.value -> initial.source
     val state = Var(initial)
 
     state.signal.distinct.changes.foreach: next =>
       pending += id.value -> next
-      schedule(id, unparsed)
+      schedule(id)
 
     // An external change while this diagram is open. When no write waits,
-    // the page follows the diagram. That IS D7.3, and that is how a
-    // headless `gx run hide` shows on the screen without a reload.
+    // the page follows the diagram: the source AND the metadata. That IS
+    // D7.3, and that is how a headless `gx run hide` shows on the screen
+    // without a reload.
     diagrams.signal.changes.foreach: byId =>
       byId.get(id.value).foreach: latest =>
         if !pending.contains(id.value) then
-          val (fresh, _) = LibraryMapping.toPersisted(latest)
+          val fresh = LibraryMapping.toSnapshot(latest)
           if fresh != state.now() then
             seededText += id.value -> fresh.source
             state.set(fresh)
@@ -278,31 +271,35 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
         )
       )
 
-  /** Write the state, merged onto the diagram as it is NOW, and not as it was
-    * when the page opened it.
+  /** Write the snapshot, merged onto the diagram as it is NOW, and not as it
+    * was when the page opened it.
     *
-    * That merge is the compare-and-swap. `LibraryMapping.toDiagram` copies the
-    * tags, the notes, the folder and the binding from `previous`. The method
-    * reads `previous` again at the time of the write. Thus a `gx run tag` that
-    * arrives during an edit stays after the next keystroke, and a stale copy
-    * does not overwrite it.
+    * That merge is the compare-and-swap. `LibraryMapping.mergeViewerSave` is
+    * the one merge rule: it copies the tags, the notes, the folder, the
+    * binding and `createdAt` from `latest`. The method reads `latest` again at
+    * the time of the write. Thus a `gx run tag` that arrives during an edit
+    * stays after the next keystroke, and a stale copy does not overwrite it.
     */
-  private def writeNow(id: DiagramId, state: PersistedDiagramState, unparsed: LibraryMapping.Unparsed): Unit =
+  private def writeNow(id: DiagramId, state: DiagramSnapshot): Unit =
     val latest  = diagrams.now().get(id.value)
-    val diagram = LibraryMapping.toDiagram(id, state, latest, unparsed, js.Date.now().toLong)
+    val diagram = LibraryMapping.mergeViewerSave(id, state, latest, js.Date.now().toLong)
 
-    // A visit is not an edit. When `LibraryMapping` gives the diagram that the
+    // A visit is not an edit. When the merge gives the diagram that the
     // library already holds, only the clock is different. A write of it moves
     // `updatedAt`, and the library sorts by that field. Thus the diagrams move
     // in the list only because a person looked at one.
     //
     // This is a guard, not a fix for a live bug. `signal.distinct` already
     // stops a state that did not change. The guard catches the case that
-    // `distinct` cannot see: a different page state that maps to the same
-    // diagram. (A really new field DOES write, one time. When a person opens
-    // a diagram from before `autoDetectFormat`, the field becomes `true` and
-    // the library saves it. That is the default of the viewer, it is older
-    // than D7.3, and it occurs one time for each diagram.)
+    // `distinct` cannot see: a different snapshot that maps to the same
+    // diagram. The adoption of a change from a different writer is one such
+    // case: the `Var` above takes that change, and its own listener marks a
+    // write, but the write maps to the diagram that the library holds.
+    //
+    // (A really new field DOES write, one time. When a person opens a diagram
+    // from before `autoDetectFormat`, the field becomes `true` and the library
+    // saves it. That is the default of the viewer, it is older than D7.3, and
+    // it occurs one time for each diagram.)
     val unchanged = latest.exists(current => diagram.copy(updatedAt = current.updatedAt) == current)
     if !unchanged then put(diagram)
 
@@ -324,14 +321,14 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
     * hop; `localStorage` never had to care. The cost of batching is a window in
     * which edits exist only in memory, which is what [[flush]] closes.
     */
-  private def schedule(id: DiagramId, unparsed: LibraryMapping.Unparsed): Unit =
+  private def schedule(id: DiagramId): Unit =
     timers.get(id.value).foreach(dom.window.clearTimeout)
     val handle = dom.window.setTimeout(
       () =>
         timers -= id.value
         pending.get(id.value).foreach: state =>
           pending -= id.value
-          writeNow(id, state, unparsed)
+          writeNow(id, state)
       ,
       WriteDebounceMs
     )
@@ -343,7 +340,7 @@ final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
     timers.values.foreach(dom.window.clearTimeout)
     timers = Map.empty
     outstanding.foreach: (idValue, state) =>
-      writeNow(DiagramId(idValue), state, LibraryMapping.Unparsed.none)
+      writeNow(DiagramId(idValue), state)
 
   // ------------------------------------------------------------ refresh
 

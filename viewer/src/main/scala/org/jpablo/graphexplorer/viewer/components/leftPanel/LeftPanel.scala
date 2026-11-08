@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
+import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.IconButton
 
@@ -62,21 +62,22 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           cls := "grow overflow-y-auto",
           ul(
             cls := "menu menu-sm w-full",
-            children <-- Library.index.combineWithFn(displayNames(state), state.displayTitle, state.project.signal):
-              (index, names, openTitle, openDiagram) =>
+            children <-- Library.index.combineWithFn(displayNames(state), state.displayTitle):
+              (index, names, openTitle) =>
                 index.diagrams.sortBy(-_.createdAt).map { diagram =>
+                  val isOpen = diagram.id == state.diagramId
                   // The title of the open diagram can change while a person types, so
                   // the list reads it live. The other titles come from the snapshot of
                   // the last library change.
                   val shown =
-                    if diagram.id == openDiagram.id then openTitle
+                    if isOpen then openTitle
                     else names.getOrElse(diagram.id, diagram.name)
                   li(
                     a(
                       cls := "flex items-center gap-2",
                       // Not daisyUI's `menu-active`: that inverts the row to near-black, which
                       // shouts where the rest of the chrome marks "current" with a quiet tint.
-                      cls("gx-row-active") <-- state.project.signal.map(_.id == diagram.id),
+                      cls("gx-row-active") := isOpen,
                       div(cls := "truncate", shown),
                       onClick --> router.navigateTo(Route.Diagram(diagram.id.value))
                     )

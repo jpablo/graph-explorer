@@ -55,7 +55,8 @@ object LocalStorageMigration:
   def idFor(browserDiagramId: String): DiagramId = DiagramId.derivedFrom(Namespace, browserDiagramId)
 
   /** @param directoryJson the value of the `graph-explorer.projects` key
-    * @param payloadFor    the id of a browser diagram -> its `PersistedDiagramState` JSON
+    * @param payloadFor    the id of a browser diagram -> its payload JSON, which
+    *                      is the stored form of `DiagramSnapshot` in the viewer
     */
   def migrate(
       directoryJson: String,
