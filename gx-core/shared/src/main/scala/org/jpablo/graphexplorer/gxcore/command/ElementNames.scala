@@ -1,9 +1,9 @@
 package org.jpablo.graphexplorer.gxcore.command
 
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, SimpleGraphObject}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, dotSubgraphIds}
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidGraph
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, dotSubgraphName}
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, dotSubgraphNames}
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowId, ElementId, GroupId, NodeId}
 
 import scala.collection.immutable.VectorMap
@@ -72,10 +72,12 @@ object ElementName:
   *
   * `sourceNames` has the name that the source gives each group.
   * `GroupId.fromDot` removes the `cluster` prefix from the id of a DOT group
-  * (`cluster_svc` becomes `svc`, and `clusterB` becomes `B`).
-  * [[ElementNames.dotGroupNames]] gets the names from the structure that the
-  * DOT reader gives. A group with no name there gets the name that the DOT
-  * writer prints (`dotSubgraphName`), so a name and a write agree.
+  * (`cluster_svc` becomes `svc`, and `clusterB` becomes `B`). When two
+  * subgraphs give one id, the second gets `<id>_2` (see
+  * `GroupId.fromDotNames`). [[ElementNames.dotGroupNames]] gets the names from
+  * the structure that the DOT reader gives. A group with no name there gets
+  * the name that the DOT writer prints (`dotSubgraphNames`), so a name and a
+  * write agree.
   */
 final class ElementNames private (
     graph:       ViewerGraph,
@@ -92,7 +94,9 @@ final class ElementNames private (
 
   private def writtenName(id: GroupId): String = format match
     case DiagramFormat.Mermaid => id.value
-    case DiagramFormat.DOT     => graph.groups.get(id).fold(id.value)(dotSubgraphName)
+    case DiagramFormat.DOT     => writtenDotNames.getOrElse(id, id.value)
+
+  private lazy val writtenDotNames: Map[GroupId, String] = dotSubgraphNames(graph.groups.values)
 
   /** The groups in the order of the source, then the other groups by id. */
   private lazy val orderedGroups: Vector[GroupId] =
@@ -148,7 +152,10 @@ final class ElementNames private (
         groupsByName.getOrElse(g.value, Vector.empty) match
           case Vector(one) => Right(Vector(one))
           case Vector()    => Left(s"there is no group '${g.value}'")
-          case several     => Left(ambiguous(s"group:${g.value}", several))
+          // These groups have one source name, so `group:<name>` names each
+          // of them. Thus the hint gives `group:<id>`, which names one group.
+          // `prefixed` would come back to this line, with no end.
+          case several => Left(ambiguous(s"group:${g.value}", several, ElementRef.render))
 
   private def resolveBare(text: String, readings: Vector[ArrowName]): Either[String, Vector[ElementId]] =
     val node   = Option.when(graph.nodes.contains(NodeId(text)))(Vector[ElementId](NodeId(text)))
@@ -199,8 +206,8 @@ final class ElementNames private (
       else ""
     s"'$text' names no node, arrow or group$why$hint"
 
-  private def ambiguous(text: String, ids: Vector[ElementId]): String =
-    s"'$text' names more than one element. Write one of these: ${ids.map(prefixed).mkString(", ")}"
+  private def ambiguous(text: String, ids: Vector[ElementId], name: ElementId => String = prefixed): String =
+    s"'$text' names more than one element. Write one of these: ${ids.map(name).mkString(", ")}"
 
   // ------------------------------------------------ render
 
@@ -253,15 +260,12 @@ object ElementNames:
     new ElementNames(graph, format, sourceNames)
 
   /** The name of each DOT subgraph, as the structure reader gives it, by the
-    * id that `ToViewerGraph` gives the group. When two subgraphs give one id,
-    * the first one gives the name, as in `ToViewerGraph`.
+    * id of its group, in the order of the source. `dotSubgraphIds` gives the
+    * ids, as in `ToViewerGraph`. Thus each subgraph has its own group and its
+    * own name, also when `clusterB` and `cluster_B` give one id.
     */
   def dotGroupNames(simpleGraph: SimpleGraph): VectorMap[GroupId, String] =
-    simpleGraph.objects.getOrElse(Nil)
-      .collect { case SimpleGraphObject.Cluster(c) => c.name }
-      .foldLeft(VectorMap.empty[GroupId, String]): (names, name) =>
-        val id = GroupId.fromDot(name)._1
-        if names.contains(id) then names else names.updated(id, name)
+    VectorMap.from(dotSubgraphIds(simpleGraph).map((subgraph, id) => id -> subgraph.name))
 
   /** A Mermaid group has the id of its subgraph. */
   def mermaidGroupNames(graph: MermaidGraph): VectorMap[GroupId, String] =

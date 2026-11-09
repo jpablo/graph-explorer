@@ -58,10 +58,6 @@ def viewerGraphElementsToText(
     } else quoted(value)
   }
 
-  // Declaration-order sort key: elements sort by their _gvid; missing _gvid sorts last.
-  def gvidOrder(attrs: ViewerAttributes): Double =
-    attrs.values.get(GvId.attrId).map(_.toString.toDouble).getOrElse(Double.MaxValue)
-
   // The text for the layout gives each element an `id` of its own: `node:a`,
   // `group:g`, or `arrow.toSvg`. The SVG element gets this id, and a click
   // finds the element by it. Thus the layout text does not write the `id`
@@ -306,6 +302,9 @@ def viewerGraphElementsToText(
     lines += s"""${padding(level)}${quoted(node.id.value)}$attrFormatting;"""
   }
 
+  // One name for each subgraph, and no two subgraphs with one name.
+  val subgraphNames = dotSubgraphNames(elements.groups.values)
+
   // Helper to process clusters recursively with proper nesting (using ViewerGraphElements directly)
   def processCluster(groupId: GroupId, level: Int, processedGroups: scala.collection.mutable.Set[GroupId]): Unit = {
     if (processedGroups.contains(groupId)) return
@@ -313,7 +312,7 @@ def viewerGraphElementsToText(
 
     val group = elements.groups(groupId)
 
-    lines += s"""${padding(level)}subgraph ${quoted(dotSubgraphName(group))} {"""
+    lines += s"""${padding(level)}subgraph ${quoted(subgraphNames(groupId))} {"""
 
     val clusterAttrs = collectClusterAttributes(group)
     if (clusterAttrs.nonEmpty) {
@@ -386,28 +385,57 @@ def viewerGraphElementsToText(
   lines.mkString("\n")
 end viewerGraphElementsToText
 
-/** The name of a group after the `subgraph` keyword in DOT.
+/** The name of each group after the `subgraph` keyword in DOT.
   *
   * Graphviz draws a subgraph as a cluster only when its name starts with
   * `cluster`, and `GroupId.fromDot` removes that prefix from the id. Thus the
-  * id cannot give the source name back: `clusterB` and `cluster_B` both have
-  * the id `B`. The reader keeps the source name in the `name` attribute, and
-  * this function uses it while it gives the same id and the same `cluster`
-  * flag. A group with no such name, for example a new group, gets
-  * `cluster_<id>` when it is a cluster.
+  * id cannot give the source name back: `clusterB` and `cluster_B` both give
+  * the id `B`, and the second of them gets `B_2` (see `GroupId.fromDotNames`).
+  * The reader keeps the source name in the `name` attribute. A group gets
+  * that name when the name agrees with the group: `GroupId.canBeFromDot`
+  * accepts the id, and the name gives the same `cluster` flag. A copy of a
+  * group gets a new id, and the `cluster` flag can change. Then the old name
+  * belongs to a different group, so the group does not get it. A group with
+  * no such name, for example a new group, gets `cluster_<id>` when it is a
+  * cluster, and `<id>` when it is not.
+  *
+  * Graphviz merges two subgraphs that have one name and one parent, and the
+  * members of the two then go into one group. Thus each group gets a
+  * different name. The source names come first, in the order of `_gvid`. A
+  * name that an earlier group has does not go to a second group. A group with
+  * no free source name gets its fallback name, with `_2`, `_3`, and so on when
+  * a different group has that name.
   *
   * The `cluster` flag comes from the `cluster` attribute, not from the
   * spelling of the id. The spelling lost the cluster flag for ids with
   * capitals or underscores, or with more than 10 characters.
   */
-def dotSubgraphName(group: ViewerGroup): String =
-  val isCluster = group.attributes.values.get(Cluster.attrId).exists(_.toString == "true")
-  val sourceName = group.attributes.values
-    .get(Name.attrId)
-    .map(_.toString)
-    .filter: name =>
-      val (id, cluster) = GroupId.fromDot(name)
-      id == group.id && cluster == isCluster
-  sourceName.getOrElse:
-    if isCluster && !group.id.value.startsWith("cluster") then s"cluster_${group.id.value}"
+def dotSubgraphNames(groups: Iterable[ViewerGroup]): Map[GroupId, String] =
+  def isCluster(group: ViewerGroup): Boolean =
+    group.attributes.values.get(Cluster.attrId).exists(_.toString == "true")
+  def sourceName(group: ViewerGroup): Option[String] =
+    group.attributes.values
+      .get(Name.attrId)
+      .map(_.toString)
+      .filter(name => GroupId.canBeFromDot(name, group.id) && GroupId.fromDot(name)._2 == isCluster(group))
+  def fallbackName(group: ViewerGroup): String =
+    if isCluster(group) && !group.id.value.startsWith("cluster") then s"cluster_${group.id.value}"
     else group.id.value
+
+  type Names = (Map[GroupId, String], Set[String])
+  def give(names: Names, group: ViewerGroup, name: String): Names =
+    (names._1 + (group.id -> name), names._2 + name)
+
+  val ordered = groups.toVector.sortBy(g => (gvidOrder(g.attributes), g.id.value))
+  val withSource = ordered.foldLeft[Names]((Map.empty, Set.empty)): (names, group) =>
+    sourceName(group).filterNot(names._2).fold(names)(give(names, group, _))
+  val all = ordered.filterNot(g => withSource._1.contains(g.id)).foldLeft(withSource): (names, group) =>
+    val base = fallbackName(group)
+    give(names, group, (Iterator(base) ++ Iterator.from(2).map(n => s"${base}_$n")).filterNot(names._2).next())
+  all._1
+
+/** The declaration order of an element: its `_gvid`. An element with no
+  * `_gvid` comes last.
+  */
+private def gvidOrder(attrs: ViewerAttributes): Double =
+  attrs.values.get(GvId.attrId).map(_.toString.toDouble).getOrElse(Double.MaxValue)

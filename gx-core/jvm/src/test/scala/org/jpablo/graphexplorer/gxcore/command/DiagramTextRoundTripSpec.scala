@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.gxcore.command
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.{GroupId, NodeId}
 
 /** `gx` must be able to read back what `gx` wrote.
   *
@@ -141,3 +141,33 @@ class DiagramTextRoundTripSpec extends FunSuite:
       assert(text.contains(s"id=\"$id\""), s"the write dropped id=\"$id\":\n$text")
     val twice = DiagramText.parse(text).map(DiagramText.render).fold(fail(_), identity)
     assertEquals(twice, text, "the second write disagreed with the first")
+
+  // ------------------------------------- two subgraphs, one id (plan §2.1)
+
+  /** `GroupId.fromDot` removes the `cluster` prefix. Thus `clusterB` and
+    * `cluster_B` both gave the id `B`, and the reader made one group of the two
+    * subgraphs. A write kept one subgraph, and the members of the other left
+    * the group, with no message. A plain subgraph `B` and `clusterB` had the
+    * same problem.
+    *
+    * The first subgraph keeps the id that it had before. Metadata that names
+    * `group:B` (a collapsed group, for example) then still finds it.
+    */
+  for (source, names) <- Vector(
+      "digraph G { subgraph clusterB { a } subgraph cluster_B { b } c }" -> Vector("clusterB", "cluster_B"),
+      "digraph G { subgraph B { a } subgraph clusterB { b } c }"         -> Vector("B", "clusterB"),
+      // The full name of the second subgraph, `B`, is also the id of the first.
+      "digraph G { subgraph clusterB { a } subgraph B { b } c }"         -> Vector("clusterB", "B")
+    )
+  do
+    test(s"two subgraphs whose names give one id stay two groups: ${names.mkString(" and ")}"):
+      val named = DiagramText.parseNamed(source).fold(fail(_), identity)
+      assertEquals(named.graph.groups.size, 2, "the reader made one group of two subgraphs")
+      assertEquals(named.names.groups.map(_._2), names, "the names of the groups")
+      assertEquals(named.names.resolve(names(0)), Right(Vector(GroupId("B"))), "the first subgraph lost its old id")
+      val written = DiagramText.render(named.graph, named.format)
+      val again   = DiagramText.parseNamed(written).fold(e => fail(s"$e\n$written"), identity)
+      assertEquals(again.names.groups.map(_._2), names, s"a write changed the names of the groups:\n$written")
+      for (member, name) <- Vector("a" -> names(0), "b" -> names(1)) do
+        val group = again.names.resolve(name).fold(e => fail(s"$e\n$written"), identity)
+        assertEquals(group, again.graph.memberships.get(NodeId(member)).toVector, s"$member left the subgraph $name:\n$written")

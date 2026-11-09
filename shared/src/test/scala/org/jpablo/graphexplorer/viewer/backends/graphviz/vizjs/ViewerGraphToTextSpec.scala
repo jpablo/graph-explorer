@@ -1183,6 +1183,44 @@ class ViewerGraphToTextSpec extends FunSuite:
     assert(text.contains("""subgraph "B" {"""), text)
   }
 
+  /** `GroupId.fromDot` gives one id to `clusterB`, `cluster_B` and `B`. The
+    * first of these subgraphs keeps the id, and each later one gets `<id>_2`,
+    * `<id>_3`, and so on. The subgraph `B_2` is the first with its id, so it
+    * keeps it, and the later subgraphs do not get it.
+    */
+  test("each subgraph gets its own id, and the first with an id keeps it") {
+    assertEquals(
+      GroupId.fromDotNames(Vector("clusterB", "B", "B_2", "cluster_B", "other")),
+      Vector(GroupId("B"), GroupId("B_3"), GroupId("B_2"), GroupId("B_4"), GroupId("other"))
+    )
+  }
+
+  /** DOT merges two subgraphs with one name, and the members of the two then
+    * go into one group. Thus the writer never gives two groups one name. Here
+    * two groups have the source name `cluster_B`, and the fallback name of `x`
+    * is the source name of `x_2`.
+    */
+  test("the writer never gives two subgraphs one name") {
+    val members = Vector("a" -> "B", "b" -> "B_2", "c" -> "x", "d" -> "x_2")
+    val elements = ViewerGraphElements(
+      nodes = scala.collection.immutable.VectorMap.from(
+        members.map((node, _) => NodeId(node) -> ViewerNode.nodeNoDefaults(NodeId(node)))
+      ),
+      memberships = members.map((node, group) => NodeId(node) -> GroupId(group)).toMap,
+      groups = Map(
+        GroupId("B")   -> ViewerGroup.group(GroupId("B"), Attributes.of("name" -> "cluster_B", "_gvid" -> "0")),
+        GroupId("B_2") -> ViewerGroup.group(GroupId("B_2"), Attributes.of("name" -> "cluster_B", "_gvid" -> "1")),
+        GroupId("x")   -> ViewerGroup.group(GroupId("x"), Attributes.of("_gvid" -> "2")),
+        GroupId("x_2") -> ViewerGroup.group(GroupId("x_2"), Attributes.of("name" -> "cluster_x", "_gvid" -> "3"))
+      )
+    )
+    val text  = viewerGraphElementsToText(elements, omitInternal = true)
+    val names = """subgraph "([^"]*)"""".r.findAllMatchIn(text).map(_.group(1)).toVector
+    assertEquals(names.sorted, Vector("cluster_B", "cluster_B_2", "cluster_x", "cluster_x_2"), text)
+    for (node, name) <- Vector("a" -> "cluster_B", "b" -> "cluster_B_2", "c" -> "cluster_x_2", "d" -> "cluster_x") do
+      assert(s"""(?s)subgraph "$name" [{][^}]*"$node"""".r.findFirstIn(text).isDefined, s"$node left the subgraph $name:\n$text")
+  }
+
   /** The text for the layout puts its own `id` on each element, because a
     * click finds the element by it. An `id` of the source must not replace it
     * there. The text for a file keeps the `id` of the source.

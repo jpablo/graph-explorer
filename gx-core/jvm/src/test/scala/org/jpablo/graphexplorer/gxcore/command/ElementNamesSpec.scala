@@ -136,6 +136,22 @@ class ElementNamesSpec extends FunSuite:
     assertEquals(ok(n, "node:cluster_svc"), Vector(NodeId("cluster_svc")))
     assertEquals(ok(n, "group:cluster_svc"), Vector(GroupId("svc")))
 
+  /** A nested subgraph can have the name of a subgraph outside it. Graphviz
+    * then makes two subgraphs, and gx makes two groups with one source name.
+    * The bare name and `group:<name>` name the two groups, so gx refuses them
+    * and lists the `group:<id>` of each group. Before, the list for
+    * `group:<name>` called itself with no end, and gx stopped with a
+    * StackOverflowError.
+    */
+  test("two groups with one source name: the name is refused, and the error lists the id of each"):
+    val n = names("digraph { subgraph cluster_x { a } subgraph y { subgraph cluster_x { b } } }")
+    for name <- Vector("cluster_x", "group:cluster_x") do
+      val why = refused(n, name)
+      assert(why.endsWith("Write one of these: group:x, group:x_2"), why)
+    assertEquals(n.render(GroupId("x")), "group:x")
+    assertEquals(n.render(GroupId("x_2")), "group:x_2")
+    assertEquals(ok(n, "group:x_2"), Vector(GroupId("x_2")))
+
   test("a node whose name looks like an arrow: the bare name is refused, and the error lists both"):
     val n   = names("""digraph { "a..b"; a -> b }""")
     val why = refused(n, "a..b")

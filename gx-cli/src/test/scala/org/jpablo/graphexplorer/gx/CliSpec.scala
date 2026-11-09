@@ -518,6 +518,20 @@ class CliSpec extends FunSuite:
     assertEquals(s("set", "b.dot", "clusterB", "label=B"), ExitCode.Ok, s.stderr)
   }
 
+  tmp.test("two subgraphs whose names give one id keep their members after a write") { dir =>
+    // `clusterB` and `cluster_B` both had the id `B`. A write kept one
+    // subgraph, and `a` or `b` left its group, with no message.
+    val f = write(dir, "two.dot", "digraph G {\n  subgraph clusterB { a }\n  subgraph cluster_B { b }\n  c\n}\n")
+    val r = Run(dir)
+    assertEquals(r("set", "two.dot", "c", "color=red"), ExitCode.Ok, r.stderr)
+    val text = Files.readString(f)
+    assert("""(?s)subgraph "clusterB" \{[^}]*"a"[^}]*\}""".r.findFirstIn(text).isDefined, s"a left clusterB:\n$text")
+    assert("""(?s)subgraph "cluster_B" \{[^}]*"b"[^}]*\}""".r.findFirstIn(text).isDefined, s"b left cluster_B:\n$text")
+    val g = Run(dir)
+    g("groups", "two.dot")
+    assertEquals(firstColumn(g), Vector("clusterB", "cluster_B"))
+  }
+
   tmp.test("a write keeps an id attribute, and gx set can write one") { dir =>
     // The DOT writer left out each `id`. Thus a change to one node removed the
     // `id` of the others, and gx refused `set … id=…`.
