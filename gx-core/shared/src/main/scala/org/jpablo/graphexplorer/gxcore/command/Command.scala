@@ -66,12 +66,10 @@ enum SourceCommand derives CanEqual:
 
 object SourceCommand:
 
-  /** The names, in one place.
+  /** The name of each command, in one place.
     *
-    * Kebab-case because these are typed by humans on a command line and read by
-    * agents out of a JSON frame, not written in Scala. A name is API: it appears
-    * in the audit log, in `gx`'s help, and in every recorded command a replay
-    * would re-run, so it changes only deliberately.
+    * A refusal (`CommandError`) names the command, and the viewer shows that
+    * message to the person. The names are kebab-case, because people read them.
     */
   def nameOf(command: SourceCommand): String = command match
     case SetAttribute(_, _, _)  => "set-attribute"
@@ -86,24 +84,5 @@ object SourceCommand:
     case ListArrows             => "list-arrows"
     case ListGroups             => "list-groups"
     case GetAttributes(_)       => "get-attributes"
-
-  /** Every name in the source tier, for help text and for the
-    * "unknown command" message — which should say what IS known rather than
-    * only what is not.
-    */
-  val names: Vector[String] = Vector(
-    "set-attribute",
-    "remove-attribute",
-    "reset-attributes",
-    "group",
-    "ungroup",
-    "combine-into-record",
-    "split-record",
-    "transpose-record",
-    "list-nodes",
-    "list-arrows",
-    "list-groups",
-    "get-attributes"
-  )
 
   val tier: Tier = Tier.Source

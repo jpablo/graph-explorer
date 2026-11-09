@@ -16,22 +16,6 @@ object OriginScheme:
   def parse(scheme: String): Option[OriginScheme] =
     values.find(_.scheme == scheme.toLowerCase)
 
-  extension (s: OriginScheme)
-    def permits(mode: SyncMode): Boolean = mode match
-      case SyncMode.Detached => true
-      case SyncMode.Pull     => s.canRead
-      case SyncMode.Push     => s.canWrite
-      case SyncMode.Sync     => s.canRead && s.canWrite
-
-    /** Rejected at bind time with a reason, never silently downgraded — a
-      * binding that quietly became read-only would look like a broken save.
-      */
-    def rejectionFor(mode: SyncMode): Option[String] =
-      Option.unless(s.permits(mode))(
-        s"scheme '${s.scheme}' cannot support $mode " +
-          s"(read=${s.canRead}, write=${s.canWrite}, watch=${s.canWatch})"
-      )
-
 /** The canonical identity of an origin.
   *
   * This is the join key between the library, the watch registry and the CLI, so

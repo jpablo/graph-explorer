@@ -309,9 +309,12 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
         rawNodesBuilder += nodeId -> attrs
       case SimpleGraphObject.Cluster(cluster) =>
         val (groupId, wasCluster) = GroupId.fromDot(cluster.name)
-        // `name` becomes the GroupId (the cluster's member lists are read separately,
-        // from the SimpleGraph fields — they never reach the attribute stream)
-        val attrs                 = toAttributesFromCluster(cluster, Set(Name.attrId))
+        // `name` gives the GroupId (the cluster's member lists are read separately,
+        // from the SimpleGraph fields — they never reach the attribute stream).
+        // The group also keeps `name` as an attribute. The id has no `cluster`
+        // prefix, so the writer needs the name to print `clusterB` again and
+        // not `cluster_B` (see `dotSubgraphName`).
+        val attrs                 = toAttributesFromCluster(cluster, Set.empty)
         val nodeGvids             = cluster.nodes.getOrElse(List.empty)
         val edgeGvids             = cluster.edges.getOrElse(List.empty)
         rawClusters(groupId) = (attrs, nodeGvids, edgeGvids, wasCluster)

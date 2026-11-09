@@ -53,103 +53,17 @@ class CommandVocabularySpec extends FunSuite:
   // ----------------------------------------------------------------- names
 
   test("every command has a name, and every name is distinct"):
-    val commands = Vector(
-      SourceCommand.SetAttribute(Set(NodeId("a")), "color", "red"),
-      SourceCommand.RemoveAttribute(Set(NodeId("a")), "color"),
-      SourceCommand.ResetAttributes(Set(NodeId("a"))),
-      SourceCommand.Group(Set(NodeId("a")), "g"),
-      SourceCommand.Ungroup(Set(GroupId("g"))),
-      SourceCommand.CombineIntoRecord(Set(NodeId("a"))),
-      SourceCommand.SplitRecord(NodeId("a")),
-      SourceCommand.TransposeRecord(NodeId("a")),
-      SourceCommand.ListNodes,
-      SourceCommand.ListArrows,
-      SourceCommand.ListGroups,
-      SourceCommand.GetAttributes(Set(NodeId("a")))
-    )
-    val names = commands.map(_.name)
+    // A refusal names the command (`CommandError`), so two commands with one
+    // name would give one message for two different refusals.
+    val names = CommandVocabularySpec.EveryCommand.map(_.name)
     assertEquals(names.distinct.size, names.size, s"duplicate command names: $names")
 
-    // `names` is what help text and the unknown-command message are built from,
-    // so a case added without listing it would leave the CLI unable to mention
-    // a command it can run.
-    assertEquals(names.sorted, SourceCommand.names.sorted)
-
   test("names are kebab-case, because they are typed and not written in Scala"):
-    for name <- SourceCommand.names do
+    for name <- CommandVocabularySpec.EveryCommand.map(_.name) do
       assert(
         name.forall(c => c.isLower || c == '-'),
         s"'$name' should be lower-kebab-case"
       )
-
-  // ------------------------------------------------------------- the wire
-
-  test("every command round-trips through the wire form"):
-    val commands = Vector(
-      SourceCommand.SetAttribute(Set(NodeId("a"), GroupId("g")), "color", "red"),
-      SourceCommand.RemoveAttribute(Set(ArrowId("e1")), "style"),
-      SourceCommand.ResetAttributes(Set(NodeId("a"))),
-      SourceCommand.Group(Set(NodeId("a"), NodeId("b")), "cluster"),
-      SourceCommand.Group(Set(NodeId("a")), ""),
-      SourceCommand.Ungroup(Set(GroupId("g"))),
-      SourceCommand.CombineIntoRecord(Set(NodeId("a"), NodeId("b"))),
-      SourceCommand.SplitRecord(NodeId("r")),
-      SourceCommand.TransposeRecord(NodeId("r")),
-      SourceCommand.ListNodes,
-      SourceCommand.ListArrows,
-      SourceCommand.ListGroups,
-      SourceCommand.GetAttributes(Set(NodeId("a")))
-    )
-    for command <- commands do
-      assertEquals(SourceCodec.decode(SourceCodec.encode(command)), Right(command), command.name)
-
-  test("an encoded command is stable, so two identical commands encode identically"):
-    // A Set has no order. Without sorting, the same command would produce
-    // different bytes on different runs — which makes an audit log diff-noisy
-    // and two identical recorded commands compare unequal on replay.
-    val a = SourceCommand.Group(Set(NodeId("c"), NodeId("a"), NodeId("b")), "g")
-    val b = SourceCommand.Group(Set(NodeId("b"), NodeId("c"), NodeId("a")), "g")
-    assertEquals(SourceCodec.encode(a).render(), SourceCodec.encode(b).render())
-    assertEquals(
-      SourceCodec.encode(a)("params")("targets").arr.map(_.str).toVector,
-      Vector("node:a", "node:b", "node:c")
-    )
-
-  test("the frame shape is D4's RPC, so a command IS a method call"):
-    val frame = SourceCodec.encode(SourceCommand.ListNodes)
-    assertEquals(frame("command").str, "list-nodes")
-    assert(frame.value.contains("params"), "a command always carries params, even when empty")
-
-  // ------------------------------------------------------------- refusals
-
-  test("an unknown command is named, not swallowed"):
-    val frame = ujson.Obj("command" -> "frobnicate", "params" -> ujson.Obj())
-    assertEquals(SourceCodec.decode(frame), Left(CommandError.UnknownCommand("frobnicate")))
-
-  test("a missing argument says which one"):
-    val frame = ujson.Obj("command" -> "set-attribute", "params" -> ujson.Obj("targets" -> ujson.Arr("node:a")))
-    SourceCodec.decode(frame) match
-      case Left(CommandError.BadArgument(command, detail)) =>
-        assertEquals(command, "set-attribute")
-        assert(detail.contains("name") || detail.contains("value"), detail)
-      case other => fail(s"expected a BadArgument, got $other")
-
-  test("the wrong KIND of reference is a category error, not a silent drop"):
-    // `combine-into-record group:g1` asking for nodes must not quietly proceed
-    // with the group removed — that would do something adjacent to what was
-    // asked, which is worse than refusing.
-    val frame = ujson.Obj(
-      "command" -> "combine-into-record",
-      "params"  -> ujson.Obj("nodes" -> ujson.Arr("node:a", "group:g1"))
-    )
-    SourceCodec.decode(frame) match
-      case Left(CommandError.BadArgument(_, detail)) =>
-        assert(detail.contains("group:g1"), detail)
-      case other => fail(s"expected a BadArgument, got $other")
-
-  test("a frame that is not an object, or has no name, is refused"):
-    assert(SourceCodec.decode(ujson.Arr(1, 2)).isLeft)
-    assert(SourceCodec.decode(ujson.Obj("params" -> ujson.Obj())).isLeft)
 
   // ----------------------------------------------------------------- tiers
 
@@ -165,3 +79,20 @@ class CommandVocabularySpec extends FunSuite:
     assert(SourceCommand.ListNodes.isQuery)
     assert(SourceCommand.GetAttributes(Set(NodeId("a"))).isQuery)
     assert(!SourceCommand.Ungroup(Set(GroupId("g"))).isQuery)
+
+object CommandVocabularySpec:
+  /** One value of each source command. */
+  val EveryCommand: Vector[SourceCommand] = Vector(
+    SourceCommand.SetAttribute(Set(NodeId("a")), "color", "red"),
+    SourceCommand.RemoveAttribute(Set(NodeId("a")), "color"),
+    SourceCommand.ResetAttributes(Set(NodeId("a"))),
+    SourceCommand.Group(Set(NodeId("a")), "g"),
+    SourceCommand.Ungroup(Set(GroupId("g"))),
+    SourceCommand.CombineIntoRecord(Set(NodeId("a"))),
+    SourceCommand.SplitRecord(NodeId("a")),
+    SourceCommand.TransposeRecord(NodeId("a")),
+    SourceCommand.ListNodes,
+    SourceCommand.ListArrows,
+    SourceCommand.ListGroups,
+    SourceCommand.GetAttributes(Set(NodeId("a")))
+  )

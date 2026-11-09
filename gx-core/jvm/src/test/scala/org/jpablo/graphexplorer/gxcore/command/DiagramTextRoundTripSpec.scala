@@ -89,3 +89,39 @@ class DiagramTextRoundTripSpec extends FunSuite:
     // Named so a failure says which direction was lost.
     assert(reparse("""digraph G { subgraph cluster_svc { api; db } api -> db }""").isRight)
   }
+
+  // ------------------------------------------------- group names (plan §2.1)
+
+  /** A group has the name that its source gives it. A write must keep that
+    * name, because the next gx command finds the group by it. Before, the
+    * writer printed `cluster_<id>`, so `clusterB` became `cluster_B`.
+    */
+  private def groupNamesAfterWrite(text: String): Vector[String] =
+    val written = DiagramText.parseNamed(text).map(n => DiagramText.render(n.graph, n.format)).fold(fail(_), identity)
+    DiagramText.parseNamed(written).fold(e => fail(s"$e\n$written"), _.names.groups.map(_._2))
+
+  for (source, name) <- Vector(
+      "digraph G { subgraph clusterB { a } }"            -> "clusterB",
+      "digraph G { subgraph cluster01 { a } }"           -> "cluster01",
+      "digraph G { subgraph cluster_svc { api; db } }"   -> "cluster_svc",
+      "digraph G { subgraph plain { a } }"               -> "plain",
+      "flowchart LR\n  subgraph api_tier\n    a --> b\n  end\n" -> "api_tier"
+    )
+  do
+    test(s"a write keeps the group name $name"):
+      assertEquals(groupNamesAfterWrite(source), Vector(name))
+
+  test("a second write keeps the group name too"):
+    val once = DiagramText.parseNamed("digraph G { subgraph clusterB { a } }")
+      .map(n => DiagramText.render(n.graph, n.format)).fold(fail(_), identity)
+    assertEquals(groupNamesAfterWrite(once), Vector("clusterB"))
+
+  test("a new group gets the name cluster_<id>, and that name finds it"):
+    val named = DiagramText.parseNamed("digraph G { a; b }").fold(fail(_), identity)
+    val grouped = SourceCommands.run(named.graph, SourceCommand.Group(Set(NodeId("a"), NodeId("b")), "pair"))
+      .fold(e => fail(e.message), _.updatedGraph.getOrElse(fail("no graph")))
+    val text  = DiagramText.render(grouped, named.format)
+    val again = DiagramText.parseNamed(text).fold(fail(_), identity)
+    val (id, name) = again.names.groups.headOption.getOrElse(fail(s"no group in\n$text"))
+    assertEquals(name, s"cluster_${id.value}")
+    assertEquals(again.names.resolve(name), Right(Vector(id)))

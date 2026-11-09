@@ -103,18 +103,6 @@ class LibraryStoreSpec extends FunSuite:
     assertEquals(store.list().map(_.id.value), Vector("two"))
   }
 
-  tmp.test("diagrams are found by origin, and one origin may back several") { dir =>
-    val store = LibraryStore(dir)
-    store.initialize()
-    val origin = FileOrigins.originOfPath("/tmp/shared.dot")
-    val bound  = Some(Binding(origin, SyncMode.Pull, ContentHash.fromHex("aa"), 0L))
-    store.save(diagram("one").copy(binding = bound)).fold(e => fail(s"$e"), identity)
-    store.save(diagram("two").copy(binding = bound)).fold(e => fail(s"$e"), identity)
-    store.save(diagram("three")).fold(e => fail(s"$e"), identity)
-
-    assertEquals(store.findByOrigin(origin).map(_.id.value).sorted, Vector("one", "two"))
-  }
-
   // ------------------------------------------------------------ folders
 
   tmp.test("folders containing diagrams need no declaration") { dir =>

@@ -20,8 +20,7 @@ Read a diagram
   gx attrs  <file> <element>... [--json]
 
 Change a diagram (gx writes the file)
-  gx set     <file> <element>... <name>=<value>...
-  gx unset   <file> <element>... <name>...
+  gx set     <file> <element>... <name>=<value>...    (<name>= removes the attribute)
   gx reset   <file> <element>...           remove each attribute except the label
   gx group   <file> <element>... [--label L]
   gx ungroup <file> <group>...
@@ -51,6 +50,7 @@ Other
 
 Rules that apply to each command:
 
+- In `gx set`, an argument of the form `<name>=<value>` is an attribute, and each other argument is an element. An empty value removes the attribute. Thus there is no `unset` command.
 - A change to the source is refused when it would remove comments or `strict` from the file. The message names what the change removes. `--reformat` accepts the rewrite.
 - gx reads the file, makes the change, and writes the file only if the file did not change in between. Otherwise it stops with exit 5.
 - A desktop command names its diagram. When the desktop shows a different diagram, the command is refused, and the message names the diagram on the screen.
@@ -100,3 +100,4 @@ Each phase ends with `sbt --client testFull` and `cargo test` green. The desktop
 
 - Most users of `gx` are agents. Thus the arrow form `api..db` (safe in a shell) is better than the DOT spelling, and each command has `--json`.
 - The command names in §2 are accepted.
+- `unset` is gone: `gx set f.dot api color=` removes `color`. With `unset`, gx could not tell an element name from an attribute name.

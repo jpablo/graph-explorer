@@ -41,6 +41,21 @@ object LineEnding:
       i += 1
     if crlf > lf then Crlf else Lf
 
+  /** Give `text` the end of `file`: one final line ending when `file` ends
+    * with a line ending, and no final line ending when `file` does not. Only
+    * the end of `text` changes.
+    *
+    * This is V-04 for the last byte. A writer that prints a whole diagram
+    * gives no final newline. Without this rule, a change to one attribute
+    * also changed the end of the file, and a diff or a tool that watches the
+    * file saw a change that nobody made.
+    */
+  def withEndOf(file: String, text: String): String =
+    val bare = text.reverse.dropWhile(c => c == '\n' || c == '\r').reverse
+    if !file.endsWith("\n") then bare
+    else if text.endsWith("\n") then text
+    else text + "\n"
+
   extension (e: LineEnding)
     /** Rewrite text to use this convention, whatever it currently uses. */
     def applyTo(text: String): String =

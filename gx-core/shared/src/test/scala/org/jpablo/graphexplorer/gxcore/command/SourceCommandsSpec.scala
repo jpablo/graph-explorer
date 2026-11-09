@@ -176,24 +176,5 @@ class SourceCommandsSpec extends FunSuite:
     assert(run(SourceCommand.Ungroup(Set(GroupId("nope")))).isLeft)
     assert(run(SourceCommand.Ungroup(Set(GroupId("g1")))).isRight)
 
-  // ------------------------------------------------------- wire to behaviour
-
-  test("a command decoded from the wire runs the same as one built in Scala"):
-    // The end-to-end property: what an agent sends and what the UI calls are
-    // the same operation, which is the reason for having one vocabulary at all.
-    val frame = ujson.Obj(
-      "command" -> "set-attribute",
-      "params" -> ujson.Obj(
-        "targets" -> ujson.Arr("node:a"),
-        "name"    -> "color",
-        "value"   -> "blue"
-      )
-    )
-    val decoded = SourceCodec.decode(frame).fold(e => fail(e.message), identity)
-    assertEquals(
-      updated(decoded).elements,
-      updated(SourceCommand.SetAttribute(Set(NodeId("a")), "color", "blue")).elements
-    )
-
   private def attr(g: ViewerGraph, node: String, name: String): Option[String] =
     g.nodes.get(NodeId(node)).flatMap(_.attributes.get(AttributeId(name)).map(_.toString)).filter(_.nonEmpty)

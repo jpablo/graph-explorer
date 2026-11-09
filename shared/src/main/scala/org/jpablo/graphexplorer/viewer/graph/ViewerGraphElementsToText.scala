@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, GvId, HeadPort, Label, TailPort}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, GraphType, GvId, HeadPort, Label, Name, TailPort}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.{Arrow, GroupId, NodeId, ViewerGroup, ViewerNode, Attributes as ViewerAttributes}
 
@@ -91,7 +91,9 @@ def viewerGraphElementsToText(
   def collectClusterAttributes(group: ViewerGroup, excludeKeys: Set[String] = Set.empty): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
     val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
+    // `name` is the source name of the subgraph. It goes after the
+    // `subgraph` keyword, and it is not an attribute of the subgraph.
+    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value + Name.attrId.value
 
     // Add id attribute unless excluded by omitInternal setting
     if (!allExcludeKeys.contains("id"))
@@ -137,6 +139,18 @@ def viewerGraphElementsToText(
     result.toList
   }
 
+  // An empty label is the default of Graphviz for an arrow and for the root
+  // graph. The reader gives each arrow `label=""` when one arrow has a label,
+  // and the root graph `label=""` when one cluster has a label. Thus the text
+  // for a file (omitInternal) leaves these values out, and a change to one
+  // element does not change the text of the others. An empty arrow label
+  // stays when the `edge` statement gives a label, because then it overrides
+  // that label. The text for the layout keeps each value: Graphviz draws the
+  // same diagram.
+  val edgeDefaultLabel = elements.defaultArrowAttributes.values.get(Label.attrId).map(_.toString).getOrElse("")
+  def isDefaultEmptyLabel(key: String, value: String, default: String): Boolean =
+    omitInternal && key == Label.attrId.value && value.isEmpty && default.isEmpty
+
   // Helper to collect attributes from Arrow directly
   def collectEdgeAttributes(arrow: Arrow, excludeKeys: Set[String] = Set.empty): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
@@ -159,7 +173,7 @@ def viewerGraphElementsToText(
     arrow.attributes.values.foreach { case (attrId, attrValue) =>
       val key   = attrId.value
       val value = attrValue.toString
-      if (!allExcludeKeys.contains(key) && key != "id") {
+      if (!allExcludeKeys.contains(key) && key != "id" && !isDefaultEmptyLabel(key, value, edgeDefaultLabel)) {
         attrs += key -> value
       }
     }
@@ -229,7 +243,11 @@ def viewerGraphElementsToText(
   }
 
   // Graph attributes (name/directed are handled specially), then default node/edge attributes
-  emitAttrStatement("graph", collectGraphAttributes(elements.graphAttributes, Set("name", "directed")))
+  emitAttrStatement(
+    "graph",
+    collectGraphAttributes(elements.graphAttributes, Set("name", "directed"))
+      .filterNot((key, value) => isDefaultEmptyLabel(key, value, default = ""))
+  )
   emitAttrStatement("node", collectGraphAttributes(elements.defaultNodeAttributes))
   emitAttrStatement("edge", collectGraphAttributes(elements.defaultArrowAttributes))
 
@@ -292,15 +310,7 @@ def viewerGraphElementsToText(
 
     val group = elements.groups(groupId)
 
-    // Graphviz only draws a subgraph as a cluster when its name starts with "cluster",
-    // and GroupId.fromDot strips that prefix on import (storing cluster="true"). Restore
-    // the prefix from the reliable `cluster` attribute — not from the id's spelling, which
-    // dropped cluster semantics for ids with uppercase/underscores or > 10 chars.
-    val isCluster    = group.attributes.values.get(AttributeId("cluster")).exists(_.toString == "true")
-    val subgraphName =
-      if (isCluster && !group.id.value.startsWith("cluster")) s"cluster_${group.id.value}"
-      else group.id.value
-    lines += s"""${padding(level)}subgraph ${quoted(subgraphName)} {"""
+    lines += s"""${padding(level)}subgraph ${quoted(dotSubgraphName(group))} {"""
 
     val clusterAttrs = collectClusterAttributes(group)
     if (clusterAttrs.nonEmpty) {
@@ -372,3 +382,29 @@ def viewerGraphElementsToText(
   lines += "}"
   lines.mkString("\n")
 end viewerGraphElementsToText
+
+/** The name of a group after the `subgraph` keyword in DOT.
+  *
+  * Graphviz draws a subgraph as a cluster only when its name starts with
+  * `cluster`, and `GroupId.fromDot` removes that prefix from the id. Thus the
+  * id cannot give the source name back: `clusterB` and `cluster_B` both have
+  * the id `B`. The reader keeps the source name in the `name` attribute, and
+  * this function uses it while it gives the same id and the same `cluster`
+  * flag. A group with no such name, for example a new group, gets
+  * `cluster_<id>` when it is a cluster.
+  *
+  * The `cluster` flag comes from the `cluster` attribute, not from the
+  * spelling of the id. The spelling lost the cluster flag for ids with
+  * capitals or underscores, or with more than 10 characters.
+  */
+def dotSubgraphName(group: ViewerGroup): String =
+  val isCluster = group.attributes.values.get(Cluster.attrId).exists(_.toString == "true")
+  val sourceName = group.attributes.values
+    .get(Name.attrId)
+    .map(_.toString)
+    .filter: name =>
+      val (id, cluster) = GroupId.fromDot(name)
+      id == group.id && cluster == isCluster
+  sourceName.getOrElse:
+    if isCluster && !group.id.value.startsWith("cluster") then s"cluster_${group.id.value}"
+    else group.id.value

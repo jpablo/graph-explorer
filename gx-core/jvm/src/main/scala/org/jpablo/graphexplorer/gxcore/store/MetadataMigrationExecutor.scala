@@ -33,7 +33,8 @@ enum MetadataMigrationResult derives CanEqual:
   * The old directory `diagrams/` stays unchanged. Thus an older desktop app
   * that is still installed shows its library as before.
   *
-  * gx-cli does not call this yet. Phase 2 does.
+  * gx-cli calls this before each command that reads or writes the library
+  * (`Cli.migrate`). A read or a change of a diagram file does not call it.
   */
 object MetadataMigrationExecutor:
 

@@ -3,8 +3,7 @@ package org.jpablo.graphexplorer.gxcore.command
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, SimpleGraphObject}
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidGraph
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Cluster
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, dotSubgraphName}
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowId, ElementId, GroupId, NodeId}
 
 import scala.collection.immutable.VectorMap
@@ -71,11 +70,12 @@ object ElementName:
   * element also names a different element, [[render]] gives the form with a
   * prefix.
   *
-  * `sourceNames` has the name that the source gives each group. A DOT group
-  * needs it, because `ViewerGraph` keeps only the id of the group:
-  * `GroupId.fromDot` removes the `cluster` prefix (`cluster_svc` becomes
-  * `svc`, and `clusterB` becomes `B`). [[ElementNames.dotGroupNames]] gets the
-  * names from the structure that the DOT reader gives.
+  * `sourceNames` has the name that the source gives each group.
+  * `GroupId.fromDot` removes the `cluster` prefix from the id of a DOT group
+  * (`cluster_svc` becomes `svc`, and `clusterB` becomes `B`).
+  * [[ElementNames.dotGroupNames]] gets the names from the structure that the
+  * DOT reader gives. A group with no name there gets the name that the DOT
+  * writer prints (`dotSubgraphName`), so a name and a write agree.
   */
 final class ElementNames private (
     graph:       ViewerGraph,
@@ -92,10 +92,7 @@ final class ElementNames private (
 
   private def writtenName(id: GroupId): String = format match
     case DiagramFormat.Mermaid => id.value
-    case DiagramFormat.DOT =>
-      // The rule of `ViewerGraphElementsToText.processCluster`.
-      val isCluster = graph.groups.get(id).exists(_.attributes.values.get(Cluster.attrId).exists(_.toString == "true"))
-      if isCluster && !id.value.startsWith("cluster") then s"cluster_${id.value}" else id.value
+    case DiagramFormat.DOT     => graph.groups.get(id).fold(id.value)(dotSubgraphName)
 
   /** The groups in the order of the source, then the other groups by id. */
   private lazy val orderedGroups: Vector[GroupId] =

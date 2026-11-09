@@ -59,9 +59,6 @@ object LiveViewCommand:
     case PushText(_, _)    => "push-text"
     case WhatIsSelected    => "what-is-selected"
 
-  val names: Vector[String] =
-    Vector("select", "add-to-selection", "clear-selection", "reset-view", "push-text", "what-is-selected")
-
   val tier: Tier = Tier.LiveView
 
 /** The wire form of the live view tier.

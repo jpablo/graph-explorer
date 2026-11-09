@@ -106,15 +106,6 @@ final class LibraryStore(val root: Path) extends DiagramSink:
             catch case NonFatal(e) => Left(StoreError.Unreadable(id, e.toString))
       finally stream.close()
 
-  /** The diagrams that have a binding to an origin.
-    *
-    * The result is plural because §3.1 permits it: one file can be the origin
-    * of several diagrams with different metadata. Also then, the watch registry
-    * polls that file only one time.
-    */
-  def findByOrigin(origin: OriginUri): Vector[Diagram] =
-    list().filter(_.binding.exists(_.origin == origin))
-
   // ------------------------------------------------------------ folders
 
   /** The tree, with the folders that hold nothing.

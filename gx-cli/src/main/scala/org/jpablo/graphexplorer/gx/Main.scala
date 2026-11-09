@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.gx
 
 import org.jpablo.graphexplorer.gxcore.fs.{AccessPolicy, Audit, GxHome}
 import org.jpablo.graphexplorer.gxcore.rpc.{ChannelError, ControlChannel}
-import org.jpablo.graphexplorer.gxcore.store.LibraryStore
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, Paths}
@@ -29,8 +28,14 @@ object Main:
     // A refusal here is reported and exits; it must not become a stack trace.
     // The variable is usually set by a script or a test harness, and the useful
     // answer is which value was rejected and why.
-    val gxHome = GxHome.resolve() match
-      case Right(path) => path
+    val resolved =
+      for
+        home     <- GxHome.resolve()
+        diagrams <- GxHome.diagramsDir()
+      yield (home, diagrams)
+
+    val (gxHome, diagramsDir) = resolved match
+      case Right(paths) => paths
       case Left(why) =>
         System.err.println(s"gx: $why")
         System.exit(ExitCode.Usage)
@@ -48,12 +53,13 @@ object Main:
       else _ => ()
 
     // One clock for all of the process. The audit log gets the time of its
-    // lines from the same source as each `updatedAt` and `lastSyncAt`. Thus a
-    // diagram and the audit line about it always agree about the time.
+    // lines from the same source as each `updatedAt`. Thus an entry and the
+    // audit line about it always agree about the time.
     val clock: () => Long = () => System.currentTimeMillis()
 
     val env = CliEnv(
-      store = LibraryStore.default(gxHome),
+      gxHome = gxHome,
+      diagramsDir = diagramsDir,
       policy = AccessPolicy.fromEnv(),
       audit = Audit(runtime.resolve("audit.log.jsonl"), clock),
       // The user's shell, not the process's idea of it. v1 learned this the hard
@@ -64,7 +70,6 @@ object Main:
       err = System.err.println,
       stdin = () => String(System.in.readAllBytes(), StandardCharsets.UTF_8), // V-16
       now = clock,
-      desktopRunning = () => Main.desktopRunning(control, trace),
       rpc = (method, params) => Main.call(control, trace, method, params)
     )
 
@@ -84,14 +89,3 @@ object Main:
       params:      ujson.Obj
   ): Either[ChannelError, ujson.Value] =
     ControlChannel.use(controlFile, trace)(_.call(method, params))
-
-  /** Is a desktop actually up?
-    *
-    * v1 read a pid out of the runtime file, which was already better than its
-    * predecessor (which had to discover it by failing a request). Connecting is
-    * better still: a crashed desktop leaves BOTH the runtime file and its socket
-    * behind, so only the connection distinguishes a live desktop from its
-    * remains.
-    */
-  private[gx] def desktopRunning(controlFile: Path, trace: String => Unit = _ => ()): Boolean =
-    ControlChannel.use(controlFile, trace)(_ => Right(())).isRight

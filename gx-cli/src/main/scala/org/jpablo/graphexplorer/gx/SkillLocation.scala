@@ -39,7 +39,7 @@ object SkillLocation:
     * SKILL.md links them and stops short of repeating them, so fetching it
     * alone yields a skill whose reference sections are dangling links.
     */
-  val SupportingFiles = Vector("commands.md", "library.md")
+  val SupportingFiles = Vector("commands.md")
 
   val DefaultBranch = "viewer"
 

@@ -66,7 +66,8 @@ object Documents:
       else
         // The EXISTING file's convention, not the incoming text's: preserving it
         // is what keeps a save from changing the document's identity (V-04).
-        writeBytes(path, text, current.lineEnding)
+        // The same rule keeps the end of the file: a final newline, or none.
+        writeBytes(path, LineEnding.withEndOf(current.text, text), current.lineEnding)
 
   /** Create a file that does not exist yet. Separate from [[write]] because
     * "I expect nothing here" and "I expect exactly these bytes" are different

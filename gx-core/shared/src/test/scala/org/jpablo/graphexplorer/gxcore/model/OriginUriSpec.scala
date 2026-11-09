@@ -112,13 +112,3 @@ class OriginUriSpec extends FunSuite:
 
   // --------------------------------------------------- scheme capabilities
 
-  test("a scheme rejects a mode it cannot support, with a reason") {
-    assertEquals(OriginScheme.Https.rejectionFor(SyncMode.Pull), None)
-    assertEquals(OriginScheme.Https.rejectionFor(SyncMode.Detached), None)
-    assert(OriginScheme.Https.rejectionFor(SyncMode.Push).exists(_.contains("https")))
-    assert(OriginScheme.Https.rejectionFor(SyncMode.Sync).isDefined)
-  }
-
-  test("file supports every mode") {
-    for m <- SyncMode.values do assertEquals(OriginScheme.File.rejectionFor(m), None, s"mode $m")
-  }
