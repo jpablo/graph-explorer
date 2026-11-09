@@ -15,13 +15,16 @@ class RecordTreeSpec extends ScalaCheckSuite:
   private val genPort: Gen[Option[String]] =
     Gen.option(Gen.identifier.map(_.take(8)))
 
+  // The text that a person types in the cell dialog. A person can type a
+  // backslash and a tab too, so the generator makes them.
   private val genDisplayText: Gen[String] =
     Gen.listOf(
       Gen.frequency(
         8 -> Gen.alphaNumChar,
         2 -> Gen.oneOf('{', '}', '|', '<', '>', '.', ',', '-', '(', ')'),
         2 -> Gen.const(' '),
-        1 -> Gen.const('\n')
+        2 -> Gen.const('\\'),
+        1 -> Gen.oneOf('\n', '\t')
       )
     ).map(_.mkString)
 
@@ -193,6 +196,48 @@ class RecordTreeSpec extends ScalaCheckSuite:
     // A newline is not dropped: it becomes `\n`, as before.
     assertEquals(RecordTree.storedText("a\nb"), "a\\nb")
 
+  /** A backslash that a person types before a record special. In the dialog,
+    * as in a plain DOT label, a backslash escapes the next character. Thus
+    * `\{` is a literal brace, the same as `{` alone.
+    *
+    * Before, storedText kept the typed backslash and added its own: `\{`
+    * became `\\{`. The parser reads `\\` as one escaped backslash, and then
+    * the bare `{` opened a group. Thus the cell became a group. A fuzzer found
+    * it on 2026-11-09. `gx combine-record` uses storedText on plain labels,
+    * so a node label `a\{b` broke the record in the same way.
+    */
+  test("storedText: a typed backslash before a special escapes it, and the cell stays one cell"):
+    for special <- Vector('{', '}', '|', '<', '>') do
+      assertEquals(RecordTree.storedText(s"\\$special"), s"\\$special", s"one backslash before $special")
+      assertEquals(RecordTree.storedText(s"a\\${special}b"), s"a\\${special}b", s"one backslash before $special")
+      // `\\` is one escaped backslash, so three backslashes are a literal
+      // backslash and an escaped special.
+      assertEquals(RecordTree.storedText(s"\\\\\\$special"), s"\\\\\\$special", s"three backslashes before $special")
+      // Two backslashes are a literal backslash. Then the special is bare,
+      // and storedText escapes it.
+      assertEquals(RecordTree.storedText(s"\\\\$special"), s"\\\\\\$special", s"two backslashes before $special")
+
+  test("storedText: a typed backslash before a space gives a plain space"):
+    // The parser turns `\ ` into a plain space, and then trims and collapses
+    // it. Thus `\ ` is not canonical, and storedText must not keep it.
+    assertEquals(RecordTree.storedText("\\ a"), "a")
+    assertEquals(RecordTree.storedText("a\\ b"), "a b")
+    assertEquals(RecordTree.storedText("a \\ b"), "a b")
+    assertEquals(RecordTree.storedText("a\\ "), "a")
+    assertEquals(RecordTree.storedText("\\ \n"), "\\n")
+    // `\\` is one escaped backslash, so the space after it is a plain space.
+    assertEquals(RecordTree.storedText("\\\\ a"), "\\\\ a")
+
+  test("storedText gives a cell that survives a round trip, for the inputs that the fuzzer found"):
+    val inputs = Vector(
+      "\\ \\", "\\ \n", "\\ \r", "\\ a", "\\<", "\\>", "\\{", "\\|", "\\}",
+      "\\\\\\ \\", "\\\\\\ a", "\\\\\\<", "\\\\\\{", "\\\\\\|", "\\\\\\}",
+      "\\\\\\\\\\ a", "\\\\\\\\\\{", "\\\\\\\\\\|", "\\\\\\\\\\}", "\\\\\\\\\\\\\\>"
+    )
+    for display <- inputs do
+      val tree = Group(None, Vector(Leaf(None, RecordTree.storedText(display)), Leaf(None, "z")))
+      assertEquals(RecordTree.parse(RecordTree.serialize(tree)), tree, s"not a round trip: ${display.replace("\n", "\\u000a")}")
+
   test("displayText: specials unescape, \\n becomes a newline, \\l stays"):
     assertEquals(RecordTree.displayText("a\\|b"), "a|b")
     assertEquals(RecordTree.displayText("a\\nb"), "a\nb")
@@ -225,6 +270,13 @@ class RecordTreeSpec extends ScalaCheckSuite:
   property("parse ∘ serialize = identity on canonical trees"):
     forAll(genRoot): root =>
       assertEquals(RecordTree.parse(RecordTree.serialize(root)), root)
+
+  property("a cell that a person opens and saves with no change keeps its text"):
+    // The dialog shows displayText, and a save gives storedText. A save with
+    // no change must not change the label.
+    forAll(genAnyLabel): label =>
+      for leaf <- RecordTree.leaves(RecordTree.parse(label)) do
+        assertEquals(RecordTree.storedText(RecordTree.displayText(leaf.text)), leaf.text)
 
   property("serialize ∘ parse reaches a fixed point after one pass"):
     forAll(genAnyLabel): label =>
