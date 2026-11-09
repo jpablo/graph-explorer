@@ -49,9 +49,8 @@ These write the file. Each one takes `--json` and `--reformat`.
 
 - In `set`, an argument that matches `^[A-Za-z_][A-Za-z0-9_]*=` is an attribute, and each
   other argument is an element. A value can contain `=`. Give each attribute one time. A
-  `set` with no element or with no attribute is exit 1. gx refuses `id` and the `_`
-  attributes (exit 1), because its DOT writer leaves them out of the file. For the same
-  reason, **each change removes each `id` attribute that the file has**, with no message.
+  `set` with no element or with no attribute is exit 1. gx refuses an attribute whose name
+  starts with `_` (exit 1). The reader uses these names for its own data, for example `_gvid`.
 - An element of the wrong kind is exit 4: `gx: ungroup takes groups; 'api' is a node`.
 - **Output:** one line, `<path>  <hash>`. When the change gives the same text, gx writes
   nothing and adds `unchanged`. `gx group` adds `group <name>`.
@@ -66,10 +65,12 @@ These write the file. Each one takes `--json` and `--reformat`.
   none). It leaves out an empty label on an arrow or on the graph, because that is the
   default of Graphviz.
 - A new group gets the name `cluster_<id>` in DOT (for example `cluster_g1`). A group from
-  the source keeps its source name (`clusterB`, `cluster01`, `cluster_svc`), with two
-  exceptions. `subgraph x { cluster=true }` becomes `cluster_x`. `clusterB` and
-  `cluster_B` in one file are one group (`group:B`): a write keeps one of the two
-  subgraphs, and the members of the other subgraph leave the group.
+  the source keeps its source name (`clusterB`, `cluster01`, `cluster_svc`), with one
+  exception: `subgraph x { cluster=true }` becomes `cluster_x`.
+- Each subgraph is a different group. When the names of two subgraphs give one id
+  (`clusterB` and `cluster_B` both give `B`), the second group gets the id `B_2`
+  (`group:B_2`). Two subgraphs with the same name in the same parent are one group, as in
+  Graphviz, and a write prints one subgraph with the members of both.
 
 ## Metadata
 

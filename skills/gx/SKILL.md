@@ -144,13 +144,10 @@ group that owns it.
 The line endings and the end of the file (a final newline, or none) stay.
 The name and the kind of the graph stay: `graph MyNet { a -- b }` stays undirected and
 stays `MyNet`. Each group keeps its source name: `subgraph clusterB` stays `clusterB`.
+Each `id` attribute stays.
 
-The rewrite also loses some content with no refusal and no message. Check the diff:
-
-- **Each `id` attribute goes.** A change to node `b` also removes `id=foo` from node `a`.
-- `subgraph x { cluster=true }` becomes `subgraph "cluster_x"`.
-- `clusterB` and `cluster_B` in one file are one group to gx. A write keeps one of the two
-  subgraphs, and the members of the other subgraph leave the group.
+The rewrite also changes one name with no refusal and no message:
+`subgraph x { cluster=true }` becomes `subgraph "cluster_x"`. Check the diff.
 
 ### Conflicts
 
