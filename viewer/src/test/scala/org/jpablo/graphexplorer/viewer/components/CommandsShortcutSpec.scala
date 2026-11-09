@@ -47,7 +47,7 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
         """
       )
 
-      val state    = ViewerState(ViewTarget.library("save-shortcut-spec"), graphviz)
+      val state    = ViewerState(ViewTarget.diagram("save-shortcut-spec"), graphviz)
       val commands = Commands(state, RouterCommands(Router()))
 
       var reported = List.empty[String]
@@ -82,7 +82,7 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
   test("Cmd/Ctrl+V is left for the browser's paste event, not consumed here"):
     withGraphvizAsync { graphviz =>
       given Owner = unsafeWindowOwner
-      val state    = ViewerState(ViewTarget.library("paste-passthrough-spec"), graphviz)
+      val state    = ViewerState(ViewTarget.diagram("paste-passthrough-spec"), graphviz)
       val commands = Commands(state, RouterCommands(Router()))
 
       // `pasteDiagram` advertises ⌘V so the menus can show it, which puts it in
@@ -115,7 +115,7 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
   test("no two commands share a shortcut (byShortcut would silently drop one)"):
     withGraphvizAsync { graphviz =>
       given Owner = unsafeWindowOwner
-      val state    = ViewerState(ViewTarget.library("shortcut-dup-spec"), graphviz)
+      val state    = ViewerState(ViewTarget.diagram("shortcut-dup-spec"), graphviz)
       val commands = Commands(state, RouterCommands(Router()))
 
       // byShortcut is a Map built with .toMap: two commands normalizing to the same

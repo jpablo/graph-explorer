@@ -13,10 +13,10 @@ package org.jpablo.graphexplorer.gxcore.fs
   * So: detect what the file uses, and reproduce it.
   *
   * Shared rather than JVM-only, and still in `fs` because a line ending is a
-  * property of BYTES on disk. [[org.jpablo.graphexplorer.gxcore.model.Reconciler]]
-  * needs it to state the convention it hashes with, and that reconciler has to
-  * run where there is no `java.nio` — the desktop's page is Scala.js. Nothing
-  * here touches a file: detection reads a String and `applyTo` returns one.
+  * property of BYTES on disk. The migration (`MetadataMigration`) needs it to
+  * compare the text of an old record with its file, and the migration also
+  * runs in the desktop page, which is Scala.js. Nothing here touches a file:
+  * detection reads a String and `applyTo` returns one.
   */
 enum LineEnding(val chars: String) derives CanEqual:
   case Lf   extends LineEnding("\n")
@@ -40,6 +40,39 @@ object LineEnding:
         if i > 0 && text.charAt(i - 1) == '\r' then crlf += 1 else lf += 1
       i += 1
     if crlf > lf then Crlf else Lf
+
+  /** Give `text` the end of `file`: one final line ending when `file` ends
+    * with a line ending, and no final line ending when `file` does not. Only
+    * the end of `text` changes.
+    *
+    * This is V-04 for the last byte. A writer that prints a whole diagram
+    * gives no final newline. Without this rule, a change to one attribute
+    * also changed the end of the file, and a diff or a tool that watches the
+    * file saw a change that nobody made.
+    */
+  def withEndOf(file: String, text: String): String =
+    val bare = text.reverse.dropWhile(c => c == '\n' || c == '\r').reverse
+    if !file.endsWith("\n") then bare
+    else if text.endsWith("\n") then text
+    else text + "\n"
+
+  /** The text that a save of `text` writes over `file` (V-04): the line
+    * endings of `file`, and the end of `file`.
+    *
+    * `Documents.write` applies this rule for `gx`, and `FilePersistence`
+    * applies it for each save of the desktop app. Before, a canvas edit and a
+    * Save on the desktop changed a CRLF file to LF and removed its final
+    * newline.
+    */
+  def savedOver(file: String, text: String): String =
+    detect(file).applyTo(withEndOf(file, text))
+
+  /** True when a save of `text` over `file` writes `file` again: the two texts
+    * differ at most in the line endings and in the final newline. The desktop
+    * uses it to decide if an editor holds an edit that the file does not have.
+    */
+  def sameOnDisk(file: String, text: String): Boolean =
+    savedOver(file, text) == file
 
   extension (e: LineEnding)
     /** Rewrite text to use this convention, whatever it currently uses. */

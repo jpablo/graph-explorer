@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.widgets.{Action, Dialog, PrimaryAction, Q
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-/** Leaving a loose file that has an unsaved edit (§7.4).
+/** Leaving a file that has an unsaved edit (§7.4).
   *
   * Three answers, because two would force a loss: Cancel keeps the person here,
   * Discard leaves and drops the edit, and Save writes the file first.

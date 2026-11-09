@@ -11,9 +11,9 @@ import scala.util.control.NonFatal
 /** Why a call did not produce an answer.
   *
   * `NoDesktop` is separated from `Io` on purpose: it is the ONE outcome that is
-  * ordinary rather than broken. Every `gx` command except the session tier works
-  * without a desktop (D5), so "there is no window" must be reportable as a fact,
-  * not raised as a failure.
+  * ordinary rather than broken. Every `gx` command works without a desktop
+  * (D5), except a live view command. Thus "there is no window" must be
+  * reportable as a fact, not raised as a failure.
   */
 enum ChannelError derives CanEqual:
   case NoDesktop(detail: String)

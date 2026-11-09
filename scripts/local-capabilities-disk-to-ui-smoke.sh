@@ -6,7 +6,7 @@
 # filesystem watcher (detect + debounce + coalesce) to the point where the
 # desktop bumps the watch revision and dispatches `document.changed` into the
 # webview -- both happen in the same locked critical section in
-# spawn_watch_loop(), so the revision increment observed via `gx get` is the
+# spawn_watch_loop(), so the revision change that `get-document` returns is the
 # deterministic, headlessly-observable signal that coincides with the UI push.
 # The final webview hop (JS receives the DOM event -> Viewer re-render) is
 # covered by the LC1-T4 bridge contract and is sub-millisecond JS.
@@ -27,7 +27,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/release/graph-explorer-desktop"
 
 # shellcheck source=scripts/lib/control-api.sh
@@ -48,8 +47,16 @@ cleanup() {
     kill "${desktop_pid}" >/dev/null 2>&1 || true
     wait "${desktop_pid}" >/dev/null 2>&1 || true
   fi
+  # After the desktop stops, so that nothing writes into the sandbox any more.
+  gx_sandbox_remove
 }
 trap cleanup EXIT
+
+# A SANDBOX GX_HOME and GX_DIAGRAMS_DIR, not the real ones of the person (see
+# gx_sandbox_create). The socket is in the sandbox, so this gate does not stop
+# or use a desktop that the person runs.
+gx_sandbox_create d2ui
+RUNTIME_FILE="${CONTROL_RUNTIME_FILE}"
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -66,9 +73,6 @@ if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "missing release desktop binary at ${DESKTOP_BIN}" >&2
   exit 1
 fi
-
-pkill -f graph-explorer-desktop >/dev/null 2>&1 || true
-rm -f "${RUNTIME_FILE}"
 
 echo "starting release desktop runtime..."
 "${DESKTOP_BIN}" >/tmp/graph-explorer-desktop-disk-to-ui-smoke.log 2>&1 &

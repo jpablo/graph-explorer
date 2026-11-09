@@ -16,7 +16,7 @@ object ForceLayout3D extends Layout3D:
   val label = "Force"
 
   override val knobs: List[Knob3D] = List(
-    Knob3D("k", "Edge length", 0.4, 3.0, 0.05, 1.0),
+    Knob3D("k", "Arrow length", 0.4, 3.0, 0.05, 1.0),
     Knob3D("gravity", "Gravity", 0.0, 0.3, 0.005, 0.05),
     Knob3D("cohesion", "Cohesion", 0.0, 0.6, 0.01, 0.15),
     // How far repulsion reaches (in k): the packing distance between

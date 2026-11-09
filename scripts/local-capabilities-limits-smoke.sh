@@ -3,7 +3,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/debug/graph-explorer-desktop"
 
 # shellcheck source=scripts/lib/control-api.sh
@@ -16,8 +15,17 @@ cleanup() {
     kill "${desktop_pid}" >/dev/null 2>&1 || true
     wait "${desktop_pid}" >/dev/null 2>&1 || true
   fi
+  # After the desktop stops, so that nothing writes into the sandbox any more.
+  gx_sandbox_remove
 }
 trap cleanup EXIT
+
+# A SANDBOX GX_HOME and GX_DIAGRAMS_DIR, not the real ones of the person (see
+# gx_sandbox_create). A debug desktop loads its page from the dev server when
+# one runs, and that page moves the library at its first start. The socket is
+# in the sandbox too, so this gate does not stop a desktop that the person runs.
+gx_sandbox_create limits
+RUNTIME_FILE="${CONTROL_RUNTIME_FILE}"
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -51,7 +59,7 @@ start_desktop() {
   local max_requests="$2"
   local window_ms="$3"
 
-  pkill -f graph-explorer-desktop >/dev/null 2>&1 || true
+  # The runtime file of the sandbox, from the previous start of this gate.
   rm -f "${RUNTIME_FILE}"
 
   GX_MAX_REQUEST_BODY_BYTES="${max_body}" \

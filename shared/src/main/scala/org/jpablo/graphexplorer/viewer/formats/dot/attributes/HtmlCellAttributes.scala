@@ -69,7 +69,7 @@ object CellPort extends DotAttributeSimple[String]:
   override def attrId          = AttributeId("port")
   val label                    = "Port name"
   val default                  = ""
-  override val placeholderText = "Port name (edges attach here)"
+  override val placeholderText = "Port name (arrows attach here)"
 
 object HtmlCellAttributes:
   /** Every attribute the cell editor manages — the write path only touches

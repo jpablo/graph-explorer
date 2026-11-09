@@ -2,57 +2,57 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.projects.Library
-import org.jpablo.graphexplorer.viewer.desktop.LooseFilePersistence
+import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
+import org.jpablo.graphexplorer.library.Library
+import org.jpablo.graphexplorer.viewer.desktop.FilePersistence
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import scala.concurrent.{ExecutionContext, Future}
 
-/** Where one viewer's diagram is stored (§6).
+/** The place where the app stores the diagram of one viewer (§6).
   *
-  * Injected by target type, so a viewer holds a handle to ITS store and cannot
-  * reach another. Before this, every viewer opened a library handle keyed by a
-  * `ProjectId`, and a loose file therefore had to supply an id that named no
-  * record — which stamped a library entry for a file the person only opened.
+  * The type of the target selects the store, so a viewer holds a handle to ITS
+  * store and cannot reach a different store. Before this, each viewer opened a
+  * library handle with a `DiagramId` as the key. Thus a file had to give an id
+  * that named no diagram. That made a library entry for a file that the person
+  * only opened.
   */
 trait DiagramPersistence:
 
   /** The state to open with. A snapshot: the value does not change under the
     * viewer while it restores.
     */
-  def initial: PersistedDiagramState
+  def initial: DiagramSnapshot
 
-  /** The state as somebody ELSE changed it (D7.3).
+  /** The metadata after a change from a DIFFERENT writer (D7.3).
     *
-    * `initial` is a snapshot, and for a long time it was the only way back in:
-    * the viewer read the record once at mount and never looked again. The
-    * library did its half — `createProjectPersistence` sets its `Var` when a
-    * record changes underneath an open view — and nothing consumed it. So a
-    * `gx set`, a `gx run hide`, or a pull from an origin file all landed in the
-    * record correctly and stayed invisible until the view was reopened.
+    * `initial` is a snapshot, and for a long time it was the only way back:
+    * the viewer read the store once at mount and never again. Thus a `gx hide`
+    * went into the store correctly, and did not show until the person opened
+    * the view again.
     *
-    * Empty for a store nothing else can write. An example has no durable home,
-    * and a loose file follows its SESSION instead (§7.3), which carries the
-    * conflict rule a record does not need.
+    * Only a file on the desktop has a second writer: `gx` changes the entry of
+    * the file in the library. The browser library and an example have no
+    * second writer, so their streams are empty. The SOURCE of a file does not
+    * come through here: a file follows its SESSION (§7.3), which has the
+    * conflict rule for a dirty editor.
     *
-    * A store must NOT emit this viewer's own [[update]] calls back. Comparing
-    * the incoming text against what is on screen looks like it would do the
-    * same job and does not: an update carries the snapshot taken when it was
-    * scheduled, so a write made mid-transaction arrives holding text the editor
-    * has already moved past. It reads as somebody else's change, and adopting
-    * it undoes the person's last keystroke.
+    * A value that the viewer already shows must cause no write. The viewer
+    * adopts only a value that differs, and the store writes only a change.
     */
-  def external: EventStream[PersistedDiagramState]
+  def external: EventStream[DiagramMetadata]
 
-  /** The state as the person edits it.
+  /** The state while the person edits it.
     *
-    * A library record saves here, on every change. A loose file does NOT: §7.1
-    * keeps a file edit in memory until a save, because a write to a file has
-    * conflict and external-tool implications that a record does not have.
+    * A browser diagram saves here, on each change. A file does NOT save its
+    * source here. §7.1 keeps an edit of a file in memory until a save, because
+    * a write to a file can cause a conflict and can affect external tools. The
+    * metadata of a file goes to its library entry at once.
     */
-  def update(state: PersistedDiagramState): Unit
+  def update(state: DiagramSnapshot): Unit
 
   /** Save now, because the person asked (§11). */
-  def saveNow(state: PersistedDiagramState)(using ExecutionContext): Future[SaveResult]
+  def saveNow(state: DiagramSnapshot)(using ExecutionContext): Future[SaveResult]
 
   /** Release what the store holds. Called when the view unmounts. */
   def close(): Unit
@@ -76,85 +76,78 @@ object DiagramPersistence:
   /** The one place a target chooses a store.
     *
     * Total over [[ViewTarget]], and that totality is the guarantee §6 asks for:
-    * a loose file cannot reach library persistence, because no branch here
-    * gives it one. A new target must choose a store to compile.
+    * a file cannot reach the browser library, because no branch here gives it
+    * one. A new target must choose a store to compile.
     */
   def forTarget(target: ViewTarget, initialSource: Option[String]): DiagramPersistence =
     target match
-      case ViewTarget.LibraryDiagram(id)  => LibraryDiagramPersistence(id, initialSource)
-      case ViewTarget.LooseFile(session)  => LooseFilePersistence(session)
-      case ViewTarget.Example(_, name)    => EphemeralPersistence.example(initialSource, name)
+      case ViewTarget.Diagram(id)      => LibraryPersistence(id, initialSource)
+      case ViewTarget.File(session)    => FilePersistence(session, Library.desktop)
+      case ViewTarget.Example(_, name) => EphemeralPersistence.example(initialSource, name)
 
-/** A library record: the store the app always had.
+/** The store for a diagram of the browser library (the web app).
   *
-  * `Library.createProjectPersistence` returns a `Var` whose changes reach
-  * storage, so `update` is a `set`, and there is nothing to open or close here.
+  * `Library.createDiagramPersistence` gives a `Var`, and each change to it goes
+  * to storage. Thus `update` is a `set`, and this class opens and closes
+  * nothing.
   */
-final class LibraryDiagramPersistence(id: ProjectId, initialSource: Option[String]) extends DiagramPersistence:
+final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) extends DiagramPersistence:
 
-  private val state: Var[PersistedDiagramState] =
-    Library.createProjectPersistence(id, initialSource)
+  private val state: Var[DiagramSnapshot] =
+    Library.createDiagramPersistence(id, initialSource)
 
-  lazy val initial: PersistedDiagramState = state.now()
+  lazy val initial: DiagramSnapshot = state.now()
 
-  /** Writes this view did not make.
-    *
-    * From the library's own stream, NOT from the `Var`. The `Var` carries this
-    * view's writes back as well, and no filter on the value can separate them:
-    * an echo holds the snapshot from when the write was scheduled, so it
-    * arrives carrying text the editor has already moved past — which is exactly
-    * what somebody else's change looks like.
+  /** A browser library has no second writer, so nothing can change a diagram
+    * behind an open tab.
     */
-  def external: EventStream[PersistedDiagramState] = Library.recordChangedExternally(id)
+  def external: EventStream[DiagramMetadata] = EventStream.empty
 
-  def update(next: PersistedDiagramState): Unit = state.set(next)
+  def update(next: DiagramSnapshot): Unit = state.set(next)
 
-  /** §11: flush the record. A record saves on every change already, so ⌘S has
-    * to force the write out rather than decide what to write. Any push to an
-    * origin file is governed by the record's binding and sync mode, and Phase 3
-    * moves that engine into `gx-core`.
+  /** §11: a browser diagram already saves on each change, so ⌘S has nothing
+    * left to write.
     */
-  def saveNow(next: PersistedDiagramState)(using ExecutionContext): Future[SaveResult] =
+  def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
-    Library.flush()
     Future.successful(SaveResult.Saved)
 
-  /** Nothing to release. The storage handle belongs to the library, and it
-    * outlives this view: another view of the same record must find it open.
+  /** This releases nothing. The storage handle belongs to the library, and it
+    * lives longer than this view. A different view of the same diagram must
+    * find it open.
     */
   def close(): Unit = ()
 
 /** A diagram with no durable home.
   *
-  * An example uses this. §7.2 also names it as the honest store for the parts
-  * of a loose file that have nowhere to go.
+  * An example uses this.
   */
-final class EphemeralPersistence(val initial: PersistedDiagramState, unsupportedMessage: String)
+final class EphemeralPersistence(val initial: DiagramSnapshot, unsupportedMessage: String)
     extends DiagramPersistence:
 
   private var current = initial
 
   /** Nothing else can write here, so there is nothing to hear. */
-  def external: EventStream[PersistedDiagramState] = EventStream.empty
+  def external: EventStream[DiagramMetadata] = EventStream.empty
 
-  def update(next: PersistedDiagramState): Unit = current = next
+  def update(next: DiagramSnapshot): Unit = current = next
 
-  def saveNow(next: PersistedDiagramState)(using ExecutionContext): Future[SaveResult] =
+  def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
     Future.successful(SaveResult.Unsupported(unsupportedMessage))
 
   def close(): Unit = ()
 
-  private[state] def latest: PersistedDiagramState = current
+  private[state] def latest: DiagramSnapshot = current
 
 object EphemeralPersistence:
 
-  /** The gallery's name for the example becomes its project name. Without it
-    * `displayTitle` falls through to "Untitled": an example has no stored name,
-    * and its source rarely declares a title.
+  /** The name that the gallery gives the example becomes the name of the
+    * diagram. Without it, `displayTitle` shows "Untitled", because an example
+    * has no stored name, and its source almost never declares a title.
     */
   def example(initialSource: Option[String], name: String): EphemeralPersistence =
     EphemeralPersistence(
-      PersistedDiagramState.minimal(initialSource).copy(projectName = name),
+      DiagramSnapshot.minimal(initialSource).copy(name = name),
       "Copy this example to your library before you save it"
     )

@@ -179,7 +179,7 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
 
   test("an event with no path opens no session, and ends none"):
     // Nothing in the shell sends one any more: every emitter carries a path,
-    // and `/v1/push-text` names its session and arrives as a session command.
+    // and `/v1/push-text` names its session and arrives as a live view command.
     // What is left is untrusted input, and the answer to it is "nothing" —
     // neither a new session nor the loss of an existing one.
     DesktopBridge.reset()
@@ -202,71 +202,53 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
   private def openEvent(detail: js.Dynamic): dom.Event =
     js.Dynamic.literal(detail = detail).asInstanceOf[dom.Event]
 
-  private def everyRecordExists: String => Boolean = _ => true
-  private def noRecordExists: String => Boolean     = _ => false
-
-  test("a library open request routes to that record, by id"):
-    // The whole point of the typed target: the id survives the trip. `gx open`
-    // used to resolve every reference to a PATH and discard the diagram id, so
-    // an open could not say which record it meant — and an unbound record,
-    // having no path, could not be opened at all.
-    val decision = DesktopOpenRequests.decide(
-      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "architecture"))),
-      everyRecordExists
+  test("an open request for a library record is refused: the desktop opens only files"):
+    // Each diagram on the desktop is a file (ADR 0001), and `gx` no longer
+    // sends the `library` kind. A shell or a `gx` from before must get a
+    // refusal, not a route to a diagram of the browser library.
+    assertEquals(
+      DesktopOpenRequests.decide(
+        openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "architecture")))
+      ),
+      DesktopOpenRequests.Decision.Reject("VIEW_REJECTED", "the page could not route to that target")
     )
-    decision match
-      case DesktopOpenRequests.Decision.Show(route, _) => assertEquals(route, Route.ProjectDetail("architecture"))
-      case other                                       => fail(s"expected a route, got $other")
 
   test("an open request we cannot act on navigates nowhere"):
     // Untrusted input from outside the page. Guessing a route would navigate
     // away from whatever the user is looking at, which is strictly worse than
     // refusing a request that names nothing.
     val unusable = List(
-      js.Dynamic.literal(target = js.Dynamic.literal(kind = "library")),                     // no id
-      js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "   ")),   // blank id
-      js.Dynamic.literal(target = js.Dynamic.literal(kind = "loose-file", diagramId = "x")),  // newer shell
-      js.Dynamic.literal(target = js.Dynamic.literal(diagramId = "architecture")),            // no kind
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "file")),                         // no path
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "   ")),           // blank path
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "loose-file", path = "/tmp/x")),  // a different shell
+      js.Dynamic.literal(target = js.Dynamic.literal(path = "/tmp/x")),                       // no kind
       js.Dynamic.literal(target = js.Dynamic.literal()),                                      // empty target
       js.Dynamic.literal()                                                                    // no target at all
     )
     for detail <- unusable do
       assertEquals(
-        DesktopOpenRequests.decide(openEvent(detail), everyRecordExists),
+        DesktopOpenRequests.decide(openEvent(detail)),
         DesktopOpenRequests.Decision.Reject("VIEW_REJECTED", "the page could not route to that target"),
         s"detail: $detail"
       )
 
-  test("an open request for a record the library does not hold is refused, with a reason"):
-    // The shell cannot make this check — D2.5 keeps it diagram-ignorant — so
-    // the page has to, and has to SAY so. Navigating anyway would leave the
-    // user on an empty diagram while `gx open` reported success.
-    val decision = DesktopOpenRequests.decide(
-      openEvent(js.Dynamic.literal(requestId = 7, target = js.Dynamic.literal(kind = "library", diagramId = "missing"))),
-      noRecordExists
-    )
-    assertEquals(
-      decision,
-      DesktopOpenRequests.Decision.Reject("DIAGRAM_NOT_FOUND", "no diagram 'missing' in this library")
-    )
-
   // ------------------------------- Phase 2 item 7: the file open handshake
 
   test("a file open request routes to that file's session, not to its path"):
-    // The defect this repairs: a loose file had no route, so `gx open <path>`
-    // reached no viewer on Home and landed in the wrong viewer with a project
-    // open — while still reporting success.
+    // This test checks the repair of a defect. Before, a file had no
+    // route. Thus `gx open <path>` reached no viewer on Home. When a diagram
+    // was open, the file went into the wrong viewer, and `gx open` still
+    // reported success.
     DesktopDocumentRegistry.reset()
     val open = DesktopDocumentRegistry.record("/tmp/opened.dot", "rev-1", "digraph G { a }")
 
     val decision = DesktopOpenRequests.decide(
-      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/opened.dot"))),
-      noRecordExists
+      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/opened.dot")))
     )
 
     decision match
       case DesktopOpenRequests.Decision.Show(route, view) =>
-        assertEquals(route, Route.LooseDocument(open.id.value))
+        assertEquals(route, Route.File(open.id.value))
         // §13: the acknowledgment names the session, and the route carries no path.
         val reported = view.asInstanceOf[js.Dynamic]
         assertEquals(reported.selectDynamic("kind").asInstanceOf[String], "file")
@@ -283,8 +265,7 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     DesktopDocumentRegistry.reset()
 
     val decision = DesktopOpenRequests.decide(
-      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/never-sent.dot"))),
-      noRecordExists
+      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/never-sent.dot")))
     )
 
     assertEquals(
@@ -303,8 +284,7 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
 
     def routeNow() =
       DesktopOpenRequests.decide(
-        openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/twice.dot"))),
-        noRecordExists
+        openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/twice.dot")))
       ) match
         case DesktopOpenRequests.Decision.Show(route, _) => route
         case other                                       => fail(s"expected a route, got $other")
@@ -314,12 +294,15 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     val after = routeNow()
 
     assertEquals(before, after)
-    assertEquals(after, Route.LooseDocument(first.id.value))
+    assertEquals(after, Route.File(first.id.value))
     DesktopDocumentRegistry.reset()
 
   test("open activation waits for parsing and reports parse failures"):
-    val route  = Route.ProjectDetail("architecture")
-    val target = ViewTarget.library("architecture")
+    DesktopDocumentRegistry.reset()
+    val open   = DesktopDocumentRegistry.record("/tmp/activation.dot", "rev-1", "digraph G { a }")
+    val other  = DesktopDocumentRegistry.record("/tmp/other.dot", "rev-1", "digraph G { b }")
+    val route  = Route.File(open.id.value)
+    val target = ViewTarget.File(open.id)
 
     assertEquals(
       DesktopOpenRequests.activation(route, target, DiagramLoadStatus.Loading),
@@ -334,41 +317,55 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
       DesktopOpenRequests.Activation.Rejected("PARSE_FAILED", "bad syntax")
     )
     assertEquals(
-      DesktopOpenRequests.activation(route, ViewTarget.library("other"), DiagramLoadStatus.Ready),
+      DesktopOpenRequests.activation(route, ViewTarget.File(other.id), DiagramLoadStatus.Ready),
       DesktopOpenRequests.Activation.Waiting,
       "an old live viewer must not acknowledge the new route"
     )
+    assertEquals(
+      DesktopOpenRequests.activation(route, ViewTarget.diagram("architecture"), DiagramLoadStatus.Ready),
+      DesktopOpenRequests.Activation.Waiting,
+      "a viewer of the browser library must not acknowledge a file"
+    )
+    DesktopDocumentRegistry.reset()
 
-  // --------------------------------------------- the tiers that still aim
-  //
-  // `DesktopBridge` no longer has a target to release. A document event lands
-  // in a record or a session, and the viewer showing that session follows it
-  // through an owner-scoped signal — so there is no process-global "current
-  // viewer" for an unmounted view to keep occupying.
-  //
-  // Two tiers still name one, because their questions are ABOUT the view on
-  // screen: "what is selected", and "is there an edit to lose before this
-  // window closes". Those keep the identity check below, and it is not
-  // defensive padding: Laminar mounts the incoming view BEFORE unmounting the
-  // outgoing one, so an unconditional clear would drop the live target.
+  test("a change to a file opens a document session for it"):
+    // Each diagram on the desktop is a file, so each document event goes to
+    // the registry. No event goes to a library copy.
+    DesktopDocumentRegistry.reset()
+    DesktopBridge.routeDocumentChange(DesktopBridge.DesktopMessage("digraph { x }", Some("/tmp/any.dot"), Some("rev-1")))
+    assertEquals(DesktopDocumentRegistry.find("/tmp/any.dot").map(_.sourceText), Some("digraph { x }"))
+    DesktopDocumentRegistry.reset()
 
-  test("the session tier releases a detached viewer, and keeps a current one"):
+  // --------------------------------- the tiers that still have a target
+  //
+  // `DesktopBridge` no longer has a target to release. A document event goes
+  // to a diagram or to a session. The viewer that shows that session gets its
+  // changes through an owner-scoped signal. Thus there is no process-global
+  // "current viewer" that an unmounted view can continue to hold.
+  //
+  // Two tiers still name a target, because their questions are ABOUT the view
+  // on the screen: "what is selected", and "is there an edit to lose before
+  // this window closes". These tiers keep the identity check below, and the
+  // check is necessary. Laminar mounts the new view BEFORE it unmounts the old
+  // view. Thus a clear without a condition removes the live target.
+
+  test("the live view tier releases a detached viewer, and keeps a current one"):
     withGraphvizAsync { graphviz =>
-      SessionCommands.reset()
-      val leaving  = ViewerState(ViewTarget.library("s-leaving"), graphviz)
-      val arriving = ViewerState(ViewTarget.library("s-arriving"), graphviz)
+      LiveViewCommands.reset()
+      val leaving  = ViewerState(ViewTarget.diagram("s-leaving"), graphviz)
+      val arriving = ViewerState(ViewTarget.diagram("s-arriving"), graphviz)
 
-      SessionCommands.attach(leaving)
-      SessionCommands.detach(leaving)
-      assertEquals(SessionCommands.currentTarget, None, "the session tier kept a departed viewer")
+      LiveViewCommands.attach(leaving)
+      LiveViewCommands.detach(leaving)
+      assertEquals(LiveViewCommands.currentTarget, None, "the live view tier kept a departed viewer")
 
-      SessionCommands.attach(leaving)
-      SessionCommands.attach(arriving)
-      SessionCommands.detach(leaving)
+      LiveViewCommands.attach(leaving)
+      LiveViewCommands.attach(arriving)
+      LiveViewCommands.detach(leaving)
       assert(
-        SessionCommands.currentTarget.exists(_ eq arriving),
+        LiveViewCommands.currentTarget.exists(_ eq arriving),
         "a stale detach cleared the viewer that is actually on screen"
       )
-      SessionCommands.reset()
+      LiveViewCommands.reset()
       Future.unit
     }

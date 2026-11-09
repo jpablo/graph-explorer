@@ -98,27 +98,11 @@ class OriginUriSpec extends FunSuite:
       assertEquals(back.value, once.value, s"not idempotent for $p")
   }
 
-  test("scheme is recognised, and unknown schemes are rejected rather than assumed") {
-    assertEquals(OriginUri.fromCanonicalPath("/a.dot").scheme, OriginScheme.File)
-    assertEquals(OriginUri.parse("https://example.com/a.dot").map(_.scheme), Right(OriginScheme.Https))
+  test("a file URI parses, and each other scheme is refused rather than assumed") {
+    // The library keeps only files now (ADR 0001). The migration reads an old
+    // `https:` origin as "not a file", and this refusal is how it knows.
+    assert(OriginUri.parse(OriginUri.fromCanonicalPath("/a.dot").value).isRight)
+    assert(OriginUri.parse("https://example.com/a.dot").isLeft)
     assert(OriginUri.parse("postgres://host/db").isLeft)
     assert(OriginUri.parse("/not/a/uri").isLeft)
-  }
-
-  test("filePath is empty for non-file schemes") {
-    val https = OriginUri.parse("https://example.com/a.dot").fold(e => fail(e), identity)
-    assertEquals(https.filePath, None)
-  }
-
-  // --------------------------------------------------- scheme capabilities
-
-  test("a scheme rejects a mode it cannot support, with a reason") {
-    assertEquals(OriginScheme.Https.rejectionFor(SyncMode.Pull), None)
-    assertEquals(OriginScheme.Https.rejectionFor(SyncMode.Detached), None)
-    assert(OriginScheme.Https.rejectionFor(SyncMode.Push).exists(_.contains("https")))
-    assert(OriginScheme.Https.rejectionFor(SyncMode.Sync).isDefined)
-  }
-
-  test("file supports every mode") {
-    for m <- SyncMode.values do assertEquals(OriginScheme.File.rejectionFor(m), None, s"mode $m")
   }

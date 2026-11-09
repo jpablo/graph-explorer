@@ -74,7 +74,7 @@ fn health() -> &'static str {
 #[derive(Clone)]
 struct IpcState {
     access_policy: AccessPolicy,
-    pending_sessions: PendingSessions,
+    pending_live_view_replies: PendingLiveViewReplies,
     pending_opens: PendingOpens,
     page_ready: PageReady,
     audit_logger: AuditLogger,
@@ -228,16 +228,16 @@ type WatchControllers = Arc<Mutex<HashMap<String, WatchController>>>;
 /// identity at all.
 type RecentWriteHashes = Arc<Mutex<HashMap<String, String>>>;
 
-/// Session requests awaiting the page's answer, by id.
+/// Live view requests that wait for the answer of the page, by id.
 ///
-/// The session tier is the only one the shell cannot answer itself (D2.5: it
-/// knows nothing about diagrams), so a request is parked here while the webview
-/// runs it. The channel is how the socket thread waits without holding a lock.
-type PendingSessions = Arc<Mutex<HashMap<u64, std::sync::mpsc::Sender<SessionOutcome>>>>;
+/// The live view tier is the only tier that the shell cannot answer itself
+/// (D2.5: it knows nothing about diagrams). So a request waits here while the
+/// webview runs it. The channel is how the socket thread waits without holding a lock.
+type PendingLiveViewReplies = Arc<Mutex<HashMap<u64, std::sync::mpsc::Sender<LiveViewOutcome>>>>;
 
 /// Open requests awaiting the page's acknowledgment, by request id.
 ///
-/// Same shape as [[PendingSessions]] and for the same reason: dispatching an
+/// Same shape as [[PendingLiveViewReplies]] and for the same reason: dispatching an
 /// event proves only that the shell spoke, never that the right view mounted
 /// and displayed the target (§4). The channel is how the socket thread waits
 /// for the page without holding a lock.
@@ -258,18 +258,17 @@ struct OpenOutcome {
     status: String,
     code: Option<String>,
     message: Option<String>,
-    /// What the page says it displayed (§4): a diagram id, or a document
-    /// session and its revision. Evidence of WHICH view answered, not merely
-    /// that one did.
+    /// What the page says it displayed (§4): a document session and its
+    /// revision. It tells WHICH view answered, not only that a view answered.
     view: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
-struct SessionOutcome {
+struct LiveViewOutcome {
     ok: bool,
     result: serde_json::Value,
     /// The page's own code, so "nothing is open" reaches the caller as
-    /// `NO_SESSION` rather than as a generic failure it would have to read the
+    /// `NO_LIVE_VIEW` rather than as a generic failure it would have to read the
     /// prose to recognise.
     code: String,
     message: String,
@@ -328,7 +327,7 @@ fn main() {
     let watch_registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
     let watch_controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
     let recent_write_hashes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
-    let pending_sessions: PendingSessions = Arc::new(Mutex::new(HashMap::new()));
+    let pending_live_view_replies: PendingLiveViewReplies = Arc::new(Mutex::new(HashMap::new()));
     let pending_opens: PendingOpens = Arc::new(Mutex::new(HashMap::new()));
     let page_ready: PageReady = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
 
@@ -359,7 +358,7 @@ fn main() {
     spawn_control_server(
         listener,
         access_policy.clone(),
-        pending_sessions.clone(),
+        pending_live_view_replies.clone(),
         pending_opens.clone(),
         page_ready.clone(),
         request_limits.clone(),
@@ -384,7 +383,7 @@ fn main() {
     // the socket by its file permissions (D4).
     let ipc_state = IpcState {
         access_policy: access_policy.clone(),
-        pending_sessions: pending_sessions.clone(),
+        pending_live_view_replies: pending_live_view_replies.clone(),
         pending_opens: pending_opens.clone(),
         page_ready: page_ready.clone(),
         audit_logger: audit_logger.clone(),
@@ -420,10 +419,10 @@ fn main() {
                 #[cfg(target_os = "macos")]
                 install_menu_with_asking_quit(app)?;
 
-                // D7.3: the library on disk is the live state, so a record
-                // written by `gx` with no window open has to reach the page
-                // once there is one. Nothing sends a message — the shell
-                // notices the directory moved and the page re-reads it.
+                // The metadata store on disk is the live state, so an entry
+                // that `gx` writes must reach the page. Nothing sends a
+                // message: the shell sees that `metadata/` changed, and the
+                // page reads it again.
                 spawn_library_watcher(app.handle().clone(), recent_write_hashes.clone());
 
                 // Apply the real app icon. Window icon is cross-platform
@@ -445,7 +444,7 @@ fn main() {
             open_document,
             save_document,
             list_documents,
-            session_reply,
+            live_view_reply,
             viewer_ready,
             complete_open,
             hash_text,
@@ -454,7 +453,13 @@ fn main() {
             library_list,
             library_read,
             library_write,
-            library_delete
+            library_delete,
+            library_legacy_list,
+            library_commit_migration,
+            diagrams_folder,
+            read_document,
+            create_document,
+            rename_document
         ])
         .on_menu_event({
             let unsaved = unsaved.clone();
@@ -931,23 +936,18 @@ struct WatchRequest {
     _open_in_ui: Option<bool>,
 }
 
-/// What `gx open` decided a reference means (§3.1).
+/// What `gx open` asks the desktop to show.
 ///
-/// `show` carries this instead of a bare path, because a library record and a
-/// loose file have different owners and different persistence rules, and the
-/// path alone cannot tell them apart. Resolving both to a path is what let an
-/// open request lose its record identity — and let an unbound record be
-/// unopenable, since it has no path to resolve to.
+/// `show` carries a typed target and not a bare path. Before ADR 0001, a
+/// target could also name a library record, and the shell sent it to the page.
+/// A diagram is now a file, so only a `file` target stays. A frame with an
+/// other kind, for example the old `library` kind, is an invalid request.
 ///
 /// Typed only, by decision: `gx` and this shell ship in one release, so a
 /// mixed pair is a version mismatch rather than a shape to negotiate.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 enum OpenTarget {
-    Library {
-        #[serde(rename = "diagramId")]
-        diagram_id: String,
-    },
     File {
         path: String,
     },
@@ -1046,7 +1046,7 @@ fn bind_control_socket() -> Result<UnixListener> {
 fn spawn_control_server(
     listener: UnixListener,
     access_policy: AccessPolicy,
-    pending_sessions: PendingSessions,
+    pending_live_view_replies: PendingLiveViewReplies,
     pending_opens: PendingOpens,
     page_ready: PageReady,
     request_limits: RequestLimits,
@@ -1073,7 +1073,7 @@ fn spawn_control_server(
             // on the accept loop would let one idle client block every other.
             let context = ConnectionContext {
                 access_policy: access_policy.clone(),
-                pending_sessions: pending_sessions.clone(),
+                pending_live_view_replies: pending_live_view_replies.clone(),
                 pending_opens: pending_opens.clone(),
                 page_ready: page_ready.clone(),
                 request_limits: request_limits.clone(),
@@ -1106,7 +1106,7 @@ type SharedAppHandle = Arc<OnceLock<tauri::AppHandle>>;
 #[derive(Clone)]
 struct ConnectionContext {
     access_policy: AccessPolicy,
-    pending_sessions: PendingSessions,
+    pending_live_view_replies: PendingLiveViewReplies,
     pending_opens: PendingOpens,
     page_ready: PageReady,
     request_limits: RequestLimits,
@@ -1313,9 +1313,8 @@ fn dispatch_method(
             Err(err) => RpcResponse::failure(id, "INTERNAL", err),
         },
 
-        // `show` carries a TYPED target (§3.1); `watch` is a plain file
-        // operation and keeps its path. They stopped being the same request the
-        // moment an open could name a library record that has no path at all.
+        // `show` carries a TYPED target (§3.1), and `watch` is a plain file
+        // operation with a path. The only target kind is `file` (ADR 0001).
         "show" => {
             let request: ShowRequest = match serde_json::from_value(params) {
                 Ok(request) => request,
@@ -1328,49 +1327,6 @@ fn dispatch_method(
             };
 
             match request.target {
-                // A record is the page's to resolve: it may have no origin, and
-                // even with one the RECORD is authoritative (§2). Nothing is
-                // watched here.
-                OpenTarget::Library { diagram_id } => {
-                    let target =
-                        serde_json::json!({ "kind": "library", "diagramId": diagram_id });
-                    match await_open(context, app, target, &format!("'{diagram_id}'")) {
-                        Ok(_) => {
-                            // Raised only AFTER the page confirmed it displayed
-                            // the record. Focusing first would bring forward a
-                            // window still showing the previous diagram.
-                            let focused = focus_main_window(app);
-                            context.audit_logger.log_event(
-                                "show.library",
-                                Some(&diagram_id),
-                                Some("open"),
-                                "ok",
-                                None,
-                                None,
-                            );
-                            RpcResponse::success(
-                                id,
-                                serde_json::json!({
-                                    "kind": "library",
-                                    "diagramId": diagram_id,
-                                    "focused": focused
-                                }),
-                            )
-                        }
-                        Err((code, message)) => {
-                            context.audit_logger.log_event(
-                                "show.rejected",
-                                Some(&diagram_id),
-                                Some("open"),
-                                "rejected",
-                                None,
-                                Some(&message),
-                            );
-                            RpcResponse::failure(id, code, message)
-                        }
-                    }
-                }
-
                 OpenTarget::File { path } => show_file(id, &path, context, app),
             }
         }
@@ -1474,16 +1430,16 @@ fn dispatch_method(
         }
 
         // A push NAMES the document it is aimed at, and goes through the
-        // session tier so the page can refuse it.
+        // live view tier, so the page can refuse it.
         //
         // It used to emit a `document.changed` with a null path — text with no
         // addressee — and the page put it into whichever viewer was on screen.
         // That is the same defect class as an open reporting success for a file
         // no viewer showed: the caller was told "pushed: true" whatever it hit.
         //
-        // The session tier already answers with the view's own state and
-        // reports NO_SESSION when there is no view, so routing through it makes
-        // the answer honest without inventing a second reply mechanism.
+        // The live view tier already answers with the state of the view, and it
+        // reports NO_LIVE_VIEW when there is no view. Thus a push through it gets
+        // an honest answer, and no second reply mechanism is necessary.
         "push-text" => {
             let request: PushTextRequest = match serde_json::from_value(params) {
                 Ok(request) => request,
@@ -1493,13 +1449,13 @@ fn dispatch_method(
                 "command": "push-text",
                 "params": { "sessionId": request.session_id, "text": request.text },
             });
-            match run_session_command(context, frame) {
+            match run_live_view_command(context, frame) {
                 Ok(_) => RpcResponse::success(id, serde_json::json!({ "pushed": true })),
                 Err((code, message)) => RpcResponse::failure(id, code, message),
             }
         }
 
-        "session" => match run_session_command(context, params) {
+        "live-view" => match run_live_view_command(context, params) {
             Ok(value) => RpcResponse::success(id, value),
             Err((code, message)) => RpcResponse::failure(id, code, message),
         },
@@ -1557,39 +1513,39 @@ fn status_body(context: &ConnectionContext) -> StatusBody {
     }
 }
 
-/// How long to wait for the page to answer a session command.
+/// How long to wait for the page to answer a live view command.
 ///
 /// Generous enough that a busy render does not look like a failure, short
 /// enough that a wedged page does not hang a socket client indefinitely — the
 /// failure mode that matters, since a CLI with no timeout is a CLI that has to
 /// be killed.
-const SESSION_TIMEOUT: Duration = Duration::from_secs(5);
+const LIVE_VIEW_TIMEOUT: Duration = Duration::from_secs(5);
 
-static SESSION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+static LIVE_VIEW_REQUEST_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
-/// Relay a session command to the webview and wait for its answer.
+/// Relay a live view command to the webview and wait for its answer.
 ///
 /// This is the one place the shell is a MIDDLEMAN rather than an implementer.
 /// D2.5 keeps it diagram-ignorant and D3 keeps the page capability-free, so a
 /// question about the live view has to cross both boundaries: the shell knows
 /// who asked and how to answer them, the page knows what the answer is.
-fn run_session_command(
+fn run_live_view_command(
     context: &ConnectionContext,
     params: serde_json::Value,
 ) -> std::result::Result<serde_json::Value, (&'static str, String)> {
     let command = params
         .get("command")
         .and_then(|v| v.as_str())
-        .ok_or(("INVALID_REQUEST", "a session call needs a 'command'".to_string()))?;
+        .ok_or(("INVALID_REQUEST", "a live-view call needs a 'command'".to_string()))?;
 
-    let id = SESSION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let (sender, receiver) = std::sync::mpsc::channel::<SessionOutcome>();
+    let id = LIVE_VIEW_REQUEST_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let (sender, receiver) = std::sync::mpsc::channel::<LiveViewOutcome>();
 
-    match context.pending_sessions.lock() {
+    match context.pending_live_view_replies.lock() {
         Ok(mut pending) => {
             pending.insert(id, sender);
         }
-        Err(err) => return Err(("INTERNAL", format!("session registry lock poisoned: {err}"))),
+        Err(err) => return Err(("INTERNAL", format!("live view registry lock poisoned: {err}"))),
     }
 
     // Registered BEFORE the page is told, so a reply that arrives immediately
@@ -1600,61 +1556,66 @@ fn run_session_command(
     }
     let script = match serde_json::to_string(&frame) {
         Ok(json) => format!(
-            "window.dispatchEvent(new CustomEvent('ge:session.command', {{ detail: {json} }}));"
+            "window.dispatchEvent(new CustomEvent('ge:live-view.command', {{ detail: {json} }}));"
         ),
         Err(err) => {
-            forget_session(context, id);
+            forget_live_view_request(context, id);
             return Err(("INTERNAL", err.to_string()));
         }
     };
 
     let windows = context.app()?.webview_windows();
     if windows.is_empty() {
-        forget_session(context, id);
-        // The session tier's defining limit, reported as itself: there is no
-        // live view, so there is no answer — not an empty one.
+        forget_live_view_request(context, id);
+        // The defining limit of the live view tier, reported as itself: there is
+        // no live view, so there is no answer — not an empty one.
         return Err((
-            "NO_SESSION",
+            "NO_LIVE_VIEW",
             format!("'{command}' needs a window, and the desktop has none open"),
         ));
     }
     for webview in windows.values() {
         if let Err(err) = webview.eval(&script) {
-            forget_session(context, id);
-            return Err(("SESSION_FAILED", format!("could not reach the page: {err}")));
+            forget_live_view_request(context, id);
+            return Err(("LIVE_VIEW_FAILED", format!("could not reach the page: {err}")));
         }
     }
 
-    let outcome = receiver.recv_timeout(SESSION_TIMEOUT);
-    forget_session(context, id);
+    let outcome = receiver.recv_timeout(LIVE_VIEW_TIMEOUT);
+    forget_live_view_request(context, id);
 
     match outcome {
         Ok(outcome) if outcome.ok => Ok(outcome.result),
-        Ok(outcome) => Err((
-            // An ALLOWLIST, so the page cannot mint codes a caller would have
-            // to discover by reading prose. Each one here means a different
-            // next move: open something, fix the argument, or look at what is
-            // on screen. Anything else is a failure with no advice to give.
-            match outcome.code.as_str() {
-                "NO_SESSION" => "NO_SESSION",
-                "INVALID_REQUEST" => "INVALID_REQUEST",
-                "VIEW_REJECTED" => "VIEW_REJECTED",
-                _ => "SESSION_FAILED",
-            },
-            outcome.message,
-        )),
+        Ok(outcome) => Err((live_view_failure_code(&outcome.code), outcome.message)),
         Err(_) => Err((
-            "SESSION_TIMEOUT",
-            format!("the page did not answer '{command}' within {SESSION_TIMEOUT:?}"),
+            "LIVE_VIEW_TIMEOUT",
+            format!("the page did not answer '{command}' within {LIVE_VIEW_TIMEOUT:?}"),
         )),
+    }
+}
+
+/// The code that the relay gives for a refusal of the page.
+///
+/// This is an ALLOWLIST. Thus the page cannot make a code that a caller must
+/// find in the prose. Each code here tells the caller a different next step:
+/// open a diagram (`NO_LIVE_VIEW`), correct the argument (`INVALID_REQUEST`),
+/// or show the diagram that the command names (`VIEW_REJECTED`; its message
+/// names the diagram on the screen). Each other code is `LIVE_VIEW_FAILED`, a
+/// failure with no advice.
+fn live_view_failure_code(code: &str) -> &'static str {
+    match code {
+        "NO_LIVE_VIEW" => "NO_LIVE_VIEW",
+        "INVALID_REQUEST" => "INVALID_REQUEST",
+        "VIEW_REJECTED" => "VIEW_REJECTED",
+        _ => "LIVE_VIEW_FAILED",
     }
 }
 
 /// How long an open waits for the page to say it displayed the target.
 ///
-/// Longer than a session command's five seconds because this one may include a
-/// cold start: the socket answers before the webview exists (§4.1), and a
-/// Windows runner has been seen taking half a minute to bring one up. Still
+/// Longer than the five seconds of a live view command, because this one can
+/// include a cold start: the socket answers before the webview exists (§4.1),
+/// and a Windows runner has been seen taking half a minute to bring one up. Still
 /// bounded — a CLI that never returns is a CLI that has to be killed.
 const OPEN_TIMEOUT: Duration = Duration::from_secs(45);
 
@@ -1727,7 +1688,6 @@ fn await_open(
         }
         Ok(outcome) => {
             let code = match outcome.code.as_deref() {
-                Some("DIAGRAM_NOT_FOUND") => "DIAGRAM_NOT_FOUND",
                 Some("DOCUMENT_NOT_FOUND") => "DOCUMENT_NOT_FOUND",
                 Some("OPEN_DENIED") => "OPEN_DENIED",
                 Some("PARSE_FAILED") => "PARSE_FAILED",
@@ -1773,8 +1733,8 @@ fn forget_open(context: &ConnectionContext, id: u64) {
 
 /// Drop a pending request whatever happened, so a timed-out or failed call does
 /// not leave an entry that a late reply could match.
-fn forget_session(context: &ConnectionContext, id: u64) {
-    if let Ok(mut pending) = context.pending_sessions.lock() {
+fn forget_live_view_request(context: &ConnectionContext, id: u64) {
+    if let Ok(mut pending) = context.pending_live_view_replies.lock() {
         pending.remove(&id);
     }
 }
@@ -1858,9 +1818,10 @@ fn confirm_close(app: tauri::AppHandle, state: tauri::State<'_, IpcState>) {
 
 /// Hash text for the page, so one SHA-256 serves the whole system.
 ///
-/// The page reconciles a bound record against its origin (§8), and that needs
-/// `local` — the record's text hashed as it would be STORED. The page cannot
-/// compute it: `Hashing` is `MessageDigest`, which does not exist in Scala.js.
+/// The page needs a SHA-256 in two places: the key of a library entry (the
+/// hash of the canonical `file:` URI of a diagram, `LibraryEntry.keySource`)
+/// and the hash of a text. The page cannot compute it: `Hashing` is
+/// `MessageDigest`, which does not exist in Scala.js.
 ///
 /// A second digest in the webview would be the alternative, and it would have
 /// to agree with this one byte for byte forever. `content_hash` is already
@@ -1877,14 +1838,14 @@ fn hash_text(text: String) -> String {
     content_hash(text.as_bytes())
 }
 
-/// The page's answer to a session command.
+/// The answer of the page to a live view command.
 ///
 /// A Tauri command rather than anything the page can reach on its own: it can
 /// only ANSWER a question the shell asked, and an id nobody is waiting for is
 /// dropped. That keeps the inversion honest — the webview serves this tier
 /// without gaining the ability to initiate anything.
 #[tauri::command(rename_all = "camelCase")]
-fn session_reply(
+fn live_view_reply(
     state: tauri::State<'_, IpcState>,
     id: u64,
     ok: bool,
@@ -1892,13 +1853,13 @@ fn session_reply(
     code: Option<String>,
     message: Option<String>,
 ) {
-    let outcome = SessionOutcome {
+    let outcome = LiveViewOutcome {
         ok,
         result: result.unwrap_or(serde_json::Value::Null),
-        code: code.unwrap_or_else(|| "SESSION_FAILED".to_string()),
+        code: code.unwrap_or_else(|| "LIVE_VIEW_FAILED".to_string()),
         message: message.unwrap_or_else(|| "the page reported a failure".to_string()),
     };
-    if let Ok(mut pending) = state.pending_sessions.lock() {
+    if let Ok(mut pending) = state.pending_live_view_replies.lock() {
         if let Some(sender) = pending.remove(&id) {
             let _ = sender.send(outcome);
         }
@@ -2457,7 +2418,7 @@ fn activate_document(app_handle: &tauri::AppHandle, watch: &WatchDescriptor) -> 
     emit_document_changed_event(app_handle, &payload)
 }
 
-/// The `show` path for a LOOSE FILE: watch it, put it on screen, raise the
+/// The `show` path for a diagram file: watch it, put it on screen, raise the
 /// window — and refuse to call any of that a success if there is no page.
 fn show_file(
     id: Option<serde_json::Value>,
@@ -2812,65 +2773,103 @@ fn set_owner_only_permissions(_path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// A directory that only its owner can read, write and enter (0700).
+///
+/// The JVM makes the temporary directory of the migration with
+/// `Files.createTempDirectory`, which gives 0700 on POSIX. The shell gives the
+/// same bits, so that `metadata/` does not depend on which process made it.
+#[cfg(unix)]
+fn set_owner_only_dir_permissions(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+        .with_context(|| format!("failed to set directory permissions on {}", path.display()))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_owner_only_dir_permissions(_path: &Path) -> Result<()> {
+    Ok(())
+}
+
 // ------------------------------------------------------------------ library
 //
-// D7.3: the store IS the live state. `gx` writes records into
-// `~/.graph-explorer/library/diagrams/<name>.json`, and the webview reads and
-// writes that same directory through the commands below — so a headless
-// `gx import` reaches a running window with no message sent, which is the
-// whole point of the decision.
+// ADR 0001: a diagram is a file, and the library is the metadata of each file.
+// `gx` writes one entry for each diagram into
+// `$GX_HOME/library/metadata/<sha256>.json`. The webview reads and writes the
+// same directory through the commands below. Thus a `gx hide` reaches a
+// running window with no message.
 //
-// The shell moves RAW JSON STRINGS and never parses a `Diagram` (D2.5:
+// The name of an entry is the hex SHA-256 of the canonical `file:` URI of the
+// diagram (`LibraryEntry.keySource` in gx-core). The page makes the URI with
+// the shared Scala function and hashes it with `hash_text`. The shell does not
+// make the URI. It checks only that a name has the form of a key, so that a
+// name cannot address a file outside the directory.
+//
+// The shell moves RAW JSON STRINGS and never parses an entry (D2.5:
 // privilege, not intelligence). The schema is gx-core's, defined once in Scala
-// and linked into both `gx` and the page. A Rust struct mirroring it would be
-// a third implementation of one contract, free to drift — which is precisely
-// how V-13's content hash diverged.
+// and linked into both `gx` and the page. A Rust struct for it would be a
+// third copy of one contract, and a copy can drift. V-13's content hash
+// drifted in that way.
+//
+// The old records are in `library/diagrams/`. The shell only reads them, for
+// the one-time migration (plan §4). It never writes there, so that an older
+// desktop that is still installed shows its library as before.
 
-fn library_dir_path() -> Result<PathBuf> {
-    Ok(graph_explorer_dir()?.join("library").join("diagrams"))
+/// `$GX_HOME/library`: the parent of `metadata/` and of `diagrams/`.
+fn library_root_path() -> Result<PathBuf> {
+    Ok(graph_explorer_dir()?.join("library"))
 }
 
-/// Resolve a library file name against the library directory, checking only
-/// that it cannot address anything outside it.
+/// `library/metadata`: one entry for each diagram (plan §3).
+fn metadata_dir_in(library_root: &Path) -> PathBuf {
+    library_root.join("metadata")
+}
+
+/// `library/diagrams`: the old records, read only by the migration.
+fn legacy_dir_in(library_root: &Path) -> PathBuf {
+    library_root.join("diagrams")
+}
+
+fn metadata_dir_path() -> Result<PathBuf> {
+    Ok(metadata_dir_in(&library_root_path()?))
+}
+
+/// True for a name of the form `<64 lowercase hex characters>.json`.
 ///
-/// The id -> file-name mapping is NOT known here. It is `DiagramFileName` in
-/// gx-core's shared Scala, called by `gx` and by the page, so there is exactly
-/// one rule. The shell asks a different and independently safe question: can
-/// this name escape the directory?
+/// That is the form of every key that `MetadataStore.fileNameOf` gives. A
+/// name of this form has no separator, no dot at the start and no drive
+/// letter, so a join with the directory cannot leave the directory.
+fn is_entry_name(name: &str) -> bool {
+    match name.strip_suffix(".json") {
+        Some(key) => {
+            key.len() == 64 && key.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        }
+        None => false,
+    }
+}
+
+/// Resolve the name of an entry against the metadata directory.
 ///
-/// Since no accepted name may contain a separator, joining cannot escape — so
-/// this is sufficient without canonicalizing a file that may not exist yet.
-/// `:` is rejected for Windows, where `join("C:x")` would replace the whole
-/// path rather than extend it, and a leading `.` is rejected so a name can
-/// never collide with the `.<name>.tmp` file an atomic write uses.
+/// The key rule is NOT here. It is in gx-core's shared Scala, which `gx` and
+/// the page call, so there is one rule. The shell asks a different question,
+/// and the answer is safe without the rule: does the name have the form of a
+/// key?
 fn library_entry_path(dir: &Path, name: &str) -> std::result::Result<PathBuf, IpcError> {
-    let refuse = |why: &str| {
+    if is_entry_name(name) {
+        Ok(dir.join(name))
+    } else {
         Err(IpcError::new(
             "INVALID_LIBRARY_NAME",
-            format!("{why}: {name:?}"),
+            format!("a library entry name must be <64 lowercase hex characters>.json: {name:?}"),
         ))
-    };
-    if name.is_empty() {
-        return refuse("a library entry needs a name");
     }
-    if name.len() > 200 {
-        return refuse("library entry name is too long");
-    }
-    if name.starts_with('.') {
-        return refuse("a library entry name may not start with a dot");
-    }
-    if name.contains('/') || name.contains('\\') || name.contains(':') || name.contains('\0') {
-        return refuse("a library entry name may not contain a path separator");
-    }
-    Ok(dir.join(name))
 }
 
-/// One record as the page receives it.
+/// One entry, or one old record, as the page receives it.
 ///
-/// A record that cannot be read is REPORTED rather than dropped: silently
-/// omitting it would show the user a library that is missing a diagram with no
-/// indication why, and `LibraryStore.unreadable()` makes the same choice on the
-/// JVM side.
+/// A file that cannot be read is REPORTED and not dropped. If the shell
+/// dropped it, the library would have a missing diagram and no message.
+/// `MetadataStore.unreadable()` makes the same choice on the JVM side.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LibraryEntry {
@@ -2883,8 +2882,7 @@ struct LibraryEntry {
 
 fn read_library_entries(dir: &Path) -> Vec<LibraryEntry> {
     let Ok(listing) = fs::read_dir(dir) else {
-        // No directory yet is an empty library, not a failure: nothing has
-        // written a record. `gx` creates it on first import.
+        // A directory that does not exist is an empty list, not a failure.
         return Vec::new();
     };
 
@@ -2911,18 +2909,15 @@ fn read_library_entries(dir: &Path) -> Vec<LibraryEntry> {
         })
         .collect();
 
-    // Sorted so the page gets a stable order across calls; `read_dir` yields
-    // whatever the filesystem does, which differs between platforms and would
-    // reshuffle the library on every refresh.
+    // Sorted, so that the page gets the same order each time. `read_dir` gives
+    // the order of the file system, which is different on each platform.
     entries.sort_by(|a, b| a.name.cmp(&b.name));
     entries
 }
 
-#[tauri::command(rename_all = "camelCase")]
-fn library_list(state: tauri::State<'_, IpcState>) -> std::result::Result<Vec<LibraryEntry>, IpcError> {
-    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
-    let entries = read_library_entries(&dir);
-    state.audit_logger.log_event(
+fn list_library_entries(dir: &Path, audit_logger: &AuditLogger) -> Vec<LibraryEntry> {
+    let entries = read_library_entries(dir);
+    audit_logger.log_event(
         "library.list",
         Some(&dir.to_string_lossy()),
         Some("ui"),
@@ -2930,19 +2925,18 @@ fn library_list(state: tauri::State<'_, IpcState>) -> std::result::Result<Vec<Li
         None,
         None,
     );
-    Ok(entries)
+    entries
 }
 
-#[tauri::command(rename_all = "camelCase")]
-fn library_read(
-    state: tauri::State<'_, IpcState>,
-    name: String,
+fn read_library_entry(
+    dir: &Path,
+    name: &str,
+    audit_logger: &AuditLogger,
 ) -> std::result::Result<String, IpcError> {
-    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
-    let path = library_entry_path(&dir, &name)?;
+    let path = library_entry_path(dir, name)?;
     let json = fs::read_to_string(&path)
         .map_err(|err| IpcError::new("LIBRARY_READ_FAILED", format!("{name}: {err}")))?;
-    state.audit_logger.log_event(
+    audit_logger.log_event(
         "library.read",
         Some(&path.to_string_lossy()),
         Some("ui"),
@@ -2953,33 +2947,44 @@ fn library_read(
     Ok(json)
 }
 
-#[tauri::command(rename_all = "camelCase")]
-fn library_write(
-    state: tauri::State<'_, IpcState>,
-    name: String,
-    json: String,
+/// Write one entry into the metadata directory.
+///
+/// The write refuses a directory that does not exist, and it does NOT make
+/// the directory. The migration makes it, and the migration runs only while
+/// the directory does not exist. If a write made it, the migration would
+/// never run, and the old records would stay out of the library.
+/// `MetadataStore.put` refuses in the same way on the JVM.
+fn write_library_entry(
+    dir: &Path,
+    name: &str,
+    json: &str,
+    recent_write_hashes: &RecentWriteHashes,
+    audit_logger: &AuditLogger,
 ) -> std::result::Result<(), IpcError> {
-    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
-    let path = library_entry_path(&dir, &name)?;
-
-    fs::create_dir_all(&dir)
-        .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
+    let path = library_entry_path(dir, name)?;
+    if !dir.is_dir() {
+        return Err(IpcError::new(
+            "LIBRARY_NOT_MIGRATED",
+            format!(
+                "the metadata store {} does not exist. The migration makes it.",
+                dir.display()
+            ),
+        ));
+    }
 
     let existed = path.exists();
 
-    // The same atomic write documents use, so V-03 (a write keeps the file's
-    // permission bits) holds for library records too.
-    write_file_atomic(&path.to_string_lossy(), &json)
+    // The same atomic write that documents use. Thus V-03 (a write keeps the
+    // permission bits of the file) applies to library entries too.
+    write_file_atomic(&path.to_string_lossy(), json)
         .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
 
-    // A NEW record is owner-only, matching what `gx` produces.
+    // A NEW entry is owner-only, as the entries that `gx` writes are.
     //
-    // Not a contradiction of V-03, which is about not changing bits somebody
-    // chose: nobody chose these, the file did not exist. What it fixes is one
-    // library with two creators disagreeing — `gx` lands new records at 0600
-    // (a JDK temp file's default), while the umask default here made them
-    // world-readable. A user's diagrams should not become readable to other
-    // local accounts depending on which process happened to create them.
+    // This does not contradict V-03. V-03 keeps the bits that a person chose.
+    // Nobody chose these bits, because the file did not exist. Without this,
+    // `gx` and the shell give a new entry different bits, and the metadata of
+    // a person becomes readable by other local accounts, by chance.
     #[cfg(unix)]
     if !existed {
         if let Err(err) = set_owner_only_permissions(&path) {
@@ -2989,14 +2994,14 @@ fn library_write(
     #[cfg(not(unix))]
     let _ = existed;
 
-    // Remember our own bytes so the watcher below does not tell the page about
-    // a change the page just made. Without this every UI edit round-trips back
-    // as an external change and fights whatever the user typed next.
-    if let Ok(mut hashes) = state.recent_write_hashes.lock() {
+    // Keep the hash of our own bytes, so that the watcher does not tell the
+    // page about a change that the page made. Without this, each change in the
+    // page comes back as an outside change.
+    if let Ok(mut hashes) = recent_write_hashes.lock() {
         hashes.insert(path.to_string_lossy().to_string(), content_hash(json.as_bytes()));
     }
 
-    state.audit_logger.log_event(
+    audit_logger.log_event(
         "library.write",
         Some(&path.to_string_lossy()),
         Some("ui"),
@@ -3007,13 +3012,15 @@ fn library_write(
     Ok(())
 }
 
-#[tauri::command(rename_all = "camelCase")]
-fn library_delete(
-    state: tauri::State<'_, IpcState>,
-    name: String,
+/// Remove one entry. The diagram file does not change ("Remove from
+/// library"). `false` tells that the entry was not there.
+fn delete_library_entry(
+    dir: &Path,
+    name: &str,
+    recent_write_hashes: &RecentWriteHashes,
+    audit_logger: &AuditLogger,
 ) -> std::result::Result<bool, IpcError> {
-    let dir = library_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
-    let path = library_entry_path(&dir, &name)?;
+    let path = library_entry_path(dir, name)?;
     let removed = match fs::remove_file(&path) {
         Ok(()) => true,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => false,
@@ -3024,13 +3031,13 @@ fn library_delete(
             ))
         }
     };
-    // So the watcher does not report our own delete back to us as news.
+    // Thus the watcher does not report our own delete back to us.
     if removed {
-        if let Ok(mut hashes) = state.recent_write_hashes.lock() {
+        if let Ok(mut hashes) = recent_write_hashes.lock() {
             hashes.insert(path.to_string_lossy().to_string(), LIBRARY_DELETED.to_string());
         }
     }
-    state.audit_logger.log_event(
+    audit_logger.log_event(
         "library.delete",
         Some(&path.to_string_lossy()),
         Some("ui"),
@@ -3041,7 +3048,716 @@ fn library_delete(
     Ok(removed)
 }
 
-/// One record's identity for change detection: name, size, mtime.
+#[tauri::command(rename_all = "camelCase")]
+fn library_list(state: tauri::State<'_, IpcState>) -> std::result::Result<Vec<LibraryEntry>, IpcError> {
+    let dir = metadata_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    Ok(list_library_entries(&dir, &state.audit_logger))
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_read(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+) -> std::result::Result<String, IpcError> {
+    let dir = metadata_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    read_library_entry(&dir, &name, &state.audit_logger)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_write(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+    json: String,
+) -> std::result::Result<(), IpcError> {
+    let dir = metadata_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    write_library_entry(&dir, &name, &json, &state.recent_write_hashes, &state.audit_logger)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_delete(
+    state: tauri::State<'_, IpcState>,
+    name: String,
+) -> std::result::Result<bool, IpcError> {
+    let dir = metadata_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    delete_library_entry(&dir, &name, &state.recent_write_hashes, &state.audit_logger)
+}
+
+// --------------------------------------------------------------- migration
+
+/// The old records, for the migration, and whether the migration is done.
+///
+/// `migrated` is true when `metadata/` exists. Then the migration has nothing
+/// to do, and the shell does not read the old records.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LegacyListing {
+    migrated: bool,
+    records: Vec<LibraryEntry>,
+}
+
+/// List the old records in `library/diagrams/`. This function only reads.
+fn list_legacy_records(library_root: &Path, audit_logger: &AuditLogger) -> LegacyListing {
+    let migrated = metadata_dir_in(library_root).exists();
+    let records = if migrated {
+        Vec::new()
+    } else {
+        read_library_entries(&legacy_dir_in(library_root))
+    };
+    audit_logger.log_event(
+        "library.legacy_list",
+        Some(&legacy_dir_in(library_root).to_string_lossy()),
+        Some("ui"),
+        "allowed",
+        None,
+        Some(&format!("migrated={migrated}, records={}", records.len())),
+    );
+    LegacyListing { migrated, records }
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_legacy_list(
+    state: tauri::State<'_, IpcState>,
+) -> std::result::Result<LegacyListing, IpcError> {
+    let root = library_root_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    Ok(list_legacy_records(&root, &state.audit_logger))
+}
+
+/// One entry that the migration writes: the name of its file and its JSON.
+#[derive(Debug, Deserialize)]
+struct NamedEntry {
+    name: String,
+    json: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MigrationCommit {
+    committed: usize,
+}
+
+/// Write the entries of the migration into a new `metadata/` (plan §4).
+///
+/// The order makes a crash safe. The entries go into a temporary directory
+/// beside `metadata/`, and a rename makes it `metadata/` LAST. Before the
+/// rename, `metadata/` does not exist, and the next start tries again. After
+/// the rename, the store is complete. No order of failures leaves a part of a
+/// store. `MetadataMigrationExecutor.execute` uses the same order on the JVM.
+fn commit_migration(
+    library_root: &Path,
+    entries: &[NamedEntry],
+    audit_logger: &AuditLogger,
+) -> std::result::Result<MigrationCommit, IpcError> {
+    let metadata_dir = metadata_dir_in(library_root);
+    let already = || {
+        IpcError::new(
+            "LIBRARY_ALREADY_MIGRATED",
+            format!("{} exists, so the migration is done", metadata_dir.display()),
+        )
+    };
+    if metadata_dir.exists() {
+        return Err(already());
+    }
+
+    // Check each name before the first write, so that a bad name changes
+    // nothing.
+    let mut seen = std::collections::HashSet::new();
+    for entry in entries {
+        library_entry_path(&metadata_dir, &entry.name)?;
+        if !seen.insert(entry.name.as_str()) {
+            return Err(IpcError::new(
+                "INVALID_LIBRARY_NAME",
+                format!("the migration names {:?} two times", entry.name),
+            ));
+        }
+    }
+
+    let failed = |why: String| {
+        audit_logger.log_event(
+            "library.migration_committed",
+            Some(&metadata_dir.to_string_lossy()),
+            Some("ui"),
+            "error",
+            None,
+            Some(&why),
+        );
+        IpcError::new("LIBRARY_MIGRATION_FAILED", why)
+    };
+
+    fs::create_dir_all(library_root)
+        .map_err(|err| failed(format!("could not make {}: {err}", library_root.display())))?;
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let temp = library_root.join(format!(".metadata-{}-{nanos}", std::process::id()));
+    fs::create_dir(&temp)
+        .map_err(|err| failed(format!("could not make {}: {err}", temp.display())))?;
+
+    let result = (|| -> std::result::Result<(), String> {
+        // Owner-only, as the temporary directory that the JVM makes is.
+        set_owner_only_dir_permissions(&temp).map_err(|err| err.to_string())?;
+        for entry in entries {
+            let path = temp.join(&entry.name);
+            fs::write(&path, entry.json.as_bytes())
+                .map_err(|err| format!("could not write {}: {err}", entry.name))?;
+            set_owner_only_permissions(&path).map_err(|err| err.to_string())?;
+        }
+        // A different process can finish its own migration in the meantime.
+        // Check again just before the rename, so that this run does not put
+        // its store over that store.
+        if metadata_dir.exists() {
+            return Err("ALREADY".to_string());
+        }
+        fs::rename(&temp, &metadata_dir)
+            .map_err(|err| format!("could not rename {} to {}: {err}", temp.display(), metadata_dir.display()))
+    })();
+
+    match result {
+        Ok(()) => {
+            audit_logger.log_event(
+                "library.migration_committed",
+                Some(&metadata_dir.to_string_lossy()),
+                Some("ui"),
+                "ok",
+                None,
+                Some(&format!("entries={}", entries.len())),
+            );
+            Ok(MigrationCommit {
+                committed: entries.len(),
+            })
+        }
+        Err(why) => {
+            // The temporary directory belongs to this run, so its removal
+            // loses nothing.
+            let _ = fs::remove_dir_all(&temp);
+            if why == "ALREADY" {
+                Err(already())
+            } else {
+                Err(failed(why))
+            }
+        }
+    }
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn library_commit_migration(
+    state: tauri::State<'_, IpcState>,
+    entries: Vec<NamedEntry>,
+) -> std::result::Result<MigrationCommit, IpcError> {
+    let root = library_root_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
+    commit_migration(&root, &entries, &state.audit_logger)
+}
+
+// --------------------------------------------------- the folder for new diagrams
+
+/// The folder for new diagrams: `$GX_DIAGRAMS_DIR`, or else
+/// `~/Documents/Graph Explorer`.
+///
+/// It must agree with `GxHome.diagramsDir` in gx-core. The two test suites
+/// read the same cases in `local-protocol/fixtures/diagrams-dir.json`.
+///
+/// `$GX_HOME` does not move this folder, because the diagrams are the files
+/// of the person and not the data of gx. A blank value means "not set", as a
+/// blank `GX_HOME` does. A relative value is refused for the reason that a
+/// relative `GX_HOME` is refused: gx and the desktop do not share a working
+/// directory.
+fn diagrams_dir_from(
+    diagrams_dir: Option<std::ffi::OsString>,
+    home_dir: Option<PathBuf>,
+) -> Result<PathBuf> {
+    if let Some(dir) = diagrams_dir {
+        let trimmed = dir.to_string_lossy().trim().to_string();
+        if !trimmed.is_empty() {
+            let path = PathBuf::from(&trimmed);
+            if path.is_relative() {
+                anyhow::bail!(
+                    "GX_DIAGRAMS_DIR must be an absolute path, but is '{trimmed}'. A relative \
+                     value resolves against each process's working directory, and gx and the \
+                     desktop do not share one — they would put new diagrams in different \
+                     folders without saying so."
+                );
+            }
+            return Ok(normalize_dot_segments(&path));
+        }
+    }
+    let home_dir = home_dir.context("could not locate user home directory")?;
+    Ok(home_dir.join("Documents").join("Graph Explorer"))
+}
+
+/// The folder for new diagrams, and the names that exist in it.
+///
+/// `existing` holds each name in the folder and each name in `Recovered/`
+/// (as `Recovered/<name>`). The migration needs them, because it must not
+/// give a new file the name of a file that exists. The JVM gives the same
+/// names (`MetadataMigrationExecutor.namesIn`): each entry, a file or a
+/// directory.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DiagramsFolder {
+    path: String,
+    existing: Vec<String>,
+}
+
+fn diagrams_folder_listing(
+    access_policy: &AccessPolicy,
+    folder: &Path,
+) -> std::result::Result<DiagramsFolder, IpcError> {
+    let canonical = normalize_path(&folder.to_string_lossy())
+        .map_err(|err| IpcError::new("DIAGRAMS_FOLDER_INVALID", err))?;
+    let canonical_path = PathBuf::from(&canonical);
+    ensure_path_not_denied(access_policy, &canonical_path)
+        .and_then(|_| ensure_path_allowed(access_policy, &canonical_path))
+        .map_err(|err| IpcError::new("DOCUMENT_DENIED", err))?;
+
+    let names_in = |dir: &Path, prefix: &str| -> Vec<String> {
+        match fs::read_dir(dir) {
+            Ok(listing) => listing
+                .filter_map(|entry| entry.ok())
+                .map(|entry| format!("{prefix}{}", entry.file_name().to_string_lossy()))
+                .collect(),
+            Err(_) => Vec::new(),
+        }
+    };
+    let mut existing = names_in(&canonical_path, "");
+    existing.extend(names_in(&canonical_path.join("Recovered"), "Recovered/"));
+    existing.sort();
+
+    Ok(DiagramsFolder {
+        path: canonical,
+        existing,
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn diagrams_folder(
+    state: tauri::State<'_, IpcState>,
+) -> std::result::Result<DiagramsFolder, IpcError> {
+    let folder = diagrams_dir_from(env::var_os("GX_DIAGRAMS_DIR"), dirs::home_dir())
+        .map_err(|err| IpcError::new("DIAGRAMS_FOLDER_INVALID", err))?;
+    let listing = diagrams_folder_listing(&state.access_policy, &folder)?;
+    state.audit_logger.log_event(
+        "diagrams.folder",
+        Some(&listing.path),
+        Some("ui"),
+        "allowed",
+        None,
+        None,
+    );
+    Ok(listing)
+}
+
+// --------------------------------------------------------- diagram files
+
+/// The canonical path of a document, after the access policy.
+///
+/// The policy check comes BEFORE each existence check. Thus a refusal tells
+/// nothing about a file that the policy hides.
+fn allowed_document_path(
+    access_policy: &AccessPolicy,
+    path: &str,
+    failure_code: &'static str,
+) -> std::result::Result<String, IpcError> {
+    let normalized = normalize_path(path).map_err(|err| IpcError::new(failure_code, err))?;
+    let normalized_path = PathBuf::from(&normalized);
+    ensure_path_not_denied(access_policy, &normalized_path)
+        .and_then(|_| ensure_path_allowed(access_policy, &normalized_path))
+        .map_err(|err| IpcError::new("DOCUMENT_DENIED", err))?;
+    Ok(normalized)
+}
+
+/// Log the result of a document operation, and give the result back.
+fn audited<T>(
+    audit_logger: &AuditLogger,
+    action: &str,
+    path: &str,
+    result: std::result::Result<(T, Option<String>), IpcError>,
+) -> std::result::Result<T, IpcError> {
+    match result {
+        Ok((value, revision)) => {
+            audit_logger.log_event(action, Some(path), Some("ui"), "ok", revision, None);
+            Ok(value)
+        }
+        Err(err) => {
+            audit_logger.log_event(
+                action,
+                Some(path),
+                Some("ui"),
+                "rejected",
+                None,
+                Some(&format!("{}: {}", err.code, err.message)),
+            );
+            Err(err)
+        }
+    }
+}
+
+/// Read a diagram file, with NO watch.
+///
+/// The home page shows the title, the kind and a thumbnail of each diagram in
+/// the library. A watch for each of these files costs a thread and a poll,
+/// and the page does not follow the files on the home page. `open_document`
+/// starts a watch when a diagram opens.
+///
+/// The text is a LOSSY UTF-8 decode, as the watch loop makes. The revision is
+/// the hash of the bytes on disk, so a compare-and-swap save sees each
+/// difference, also one that the decode hides.
+fn read_document_at(
+    access_policy: &AccessPolicy,
+    audit_logger: &AuditLogger,
+    path: &str,
+) -> std::result::Result<DocumentSnapshot, IpcError> {
+    let result = (|| {
+        let normalized = allowed_document_path(access_policy, path, "DOCUMENT_READ_FAILED")?;
+        match fs::metadata(&normalized) {
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                return Err(IpcError::new("DOCUMENT_MISSING", format!("{normalized} does not exist")))
+            }
+            Err(err) => return Err(IpcError::new("DOCUMENT_READ_FAILED", format!("{normalized}: {err}"))),
+            Ok(meta) if !meta.is_file() => {
+                return Err(IpcError::new(
+                    "DOCUMENT_READ_FAILED",
+                    format!("{normalized} is not a regular file"),
+                ))
+            }
+            Ok(_) => {}
+        }
+        let bytes = fs::read(&normalized)
+            .map_err(|err| IpcError::new("DOCUMENT_READ_FAILED", format!("{normalized}: {err}")))?;
+        let revision = content_hash(&bytes);
+        let snapshot = DocumentSnapshot {
+            format: infer_format_from_path(&normalized),
+            text: String::from_utf8_lossy(&bytes).into_owned(),
+            revision: revision.clone(),
+            path: normalized,
+            timestamp_ms: current_time_ms(),
+        };
+        Ok((snapshot, Some(revision)))
+    })();
+    audited(audit_logger, "document.read", path, result)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn read_document(
+    state: tauri::State<'_, IpcState>,
+    path: String,
+) -> std::result::Result<DocumentSnapshot, IpcError> {
+    read_document_at(&state.access_policy, &state.audit_logger, &path)
+}
+
+/// Create a NEW diagram file. The create never writes over a file that
+/// exists.
+///
+/// The create is atomic and it does not overwrite. The text goes into a
+/// temporary file beside the target, and a hard link gives it the name of the
+/// target. A hard link fails when the name exists, so a file that a different
+/// process made in the meantime stays unchanged. A reader never sees a part
+/// of the file.
+///
+/// The bytes are the text, unchanged (V-04: the page gives the line endings
+/// and the final newline). The new file gets the default mode of the umask of
+/// the person (V-03 for a file that did not exist), because the temporary file
+/// gets it and the link shares it.
+fn create_document_at(
+    access_policy: &AccessPolicy,
+    audit_logger: &AuditLogger,
+    path: &str,
+    text: &str,
+) -> std::result::Result<DocumentSnapshot, IpcError> {
+    let result = (|| {
+        let normalized = allowed_document_path(access_policy, path, "DOCUMENT_WRITE_FAILED")?;
+        let target = PathBuf::from(&normalized);
+        let exists = || IpcError::new("DOCUMENT_EXISTS", format!("{normalized} exists"));
+        let write_failed = |why: String| IpcError::new("DOCUMENT_WRITE_FAILED", format!("{normalized}: {why}"));
+
+        // `symlink_metadata`, so that a link that points nowhere also counts.
+        // A create through it would write a file at a different place.
+        if fs::symlink_metadata(&target).is_ok() {
+            return Err(exists());
+        }
+        let parent = target
+            .parent()
+            .ok_or_else(|| write_failed("the path has no parent directory".to_string()))?;
+        fs::create_dir_all(parent).map_err(|err| write_failed(err.to_string()))?;
+
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        // A different name from the `.name.tmp` of `write_file_atomic`, so
+        // that a save and a create cannot use the same temporary file.
+        let temp = parent.join(format!(
+            ".{}.create-{}-{nanos}.tmp",
+            target.file_name().and_then(|v| v.to_str()).unwrap_or("graph-explorer"),
+            std::process::id()
+        ));
+        let write_new = |at: &Path| -> std::io::Result<()> {
+            let mut file = OpenOptions::new().write(true).create_new(true).open(at)?;
+            file.write_all(text.as_bytes())?;
+            file.sync_all()
+        };
+        write_new(&temp).map_err(|err| {
+            let _ = fs::remove_file(&temp);
+            write_failed(err.to_string())
+        })?;
+
+        let linked = fs::hard_link(&temp, &target);
+        let _ = fs::remove_file(&temp);
+        match linked {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => return Err(exists()),
+            Err(_) => {
+                // The file system has no hard links (for example FAT). Then
+                // `create_new` still refuses a file that exists, but the write
+                // is not atomic: a crash can leave a part of the file.
+                match write_new(&target) {
+                    Ok(()) => {}
+                    Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => return Err(exists()),
+                    Err(err) => {
+                        let _ = fs::remove_file(&target);
+                        return Err(write_failed(err.to_string()));
+                    }
+                }
+            }
+        }
+
+        let revision = content_hash(text.as_bytes());
+        let snapshot = DocumentSnapshot {
+            format: infer_format_from_path(&normalized),
+            text: text.to_string(),
+            revision: revision.clone(),
+            path: normalized,
+            timestamp_ms: current_time_ms(),
+        };
+        Ok((snapshot, Some(revision)))
+    })();
+    audited(audit_logger, "document.created", path, result)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn create_document(
+    state: tauri::State<'_, IpcState>,
+    path: String,
+    text: String,
+) -> std::result::Result<DocumentSnapshot, IpcError> {
+    create_document_at(&state.access_policy, &state.audit_logger, &path, &text)
+}
+
+/// What a rename did.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RenameOutcome {
+    /// The canonical path of the file after the rename.
+    path: String,
+    revision: String,
+    /// True when the file had a watch, and the watch now follows the new path.
+    watch_moved: bool,
+}
+
+/// Rename a file, and refuse when the new name exists.
+///
+/// The rename does not overwrite. A hard link gives the file its new name,
+/// and fails when that name exists. Then the old name goes. The two names are
+/// one file in the meantime, so no order of failures loses the file. A hard
+/// link keeps the inode, so the file keeps its bytes, its mode (V-03) and its
+/// line endings (V-04).
+///
+/// @return the canonical old path and the canonical new path.
+fn rename_file(
+    access_policy: &AccessPolicy,
+    from: &str,
+    to: &str,
+) -> std::result::Result<(String, String), IpcError> {
+    let from_norm = allowed_document_path(access_policy, from, "DOCUMENT_RENAME_FAILED")?;
+    let to_norm = allowed_document_path(access_policy, to, "DOCUMENT_RENAME_FAILED")?;
+    let failed = |why: String| IpcError::new("DOCUMENT_RENAME_FAILED", why);
+    let exists = || IpcError::new("DOCUMENT_EXISTS", format!("{to_norm} exists"));
+
+    match fs::metadata(&from_norm) {
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return Err(IpcError::new("DOCUMENT_MISSING", format!("{from_norm} does not exist")))
+        }
+        Err(err) => return Err(failed(format!("{from_norm}: {err}"))),
+        Ok(meta) if !meta.is_file() => return Err(failed(format!("{from_norm} is not a regular file"))),
+        Ok(_) => {}
+    }
+
+    if from_norm == to_norm {
+        // The two names are one file. On a file system that ignores case,
+        // `a.dot` and `A.dot` give one canonical path. A plain rename to the
+        // literal new name changes the case, and it cannot lose a file. A
+        // rename to the same name does nothing.
+        let literal = PathBuf::from(to);
+        let literal = if literal.is_absolute() { literal } else { PathBuf::from(&to_norm) };
+        if literal.file_name() != Path::new(&from_norm).file_name() {
+            fs::rename(&from_norm, &literal).map_err(|err| failed(format!("{from_norm}: {err}")))?;
+        }
+        let after = normalize_path(&literal.to_string_lossy()).map_err(|err| failed(err.to_string()))?;
+        return Ok((from_norm, after));
+    }
+
+    if fs::symlink_metadata(&to_norm).is_ok() {
+        return Err(exists());
+    }
+
+    match fs::hard_link(&from_norm, &to_norm) {
+        Ok(()) => {
+            if let Err(err) = fs::remove_file(&from_norm) {
+                // The old name stays. Remove the new name, so that the file
+                // has one name again, and report the failure.
+                let _ = fs::remove_file(&to_norm);
+                return Err(failed(format!("could not remove the old name {from_norm}: {err}")));
+            }
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => return Err(exists()),
+        Err(_) => {
+            // No hard link here: two file systems (EXDEV), or a file system
+            // with no hard links. A plain rename replaces a file that exists,
+            // so check again just before it. A different process can make the
+            // file between the check and the rename. That window is small,
+            // and the hard link above closes it on each usual file system.
+            if fs::symlink_metadata(&to_norm).is_ok() {
+                return Err(exists());
+            }
+            fs::rename(&from_norm, &to_norm).map_err(|err| failed(format!("{from_norm}: {err}")))?;
+        }
+    }
+
+    let after = normalize_path(&to_norm).map_err(|err| failed(err.to_string()))?;
+    Ok((from_norm, after))
+}
+
+/// Move the watch of a renamed file to its new path.
+///
+/// The watch loop of the old path stops, and a new loop starts for the new
+/// path. The registry gets a descriptor for the new path, with the hash of
+/// the bytes as its revision. The move sends NO document event: the page
+/// moves its own document session to the new path. A document event would
+/// make a second session for the same file.
+///
+/// `spawn` starts the watch loop. It is a parameter, so that a test can move
+/// a watch without an `AppHandle`.
+///
+/// @return false when the old path had no watch. Then nothing changes.
+fn move_watch(
+    watch_registry: &WatchRegistry,
+    watch_controllers: &WatchControllers,
+    recent_write_hashes: &RecentWriteHashes,
+    from: &str,
+    to: &str,
+    spawn: &dyn Fn(&str) -> WatchController,
+) -> Result<bool> {
+    let mut registry = watch_registry
+        .lock()
+        .map_err(|err| anyhow::anyhow!("watch registry lock poisoned: {err}"))?;
+    if registry.remove(from).is_none() {
+        return Ok(false);
+    }
+
+    let mut controllers = watch_controllers
+        .lock()
+        .map_err(|err| anyhow::anyhow!("watch controller lock poisoned: {err}"))?;
+    if let Some(controller) = controllers.remove(from) {
+        let _ = controller.stop_tx.send(());
+    }
+    // A watch on the new path is not possible before the rename, because a
+    // watch needs a file. Stop one all the same, so that two loops never
+    // follow one path.
+    if let Some(controller) = controllers.remove(to) {
+        let _ = controller.stop_tx.send(());
+    }
+    if let Ok(mut writes) = recent_write_hashes.lock() {
+        writes.remove(from);
+    }
+
+    let watch = WatchDescriptor {
+        format: infer_format_from_path(to),
+        path: to.to_string(),
+        revision: fs::read(to).map(|b| content_hash(&b)).unwrap_or_default(),
+    };
+    registry.insert(to.to_string(), watch);
+    drop(registry);
+    controllers.insert(to.to_string(), spawn(to));
+    Ok(true)
+}
+
+fn rename_document_at(
+    access_policy: &AccessPolicy,
+    audit_logger: &AuditLogger,
+    watch_registry: &WatchRegistry,
+    watch_controllers: &WatchControllers,
+    recent_write_hashes: &RecentWriteHashes,
+    from: &str,
+    to: &str,
+    spawn: &dyn Fn(&str) -> WatchController,
+) -> std::result::Result<RenameOutcome, IpcError> {
+    let result = (|| {
+        let (from_norm, to_norm) = rename_file(access_policy, from, to)?;
+        let revision = fs::read(&to_norm)
+            .map(|bytes| content_hash(&bytes))
+            .map_err(|err| IpcError::new("DOCUMENT_RENAME_FAILED", format!("{to_norm}: {err}")))?;
+        let watch_moved = move_watch(
+            watch_registry,
+            watch_controllers,
+            recent_write_hashes,
+            &from_norm,
+            &to_norm,
+            spawn,
+        )
+        .map_err(|err| {
+            IpcError::new(
+                "DOCUMENT_RENAME_FAILED",
+                format!("the file is now {to_norm}, but its watch did not move: {err}"),
+            )
+        })?;
+        if watch_moved {
+            audit_logger.log_event(
+                "watch.moved",
+                Some(&to_norm),
+                Some("ui"),
+                "ok",
+                Some(revision.clone()),
+                Some(&format!("from {from_norm}")),
+            );
+        }
+        let outcome = RenameOutcome {
+            path: to_norm,
+            revision: revision.clone(),
+            watch_moved,
+        };
+        Ok((outcome, Some(revision)))
+    })();
+    audited(audit_logger, "document.renamed", &format!("{from} -> {to}"), result)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+fn rename_document(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, IpcState>,
+    from: String,
+    to: String,
+) -> std::result::Result<RenameOutcome, IpcError> {
+    let spawn = |path: &str| {
+        spawn_watch_loop(
+            state.watch_registry.clone(),
+            state.recent_write_hashes.clone(),
+            app.clone(),
+            path.to_string(),
+        )
+    };
+    rename_document_at(
+        &state.access_policy,
+        &state.audit_logger,
+        &state.watch_registry,
+        &state.watch_controllers,
+        &state.recent_write_hashes,
+        &from,
+        &to,
+        &spawn,
+    )
+}
+
+/// The identity of one entry for change detection: name, size, mtime.
 type LibraryStamp = (String, u64, Option<std::time::SystemTime>);
 
 /// A fingerprint of the whole library directory: name, size and mtime per
@@ -3176,8 +3892,8 @@ fn library_change_is_news(
 /// handful of small files.
 fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: RecentWriteHashes) {
     std::thread::spawn(move || {
-        let Ok(dir) = library_dir_path() else {
-            eprintln!("library watcher: could not locate the library directory");
+        let Ok(dir) = metadata_dir_path() else {
+            eprintln!("library watcher: could not locate the metadata directory");
             return;
         };
         let mut previous = library_signature(&dir);
@@ -3198,6 +3914,26 @@ fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: Rece
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The relay keeps the codes of the page that tell the caller what to do
+    /// next. `VIEW_REJECTED` is the refusal of a live view command for a
+    /// diagram that is not on the screen (plan §2). Its message names the
+    /// diagram on the screen, and `gx` prints it.
+    #[test]
+    fn the_relay_keeps_the_codes_of_the_page_that_name_a_next_step() {
+        for code in ["NO_LIVE_VIEW", "INVALID_REQUEST", "VIEW_REJECTED"] {
+            assert_eq!(live_view_failure_code(code), code, "the relay changed {code}");
+        }
+    }
+
+    /// A code that is not in the list is a failure with no advice. The page
+    /// cannot make a code that a caller must find in the prose.
+    #[test]
+    fn the_relay_gives_an_unknown_code_of_the_page_as_live_view_failed() {
+        for code in ["", "SOMETHING_NEW", "view_rejected", "INTERNAL"] {
+            assert_eq!(live_view_failure_code(code), "LIVE_VIEW_FAILED", "the relay kept {code:?}");
+        }
+    }
 
     /// An open must not be answered by the shell alone.
     ///
@@ -3496,7 +4232,7 @@ mod tests {
                 allowed_roots: Vec::new(),
                 denied_roots: Vec::new(),
             },
-            pending_sessions: Arc::new(Mutex::new(HashMap::new())),
+            pending_live_view_replies: Arc::new(Mutex::new(HashMap::new())),
             pending_opens: Arc::new(Mutex::new(HashMap::new())),
             // Not ready: this context models a desktop that is still starting,
             // which is exactly the state an open has to wait out.
@@ -4082,44 +4818,768 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
-    // ------------------------------------------------------- D7.3 library
+    // ------------------------------------------------------- the library
 
-    /// The shell does not know how an id becomes a file name — that rule is
-    /// `DiagramFileName` in gx-core's shared Scala, called by both `gx` and the
-    /// page. What it must know is that a name it is handed cannot address
-    /// anything outside the library.
-    #[test]
-    fn a_library_name_cannot_escape_the_library() {
-        let dir = PathBuf::from("/tmp/library");
-        for hostile in [
-            "../secrets.json",
-            "../../etc/passwd",
-            "sub/dir.json",
-            "back\\slash.json",
-            "C:evil.json",
-            ".hidden.json",
-            "",
-        ] {
-            assert!(
-                library_entry_path(&dir, hostile).is_err(),
-                "should have been refused: {hostile:?}"
-            );
+    /// The hex key of an entry, as `MetadataStore.fileNameOf` gives it.
+    fn key_name(seed: &str) -> String {
+        format!("{}.json", content_hash(seed.as_bytes()))
+    }
+
+    fn test_audit(dir: &Path) -> AuditLogger {
+        AuditLogger {
+            file_path: dir.join("audit.jsonl"),
+            write_lock: Arc::new(Mutex::new(())),
         }
     }
 
-    /// `DiagramFileName` keeps letters rather than restricting to ASCII, so a
-    /// diagram named in Japanese produces a name with Japanese in it. A shell
-    /// that only accepted `[A-Za-z0-9_-]` would reject records the store side
-    /// considers perfectly ordinary.
-    #[test]
-    fn a_library_name_keeps_the_letters_the_naming_rule_keeps() {
-        let dir = PathBuf::from("/tmp/library");
-        for ok in ["arch.json", "\u{8a2d}\u{8a08}.json", "caf\u{e9}.json", "a-b_c.json"] {
-            assert!(
-                library_entry_path(&dir, ok).is_ok(),
-                "should have been accepted: {ok:?}"
-            );
+    fn no_policy() -> AccessPolicy {
+        AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: Vec::new(),
         }
+    }
+
+    fn denying(root: &Path) -> AccessPolicy {
+        AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: vec![fs::canonicalize(root).expect("a denied root that exists")],
+        }
+    }
+
+    /// A fresh, empty directory for one test, with its real path (on macOS
+    /// the temp directory is behind a symlink).
+    fn fresh_dir(test: &str) -> PathBuf {
+        let dir = temp_dir_for(test);
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("dir");
+        fs::canonicalize(&dir).expect("real path")
+    }
+
+    /// The name of an entry is the key of a path, and nothing else. A name of
+    /// that form cannot leave the directory, so the shell needs no other check.
+    #[test]
+    fn a_library_entry_name_is_a_key_and_nothing_else() {
+        let dir = PathBuf::from("/tmp/library/metadata");
+        let key = content_hash(b"file:///tmp/a.dot");
+        assert!(library_entry_path(&dir, &format!("{key}.json")).is_ok());
+
+        for refused in [
+            format!("{}.json", key.to_uppercase()),
+            format!("{}.json", &key[1..]),
+            format!("{key}0.json"),
+            key.clone(),
+            format!("{key}.txt"),
+            format!("{key}.json.tmp"),
+            format!(".{key}.json"),
+            format!("../{key}.json"),
+            format!("sub/{key}.json"),
+            format!("sub\\{key}.json"),
+            format!("C:{key}.json"),
+            "../secrets.json".to_string(),
+            "arch.json".to_string(),
+            "\u{8a2d}\u{8a08}.json".to_string(),
+            String::new(),
+        ] {
+            let err = library_entry_path(&dir, &refused)
+                .expect_err(&format!("should have been refused: {refused:?}"));
+            assert_eq!(err.code, "INVALID_LIBRARY_NAME", "{refused:?}");
+        }
+    }
+
+    /// A write must not make `metadata/`. The migration makes it, and runs
+    /// only while it does not exist. A write that made it would stop the
+    /// migration for ever, and the old records would stay out of the library.
+    #[test]
+    fn a_write_refuses_a_store_that_the_migration_has_not_made() {
+        let root = fresh_dir("library-not-migrated");
+        let metadata = metadata_dir_in(&root);
+        let recent: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+
+        let err = write_library_entry(&metadata, &key_name("a"), "{}", &recent, &test_audit(&root))
+            .expect_err("a write before the migration must be refused");
+        assert_eq!(err.code, "LIBRARY_NOT_MIGRATED");
+        assert!(!metadata.exists(), "the write made metadata/");
+        assert!(recent.lock().expect("lock").is_empty());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// A new entry is owner-only, as the entries that `gx` writes are. An
+    /// entry that exists keeps its bits (V-03). The page does not hear about
+    /// its own write or its own delete.
+    #[test]
+    fn a_write_keeps_its_bytes_and_records_its_hash() {
+        let root = fresh_dir("library-write");
+        let metadata = metadata_dir_in(&root);
+        fs::create_dir_all(&metadata).expect("metadata");
+        let recent: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let name = key_name("a");
+        let json = "{\"path\":\"/tmp/a.dot\"}";
+
+        write_library_entry(&metadata, &name, json, &recent, &test_audit(&root)).expect("write");
+        let path = metadata.join(&name);
+        assert_eq!(fs::read_to_string(&path).expect("read"), json);
+        assert_eq!(
+            read_library_entry(&metadata, &name, &test_audit(&root)).expect("read entry"),
+            json
+        );
+        assert!(
+            !library_change_is_news(&metadata, &[name.clone()], &recent),
+            "the page must not hear about its own write"
+        );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(mode_of(&path), 0o600, "a new entry must be owner-only");
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).expect("chmod");
+            write_library_entry(&metadata, &name, "{}", &recent, &test_audit(&root)).expect("rewrite");
+            assert_eq!(mode_of(&path), 0o640, "an entry that exists keeps its bits");
+            // Spend the recorded hash of the rewrite.
+            assert!(!library_change_is_news(&metadata, &[name.clone()], &recent));
+        }
+
+        assert!(delete_library_entry(&metadata, &name, &recent, &test_audit(&root)).expect("delete"));
+        assert!(!path.exists());
+        assert!(
+            !library_change_is_news(&metadata, &[name.clone()], &recent),
+            "the page must not hear about its own delete"
+        );
+        assert!(!delete_library_entry(&metadata, &name, &recent, &test_audit(&root)).expect("second delete"));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// The library watcher starts before the migration. `metadata/` does not
+    /// exist then. When the migration makes it, the page must hear about it.
+    #[test]
+    fn a_metadata_directory_that_appears_later_is_news() {
+        let root = fresh_dir("library-appears");
+        let metadata = metadata_dir_in(&root);
+        let before = library_signature(&metadata);
+        assert!(before.is_empty());
+
+        fs::create_dir_all(&metadata).expect("metadata");
+        fs::write(metadata.join(key_name("a")), "{}").expect("entry");
+        let after = library_signature(&metadata);
+        let changed = changed_records(&before, &after);
+        assert_eq!(changed, vec![key_name("a")]);
+        assert!(library_change_is_news(&metadata, &changed, &Arc::new(Mutex::new(HashMap::new()))));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // ------------------------------------------------------- the migration
+
+    /// Each file under a directory, with its bytes.
+    fn tree_of(root: &Path) -> Vec<(String, Vec<u8>)> {
+        fn walk(dir: &Path, root: &Path, out: &mut Vec<(String, Vec<u8>)>) {
+            if let Ok(listing) = fs::read_dir(dir) {
+                for entry in listing.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        walk(&path, root, out);
+                    } else {
+                        let name = path.strip_prefix(root).unwrap().to_string_lossy().to_string();
+                        out.push((name, fs::read(&path).unwrap_or_default()));
+                    }
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(root, root, &mut out);
+        out.sort();
+        out
+    }
+
+    fn temp_dirs_in(root: &Path) -> Vec<String> {
+        fs::read_dir(root)
+            .map(|listing| {
+                listing
+                    .flatten()
+                    .map(|e| e.file_name().to_string_lossy().to_string())
+                    .filter(|n| n.starts_with(".metadata-"))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// The migration READS the old records, and nothing more. The directory
+    /// stays as it was, so an older desktop shows its library as before.
+    #[test]
+    fn the_legacy_listing_reads_the_old_records_and_changes_nothing() {
+        let root = fresh_dir("legacy-list");
+        let legacy = legacy_dir_in(&root);
+        fs::create_dir_all(&legacy).expect("diagrams");
+        let real = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../local-protocol/fixtures/library-record.json");
+        let bytes = fs::read_to_string(&real).expect("fixture");
+        fs::write(legacy.join("demo.json"), &bytes).expect("seed");
+        fs::write(legacy.join("notes.json"), "{\"id\":{\"value\":\"notes\"}}").expect("seed");
+        let before = tree_of(&root);
+
+        let listing = list_legacy_records(&root, &test_audit(&root));
+        assert!(!listing.migrated);
+        let names: Vec<&str> = listing.records.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, vec!["demo.json", "notes.json"]);
+        // Byte for byte: the shell carries the JSON and does not parse it.
+        assert_eq!(listing.records[0].json.as_deref(), Some(bytes.as_str()));
+
+        let after: Vec<_> = tree_of(&root).into_iter().filter(|(n, _)| n != "audit.jsonl").collect();
+        assert_eq!(after, before, "the legacy listing changed the old directory");
+        assert!(!metadata_dir_in(&root).exists(), "the legacy listing made metadata/");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn once_migrated_the_legacy_listing_reads_nothing() {
+        let root = fresh_dir("legacy-migrated");
+        fs::create_dir_all(legacy_dir_in(&root)).expect("diagrams");
+        fs::write(legacy_dir_in(&root).join("old.json"), "{}").expect("seed");
+        fs::create_dir_all(metadata_dir_in(&root)).expect("metadata");
+
+        let listing = list_legacy_records(&root, &test_audit(&root));
+        assert!(listing.migrated);
+        assert!(listing.records.is_empty(), "{:?}", listing.records);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_library_with_no_old_records_is_not_migrated_and_lists_nothing() {
+        let root = fresh_dir("legacy-none");
+        let listing = list_legacy_records(&root.join("library"), &test_audit(&root));
+        assert!(!listing.migrated);
+        assert!(listing.records.is_empty());
+        assert!(!root.join("library").exists(), "the legacy listing made library/");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_commit_makes_metadata_with_each_entry_and_no_temporary_directory() {
+        let base = fresh_dir("commit");
+        let root = base.join("library");
+        let entries = vec![
+            NamedEntry { name: key_name("a"), json: "{\"path\":\"/a.dot\"}".to_string() },
+            NamedEntry { name: key_name("b"), json: "{\"path\":\"/b.dot\"}".to_string() },
+        ];
+
+        let commit = commit_migration(&root, &entries, &test_audit(&base)).expect("commit");
+        assert_eq!(commit.committed, 2);
+        let metadata = metadata_dir_in(&root);
+        for entry in &entries {
+            assert_eq!(fs::read_to_string(metadata.join(&entry.name)).expect("entry"), entry.json);
+        }
+        assert!(temp_dirs_in(&root).is_empty(), "a temporary directory stays: {:?}", temp_dirs_in(&root));
+
+        #[cfg(unix)]
+        {
+            assert_eq!(mode_of(&metadata), 0o700, "metadata/ must be owner-only");
+            assert_eq!(mode_of(&metadata.join(&entries[0].name)), 0o600);
+        }
+
+        let log = fs::read_to_string(base.join("audit.jsonl")).expect("audit");
+        assert!(log.contains("library.migration_committed"), "{log}");
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn a_commit_with_no_entries_makes_an_empty_store() {
+        let root = fresh_dir("commit-empty");
+        let commit = commit_migration(&root, &[], &test_audit(&root)).expect("commit");
+        assert_eq!(commit.committed, 0);
+        assert!(metadata_dir_in(&root).is_dir());
+        assert_eq!(fs::read_dir(metadata_dir_in(&root)).expect("list").count(), 0);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_commit_refuses_a_store_that_exists_and_changes_nothing() {
+        let root = fresh_dir("commit-twice");
+        let metadata = metadata_dir_in(&root);
+        fs::create_dir_all(&metadata).expect("metadata");
+        fs::write(metadata.join(key_name("mine")), "{\"keep\":true}").expect("entry");
+        let before = tree_of(&metadata);
+
+        let err = commit_migration(
+            &root,
+            &[NamedEntry { name: key_name("other"), json: "{}".to_string() }],
+            &test_audit(&root),
+        )
+        .expect_err("a second commit must be refused");
+        assert_eq!(err.code, "LIBRARY_ALREADY_MIGRATED");
+        assert_eq!(tree_of(&metadata), before);
+        assert!(temp_dirs_in(&root).is_empty());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_commit_with_a_bad_or_a_repeated_name_writes_nothing() {
+        let root = fresh_dir("commit-bad-name");
+        for entries in [
+            vec![NamedEntry { name: "../escape.json".to_string(), json: "{}".to_string() }],
+            vec![
+                NamedEntry { name: key_name("a"), json: "{}".to_string() },
+                NamedEntry { name: key_name("a"), json: "{\"v\":2}".to_string() },
+            ],
+        ] {
+            let err = commit_migration(&root, &entries, &test_audit(&root))
+                .expect_err("a bad name must be refused");
+            assert_eq!(err.code, "INVALID_LIBRARY_NAME");
+            assert!(!metadata_dir_in(&root).exists());
+            assert!(temp_dirs_in(&root).is_empty());
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// A failure before the rename leaves no `metadata/`, so the next start
+    /// tries the migration again.
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_commit_leaves_no_metadata() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = fresh_dir("commit-fails");
+        // A library directory that nobody can write: the temporary directory
+        // cannot be made.
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o500)).expect("chmod");
+        let result = commit_migration(
+            &root,
+            &[NamedEntry { name: key_name("a"), json: "{}".to_string() }],
+            &test_audit(&std::env::temp_dir()),
+        );
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).expect("chmod back");
+
+        let err = result.expect_err("the commit must fail");
+        assert_eq!(err.code, "LIBRARY_MIGRATION_FAILED");
+        assert!(!metadata_dir_in(&root).exists());
+        assert!(temp_dirs_in(&root).is_empty());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // ---------------------------------------- the folder for new diagrams
+
+    /// The folder for new diagrams must be the same folder for gx and for
+    /// the desktop. Both suites read the same cases.
+    #[test]
+    fn the_diagrams_folder_matches_the_shared_fixture() {
+        if cfg!(windows) {
+            // The fixture has POSIX paths. On Windows, `/tmp/x` is not absolute.
+            return;
+        }
+        let doc = fixture("diagrams-dir.json");
+        let home = PathBuf::from(doc["home"].as_str().expect("home"));
+        let cases = doc["diagramsDir"].as_array().expect("an array");
+        assert!(cases.len() >= 13, "the fixture set should not have shrunk");
+
+        for case in cases {
+            let name = case["name"].as_str().unwrap_or("?");
+            let env_value = case["env"].as_str().map(std::ffi::OsString::from);
+            let result = diagrams_dir_from(env_value, Some(home.clone()));
+            match (case.get("expect").and_then(|e| e.as_str()), case.get("error")) {
+                (Some(expect), _) => {
+                    let got = result.unwrap_or_else(|e| panic!("[{name}] refused: {e}"));
+                    assert_eq!(got, PathBuf::from(expect), "[{name}]");
+                }
+                (None, Some(parts)) => {
+                    let message = result
+                        .expect_err(&format!("[{name}] should have been refused"))
+                        .to_string();
+                    for part in parts.as_array().expect("error parts") {
+                        let part = part.as_str().expect("a string");
+                        assert!(message.contains(part), "[{name}] the message lacks {part:?}: {message}");
+                    }
+                }
+                _ => panic!("[{name}] has neither expect nor error"),
+            }
+        }
+    }
+
+    #[test]
+    fn the_diagrams_folder_gives_its_canonical_path_and_the_names_in_it() {
+        let root = fresh_dir("diagrams-folder");
+        let folder = root.join("Graph Explorer");
+
+        // A folder that does not exist yet: the canonical path, and no names.
+        let empty = diagrams_folder_listing(&no_policy(), &folder).expect("listing");
+        assert_eq!(empty.path, folder.to_string_lossy());
+        assert!(empty.existing.is_empty());
+        assert!(!folder.exists(), "the listing made the folder");
+
+        fs::create_dir_all(folder.join("Recovered")).expect("recovered");
+        fs::write(folder.join("Notes.dot"), "digraph { n }").expect("notes");
+        fs::write(folder.join("Recovered").join("Arch.dot"), "digraph { a }").expect("arch");
+        let listing = diagrams_folder_listing(&no_policy(), &folder).expect("listing");
+        assert_eq!(listing.existing, vec!["Notes.dot", "Recovered", "Recovered/Arch.dot"]);
+
+        // A spelling with a `..` gives the same canonical path.
+        let other = diagrams_folder_listing(&no_policy(), &folder.join("Recovered").join(".."))
+            .expect("listing");
+        assert_eq!(other.path, folder.to_string_lossy());
+
+        let err = diagrams_folder_listing(&denying(&root), &folder).expect_err("denied");
+        assert_eq!(err.code, "DOCUMENT_DENIED");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // ------------------------------------------------------ diagram files
+
+    #[test]
+    fn read_document_gives_the_text_and_the_revision_with_no_watch() {
+        // `read_document_at` gets no watch registry, so it cannot start a
+        // watch. The home page reads each diagram in the library this way.
+        let root = fresh_dir("read-document");
+        let file = root.join("a.mmd");
+        fs::write(&file, "flowchart LR\r\n  a --> b").expect("seed");
+
+        let snapshot = read_document_at(&no_policy(), &test_audit(&root), &file.to_string_lossy())
+            .expect("read");
+        assert_eq!(snapshot.path, file.to_string_lossy());
+        assert_eq!(snapshot.text, "flowchart LR\r\n  a --> b");
+        assert_eq!(snapshot.revision, content_hash(b"flowchart LR\r\n  a --> b"));
+        assert_eq!(snapshot.format, "mermaid");
+
+        let log = fs::read_to_string(root.join("audit.jsonl")).expect("audit");
+        assert!(log.contains("document.read"), "{log}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn read_document_names_each_refusal() {
+        let root = fresh_dir("read-document-refused");
+        let audit = test_audit(&root);
+
+        let missing = read_document_at(&no_policy(), &audit, &root.join("gone.dot").to_string_lossy())
+            .expect_err("missing");
+        assert_eq!(missing.code, "DOCUMENT_MISSING");
+
+        fs::create_dir_all(root.join("dir.dot")).expect("dir");
+        let not_a_file = read_document_at(&no_policy(), &audit, &root.join("dir.dot").to_string_lossy())
+            .expect_err("a directory");
+        assert_eq!(not_a_file.code, "DOCUMENT_READ_FAILED");
+
+        let secret = root.join("secret");
+        fs::create_dir_all(&secret).expect("secret");
+        fs::write(secret.join("a.dot"), "digraph { s }").expect("seed");
+        let denied = read_document_at(&denying(&secret), &audit, &secret.join("a.dot").to_string_lossy())
+            .expect_err("denied");
+        assert_eq!(denied.code, "DOCUMENT_DENIED");
+        // The policy comes first, so a refusal tells nothing about existence.
+        let denied_missing =
+            read_document_at(&denying(&secret), &audit, &secret.join("none.dot").to_string_lossy())
+                .expect_err("denied");
+        assert_eq!(denied_missing.code, "DOCUMENT_DENIED");
+
+        let log = fs::read_to_string(root.join("audit.jsonl")).expect("audit");
+        assert!(log.contains("rejected"), "{log}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    fn files_named_like_temps(dir: &Path) -> Vec<String> {
+        fs::read_dir(dir)
+            .map(|listing| {
+                listing
+                    .flatten()
+                    .map(|e| e.file_name().to_string_lossy().to_string())
+                    .filter(|n| n.ends_with(".tmp"))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// V-04: the bytes are the text. A create keeps CRLF, and keeps a file
+    /// with no final newline as it is.
+    #[test]
+    fn create_document_writes_the_text_byte_for_byte_into_new_folders() {
+        let root = fresh_dir("create-document");
+        let file = root.join("Graph Explorer").join("Recovered").join("Untitled.dot");
+        let text = "digraph G {\r\n  a -> b\r\n}";
+
+        let snapshot = create_document_at(&no_policy(), &test_audit(&root), &file.to_string_lossy(), text)
+            .expect("create");
+        assert_eq!(fs::read(&file).expect("read"), text.as_bytes());
+        assert_eq!(snapshot.revision, content_hash(text.as_bytes()));
+        assert_eq!(snapshot.path, file.to_string_lossy());
+        assert_eq!(snapshot.text, text);
+        assert!(
+            files_named_like_temps(file.parent().unwrap()).is_empty(),
+            "a temporary file stays: {:?}",
+            files_named_like_temps(file.parent().unwrap())
+        );
+        let log = fs::read_to_string(root.join("audit.jsonl")).expect("audit");
+        assert!(log.contains("document.created"), "{log}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn create_document_never_writes_over_a_file_that_exists() {
+        let root = fresh_dir("create-document-exists");
+        let file = root.join("Untitled.dot");
+        fs::write(&file, "digraph { mine }").expect("seed");
+
+        let err = create_document_at(&no_policy(), &test_audit(&root), &file.to_string_lossy(), "digraph {}")
+            .expect_err("an existing file must be refused");
+        assert_eq!(err.code, "DOCUMENT_EXISTS");
+        assert_eq!(fs::read_to_string(&file).expect("read"), "digraph { mine }");
+        assert!(files_named_like_temps(&root).is_empty());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn create_document_refuses_a_denied_path_and_writes_nothing() {
+        let root = fresh_dir("create-document-denied");
+        let secret = root.join("secret");
+        fs::create_dir_all(&secret).expect("secret");
+        let file = secret.join("a.dot");
+
+        let err = create_document_at(&denying(&secret), &test_audit(&root), &file.to_string_lossy(), "x")
+            .expect_err("denied");
+        assert_eq!(err.code, "DOCUMENT_DENIED");
+        assert!(!file.exists());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// V-03 for a file that did not exist: the default of the umask, not the
+    /// owner-only mode of a temporary file.
+    #[cfg(unix)]
+    #[test]
+    fn create_document_gives_a_new_file_the_umask_default() {
+        let root = fresh_dir("create-document-mode");
+        let reference = root.join("reference.dot");
+        fs::write(&reference, "x").expect("reference");
+        let file = root.join("new.dot");
+
+        create_document_at(&no_policy(), &test_audit(&root), &file.to_string_lossy(), "digraph {}")
+            .expect("create");
+        assert_eq!(mode_of(&file), mode_of(&reference));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    fn fake_spawn() -> impl Fn(&str) -> WatchController {
+        |_path: &str| {
+            let (stop_tx, _stop_rx) = std::sync::mpsc::channel::<()>();
+            WatchController { stop_tx }
+        }
+    }
+
+    fn empty_registries() -> (WatchRegistry, WatchControllers, RecentWriteHashes) {
+        (
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+        )
+    }
+
+    #[test]
+    fn rename_document_moves_the_file_and_keeps_its_bytes() {
+        let root = fresh_dir("rename-document");
+        let from = root.join("Untitled.dot");
+        let to = root.join("Architecture.dot");
+        fs::write(&from, "digraph G {\r\n  a\r\n}").expect("seed");
+        let (registry, controllers, recent) = empty_registries();
+
+        let outcome = rename_document_at(
+            &no_policy(),
+            &test_audit(&root),
+            &registry,
+            &controllers,
+            &recent,
+            &from.to_string_lossy(),
+            &to.to_string_lossy(),
+            &fake_spawn(),
+        )
+        .expect("rename");
+        assert!(!from.exists(), "the old name stays");
+        assert_eq!(fs::read(&to).expect("read"), b"digraph G {\r\n  a\r\n}");
+        assert_eq!(outcome.path, to.to_string_lossy());
+        assert_eq!(outcome.revision, content_hash(b"digraph G {\r\n  a\r\n}"));
+        assert!(!outcome.watch_moved, "a file with no watch has no watch to move");
+        assert!(registry.lock().unwrap().is_empty(), "a rename must not start a watch");
+
+        let log = fs::read_to_string(root.join("audit.jsonl")).expect("audit");
+        assert!(log.contains("document.renamed"), "{log}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// V-03: a rename keeps the bits of the file.
+    #[cfg(unix)]
+    #[test]
+    fn rename_document_keeps_the_mode_of_the_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = fresh_dir("rename-document-mode");
+        let from = root.join("a.dot");
+        let to = root.join("b.dot");
+        fs::write(&from, "digraph {}").expect("seed");
+        fs::set_permissions(&from, fs::Permissions::from_mode(0o640)).expect("chmod");
+        let (registry, controllers, recent) = empty_registries();
+
+        rename_document_at(
+            &no_policy(), &test_audit(&root), &registry, &controllers, &recent,
+            &from.to_string_lossy(), &to.to_string_lossy(), &fake_spawn(),
+        )
+        .expect("rename");
+        assert_eq!(mode_of(&to), 0o640);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn rename_document_never_writes_over_a_file_that_exists() {
+        let root = fresh_dir("rename-document-exists");
+        let from = root.join("a.dot");
+        let to = root.join("b.dot");
+        fs::write(&from, "digraph { a }").expect("a");
+        fs::write(&to, "digraph { b }").expect("b");
+        let (registry, controllers, recent) = empty_registries();
+
+        let err = rename_document_at(
+            &no_policy(), &test_audit(&root), &registry, &controllers, &recent,
+            &from.to_string_lossy(), &to.to_string_lossy(), &fake_spawn(),
+        )
+        .expect_err("an existing name must be refused");
+        assert_eq!(err.code, "DOCUMENT_EXISTS");
+        assert_eq!(fs::read_to_string(&from).expect("a"), "digraph { a }");
+        assert_eq!(fs::read_to_string(&to).expect("b"), "digraph { b }");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn rename_document_refuses_a_missing_file_and_a_denied_name() {
+        let root = fresh_dir("rename-document-refused");
+        let (registry, controllers, recent) = empty_registries();
+        let audit = test_audit(&root);
+
+        let missing = rename_document_at(
+            &no_policy(), &audit, &registry, &controllers, &recent,
+            &root.join("gone.dot").to_string_lossy(), &root.join("new.dot").to_string_lossy(), &fake_spawn(),
+        )
+        .expect_err("missing");
+        assert_eq!(missing.code, "DOCUMENT_MISSING");
+
+        let secret = root.join("secret");
+        fs::create_dir_all(&secret).expect("secret");
+        let from = root.join("a.dot");
+        fs::write(&from, "digraph { a }").expect("a");
+        let denied = rename_document_at(
+            &denying(&secret), &audit, &registry, &controllers, &recent,
+            &from.to_string_lossy(), &secret.join("a.dot").to_string_lossy(), &fake_spawn(),
+        )
+        .expect_err("denied");
+        assert_eq!(denied.code, "DOCUMENT_DENIED");
+        assert_eq!(fs::read_to_string(&from).expect("a"), "digraph { a }", "the file must stay");
+        assert!(!secret.join("a.dot").exists());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// The watch of a renamed file follows the new path, and the shell sends
+    /// no document event: the page moves its session itself.
+    #[test]
+    fn rename_document_moves_the_watch_to_the_new_path() {
+        let root = fresh_dir("rename-document-watch");
+        let from = root.join("a.dot");
+        let to = root.join("b.mmd");
+        fs::write(&from, "flowchart LR\n  a --> b\n").expect("seed");
+        let from_key = from.to_string_lossy().to_string();
+        let to_key = to.to_string_lossy().to_string();
+        let (registry, controllers, recent) = empty_registries();
+
+        registry.lock().unwrap().insert(
+            from_key.clone(),
+            WatchDescriptor {
+                path: from_key.clone(),
+                format: "dot".to_string(),
+                revision: "old".to_string(),
+            },
+        );
+        let (old_stop_tx, old_stop_rx) = std::sync::mpsc::channel::<()>();
+        controllers.lock().unwrap().insert(from_key.clone(), WatchController { stop_tx: old_stop_tx });
+        recent.lock().unwrap().insert(from_key.clone(), "a hash".to_string());
+
+        let spawned: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let spawned_in = spawned.clone();
+        let spawn = move |path: &str| {
+            spawned_in.lock().unwrap().push(path.to_string());
+            let (stop_tx, _stop_rx) = std::sync::mpsc::channel::<()>();
+            WatchController { stop_tx }
+        };
+
+        let outcome = rename_document_at(
+            &no_policy(), &test_audit(&root), &registry, &controllers, &recent,
+            &from_key, &to_key, &spawn,
+        )
+        .expect("rename");
+        assert!(outcome.watch_moved);
+
+        {
+            let registry = registry.lock().unwrap();
+            assert!(registry.get(&from_key).is_none(), "the old path is still watched");
+            let moved = registry.get(&to_key).expect("the new path is watched");
+            assert_eq!(moved.revision, content_hash(b"flowchart LR\n  a --> b\n"));
+            assert_eq!(moved.format, "mermaid");
+        }
+        assert!(old_stop_rx.try_recv().is_ok(), "the old watch loop was not stopped");
+        assert_eq!(*spawned.lock().unwrap(), vec![to_key.clone()]);
+        {
+            let controllers = controllers.lock().unwrap();
+            assert!(controllers.contains_key(&to_key) && !controllers.contains_key(&from_key));
+        }
+        assert!(recent.lock().unwrap().get(&from_key).is_none());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// On a file system that ignores case, `a.dot` and `A.dot` are one file.
+    /// A rename that changes only the case must work, and not be refused as
+    /// a name that exists.
+    #[test]
+    fn rename_document_can_change_only_the_case() {
+        if !filesystem_is_case_insensitive() {
+            return;
+        }
+        let root = fresh_dir("rename-document-case");
+        let from = root.join("notes.dot");
+        fs::write(&from, "digraph { n }").expect("seed");
+        let (registry, controllers, recent) = empty_registries();
+
+        let outcome = rename_document_at(
+            &no_policy(), &test_audit(&root), &registry, &controllers, &recent,
+            &from.to_string_lossy(), &root.join("Notes.dot").to_string_lossy(), &fake_spawn(),
+        )
+        .expect("a case-only rename");
+        let names: Vec<String> = fs::read_dir(&root)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n.ends_with(".dot"))
+            .collect();
+        assert_eq!(names, vec!["Notes.dot"]);
+        assert!(outcome.path.ends_with("Notes.dot"), "{}", outcome.path);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// `show` has one target kind now. `gx` no longer sends `library`, and a
+    /// frame with it is a request error, not a hang and not a display.
+    #[test]
+    fn a_show_with_a_library_target_is_an_invalid_request() {
+        let dir = std::env::temp_dir();
+        let frame = r#"{"id":1,"method":"show","params":{"target":{"kind":"library","diagramId":"arch"}}}"#;
+        let response = dispatch_frame(frame, &starting_context(&dir));
+        let value = serde_json::to_value(&response).expect("serializable");
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["error"]["code"], serde_json::json!("INVALID_REQUEST"));
     }
 
     /// A record that cannot be read is REPORTED. Dropping it would show a
@@ -4387,40 +5847,6 @@ mod tests {
         // Byte-for-byte: the shell is a courier, and a courier that reformats
         // JSON would be silently re-deriving a schema it does not own.
         assert_eq!(entries[0].json.as_deref(), Some(bytes.as_str()));
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    /// One library, two creators, two permission policies — found by looking at
-    /// `ls -l` after a real run. `gx` lands a new record at 0600 (a JDK temp
-    /// file's default); the shell's umask default made its own 0644, so whether
-    /// a diagram was readable by other local accounts depended on which process
-    /// happened to create it.
-    #[cfg(unix)]
-    #[test]
-    fn a_new_library_record_is_owner_only_like_the_ones_gx_writes() {
-        use std::os::unix::fs::PermissionsExt;
-
-        let dir = temp_dir_for("library-perms");
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).expect("dir");
-        let path = dir.join("new.json");
-
-        // What library_write does, in the order it does it.
-        let existed = path.exists();
-        write_file_atomic(&path.to_string_lossy(), "{}").expect("write");
-        assert!(!existed);
-        set_owner_only_permissions(&path).expect("restrict");
-
-        let mode = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
-        assert_eq!(mode, 0o600, "got {mode:o}");
-
-        // And V-03 still holds for one that already exists: bits somebody chose
-        // are not ours to change.
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).expect("chmod");
-        write_file_atomic(&path.to_string_lossy(), "{\"v\":2}").expect("rewrite");
-        let after = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
-        assert_eq!(after, 0o640, "an existing record keeps its bits; got {after:o}");
 
         let _ = fs::remove_dir_all(&dir);
     }

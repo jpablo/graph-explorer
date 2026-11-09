@@ -140,6 +140,27 @@ class DocumentsSpec extends FunSuite:
     assert(!Files.readString(f).contains("\r"), "LF file gained CRLF")
   }
 
+  /** V-04 applies to the end of the file too. A writer that prints a whole
+    * diagram gives no final newline, and a change to one attribute must not
+    * change the last byte of the file.
+    */
+  for (before, text, after) <- Seq(
+      ("a\nb\n", "a\nc", "a\nc\n"),
+      ("a\nb", "a\nc\n", "a\nc"),
+      ("a\nb", "a\nc\n\n", "a\nc"),
+      ("a\r\nb\r\n", "a\nc", "a\r\nc\r\n"),
+      ("a\nb\n", "a\nc\n", "a\nc\n")
+    )
+  do
+    tmp.test(s"V-04: a write keeps the final newline of the file (${before.replace("\r", "\\r").replace("\n", "\\n")})") { dir =>
+      val f = dir.resolve("end.dot")
+      Files.write(f, before.getBytes(StandardCharsets.UTF_8))
+      val doc = Documents.read(f).fold(e => fail(s"$e"), identity)
+      val written = Documents.write(f, text, doc.hash).fold(e => fail(s"$e"), identity)
+      assertEquals(Files.readString(f), after)
+      assertEquals(written.text, after)
+    }
+
   /** Why V-04 is not cosmetic. Without it, saving unchanged content to a CRLF
     * file rewrites every line's bytes, so the document's identity changes and
     * the other side sees an edit that never happened.

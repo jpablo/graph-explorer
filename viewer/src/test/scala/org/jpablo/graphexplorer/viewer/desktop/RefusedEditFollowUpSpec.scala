@@ -12,7 +12,7 @@ import scala.scalajs.js
 
 /** A refused canvas edit must not do the view follow-up of an applied edit.
   *
-  * `runDocumentCommand` calls `onApplied` inside the update, before the setter
+  * `runSourceCommand` calls `onApplied` inside the update, before the setter
   * of `fullGraphV` decides. For a file-backed document with comments, the
   * setter refuses the edit. Then `combine` must not select a record node that
   * the graph does not have.
@@ -24,15 +24,13 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
   override def beforeEach(context: BeforeEach): Unit =
     DesktopDocumentRegistry.reset()
     DesktopBridge.reset()
-    OriginReconciler.reset()
 
   override def afterEach(context: AfterEach): Unit =
     DesktopDocumentRegistry.reset()
     DesktopBridge.reset()
-    OriginReconciler.reset()
     js.Dynamic.global.window.__TAURI__ = null
 
-  /** The shell calls a viewer makes while it shows a loose file. Each one
+  /** The shell calls a viewer makes while it shows a file. Each one
     * succeeds and changes nothing.
     */
   private def installShell(): Unit =
@@ -63,14 +61,14 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
   private val api = NodeId("api")
   private val db  = NodeId("db")
 
-  /** Open `text` as a loose file, select `api` and `db`, and combine them. */
+  /** Open `text` as a file, select `api` and `db`, and combine them. */
   private def combineApiAndDb(text: String)(verify: (ViewerState, List[String]) => Unit): Future[Unit] =
     installShell()
     withGraphvizAsync: graphviz =>
       val open     = DesktopDocumentRegistry.record("/tmp/refused-follow-up.dot", "rev-1", text)
       val errors   = EventBus[String]()
       val messages = collect(errors)
-      val state    = ViewerState(ViewTarget.LooseFile(open.id), graphviz, errorBus = errors)
+      val state    = ViewerState(ViewTarget.File(open.id), graphviz, errorBus = errors)
       afterMicrotasks:
         check(state.sourceText.now() == text, s"precondition: the viewer shows the document: ${state.sourceText.now()}")
         val nodes = state.phases.fullGraphV.now().nodeIds
@@ -109,10 +107,10 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
     "digraph G {\n  subgraph cluster_s { label=\"S\"; api; db }\n  web -> api\n}"
   private val group = GroupId("s")
 
-  /** Open `text` as a loose file, run `act` after the parse, and then `verify`.
+  /** Open `text` as a file, run `act` after the parse, and then `verify`.
     * `verify` receives the viewer, the error messages and the info messages.
     */
-  private def onLooseFile(text: String)(act: ViewerState => Unit)(
+  private def onFile(text: String)(act: ViewerState => Unit)(
       verify: (ViewerState, List[String], List[String]) => Unit
   ): Future[Unit] =
     installShell()
@@ -122,7 +120,7 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
       val infos  = EventBus[String]()
       val errorMessages = collect(errors)
       val infoMessages  = collect(infos)
-      val state  = ViewerState(ViewTarget.LooseFile(open.id), graphviz, errorBus = errors, infoBus = infos)
+      val state  = ViewerState(ViewTarget.File(open.id), graphviz, errorBus = errors, infoBus = infos)
       afterMicrotasks:
         check(state.sourceText.now() == text, s"precondition: the viewer shows the document: ${state.sourceText.now()}")
         val nodes = state.phases.fullGraphV.now().nodeIds
@@ -143,27 +141,27 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
   private def foldAndDelete(state: ViewerState): Unit =
     val groups = state.phases.fullGraphV.now().groupIds
     check(groups.contains(group), s"precondition: the graph has $group, but has $groups")
-    state.project.collapsedGroups.set(Set(group))
+    state.metadata.collapsedGroups.set(Set(group))
     state.selection.set2(group)
     state.selection.deleteSelection()
 
   test("a refused delete keeps the selected groups folded"):
-    // The fold is metadata of the record. A delete that did not happen must
-    // not unfold a group that is still there.
-    onLooseFile(commentedCluster)(foldAndDelete): (state, errors, _) =>
+    // The fold is metadata, not part of the source. A delete that did not
+    // happen must not unfold a group that is still there.
+    onFile(commentedCluster)(foldAndDelete): (state, errors, _) =>
       check(state.sourceText.now() == commentedCluster, s"the refused delete replaced the text: ${state.sourceText.now()}")
       check(
-        state.project.collapsedGroups.now() == Set(group),
-        s"the refused delete unfolded the group: ${state.project.collapsedGroups.now()}"
+        state.metadata.collapsedGroups.now() == Set(group),
+        s"the refused delete unfolded the group: ${state.metadata.collapsedGroups.now()}"
       )
       check(errors.size == 1, s"one refused edit must send one message: $errors")
 
   test("control: a delete that applies removes the fold of the deleted group"):
-    onLooseFile(plainCluster)(foldAndDelete): (state, errors, _) =>
+    onFile(plainCluster)(foldAndDelete): (state, errors, _) =>
       check(state.sourceText.now() != plainCluster, "the delete did not apply")
       check(
-        state.project.collapsedGroups.now().isEmpty,
-        s"the deleted group is still folded: ${state.project.collapsedGroups.now()}"
+        state.metadata.collapsedGroups.now().isEmpty,
+        s"the deleted group is still folded: ${state.metadata.collapsedGroups.now()}"
       )
       check(errors.isEmpty, s"an edit that applies sends no message: $errors")
 
@@ -173,7 +171,7 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
 
   test("a refused delete of the hidden elements keeps them hidden and does not report a deletion"):
     val withComments = "digraph G {\n  // note\n  api -> db\n  web -> api\n}"
-    onLooseFile(withComments)(hideDbAndDeleteHidden): (state, errors, infos) =>
+    onFile(withComments)(hideDbAndDeleteHidden): (state, errors, infos) =>
       check(state.sourceText.now() == withComments, s"the refused delete replaced the text: ${state.sourceText.now()}")
       check(
         state.hiddenElements.now().nodeIds.contains(db),
@@ -184,7 +182,7 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
 
   test("control: a delete of the hidden elements that applies clears them and reports it"):
     val plain = "digraph G {\n  api -> db\n  web -> api\n}"
-    onLooseFile(plain)(hideDbAndDeleteHidden): (state, errors, infos) =>
+    onFile(plain)(hideDbAndDeleteHidden): (state, errors, infos) =>
       check(!state.phases.fullGraphV.now().nodeIds.contains(db), "the delete did not apply")
       check(state.hiddenElements.now().isEmpty, s"the hidden set is not empty: ${state.hiddenElements.now()}")
       check(infos.contains("Hidden elements deleted"), s"the deletion was not reported: $infos")
@@ -201,11 +199,11 @@ class RefusedEditFollowUpSpec extends FunSuite with TestHelpers:
     state.addNodeWithSmartConnection()
 
   test("a refused duplicate keeps the selection"):
-    onLooseFile(commentedPair)(selectApiAndDuplicate): (state, errors, _) =>
+    onFile(commentedPair)(selectApiAndDuplicate): (state, errors, _) =>
       check(state.selection.now().nodeIds == Set(api), s"the refused duplicate changed the selection: ${state.selection.now()}")
       check(errors.size == 1, s"one refused edit must send one message: $errors")
 
   test("a refused new node keeps the selection"):
-    onLooseFile(commentedPair)(selectApiAndAddNode): (state, errors, _) =>
+    onFile(commentedPair)(selectApiAndAddNode): (state, errors, _) =>
       check(state.selection.now().nodeIds == Set(api), s"the refused new node changed the selection: ${state.selection.now()}")
       check(errors.size == 1, s"one refused edit must send one message: $errors")

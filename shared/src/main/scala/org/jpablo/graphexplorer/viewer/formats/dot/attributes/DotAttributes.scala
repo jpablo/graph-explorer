@@ -750,12 +750,12 @@ object Layer extends DotAttributeSimple[String]:
 object SameHead extends DotAttributeSimple[String]:
   val label                    = "Same Head"
   val default                  = ""
-  override val placeholderText = "Group edges with same head"
+  override val placeholderText = "Group arrows with same head"
 
 object SameTail extends DotAttributeSimple[String]:
   val label                    = "Same Tail"
   val default                  = ""
-  override val placeholderText = "Group edges with same tail"
+  override val placeholderText = "Group arrows with same tail"
 
 object TailClip extends DotAttributeSimple[Boolean]:
   val label   = "Tail Clip"
@@ -769,13 +769,13 @@ object TailTarget extends DotAttributeSimple[String]:
 object TailTooltip extends DotAttributeSimple[String]:
   val label                    = "Tail Tooltip"
   val default                  = ""
-  override val placeholderText = "Tooltip for edge tail"
+  override val placeholderText = "Tooltip for arrow tail"
 
 object TailURL extends DotAttributeSimple[String]:
   override val attrId          = AttributeId("tailURL")
   val label                    = "Tail URL"
   val default                  = ""
-  override val placeholderText = "URL for edge tail"
+  override val placeholderText = "URL for arrow tail"
 
 // Debug Attributes
 

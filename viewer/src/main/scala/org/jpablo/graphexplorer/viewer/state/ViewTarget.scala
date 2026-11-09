@@ -1,20 +1,24 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import org.jpablo.graphexplorer.viewer.models.DiagramId
+
 /** What a viewer shows (§2 of docs/desktop-open-targets-and-persistence.md).
   *
-  * A library record and a loose file have different owners and different
-  * persistence rules. `ViewerState(projectId)` forced both through one
-  * identity, and a loose file therefore had to borrow a `ProjectId` that named
-  * no record. §6 removes that: [[DiagramPersistence.forTarget]] matches on this
-  * enum, so the owner of a diagram decides how it is saved.
+  * A browser diagram and a file have different owners and different rules for
+  * storage. Before, `ViewerState(id)` took one id for the two. Thus a file had
+  * to use a `DiagramId` that named no diagram. §6 removes that:
+  * [[DiagramPersistence.forTarget]] matches on this enum, so the owner of a
+  * view decides how the app saves it.
   *
-  * §2 gives the ownership rules:
+  * The rules for the owners:
   *
-  *   - A library record is authoritative for [[LibraryDiagram]]. Its binding
-  *     and its sync mode govern any origin file.
-  *   - The file is authoritative for [[LooseFile]]. It has no record, and a
-  *     save writes the file with a compare-and-swap.
-  *   - [[Example]] is ephemeral. It reaches neither the library nor a file.
+  *   - [[Diagram]] is a diagram of the WEB app. The browser library keeps its
+  *     source, because a browser has no files.
+  *   - [[File]] is a diagram of the desktop app: a file (ADR 0001). The file is
+  *     the only copy of the source, and a save writes it with a
+  *     compare-and-swap. Its metadata is in its entry of the library, if it
+  *     has one.
+  *   - [[Example]] is temporary. It goes to no library and to no file.
   *
   * §2 also gives the invariant that Phase 2 must keep: the route, the
   * persistence owner, the event target and the save destination all name the
@@ -22,22 +26,22 @@ package org.jpablo.graphexplorer.viewer.state
   */
 enum ViewTarget derives CanEqual:
 
-  case LibraryDiagram(id: ProjectId)
+  case Diagram(id: DiagramId)
 
-  /** A loose file, named by its session (§5).
+  /** A file, named by its session (§5).
     *
     * The session id, and not the path and revision that §2 sketches. A revision
     * advances on every save, and a target that carried a copy of it would go
     * stale the moment the file is written. `DesktopDocumentRegistry` holds the
     * path and the current revision, and this id reads them.
     */
-  case LooseFile(session: DocumentSessionId)
+  case File(session: DocumentSessionId)
 
-  /** A built-in example. `name` is what the reader clicked, and it becomes the
-    * title, because an example has no stored project name.
+  /** A built-in example. `name` is the name that the person clicked. It
+    * becomes the title, because an example has no stored name.
     */
   case Example(slug: String, name: String)
 
 object ViewTarget:
 
-  def library(id: String): ViewTarget = LibraryDiagram(ProjectId(id))
+  def diagram(id: String): ViewTarget = Diagram(DiagramId(id))

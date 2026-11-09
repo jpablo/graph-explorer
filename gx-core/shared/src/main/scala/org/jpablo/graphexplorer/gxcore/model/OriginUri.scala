@@ -2,41 +2,11 @@ package org.jpablo.graphexplorer.gxcore.model
 
 import java.nio.charset.StandardCharsets
 
-/** What an origin's scheme is capable of, which bounds the legal [[SyncMode]]s.
-  *
-  * Registered rather than inferred, so adding `https:` or a database origin is a
-  * row here plus a driver, not a search for every place that assumed `file:`.
-  */
-enum OriginScheme(val scheme: String, val canRead: Boolean, val canWrite: Boolean, val canWatch: Boolean)
-    derives CanEqual:
-  case File  extends OriginScheme("file", canRead = true, canWrite = true, canWatch = true)
-  case Https extends OriginScheme("https", canRead = true, canWrite = false, canWatch = true)
-
-object OriginScheme:
-  def parse(scheme: String): Option[OriginScheme] =
-    values.find(_.scheme == scheme.toLowerCase)
-
-  extension (s: OriginScheme)
-    def permits(mode: SyncMode): Boolean = mode match
-      case SyncMode.Detached => true
-      case SyncMode.Pull     => s.canRead
-      case SyncMode.Push     => s.canWrite
-      case SyncMode.Sync     => s.canRead && s.canWrite
-
-    /** Rejected at bind time with a reason, never silently downgraded — a
-      * binding that quietly became read-only would look like a broken save.
-      */
-    def rejectionFor(mode: SyncMode): Option[String] =
-      Option.unless(s.permits(mode))(
-        s"scheme '${s.scheme}' cannot support $mode " +
-          s"(read=${s.canRead}, write=${s.canWrite}, watch=${s.canWatch})"
-      )
-
 /** The canonical identity of an origin.
   *
-  * This is the join key between the library, the watch registry and the CLI, so
-  * two spellings of one thing MUST produce one value here or the system grows a
-  * second entry for the same file and the two fight over it in `Sync` mode.
+  * This is the join key between the library, the watch registry and the CLI.
+  * Thus two spellings of one file MUST give one value here. If not, the library
+  * gets two entries for one file, and each entry has different metadata.
   *
   * v1 lost five months to exactly this hazard while URIs were still an
   * incidental detail (`desktop/src-tauri/src/main.rs:921-934`): a hand-rolled
@@ -108,42 +78,37 @@ object OriginUri:
     val restored  = "^/([A-Za-z])%3A".r.replaceAllIn(encoded, m => s"/${m.group(1)}:")
     s"file://$restored"
 
-  /** Parse a URI that is already canonical (round-tripped from this encoder or
-    * received over the wire).
+  /** Parse a `file:` URI that is already canonical: one that this encoder
+    * made, or one that came over the wire.
+    *
+    * Only a `file:` URI parses. The old records could name an `https:` origin,
+    * but the library now keeps only files (ADR 0001). The migration reads such
+    * an origin as "not a file".
     */
   def parse(raw: String): Either[String, OriginUri] =
-    raw.indexOf(':') match
-      case -1 => Left(s"not a URI (no scheme): $raw")
-      case i =>
-        val scheme = raw.substring(0, i)
-        OriginScheme.parse(scheme) match
-          case None    => Left(s"unsupported scheme '$scheme' in: $raw")
-          case Some(_) => Right(raw)
+    if raw.startsWith("file://") then Right(raw)
+    else
+      raw.indexOf(':') match
+        case -1 => Left(s"not a URI (no scheme): $raw")
+        case i  => Left(s"not a file URI (scheme '${raw.substring(0, i)}'): $raw")
 
   extension (u: OriginUri)
     def value: String = u
 
-    def scheme: OriginScheme =
-      OriginScheme.parse(u.substring(0, u.indexOf(':'))).getOrElse(
-        // Unreachable: construction goes through `parse` or `fromCanonicalPath`.
-        throw IllegalStateException(s"OriginUri built with an unknown scheme: $u")
-      )
-
-    /** The filesystem path a `file:` URI denotes, or None for other schemes.
+    /** The file system path of the URI. It is `None` only for a value that
+      * does not start with `file://`, and `parse` refuses such a value.
       *
-      * CAUTION: this is NOT the inverse of `fromCanonicalPath` on Windows. That
+      * CAUTION: on Windows, this is NOT the inverse of `fromCanonicalPath`. That
       * encoder writes URI separators, so `C:\\Users\\x\\a.dot` comes back as
-      * `C:/Users/x/a.dot` — the same file, spelled the other way.
+      * `C:/Users/x/a.dot`. It is the same file, in the other form.
       *
-      * Pass the result to `Paths.get`, which accepts either separator, and
-      * every caller here does. Do NOT compare it to a path some other process
-      * reported: the desktop shell writes the platform's own separator, so a
-      * byte comparison misses and misses SILENTLY — the file reads as unbound
-      * and opens a second time beside the record that already owns it.
-      * `DesktopLibrary.recordsBoundTo` collapses both spellings for that
-      * reason.
+      * Give the result to `Paths.get`, which accepts both separators. Each
+      * caller here does that. Do NOT compare the result with a path from a
+      * different process. The desktop shell writes the separator of the
+      * platform, so a byte comparison fails, and it fails SILENTLY. Compare
+      * the keys of the two paths ([[LibraryEntry.keySource]]) instead.
       *
-      * `OriginUriSpec` pins this shape.
+      * `OriginUriSpec` tests this shape.
       */
     def filePath: Option[String] =
       Option.when(u.startsWith("file://")):
@@ -154,10 +119,3 @@ object OriginUri:
         else decoded
 
   given CanEqual[OriginUri, OriginUri] = CanEqual.derived
-
-  /** Stored as the canonical string. Reading does NOT re-canonicalize: a record
-    * written on one machine may name a path that does not exist on this one, and
-    * silently rewriting it would change the identity the record is keyed by.
-    */
-  given upickle.default.ReadWriter[OriginUri] =
-    upickle.default.readwriter[String].bimap[OriginUri](_.value, identity)

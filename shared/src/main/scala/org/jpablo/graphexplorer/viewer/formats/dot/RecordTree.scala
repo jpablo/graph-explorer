@@ -16,6 +16,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
   *     and collapsed (exactly what the parser would do anyway);
   *   - leaf `text` never ends in an unpaired backslash (it would swallow
   *     the following separator when serialized);
+  *   - leaf `text` holds no control character, and no backslash that
+  *     escaped one (see [[dropControlChars]]);
   *   - `port` is `None` rather than `Some("")`, and empty text is `""`
   *     rather than the parser's internal `" "`;
   *   - groups are never empty.
@@ -52,9 +54,11 @@ object RecordTree:
     val port = f.id.map(_.trim).filter(_.nonEmpty)
     if f.isLeaf then
       val text = f.text.map(t => if t == " " then "" else t).getOrElse("")
-      // Collapse BEFORE dropping a dangling backslash: dropping one can itself
-      // expose a trailing space, and that path re-trims on its own.
-      Leaf(port, dropUnpairedTrailingBackslash(collapseUnescapedSpaces(text)))
+      // Drop the control characters first: the removal of a pair can put two
+      // spaces side by side. Collapse BEFORE dropping a dangling backslash:
+      // dropping one can itself expose a trailing space, and that path
+      // re-trims on its own.
+      Leaf(port, dropUnpairedTrailingBackslash(collapseUnescapedSpaces(dropControlChars(text))))
     else Group(port, f.flds.map(fromField))
 
   /** Canonical label string: fields joined with `" | "`, `<port> ` prefixes,
@@ -249,21 +253,78 @@ object RecordTree:
         i += 1
     sb.result()
 
-  /** Dialog text → canonical stored form: newlines become `\n`, control
-    * characters drop, record specials escape, unescaped spaces collapse and
-    * trim (all exactly what the parser would do). User-typed escapes such
-    * as `\l` pass through; a trailing unpaired backslash is dropped (it
-    * would swallow the following separator).
+  /** Dialog text → canonical stored form (exactly what the parser would do).
+    *
+    * In the dialog, as in a plain DOT label, a backslash escapes the next
+    * character. Thus the scan reads a backslash and its next character as
+    * one unit:
+    *   - `\` and a record special stay as they are: `\{` gives `\{`, the
+    *     same result as `{` alone;
+    *   - `\\` is one escaped backslash. It does not escape the next
+    *     character, so `\\{` gives `\\\{`;
+    *   - `\ ` gives a plain space. The parser turns `\ ` into a plain space
+    *     too, so `\ ` is not canonical;
+    *   - `\` and a newline keep the backslash, and the newline becomes `\n`;
+    *   - `\` and a different character (`\l`, `\N`, …) stay as they are.
+    *
+    * A newline with no backslash before it becomes `\n`. A record special
+    * with no backslash before it gets one. Then the control characters drop
+    * (with a backslash that escapes one), and the spaces collapse and trim.
+    * A trailing unpaired backslash drops, because it would escape the
+    * separator after it.
     */
   def storedText(display: String): String =
     val normalized = display.replace("\r\n", "\n").replace('\r', '\n')
     val sb         = StringBuilder()
-    for c <- normalized do
-      if c == '\n' then sb ++= "\\n"
-      else if c < ' ' then ()
-      else if Specials(c) then { sb += '\\'; sb += c }
-      else sb += c
-    dropUnpairedTrailingBackslash(sb.result().trim.replaceAll(" {2,}", " "))
+    var i          = 0
+    while i < normalized.length do
+      val c = normalized.charAt(i)
+      if c == '\\' && i + 1 < normalized.length then
+        val n = normalized.charAt(i + 1)
+        if n == ' ' then sb += ' '
+        else if n == '\n' then sb ++= "\\\\n"
+        else { sb += c; sb += n } // dropControlChars removes `\` and a control character
+        i += 2
+      else
+        if c == '\n' then sb ++= "\\n"
+        else if Specials(c) then { sb += '\\'; sb += c }
+        else sb += c
+        i += 1
+    // No `\ ` gets to the result, so the trim and the collapse see only
+    // plain spaces.
+    dropUnpairedTrailingBackslash(dropControlChars(sb.result()).trim.replaceAll(" {2,}", " "))
+
+  /** Remove every control character, and the backslash that escapes one.
+    *
+    * Restores the invariant at the top: leaf `text` holds no control
+    * character. The engine's parser skips a control character, but it keeps
+    * one that comes after a backslash. Its `flush` then trims the field with
+    * `String.trim`, which removes a control character at the end. Thus
+    * `"\␀\"` gave the leaf `"\␀"`, and only a SECOND parse made it empty. A
+    * ScalaCheck seed found it; the counterexample is pinned in RecordTreeSpec.
+    *
+    * The backslash goes with the control character. The label renderer
+    * shows `\` and a control character as the control character alone, so
+    * the pair is invisible. If only the control character goes, the
+    * backslash joins the next character and changes its meaning: `n`
+    * becomes the line break `\n`.
+    *
+    * Escape-aware: `\\` is one escaped backslash. It does not escape the
+    * next character, so a control character there goes alone.
+    */
+  private def dropControlChars(s: String): String =
+    val sb = StringBuilder()
+    var i  = 0
+    while i < s.length do
+      val c = s.charAt(i)
+      if c == '\\' && i + 1 < s.length then
+        val n = s.charAt(i + 1)
+        if n >= ' ' then { sb += c; sb += n }
+        i += 2
+      else
+        if c >= ' ' then sb += c
+        i += 1
+    sb.result()
 
   /** Collapse and trim runs of UNESCAPED spaces.
     *
@@ -279,8 +340,9 @@ object RecordTree:
     * caller a re-normalization. A ScalaCheck seed found that one; a ScalaCheck
     * seed found this one, and both counterexamples are pinned in RecordTreeSpec.
     *
-    * Escape-aware, so `\ ` written deliberately by a user survives — only runs
-    * that are actually unescaped collapse.
+    * Escape-aware: `\\` is one escaped backslash, and a space after it is a
+    * plain space. No `\ ` gets to this function, because the parser turns
+    * each `\ ` into a plain space.
     */
   private def collapseUnescapedSpaces(s: String): String =
     val sb                    = StringBuilder()
@@ -325,10 +387,10 @@ object RecordTree:
     * `"x"` — so `serialize ∘ parse` needed two passes to settle instead of one.
     * A ScalaCheck seed found it; the literal case is pinned in RecordTreeSpec.
     *
-    * Escape-aware so the trim stops at the text rather than eating into it. Via
-    * `parse` that guard is belt-and-braces — the engine has already normalized a
-    * trailing `\ ` by the time this runs — but the other caller escapes dialog
-    * text itself, and there a trailing escaped space is the user's to keep.
+    * Escape-aware: a space after an odd number of backslashes stays. No caller
+    * gives such a space now. The parser turns each `\ ` into a plain space, and
+    * [[storedText]] does the same with dialog text. Thus the check is only a
+    * guard.
     */
   private def trimTrailingUnescapedSpaces(s: String): String =
     var end = s.length

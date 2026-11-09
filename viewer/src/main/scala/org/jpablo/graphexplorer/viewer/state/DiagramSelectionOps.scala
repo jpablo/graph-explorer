@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.mermaid.effectiveEdgeMarkers
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.gxcore.command.DocumentCommand
+import org.jpablo.graphexplorer.gxcore.command.SourceCommand
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
@@ -131,7 +131,7 @@ trait DiagramSelectionOps:
       signal.map(ids => id in ids)
 
     def hide() =
-      project.hiddenElements.update(_ ++ resolveCollapsed(selection.now()))
+      metadata.hiddenElements.update(_ ++ resolveCollapsed(selection.now()))
 
     /** Groups in the selection that can be folded/unfolded: a selected group, or
       * the proxy box standing for an already-collapsed one. */
@@ -145,7 +145,7 @@ trait DiagramSelectionOps:
     def toggleCollapse(): Unit =
       val gs = collapsibleGroups()
       if gs.nonEmpty then
-        project.collapsedGroups.update: collapsed =>
+        metadata.collapsedGroups.update: collapsed =>
           if gs.subsetOf(collapsed) then collapsed -- gs else collapsed ++ gs
 
     /** The one-directional versions of toggleCollapse, for when the selection
@@ -154,11 +154,11 @@ trait DiagramSelectionOps:
       */
     def collapse(): Unit =
       val gs = collapsibleGroups()
-      if gs.nonEmpty then project.collapsedGroups.update(_ ++ gs)
+      if gs.nonEmpty then metadata.collapsedGroups.update(_ ++ gs)
 
     def expand(): Unit =
       val gs = collapsibleGroups()
-      if gs.nonEmpty then project.collapsedGroups.update(_ -- gs)
+      if gs.nonEmpty then metadata.collapsedGroups.update(_ -- gs)
 
     def selectGroupMembers() =
       val s          = now()
@@ -192,7 +192,7 @@ trait DiagramSelectionOps:
     // item does and what a socket client's `ungroup` does are now the same
     // code path, which is the only way they stay the same operation.
     def ungroup() =
-      runDocumentCommand(DocumentCommand.Ungroup(now().ids.toSet))
+      runSourceCommand(SourceCommand.Ungroup(now().ids.toSet))
 
     def combineIntoRecord() =
       val nodeIds = now().nodeIds
@@ -200,8 +200,8 @@ trait DiagramSelectionOps:
         // Selecting what the command created is a VIEW concern, so it stays
         // here rather than in the command — the same operation run headless by
         // `gx` has nothing to select.
-        runDocumentCommand(
-          DocumentCommand.CombineIntoRecord(nodeIds),
+        runSourceCommand(
+          SourceCommand.CombineIntoRecord(nodeIds),
           onApplied = (before, after) => selectNewNodes(before, after)
         )
 
@@ -211,15 +211,15 @@ trait DiagramSelectionOps:
         // The `isRecordNode` guard moved INTO the command, where a headless
         // caller can also be told no. Here it comes back as a message rather
         // than as a silent no-op.
-        runDocumentCommand(
-          DocumentCommand.SplitRecord(nodeIds.head),
+        runSourceCommand(
+          SourceCommand.SplitRecord(nodeIds.head),
           onApplied = (before, after) => selectNewNodes(before, after)
         )
 
     def transposeRecord() =
       val nodeIds = now().nodeIds
       if nodeIds.size == 1 then
-        runDocumentCommand(DocumentCommand.TransposeRecord(nodeIds.head))
+        runSourceCommand(SourceCommand.TransposeRecord(nodeIds.head))
 
     /** Select whatever the command brought into being.
       *
@@ -303,7 +303,7 @@ trait DiagramSelectionOps:
       phases.fullGraphV.update(_.removeElements(toRemove))
       // Nothing left to keep folded once the group itself is gone. A refused
       // delete keeps the group, so it also keeps the fold.
-      if applies then project.collapsedGroups.update(_ -- toRemove.classify.groups)
+      if applies then metadata.collapsedGroups.update(_ -- toRemove.classify.groups)
 
     /** Duplicates the currently selected nodes, arrows, and groups. Creates new elements with the same attributes as the selected ones.
       * Nodes are placed in the corresponding duplicated group if their original group was also selected. Arrows are duplicated connecting

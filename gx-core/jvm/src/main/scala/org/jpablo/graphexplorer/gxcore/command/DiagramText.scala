@@ -49,9 +49,23 @@ object DiagramText:
     * render-only and return an explicit error.
     */
   def parseDocument(text: String): Either[String, Parsed] =
+    parseNamed(text).map(named => Parsed(named.graph, named.format))
+
+  /** A parsed diagram, with the names of its elements (plan §2.1). */
+  final case class Named(graph: ViewerGraph, format: DiagramFormat, names: ElementNames)
+
+  /** As [[parseDocument]], and the names of the elements too.
+    *
+    * The names of the DOT groups come from the structure that the reader
+    * gives, before `toViewerGraph`. `ViewerGraph` keeps only the id of a
+    * group, and the id has no `cluster` prefix.
+    */
+  def parseNamed(text: String): Either[String, Named] =
     DiagramFormat.detect(text) match
       case DiagramFormat.Mermaid =>
-        MermaidFlowchartParser.parse(text).map(graph => Parsed(mermaidToViewerGraph(graph), DiagramFormat.Mermaid))
+        MermaidFlowchartParser.parse(text).map: mermaid =>
+          val graph = mermaidToViewerGraph(mermaid)
+          Named(graph, DiagramFormat.Mermaid, ElementNames(graph, DiagramFormat.Mermaid, ElementNames.mermaidGroupNames(mermaid)))
       case DiagramFormat.DOT =>
         // P8: the STRUCTURE, without a layout. `parse -> resolve` is shared
         // with the layout path verbatim — same scoping, same node dedup, same
@@ -60,8 +74,11 @@ object DiagramText:
         // loud rather than on the strength of having read the code.
         try
           ScalaGraphviz.structureJson(text) match
-            case Right(json) => Right(Parsed(toViewerGraph(read[SimpleGraph](json)), DiagramFormat.DOT))
-            case Left(err)   => Left(s"could not parse the diagram: $err")
+            case Right(json) =>
+              val structure = read[SimpleGraph](json)
+              val graph     = toViewerGraph(structure)
+              Right(Named(graph, DiagramFormat.DOT, ElementNames(graph, DiagramFormat.DOT, ElementNames.dotGroupNames(structure))))
+            case Left(err) => Left(s"could not parse the diagram: $err")
         catch case NonFatal(e) => Left(s"could not parse the diagram: ${e.getMessage}")
 
   def parse(text: String): Either[String, ViewerGraph] = parseDocument(text).map(_.graph)

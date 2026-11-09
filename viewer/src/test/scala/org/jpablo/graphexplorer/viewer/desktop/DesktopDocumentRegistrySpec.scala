@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.desktop
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
 
-/** Phase 2 items 1 and 3: the destination a loose file needs.
+/** Phase 2 items 1 and 3: the destination a file needs.
   *
   * The route holds an id, so the registry must map that id back to the file,
   * and must return the SAME id for the same file. §4.2 is the reason: a second
@@ -86,7 +86,7 @@ class DesktopDocumentRegistrySpec extends FunSuite:
     val session = DesktopDocumentRegistry.record("/tmp/a.dot", "rev-1", "one")
 
     assertEquals(DocumentSessionId.parse(session.id.value), Some(session.id))
-    // A `ProjectId` value reaches this parse if a route confuses the two. The
+    // A `DiagramId` value reaches this parse if a route confuses the two. The
     // prefix is what makes that confusion fail here instead of later.
     assertEquals(DocumentSessionId.parse("7a1f9c22-0b3e-4a11-9f0d-2c6b8e4d1a55"), None)
     assertEquals(DocumentSessionId.parse(""), None)

@@ -59,7 +59,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
   test("a clean editor adopts the file when it changes on disk") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/clean.dot", "rev-1", "digraph G { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
 
       afterMicrotasks {
         DesktopBridge.routeDocumentChange(fileChanged("digraph G { b }", "/tmp/clean.dot", "rev-2"))
@@ -73,7 +73,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
   test("a dirty editor keeps its text when the file changes, and records the conflict") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/dirty.dot", "rev-1", "digraph G { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
 
       afterMicrotasks {
         state.replaceSourceDetectingFormat("digraph G { mine }") // the person types
@@ -110,7 +110,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
       val local  = "digraph G { mine }"
       val remote = "digraph G { theirs }"
       val open   = DesktopDocumentRegistry.record("/tmp/load-file.dot", "rev-1", "digraph G { a }")
-      val state  = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state  = ViewerState(ViewTarget.File(open.id), graphviz)
 
       afterMicrotasks {
         state.replaceSourceDetectingFormat(local)
@@ -131,7 +131,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
       val local  = "digraph G { mine }"
       val remote = "digraph G { theirs }"
       val open   = DesktopDocumentRegistry.record("/tmp/keep-edit.dot", "rev-1", "digraph G { a }")
-      val state  = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state  = ViewerState(ViewTarget.File(open.id), graphviz)
       installSavingShell(nextRevision = "rev-3")
 
       afterMicrotasks {
@@ -158,7 +158,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
       val firstRemote = "digraph G { theirs }"
       val laterRemote = "digraph G { later }"
       val open        = DesktopDocumentRegistry.record("/tmp/load-then-follow.dot", "rev-1", "digraph G { a }")
-      val state       = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state       = ViewerState(ViewTarget.File(open.id), graphviz)
 
       afterMicrotasks {
         state.replaceSourceDetectingFormat("digraph G { mine }")
@@ -175,16 +175,16 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
     }
   }
 
-  test("a library diagram is never dirty, so it never blocks a navigation") {
+  test("a diagram is never dirty, so it never blocks a navigation") {
     withGraphvizAsync { graphviz =>
-      val state = ViewerState(ViewTarget.library("a-record"), graphviz)
+      val state = ViewerState(ViewTarget.diagram("a-record"), graphviz)
 
       afterMicrotasks {
         state.replaceSourceDetectingFormat("digraph G { edited }")
         assertEquals(
           state.documentIsDirty,
           false,
-          "a record saves on every keystroke, so it is never behind"
+          "a diagram saves on every keystroke, so it is never behind"
         )
       }
     }
@@ -207,7 +207,7 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
       dom.window.history.pushState(null, "", "/")
 
       val open   = DesktopDocumentRegistry.record("/tmp/leaving.dot", "rev-1", "digraph G { a }")
-      val state  = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state  = ViewerState(ViewTarget.File(open.id), graphviz)
       val router = Router()
 
       router.guardNavigation: route =>
@@ -224,11 +224,11 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
 
         state.replaceSourceDetectingFormat("digraph G { unsaved }")
 
-        router.navigateTo(Route.ProjectDetail("some-record"))
+        router.navigateTo(Route.Diagram("some-record"))
 
         assertEquals(
           state.pendingLeave.now(),
-          Some(LeaveIntent.Navigate(Route.ProjectDetail("some-record"))),
+          Some(LeaveIntent.Navigate(Route.Diagram("some-record"))),
           "§7.4: the dialog must go where the click asked to go"
         )
         assertEquals(

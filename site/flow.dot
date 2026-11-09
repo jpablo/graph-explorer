@@ -21,7 +21,7 @@ digraph flow {
   editor  -> file    [label="saves"]
   agent   -> gx      [label="runs"]
   gx      -> file    [label="edits"]
-  gx      -> library [label="imports"]
+  gx      -> library [label="adds"]
   gx      -> desktop [label="opens"]
   file    -> desktop [label="live reload"]
   library -> desktop [label="shared folder"]

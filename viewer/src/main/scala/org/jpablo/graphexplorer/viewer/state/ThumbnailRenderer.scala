@@ -73,8 +73,8 @@ object ThumbnailRenderer:
   )(using ExecutionContext): Signal[ReactiveSvgElement[SVG]] =
     val format = DiagramFormat.detect(dot.value)
 
-    // Every event from here carries the caller's context; going through one
-    // place is what keeps a site from silently dropping the project id.
+    // Each event from here has the context of the caller. All events go
+    // through this one function, so no call site can lose the diagram id.
     def log(name: String, extra: (String, Any)*): Unit =
       Telemetry.log(name, (telemetryContext ++ extra)*)
 

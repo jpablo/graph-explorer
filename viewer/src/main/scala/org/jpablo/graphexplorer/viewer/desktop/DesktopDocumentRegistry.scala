@@ -2,9 +2,10 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
+import org.jpablo.graphexplorer.gxcore.fs.LineEnding
 import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
 
-/** What the page knows about each open loose file (§5).
+/** What the page knows about each open file (§5).
   *
   * The registry is the indirection that keeps the path out of the route. A
   * route names a [[DocumentSessionId]]. This registry maps that id to the
@@ -14,10 +15,8 @@ import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
   * window holds these listeners, and a session outlives the view that shows it.
   * A person can navigate to Home and back, and the session must survive that.
   *
-  * The registry replaces no behaviour yet. [[DesktopBridge]] still holds its
-  * own `documentRef`, and still aims a save with it. Phase 2 item 4 moves the
-  * save onto `LooseFilePersistence`, and that implementation reads its session
-  * from here.
+  * `FilePersistence` reads its session from here, and it aims each save with
+  * the path and the revision of the session.
   *
   * §7.3 gives a session three values: `base`, `local` and `remote`. Two of
   * them live here. `base` is [[Session.revision]] with [[Session.sourceText]] —
@@ -38,7 +37,7 @@ object DesktopDocumentRegistry:
     */
   case class Conflict(revision: String, text: String) derives CanEqual
 
-  /** One open loose file.
+  /** One open file.
     *
     * `path` is canonical. The shell canonicalizes it before it sends the
     * document event; the page has no file system and can canonicalize nothing.
@@ -63,6 +62,16 @@ object DesktopDocumentRegistry:
     def baseName: String =
       path.split("[/\\\\]").filter(_.nonEmpty).lastOption.getOrElse(path)
 
+    /** True when the file has `text`: a save of `text` writes the text that
+      * the file has now.
+      *
+      * The two texts can differ in the line endings and in the final newline,
+      * because a save keeps those of the file (V-04). A canvas edit prints LF
+      * with no final newline, so an exact comparison called a CRLF file dirty
+      * after each save of it.
+      */
+    def holds(text: String): Boolean = LineEnding.sameOnDisk(sourceText, text)
+
   /** A `Var`, so a view can follow its own session (§10).
     *
     * A dirty marker and a conflict banner have to appear the moment the state
@@ -70,7 +79,7 @@ object DesktopDocumentRegistry:
     */
   private val sessions: Var[Map[DocumentSessionId, Session]] = Var(Map.empty)
 
-  private[desktop] def reset(): Unit = sessions.set(Map.empty)
+  private[graphexplorer] def reset(): Unit = sessions.set(Map.empty)
 
   def get(id: DocumentSessionId): Option[Session] = sessions.now().get(id)
 
@@ -82,10 +91,10 @@ object DesktopDocumentRegistry:
 
   /** The session for a path, if the page holds one.
     *
-    * An exact comparison, and it needs no separator normalising the way
-    * `DesktopLibrary.recordsBoundTo` does. Both sides of this one come from the
-    * shell's `watch.path`: the document event that recorded the session, and
-    * the open request that looks it up. They agree by construction.
+    * An exact comparison, and it needs no separator normalising. Both sides
+    * come from the shell's canonical path: the document event that recorded
+    * the session, and the open request that looks it up. They agree by
+    * construction.
     *
     * A linear search, on purpose. A person opens few files at once, and one map
     * cannot fall out of step with itself. A second index from path to id would
@@ -137,6 +146,20 @@ object DesktopDocumentRegistry:
       val resolved = get(id).get.copy(revision = remote.revision, sourceText = remote.text, conflict = None)
       sessions.update(_.updated(id, resolved))
       resolved
+
+  /** The file of a session has a new path, because the person renamed it.
+    *
+    * The id stays, so the route and the view that show the session stay too.
+    * The shell moved its watch to the new path (`rename_document`). Thus the
+    * next document event names the new path, and `record` finds this session.
+    * A different session that already has the new path is a stale one, and it
+    * goes.
+    */
+  def move(id: DocumentSessionId, newPath: String): Option[Session] =
+    get(id).map: session =>
+      val moved = session.copy(path = newPath)
+      sessions.update(all => all.filterNot((other, s) => other != id && s.path == newPath).updated(id, moved))
+      moved
 
   /** Release a session the page no longer shows.
     *

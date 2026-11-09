@@ -1,5 +1,7 @@
 # Sources and Library Architecture
 
+> **Superseded (2026-11-08) by `docs/adr/0001-the-file-is-the-only-copy.md`.** The library copy of the source, the binding, the origin, the sync modes and the reconciliation are gone. A diagram is a file, and the library keeps only metadata about each file, by its path (`CONTEXT.md`). The text below is the history of the design.
+
 Status: Proposed (2026-08-16)
 Reads with: `desktop-gx-v2-architecture.md` (process architecture and trust
 boundary — this document assumes its D1 content-hash revisions and D2 `gx-core`)

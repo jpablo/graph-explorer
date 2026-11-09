@@ -82,9 +82,23 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
   Width
 }
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, VizViewerGraphElements}
+import org.jpablo.graphexplorer.viewer.models.GroupId
 
 import scala.collection.immutable.VectorMap
 import scala.collection.mutable
+
+/** Each subgraph of the graph with the id of its group, in the order of the
+  * source (by `_gvid`). [[GroupId.fromDotNames]] gives the ids, so two
+  * subgraphs never get one id.
+  *
+  * `toViewerGraphElements` and `ElementNames.dotGroupNames` both use this
+  * function. Thus the id of a group and the name that gx gives it agree.
+  */
+def dotSubgraphIds(simpleGraph: SimpleGraph): Vector[(SimpleGraphCluster, GroupId)] =
+  val subgraphs = simpleGraph.objects.getOrElse(Nil).toVector
+    .collect { case SimpleGraphObject.Cluster(c) => c }
+    .sortBy(_._gvid)
+  subgraphs.zip(GroupId.fromDotNames(subgraphs.map(_.name)))
 
 def toViewerGraph(simpleGraph: SimpleGraph): ViewerGraph =
   // simpleGraph has no defaults
@@ -307,17 +321,28 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
         // `name` becomes the NodeId; keeping it as an attribute too would duplicate it
         val attrs = toAttributesFromNode(node, Set(Name.attrId))
         rawNodesBuilder += nodeId -> attrs
-      case SimpleGraphObject.Cluster(cluster) =>
-        val (groupId, wasCluster) = GroupId.fromDot(cluster.name)
-        // `name` becomes the GroupId (the cluster's member lists are read separately,
-        // from the SimpleGraph fields — they never reach the attribute stream)
-        val attrs                 = toAttributesFromCluster(cluster, Set(Name.attrId))
-        val nodeGvids             = cluster.nodes.getOrElse(List.empty)
-        val edgeGvids             = cluster.edges.getOrElse(List.empty)
-        rawClusters(groupId) = (attrs, nodeGvids, edgeGvids, wasCluster)
+      case SimpleGraphObject.Cluster(_) => () // the loop below reads the subgraphs
     }
   }
   val rawNodes = rawNodesBuilder.result()
+
+  // The id of each subgraph comes from its name (see `dotSubgraphIds`). Each
+  // subgraph gets a different id. `clusterB` and `cluster_B` gave one id
+  // before, and the reader then made one group of two subgraphs.
+  // The member lists of a subgraph come from the SimpleGraph fields. They do
+  // not go into the attributes.
+  // The group also keeps `name` as an attribute. The id has no `cluster`
+  // prefix and can have a suffix `_2`. Thus the writer needs the name to print
+  // `clusterB` again, and not `cluster_B` (see `dotSubgraphNames`).
+  val subgraphIds  = dotSubgraphIds(simpleGraph)
+  val groupIdByGvid: Map[Int, GroupId] = subgraphIds.map((cluster, groupId) => cluster._gvid -> groupId).toMap
+  subgraphIds.foreach { (cluster, groupId) =>
+    val wasCluster = GroupId.fromDot(cluster.name)._2
+    val attrs      = toAttributesFromCluster(cluster, Set.empty)
+    val nodeGvids  = cluster.nodes.getOrElse(List.empty)
+    val edgeGvids  = cluster.edges.getOrElse(List.empty)
+    rawClusters(groupId) = (attrs, nodeGvids, edgeGvids, wasCluster)
+  }
 
   // Build group memberships from cluster data
   val membershipsBuilder = mutable.Map[GroupMemberId, GroupId]()
@@ -339,14 +364,12 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     groupsBuilder(groupId) = ViewerGroup.group(groupId, updatedAttrs)
   }
 
-  // Cluster indexes, built once: by GroupId (the FIRST cluster in `objects` wins,
-  // mirroring the collectFirst these loops previously ran per item) and by _gvid.
-  val objectClusters: List[SimpleGraphCluster] =
-    simpleGraph.objects.getOrElse(Nil).collect { case SimpleGraphObject.Cluster(c) => c }
-  val clusterFirstByGroupId: Map[GroupId, SimpleGraphCluster] =
-    objectClusters.distinctBy(c => GroupId.fromDot(c.name)._1).map(c => GroupId.fromDot(c.name)._1 -> c).toMap
+  // Cluster indexes, built once: by GroupId (each subgraph has its own id) and
+  // by _gvid.
+  val clusterByGroupId: Map[GroupId, SimpleGraphCluster] =
+    subgraphIds.map((cluster, groupId) => groupId -> cluster).toMap
   val clusterByGvid: Map[Int, SimpleGraphCluster] =
-    objectClusters.distinctBy(_._gvid).map(c => c._gvid -> c).toMap
+    subgraphIds.map(_._1).distinctBy(_._gvid).map(c => c._gvid -> c).toMap
 
   // For each item (node or edge) gvid, find the most specific (innermost) cluster that
   // lists it — dot_json lists an item in EVERY enclosing subgraph's array, so a cluster
@@ -360,7 +383,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     rawClusters.foreach { case (groupId, clusterData) =>
       // This cluster's direct sub-clusters' item sets, resolved once per cluster
       val subItemSets: List[Set[Int]] =
-        clusterFirstByGroupId.get(groupId).toList
+        clusterByGroupId.get(groupId).toList
           .flatMap(_.subgraphs.getOrElse(Nil))
           .flatMap(clusterByGvid.get)
           .map(sub => subClusterGvids(sub).toSet)
@@ -381,13 +404,12 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
   }
 
   // Handle group-to-group memberships (nested subgraphs)
-  objectClusters.foreach { cluster =>
-    val parentGroupId = GroupId.fromDot(cluster.name)._1
+  subgraphIds.foreach { (cluster, parentGroupId) =>
     cluster.subgraphs.foreach { subgraphGvids =>
       subgraphGvids.foreach { subgraphGvid =>
-        // Find the subgraph cluster by its _gvid
-        clusterByGvid.get(subgraphGvid).foreach { subCluster =>
-          membershipsBuilder(GroupId.fromDot(subCluster.name)._1) = parentGroupId
+        // Find the group of the subgraph by its _gvid
+        groupIdByGvid.get(subgraphGvid).foreach { subGroupId =>
+          membershipsBuilder(subGroupId) = parentGroupId
         }
       }
     }

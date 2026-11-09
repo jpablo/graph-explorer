@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.gxcore.command.SessionCommand
+import org.jpablo.graphexplorer.gxcore.command.LiveViewCommand
 import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
@@ -16,21 +16,21 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class PushTextTargetSpec extends FunSuite with TestHelpers:
 
   override def beforeEach(context: BeforeEach): Unit =
-    SessionCommands.reset()
+    LiveViewCommands.reset()
     DesktopDocumentRegistry.reset()
 
   override def afterEach(context: AfterEach): Unit =
-    SessionCommands.reset()
+    LiveViewCommands.reset()
     DesktopDocumentRegistry.reset()
 
   test("a push reaches the session it names") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/pushed.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
-      SessionCommands.attach(state)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
+      LiveViewCommands.attach(state)
 
       afterMicrotasks {
-        val outcome = SessionCommands.run(SessionCommand.PushText(open.id.value, "digraph { pushed }"))
+        val outcome = LiveViewCommands.run(LiveViewCommand.PushText(open.id.value, "digraph { pushed }"))
 
         assert(outcome.isRight, s"a push at the open session was refused: $outcome")
         assertEquals(state.sourceText.now(), "digraph { pushed }")
@@ -42,11 +42,11 @@ class PushTextTargetSpec extends FunSuite with TestHelpers:
     withGraphvizAsync { graphviz =>
       val shown = DesktopDocumentRegistry.record("/tmp/shown.dot", "rev-1", "digraph { shown }")
       val other = DesktopDocumentRegistry.record("/tmp/other.dot", "rev-1", "digraph { other }")
-      val state = ViewerState(ViewTarget.LooseFile(shown.id), graphviz)
-      SessionCommands.attach(state)
+      val state = ViewerState(ViewTarget.File(shown.id), graphviz)
+      LiveViewCommands.attach(state)
 
       afterMicrotasks {
-        val outcome = SessionCommands.run(SessionCommand.PushText(other.id.value, "digraph { WRONG }"))
+        val outcome = LiveViewCommands.run(LiveViewCommand.PushText(other.id.value, "digraph { WRONG }"))
 
         assertEquals(
           outcome.left.toOption.map(_.code),
@@ -62,14 +62,14 @@ class PushTextTargetSpec extends FunSuite with TestHelpers:
     }
   }
 
-  test("a push at a library record is refused — only a file has a session") {
+  test("a push at a diagram is refused — only a file has a session") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/unshown.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.library("a-record"), graphviz)
-      SessionCommands.attach(state)
+      val state = ViewerState(ViewTarget.diagram("a-record"), graphviz)
+      LiveViewCommands.attach(state)
 
       afterMicrotasks {
-        val outcome = SessionCommands.run(SessionCommand.PushText(open.id.value, "digraph { WRONG }"))
+        val outcome = LiveViewCommands.run(LiveViewCommand.PushText(open.id.value, "digraph { WRONG }"))
         assertEquals(outcome.left.toOption.map(_.code), Some("VIEW_REJECTED"))
       }
     }
@@ -78,19 +78,19 @@ class PushTextTargetSpec extends FunSuite with TestHelpers:
   test("a session id that is not one is a request error, not a view refusal") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/x.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
-      SessionCommands.attach(state)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
+      LiveViewCommands.attach(state)
 
       afterMicrotasks {
         // The caller's next move differs: fix the argument, versus open the
         // document first. Two codes, because they are two situations.
-        val outcome = SessionCommands.run(SessionCommand.PushText("not-a-session", "x"))
+        val outcome = LiveViewCommands.run(LiveViewCommand.PushText("not-a-session", "x"))
         assertEquals(outcome.left.toOption.map(_.code), Some("INVALID_REQUEST"))
       }
     }
   }
 
-  test("a push with nothing open says NO_SESSION") {
-    val outcome = SessionCommands.run(SessionCommand.PushText("doc-abc", "x"))
-    assertEquals(outcome.left.toOption.map(_.code), Some("NO_SESSION"))
+  test("a push with nothing open says NO_LIVE_VIEW") {
+    val outcome = LiveViewCommands.run(LiveViewCommand.PushText("doc-abc", "x"))
+    assertEquals(outcome.left.toOption.map(_.code), Some("NO_LIVE_VIEW"))
   }

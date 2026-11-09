@@ -24,13 +24,63 @@
 #
 # Usage:
 #   source "${ROOT_DIR}/scripts/lib/control-api.sh"
+#   gx_sandbox_create release              # before the desktop or gx starts
 #   control_wait_ready 80 || exit 1
 #   body="$(api_watch "/abs/path.dot")"   # response frame on stdout
 #   api_last_status                        # "ok" | "error" | "unreachable"
+#   gx_sandbox_remove                      # in the cleanup of the caller
 
-CONTROL_RUNTIME_FILE="${CONTROL_RUNTIME_FILE:-${HOME}/.graph-explorer/runtime/control.json}"
+# The runtime file follows GX_HOME, as the desktop and gx do. A blank GX_HOME
+# means "not set", as it does for them.
+CONTROL_RUNTIME_FILE="${CONTROL_RUNTIME_FILE:-${GX_HOME:-${HOME}/.graph-explorer}/runtime/control.json}"
 CONTROL_SOCKET=""
 CONTROL_CLIENT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/control-client.py"
+
+# A SANDBOX for one gate: a temporary GX_HOME and GX_DIAGRAMS_DIR.
+#
+# Call it before the gate starts the desktop or gx. Without it, the gate uses
+# the real ~/.graph-explorer of the person. The first start of a new desktop
+# then moves the real library to the metadata store, and writes files into the
+# real ~/Documents/Graph Explorer. GX_HOME does not move the folder for new
+# diagrams, so the sandbox sets both. The socket is in the sandbox too, so the
+# gate does not touch a desktop that the person uses.
+#
+# $1 is a short name for the gate. A socket path must be 100 bytes or less, and
+# TMPDIR on macOS is already about 50 bytes, so keep the name short.
+#
+# It exports GX_SANDBOX, GX_HOME, GX_DIAGRAMS_DIR and CONTROL_RUNTIME_FILE.
+gx_sandbox_create() {
+  local name="${1:-gate}" base="${TMPDIR:-/tmp}"
+  base="${base%/}"
+  GX_SANDBOX="$(mktemp -d "${base}/gx-${name}-XXXXXX")" || {
+    echo "could not make a sandbox in ${base}" >&2
+    return 1
+  }
+  # The same layout as scripts/local-capabilities-open-handshake-smoke.sh:
+  # GX_HOME is the sandbox, and the folder for new diagrams is inside it.
+  GX_HOME="${GX_SANDBOX}"
+  GX_DIAGRAMS_DIR="${GX_SANDBOX}/diagrams"
+  CONTROL_RUNTIME_FILE="${GX_HOME}/runtime/control.json"
+  export GX_SANDBOX GX_HOME GX_DIAGRAMS_DIR CONTROL_RUNTIME_FILE
+
+  local socket="${GX_HOME}/runtime/control.sock"
+  if (( ${#socket} > 100 )); then
+    echo "the sandbox socket path is ${#socket} bytes, over the 100-byte limit: ${socket}" >&2
+    echo "set TMPDIR to a shorter directory, then run the gate again" >&2
+    gx_sandbox_remove
+    return 1
+  fi
+  echo "sandbox GX_HOME: ${GX_HOME}"
+}
+
+# Remove the sandbox, and only the sandbox. The name check makes sure that the
+# command never removes a directory that gx_sandbox_create did not make.
+gx_sandbox_remove() {
+  local dir="${GX_SANDBOX:-}"
+  if [[ -n "${dir}" && -d "${dir}" && "$(basename "${dir}")" == gx-*-?????? ]]; then
+    rm -rf "${dir}"
+  fi
+}
 
 # The call's outcome goes through a FILE, not a variable.
 #
@@ -161,26 +211,23 @@ api_watch() {
   _api_call watch "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
-# `show` carries a TYPED target since the open-targets work: a bare path could
-# not say whether it meant a library record or a loose file, and a record with
-# no origin has no path to send at all.
+# `show` carries a TYPED target. A diagram is a file (ADR 0001), so `file` is
+# the only kind. The desktop refuses the old `library` kind as INVALID_REQUEST.
 api_show_file() {
   _api_call show "$(_jq -n --arg path "$1" '{target: {kind: "file", path: $path}}')"
 }
 
-api_show_library() {
-  _api_call show "$(_jq -n --arg id "$1" '{target: {kind: "library", diagramId: $id}}')"
-}
-
-# The file form, which is what every existing caller meant.
 api_show() { api_show_file "$1"; }
 
 api_unwatch() {
   _api_call unwatch "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
+# A live view command NAMES its diagram: `api_reset_view <canonical path>`.
+# The page refuses it with VIEW_REJECTED when the window shows a different
+# diagram, and with INVALID_REQUEST when the path is missing (plan §2).
 api_reset_view() {
-  _api_call session '{"command":"reset-view","params":{}}'
+  _api_call live-view "$(_jq -n --arg path "$1" '{command: "reset-view", params: {path: $path}}')"
 }
 
 api_get() {

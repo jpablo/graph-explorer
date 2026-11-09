@@ -12,7 +12,7 @@ trait VisibilityOps:
   this: ViewerState =>
 
   object hiddenElements:
-    private val _hiddenElements: Var[HiddenElements] = project.hiddenElements
+    private val _hiddenElements: Var[HiddenElements] = metadata.hiddenElements
 
     def now(): HiddenElements = _hiddenElements.now()
 
@@ -145,7 +145,7 @@ trait VisibilityOps:
     * the raw full graph (where proxies don't exist).
     */
   private def collapsedViewNow(): CollapseOps.CollapsedView =
-    fullGraphNow().collapsedView(project.collapsedGroups.now(), hiddenElements.now())
+    fullGraphNow().collapsedView(metadata.collapsedGroups.now(), hiddenElements.now())
 
   /** The full-graph spelling of hiding/unhiding VIEW nodes: a real node is
     * itself; a collapsed box is its GROUP plus everything the box swallowed —

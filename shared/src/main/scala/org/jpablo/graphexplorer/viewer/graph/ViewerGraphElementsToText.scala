@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, GvId, HeadPort, Label, TailPort}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, GraphType, GvId, HeadPort, Id, Label, Name, TailPort}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.{Arrow, GroupId, NodeId, ViewerGroup, ViewerNode, Attributes as ViewerAttributes}
 
@@ -58,9 +58,16 @@ def viewerGraphElementsToText(
     } else quoted(value)
   }
 
-  // Declaration-order sort key: elements sort by their _gvid; missing _gvid sorts last.
-  def gvidOrder(attrs: ViewerAttributes): Double =
-    attrs.values.get(GvId.attrId).map(_.toString.toDouble).getOrElse(Double.MaxValue)
+  // The text for the layout gives each element an `id` of its own: `node:a`,
+  // `group:g`, or `arrow.toSvg`. The SVG element gets this id, and a click
+  // finds the element by it. Thus the layout text does not write the `id`
+  // attribute of the source, because that attribute would replace this id.
+  // The text for a file (omitInternal) does not write the layout id. It
+  // writes the `id` attribute of the source, as each other attribute.
+  def layoutId(id: => String): Option[(String, String)] =
+    Option.when(!omitInternal)(Id.attrId.value -> id)
+  def isReplacedByLayoutId(key: String): Boolean =
+    !omitInternal && key == Id.attrId.value
 
   // Helper to collect attributes from ViewerNode directly
   def collectNodeAttributes(
@@ -68,18 +75,15 @@ def viewerGraphElementsToText(
       excludeKeys: Set[String] = Set.empty
   ): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
-    val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
+    val allExcludeKeys = excludeKeys + GvId.attrId.value // Always exclude _gvid from output
 
-    // Add id attribute unless excluded by omitInternal setting
-    if (!allExcludeKeys.contains("id"))
-      attrs += "id" -> s"node:${node.id.value}"
+    attrs ++= layoutId(s"node:${node.id.value}")
 
     // Process attributes directly from ViewerNode
     node.attributes.values.foreach { case (attrId, attrValue) =>
       val key   = attrId.value
       val value = attrValue.toString
-      if (!allExcludeKeys.contains(key) && key != "id") {
+      if (!allExcludeKeys.contains(key) && !isReplacedByLayoutId(key)) {
         attrs += key -> value
       }
     }
@@ -90,12 +94,11 @@ def viewerGraphElementsToText(
   // Helper to collect attributes from ViewerGroup directly
   def collectClusterAttributes(group: ViewerGroup, excludeKeys: Set[String] = Set.empty): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
-    val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
+    // `name` is the source name of the subgraph. It goes after the
+    // `subgraph` keyword, and it is not an attribute of the subgraph.
+    val allExcludeKeys = excludeKeys + GvId.attrId.value + Name.attrId.value
 
-    // Add id attribute unless excluded by omitInternal setting
-    if (!allExcludeKeys.contains("id"))
-      attrs += "id" -> s"group:${group.id.value}"
+    attrs ++= layoutId(s"group:${group.id.value}")
 
     // Function to check if an attribute is a default value that shouldn't be included
     def isDefaultValue(key: String, value: String): Boolean = {
@@ -107,7 +110,7 @@ def viewerGraphElementsToText(
     group.attributes.values.foreach { case (attrId, attrValue) =>
       val key   = attrId.value
       val value = attrValue.toString
-      if (!allExcludeKeys.contains(key) && key != "id") {
+      if (!allExcludeKeys.contains(key) && !isReplacedByLayoutId(key)) {
         // Special handling for label attribute to prevent inheritance
         if (key == "label" && !excludeKeys.contains("label")) {
           attrs += key -> value
@@ -137,13 +140,24 @@ def viewerGraphElementsToText(
     result.toList
   }
 
+  // An empty label is the default of Graphviz for an arrow and for the root
+  // graph. The reader gives each arrow `label=""` when one arrow has a label,
+  // and the root graph `label=""` when one cluster has a label. Thus the text
+  // for a file (omitInternal) leaves these values out, and a change to one
+  // element does not change the text of the others. An empty arrow label
+  // stays when the `edge` statement gives a label, because then it overrides
+  // that label. The text for the layout keeps each value: Graphviz draws the
+  // same diagram.
+  val edgeDefaultLabel = elements.defaultArrowAttributes.values.get(Label.attrId).map(_.toString).getOrElse("")
+  def isDefaultEmptyLabel(key: String, value: String, default: String): Boolean =
+    omitInternal && key == Label.attrId.value && value.isEmpty && default.isEmpty
+
   // Helper to collect attributes from Arrow directly
   def collectEdgeAttributes(arrow: Arrow, excludeKeys: Set[String] = Set.empty): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
-    val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
+    val allExcludeKeys = excludeKeys + GvId.attrId.value // Always exclude _gvid from output
 
-    // Add id attribute for arrows.
+    // Add the layout id for arrows.
     //
     // From `arrow.toSvg`, NOT rebuilt from the parts. This id becomes the SVG element's id
     // and so the id a click hands back, which is then looked up in the `arrows` map — where
@@ -152,14 +166,13 @@ def viewerGraphElementsToText(
     // `A:se->B/0` and advertised itself as `A->B/0`. Selecting it found nothing, so every
     // control in the toolbar read its default, and edits were dropped on the floor —
     // `updateAttributes` filters by the same key. One derivation, one id.
-    if (!allExcludeKeys.contains("id"))
-      attrs += "id" -> arrow.toSvg
+    attrs ++= layoutId(arrow.toSvg)
 
     // Process arrow attributes directly
     arrow.attributes.values.foreach { case (attrId, attrValue) =>
       val key   = attrId.value
       val value = attrValue.toString
-      if (!allExcludeKeys.contains(key) && key != "id") {
+      if (!allExcludeKeys.contains(key) && !isReplacedByLayoutId(key) && !isDefaultEmptyLabel(key, value, edgeDefaultLabel)) {
         attrs += key -> value
       }
     }
@@ -229,7 +242,11 @@ def viewerGraphElementsToText(
   }
 
   // Graph attributes (name/directed are handled specially), then default node/edge attributes
-  emitAttrStatement("graph", collectGraphAttributes(elements.graphAttributes, Set("name", "directed")))
+  emitAttrStatement(
+    "graph",
+    collectGraphAttributes(elements.graphAttributes, Set("name", "directed"))
+      .filterNot((key, value) => isDefaultEmptyLabel(key, value, default = ""))
+  )
   emitAttrStatement("node", collectGraphAttributes(elements.defaultNodeAttributes))
   emitAttrStatement("edge", collectGraphAttributes(elements.defaultArrowAttributes))
 
@@ -285,6 +302,9 @@ def viewerGraphElementsToText(
     lines += s"""${padding(level)}${quoted(node.id.value)}$attrFormatting;"""
   }
 
+  // One name for each subgraph, and no two subgraphs with one name.
+  val subgraphNames = dotSubgraphNames(elements.groups.values)
+
   // Helper to process clusters recursively with proper nesting (using ViewerGraphElements directly)
   def processCluster(groupId: GroupId, level: Int, processedGroups: scala.collection.mutable.Set[GroupId]): Unit = {
     if (processedGroups.contains(groupId)) return
@@ -292,15 +312,7 @@ def viewerGraphElementsToText(
 
     val group = elements.groups(groupId)
 
-    // Graphviz only draws a subgraph as a cluster when its name starts with "cluster",
-    // and GroupId.fromDot strips that prefix on import (storing cluster="true"). Restore
-    // the prefix from the reliable `cluster` attribute — not from the id's spelling, which
-    // dropped cluster semantics for ids with uppercase/underscores or > 10 chars.
-    val isCluster    = group.attributes.values.get(AttributeId("cluster")).exists(_.toString == "true")
-    val subgraphName =
-      if (isCluster && !group.id.value.startsWith("cluster")) s"cluster_${group.id.value}"
-      else group.id.value
-    lines += s"""${padding(level)}subgraph ${quoted(subgraphName)} {"""
+    lines += s"""${padding(level)}subgraph ${quoted(subgraphNames(groupId))} {"""
 
     val clusterAttrs = collectClusterAttributes(group)
     if (clusterAttrs.nonEmpty) {
@@ -372,3 +384,58 @@ def viewerGraphElementsToText(
   lines += "}"
   lines.mkString("\n")
 end viewerGraphElementsToText
+
+/** The name of each group after the `subgraph` keyword in DOT.
+  *
+  * Graphviz draws a subgraph as a cluster only when its name starts with
+  * `cluster`, and `GroupId.fromDot` removes that prefix from the id. Thus the
+  * id cannot give the source name back: `clusterB` and `cluster_B` both give
+  * the id `B`, and the second of them gets `B_2` (see `GroupId.fromDotNames`).
+  * The reader keeps the source name in the `name` attribute. A group gets
+  * that name when the name agrees with the group: `GroupId.canBeFromDot`
+  * accepts the id, and the name gives the same `cluster` flag. A copy of a
+  * group gets a new id, and the `cluster` flag can change. Then the old name
+  * belongs to a different group, so the group does not get it. A group with
+  * no such name, for example a new group, gets `cluster_<id>` when it is a
+  * cluster, and `<id>` when it is not.
+  *
+  * Graphviz merges two subgraphs that have one name and one parent, and the
+  * members of the two then go into one group. Thus each group gets a
+  * different name. The source names come first, in the order of `_gvid`. A
+  * name that an earlier group has does not go to a second group. A group with
+  * no free source name gets its fallback name, with `_2`, `_3`, and so on when
+  * a different group has that name.
+  *
+  * The `cluster` flag comes from the `cluster` attribute, not from the
+  * spelling of the id. The spelling lost the cluster flag for ids with
+  * capitals or underscores, or with more than 10 characters.
+  */
+def dotSubgraphNames(groups: Iterable[ViewerGroup]): Map[GroupId, String] =
+  def isCluster(group: ViewerGroup): Boolean =
+    group.attributes.values.get(Cluster.attrId).exists(_.toString == "true")
+  def sourceName(group: ViewerGroup): Option[String] =
+    group.attributes.values
+      .get(Name.attrId)
+      .map(_.toString)
+      .filter(name => GroupId.canBeFromDot(name, group.id) && GroupId.fromDot(name)._2 == isCluster(group))
+  def fallbackName(group: ViewerGroup): String =
+    if isCluster(group) && !group.id.value.startsWith("cluster") then s"cluster_${group.id.value}"
+    else group.id.value
+
+  type Names = (Map[GroupId, String], Set[String])
+  def give(names: Names, group: ViewerGroup, name: String): Names =
+    (names._1 + (group.id -> name), names._2 + name)
+
+  val ordered = groups.toVector.sortBy(g => (gvidOrder(g.attributes), g.id.value))
+  val withSource = ordered.foldLeft[Names]((Map.empty, Set.empty)): (names, group) =>
+    sourceName(group).filterNot(names._2).fold(names)(give(names, group, _))
+  val all = ordered.filterNot(g => withSource._1.contains(g.id)).foldLeft(withSource): (names, group) =>
+    val base = fallbackName(group)
+    give(names, group, (Iterator(base) ++ Iterator.from(2).map(n => s"${base}_$n")).filterNot(names._2).next())
+  all._1
+
+/** The declaration order of an element: its `_gvid`. An element with no
+  * `_gvid` comes last.
+  */
+private def gvidOrder(attrs: ViewerAttributes): Double =
+  attrs.values.get(GvId.attrId).map(_.toString.toDouble).getOrElse(Double.MaxValue)

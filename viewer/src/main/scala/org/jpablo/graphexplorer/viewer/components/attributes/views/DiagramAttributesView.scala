@@ -60,7 +60,7 @@ def DiagramAttributesView(state: ViewerState) =
         row(RankSep, range(start = Some(0.02), end = Some(2.0), step = Some(0.05)), label = Some("Rank gap"), unit = Some("in")),
         row(NodeSep, range(start = Some(0.02), end = Some(2.0), step = Some(0.05)), label = Some("Node gap"), unit = Some("in")),
         row(Pad, range(start = Some(0.0), end = Some(1.0), step = Some(0.05)), label = Some("Margin"), unit = Some("in")),
-        SectionHeader("Edges"),
+        SectionHeader("Arrows"),
         // "Directed" describes the graph; the toggle draws arrowheads. Naming it after the
         // graph theory made you flip it twice to find out what it did.
         graphTypeRow.copy(label = "Arrowheads"),

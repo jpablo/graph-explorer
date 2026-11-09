@@ -54,15 +54,18 @@ The desktop app does not update itself. Download each new release.
 
 What the desktop app adds to the web app:
 
-- **Open a file from disk.** Run `gx open diagram.dot`. The app has no file
-  picker, so open files with `gx`.
+- **Open a file from disk.** Run `gx open diagram.dot`, or open a diagram of
+  the library from the home page. The app has no file picker.
 - **Live reload.** The app watches the files that it shows. After a save in
   your editor, the diagram shows the change.
 - **Save back.** Press `⌘S` (`Ctrl+S` on Windows and Linux) to write your edits
   to the file. If the file changed on disk, the app asks which version to keep.
-- **A library on disk.** Library diagrams are files in
-  `~/.graph-explorer/library`. The app and `gx` share them. Set `GX_HOME` to use
-  a different folder.
+- **Your files are the diagrams.** The library is a list of your diagram files.
+  For each file, it keeps the tags, the notes, the hidden elements, and the
+  collapsed groups, in `~/.graph-explorer/library/metadata`. The file stays
+  where it is, and the app and `gx` share the library. A new diagram is a file
+  in `~/Documents/Graph Explorer`. Set `GX_HOME` and `GX_DIAGRAMS_DIR` to use
+  different folders.
 
 ## gx
 
@@ -73,15 +76,15 @@ checks the notarization.
 
 ```bash
 gx status                        # the library folder, and if the desktop app runs
-gx run arch.dot list-nodes       # the nodes of a file
-gx run arch.dot set-attribute \
-  --params '{"targets":["node:db"],"name":"shape","value":"cylinder"}'
-gx import arch.dot               # add the file to the library, linked to it
+gx nodes arch.dot                # the nodes of a file
+gx arrows arch.dot               # its arrows, with names such as api..db
+gx set arch.dot db shape=cylinder    # change the file
+gx hide arch.dot api..db         # hide an arrow: gx writes the metadata, not the file
 gx open arch.dot                 # show the file in the desktop app
 ```
 
-Only `gx open` and `gx session` need the desktop app. All other commands work
-with no window. Run `gx help` for the full list.
+Only `gx open`, `gx select`, `gx selection`, and `gx fit` need the desktop
+app. All other commands work with no window. Run `gx help` for the full list.
 
 **Coding agents.** [`skills/gx`](skills/gx/SKILL.md) is a skill that tells a
 coding agent how to use `gx`. Run `gx skill` to get its address for your

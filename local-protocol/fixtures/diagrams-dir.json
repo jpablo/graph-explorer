@@ -1,0 +1,36 @@
+{
+  "$comment": [
+    "The folder for new diagrams: Scala and Rust must give the same answer.",
+    "",
+    "gx-core's GxHome.diagramsDir and the desktop's diagrams_dir_from read",
+    "this file. Each case gives the value of $GX_DIAGRAMS_DIR (null: the",
+    "variable is not set) and the home directory in `home`. A case has",
+    "`expect` (the folder) or `error` (each string must occur in the message).",
+    "",
+    "The rules:",
+    "  1. not set, empty, or only spaces: `home`/Documents/Graph Explorer",
+    "  2. an absolute value replaces the folder. The spaces at the two ends go,",
+    "     and the dot segments resolve. A `..` at the root stays at the root.",
+    "  3. a relative value is refused, as a relative GX_HOME is refused: gx and",
+    "     the desktop do not share a working directory.",
+    "",
+    "The paths are POSIX paths. On Windows, `/tmp/x` is not absolute, so the",
+    "two test suites skip this file there."
+  ],
+  "home": "/Users/someone",
+  "diagramsDir": [
+    { "name": "not set", "env": null, "expect": "/Users/someone/Documents/Graph Explorer" },
+    { "name": "empty means not set", "env": "", "expect": "/Users/someone/Documents/Graph Explorer" },
+    { "name": "only spaces means not set", "env": "   ", "expect": "/Users/someone/Documents/Graph Explorer" },
+    { "name": "an absolute value replaces the folder", "env": "/tmp/diagrams", "expect": "/tmp/diagrams" },
+    { "name": "the dot segments resolve", "env": "/tmp/../tmp/./diagrams", "expect": "/tmp/diagrams" },
+    { "name": "a final separator goes", "env": "/tmp/diagrams/", "expect": "/tmp/diagrams" },
+    { "name": "the spaces at the two ends go", "env": "  /tmp/diagrams  ", "expect": "/tmp/diagrams" },
+    { "name": "a .. at the root stays at the root", "env": "/../diagrams", "expect": "/diagrams" },
+    { "name": "a space inside the name stays", "env": "/tmp/My Diagrams", "expect": "/tmp/My Diagrams" },
+    { "name": "a bare name is refused", "env": "diagrams", "error": ["GX_DIAGRAMS_DIR", "absolute", "'diagrams'"] },
+    { "name": "a ./ value is refused", "env": "./diagrams", "error": ["GX_DIAGRAMS_DIR", "absolute", "'./diagrams'"] },
+    { "name": "a ../ value is refused", "env": "../diagrams", "error": ["GX_DIAGRAMS_DIR", "absolute", "'../diagrams'"] },
+    { "name": "a nested relative value is refused", "env": "a/b", "error": ["GX_DIAGRAMS_DIR", "absolute", "'a/b'"] }
+  ]
+}

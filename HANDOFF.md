@@ -1,464 +1,119 @@
-# Handoff: desktop open targets and persistence
+# Handoff: the file is the diagram
 
-Written 2026-08-22. Read `docs/desktop-open-targets-and-persistence.md` first.
-That document is the plan. This file records the state of the work.
+Written 2026-11-08, for the branch `gx-simplification` (from `viewer`). The branch is not merged and not released. The last release is `v0.9.5`, which has the old record model.
+
+Read these first: `CONTEXT.md` (the terms), `docs/adr/0001-the-file-is-the-only-copy.md` (the decision) and `docs/plan-the-file-is-the-diagram.md` (the plan, now done).
 
 ## 1. State
 
-**Every phase in the plan is implemented.** Phases 0 to 3 are released as
-`v0.9.5`; Phase 4 is on `viewer` and not yet released.
+Each phase of the plan is done. The commits of the branch, oldest first:
 
-`v0.9.5` tags `fecafd8c`, the merge that brought both phases onto `viewer`.
-`viewer` has moved on since — this file's own updates land there — so check
-`git log v0.9.5..HEAD` rather than assuming the tag is at the tip. The branches
-that carried this work,
-`phase-2-loose-document-sessions` and `phase-3-origin-reconciliation`, are
-merged and deleted. Every commit is reachable from `viewer`.
+| Commit | What it did |
+|---|---|
+| `26d35b01` | Gave the tiers the names Source, Metadata and Live view, and changed the protocol names with them. |
+| `fd5b0897` | The viewer follows the metadata of an open diagram, and holds it as one `Var[DiagramMetadata]`. |
+| `4bf5fdba` | Phase 1: the metadata store by file path, the migration plan and its JVM executor, the element names, and ADR 0001. |
+| `563de6b2` | Phase 2: `gx` has a verb for each command, and the file comes first. `import`, `bind`, `sync`, `run`, `view` and the other old commands are gone. |
+| `8c29e043` | Phase 3a: the library of the desktop is the metadata store, and each diagram opens as its file. The old record model is deleted. |
+| `f165e20e` | Phase 3b: a live-view command names its diagram, a desktop save keeps the line endings, and the UI says "arrow". |
+| `99689ac1` | Phase 4: the documents, and a sandbox for each smoke script. |
+| `29211512` | Fix: a control character after a backslash in a record label goes, with the backslash. |
+| `5befc286` | Fix: a backslash typed before a special in a record cell no longer breaks the record. |
+| `762147ff` | Fix: a write keeps each `id` attribute, and a copy does not take it. |
+| `61b2d7e9` | Fix: each subgraph is a different group. |
+| `d838a4dc` | Fix: two sibling subgraphs with one name are one subgraph, as in Graphviz. |
+| this change | The documents for the three fixes above. |
 
-The release published six binaries — desktop and `gx` for macOS, Linux and
-Windows — plus `SHA256SUMS`:
-<https://github.com/jpablo/graph-explorer/releases/tag/v0.9.5>
+Each commit message tells the details of its phase.
 
-All tests pass.
+Tests:
 
 | Suite | Count | Command |
 |---|---|---|
-| Scala, all modules | 2377 | `sbt --client testFull` |
-| Rust, desktop | 50 | `cd desktop/src-tauri && cargo test` |
-| Open handshake | 6 checks | `bash scripts/local-capabilities-open-handshake-smoke.sh` |
+| Scala, all modules | 2610 | `sbt --client testFull` |
+| Rust, desktop | 77 | `cd desktop/src-tauri && cargo test` |
+| Helper self-test | 33 checks | `scripts/lib/control-api-selftest.sh` |
 
-The smoke script needs a release desktop binary. Read §8 for the build order.
+`gx` and the desktop share the library, so they must ship together, in one release.
 
-NOTE: the graphviz corpus tally is **810**. It is the byte-exact transcription
-of the dot engine, and it must not move. A corpus diff is a regression, never a
-rebaseline.
+## 2. The model
 
-## 2. What Phase 2 added
+A **diagram** is a DOT or Mermaid file, and the file is the only copy of its source. The **library** is the set of diagrams that have **metadata**: one JSON entry for each file in `$GX_HOME/library/metadata/`, named by the SHA-256 of the canonical `file:` URI of the file. The metadata is the tags, the notes, the hidden elements and the collapsed groups, and it never goes into the file. The **live view** is what a desktop window shows now. `gx` and the desktop read and write the same files and the same entries, and the desktop watches both. The first library command of `gx`, or the first start of the desktop, moves the old records of `library/diagrams/` to the store one time, and keeps the old directory unchanged. The web app still keeps each source in the browser.
 
-The seven items are done. The parts to know:
+- The protocol: `local-protocol/README.md`.
+- The commands of `gx`: `gx help`, and `skills/gx/SKILL.md` with `skills/gx/commands.md`.
 
-- **A loose file has a route.** `Route.LooseDocument(sessionId)` gives the URL
-  `/documents/<opaque-session-id>`. The route holds the session id and never a
-  path (§13).
-- **`DesktopDocumentRegistry` maps that id to the file.** It holds the canonical
-  path, the base revision, the source text, and a conflict. It is a `Var`, so a
-  view follows its own session. `record` is idempotent per path: a second
-  `gx open` of one file keeps the first id.
-- **`ViewerState` takes a `ViewTarget`, not a `ProjectId`.** The enum has
-  `LibraryDiagram`, `LooseFile` and `Example`. `projectId` survives as a derived
-  value for the share URL and for `Project`. It is not a persistence key.
-- **`DiagramPersistence` is chosen from the target.** `forTarget` is total over
-  `ViewTarget`, and that totality is the guarantee §6 asks for: a loose file
-  cannot reach library persistence, because no branch gives it one.
-- **⌘S is `ViewerState.save()`.** The old path reached through
-  `window.__graphExplorerDesktopBridge` for a destination that was
-  process-global. That object no longer offers a save, and `documentRef` is
-  gone.
-- **A file event never replaces dirty text (§7.3).** A clean editor adopts the
-  file. A dirty editor keeps its text, and the file's version waits in the
-  session behind a banner with two answers.
-- **A file open completes the handshake.** `show_file` waits for the page, and
-  the acknowledgment names the session and revision that displayed it.
+## 3. Before a release
 
-Two deviations from the plan's own sketches, both deliberate:
+Do these steps by hand. CI does only a part of §3.2.
 
-1. §6 sketches `ViewerState(target = ..., persistence = ...)`. A Scala default
-   argument cannot read an earlier parameter of the same list, so
-   `persistence = forTarget(target)` does not compile. The `Persistence` trait
-   derives it instead. Each implementation is still built and tested on its own.
-2. §2 sketches `LooseFile(DocumentRef(sessionId, path, revision))`. The target
-   holds the session id only. A revision advances on every save, and a copy in
-   the target would go stale and make the next save report a false conflict.
+### 3.1 Build in this order
 
-## 3. What Phase 3 added
-
-Phase 3 gives the desktop a capability it did not have. Before it, an edit in
-the app changed the record text and left `baseHash` alone. The app never wrote
-the origin file. The edit was not lost, and it waited for `gx sync`.
-
-- **The engine moved to `gx-core`.** `Reconciler.plan` is pure and shared, so
-  the page and `gx sync` reach the same answer. `syncOne` keeps every behaviour
-  it had and is now the I/O half: read the origin, ask, perform, save.
-- **The CRLF rule moved with it.** `Reconciler.storedWith` names the convention
-  `local` must be hashed with. `LineEnding` moved to `shared/` to make that
-  possible. It touches no file.
-- **The page hashes through the shell.** `Hashing` is `MessageDigest`, which
-  Scala.js does not have. The `hash_text` command reuses the shell's own
-  digest, which `content-hashes.json` already pins against the JVM's. A second
-  SHA-256 in the webview would have had to agree with two others forever.
-- **An origin change reaches its RECORD.** `DesktopLibrary` indexes records by
-  the file each binds to. `DesktopBridge` sends a bound path to
-  `OriginReconciler` instead of opening a loose session for it. A pull writes
-  the record, and an open viewer follows because it already watches the record.
-- **A divergence is visible.** A strip reports the two states §5.2 calls
-  `needsUser`: both sides changed, or the origin is gone.
-
-One deviation, deliberate. The plan says to move `syncOne` into `gx-core`.
-`Reconciler` holds the DECISION only, and returns the one step for the caller
-to perform. The two callers cannot share I/O: `gx` reads and writes files, and
-the page has no filesystem. They can share the answer.
-
-Two traps the code now guards, both found while building this:
-
-- `filePath` is not the inverse of `fromCanonicalPath` on Windows. The encoder
-  writes URI separators, so a record read as unbound and opened a second time
-  beside itself. `DesktopLibrary` collapses both spellings, and `filePath`'s
-  scaladoc now warns. Every other caller passes the value to `Paths.get`, which
-  accepts either separator, so none of them was affected.
-- A hash the page cannot obtain is reported as `Diverged`, never as agreement.
-  A failed IPC call means no comparison happened, and `InSync` would claim one
-  that never did.
-
-### The two resolution actions (added after Phase 3)
-
-§8 lists four: take the file version, keep the library version, write the
-library version to the file, and detach. **The first two now have buttons.**
-Both are one call to `Library.recordReconciled`, and both settle the record:
-
-| Button | Call | Record then reads |
-|---|---|---|
-| Take the file's version | `recordReconciled(id, Some(originText), originHash)` | `InSync` |
-| Keep this diagram | `recordReconciled(id, None, originHash)` | `Ahead` |
-
-The baseline has to move in BOTH. Keeping the diagram and leaving the baseline
-alone would leave base, local and remote all different, which is the definition
-of `Diverged`: the strip would come straight back and the decision would have
-changed nothing. Moving it says "I have seen the file's version and mine
-stands", and a binding that pushes carries the record on the next sync.
-
-`OriginReconciler` now keeps the origin SNAPSHOT beside the state, because the
-resolution needs the text and the hash the person was shown. It refuses to
-offer a resolution it cannot trust: a missing origin has no text, and a write
-that lost its compare-and-swap proves the file moved after the read. Both still
-report the situation, with no buttons.
-
-Fixed on the way: a push that lost its compare-and-swap recorded the divergence
-and then erased it. `perform` marked it, and the caller overwrote the mark with
-the settled state it had PREDICTED. `perform` now returns the state the action
-actually reached.
-
-**Still not built**, and each needs a decision first:
-
-- **Write the library version to the file.** `binding.mode` answers most of it
-  — a `Pull` binding says the file is the author — so the narrow question is
-  whether the button simply does not appear under `Pull` and `Detached`. That
-  leaves a diverged `Pull` record with two of the four actions. Agree that this
-  is right rather than discover it.
-- **Detach.** This one also needs new plumbing. `LibraryMapping` carries a
-  binding forward unchanged on every page write, so no page path can clear one.
-  That invariant is also what makes Phase 3 safe: today the page never changes
-  a binding, so a `gx sync` and an app edit cannot fight over one. Detach is
-  the first thing that would break it.
-
-Open too: a `Detached` record still shows the strip when it diverges. Detached
-means "do not synchronize", so reporting a conflict there may be noise. Not
-changed, because it is a policy call.
-
-### The watch that makes all of it run (added after Phase 3)
-
-Phase 3 decided what to do with an origin change and never asked for one.
-`DesktopIpc.OpenDocument` was defined, handled in Rust, described in the
-protocol README — and called from NOWHERE. Reconciliation runs on a document
-event, and the shell sends one only for a file it watches, so an origin edit
-reached the app only when `gx open` had watched the file. Opening the same
-record from the library was silent, and everything downstream of it — the
-whole of Phase 3 and the two buttons above — was unreachable from the UI.
-
-`Persistence.watchOrigin()` now runs at `initializePersistence`, beside
-`followDocumentSession`. A loose file arrives with its text; a record arrives
-with a binding and nothing listening behind it. This is the symmetric half.
-
-Three things about it:
-
-- **The reply is discarded.** It carries the bytes, and taking them would put
-  the file on screen without asking the record — the behaviour §8 removed.
-  `add_watch` emits a document event for a watch it CREATES, so the text
-  arrives by the one route that reconciles. A file changed while the app was
-  shut therefore reconciles at open, and the strip is there on arrival.
-- **There is no unwatch, and it must not grow one without a refcount.** Watches
-  are keyed by path and shared: `gx watch` may hold one on the same file, and
-  releasing it because a page navigated would stop a watch the page never
-  started. The cost is one watch per bound record visited in a session.
-- **A watch the shell refuses is not fatal.** The record still opens. It just
-  does not hear about the file.
-
-## 4. Defects that only RUNNING it found
-
-None of these came from a test. Each was found by building the desktop and
-using it, and each had passed every suite. All of them are FIXED now.
-
-**`gx open <path>` failed on a cold desktop.** It answered DOCUMENT_NOT_FOUND,
-and worked as soon as any diagram had been opened — a bug that disappears when
-you try to reproduce it. Two causes. The page installed its document listener
-from `DesktopBridge.attach`, which runs only when a view mounts, so a desktop on
-Home had none. And the shell emitted the document event before the page was
-listening; unlike an open request, that event is not queued (§4.1). The smoke
-script now opens a loose file FIRST, before anything else, because opening
-anything else installs the listener and hides the failure. Do not move that
-check.
-
-**A Windows record was unreachable from the path the shell reports.**
-`filePath` is not the inverse of `fromCanonicalPath`: the encoder writes URI
-separators, so `C:\Users\x\a.dot` came back as `C:/Users/x/a.dot`. The record
-read as unbound and opened a second time beside itself, silently.
-
-**Cmd+Q discarded an unsaved edit.** The close handler was correct and
-unreachable. macOS raises `CloseRequested` for a window's red button, but Cmd+Q
-goes through the app menu's Quit item — Tauri's predefined one calls the native
-terminate and bypasses the event loop. Instrumenting every run event showed
-`Exit` and nothing preventable before it. Quit is now an item this app owns.
-
-CAUTION: three test harnesses failed to reach the Cmd+Q path before a person
-pressed the key. An AppleScript quit does not go through the menu. A synthetic
-keystroke is blocked by accessibility permissions, and its "the app is still
-running" result means nothing. Only a human can check this one.
-
-### FIXED: the record never reached the screen
-
-Found 2026-08-24, testing the watch above. A file edit reached the record in
-under five seconds — and the window kept showing the old diagram.
-
-`restorePersistedState` read `persistence.initial` ONCE at mount, and
-`DiagramPersistence` offered nothing else. `createProjectPersistence` did its
-half faithfully, setting its `Var` whenever a record changed underneath an open
-view, and NOTHING consumed it. So `gx set`, `gx run hide`, and every pull from
-an origin file landed in the record correctly and stayed invisible until the
-view was reopened.
-
-This predates all of this work — the same one-shot read is in the pre-Phase-2
-code. But it made yesterday's two buttons worse than useless: "take the file's
-version" wrote the record and cleared the strip, because the state really had
-resolved, while the person kept looking at the old text.
-
-Two comments ASSERTED the missing behaviour — `DesktopLibrary.recordReconciled`
-("an open viewer follows") and `OriginReconciler.takeOrigin`. Both are corrected
-and now name `Persistence.followRecord`, which is what makes them true.
-
-The fix took two tries, and the first one is worth knowing about:
-
-- Filtering the view's own writes OUT OF THE SHARED `Var` cannot work. An echo
-  carries the snapshot taken when the write was SCHEDULED, so it arrives
-  holding text the editor has already moved past — which is indistinguishable
-  from somebody else's change. `ImportOpsSpec` caught it: a format the person
-  chose by hand was reset, because a stale echo re-ran format detection.
-- `DiagramLibrary.recordChangedExternally(id)` is the answer: a stream fed ONLY
-  from the library's records watcher. An event on it came from outside by
-  construction, so there is nothing to filter. `localStorage` returns
-  `EventStream.empty`, which is the truth and not a stub — a browser library
-  has no second writer.
-
-### FIXED: a canvas edit removed content that the graph does not model
-
-Found 2026-08-23. Fixed 2026-09-27.
-
-A canvas edit (a toolbar attribute, group, combine, delete, and so on) prints
-the whole graph again, and the new text replaces the old text. The printers
-write only what the graph models. So a canvas edit removed this content:
-
-| Language | Content that a canvas edit removed |
-|---|---|
-| DOT | comments (`//`, `/* */`, `#`) and the `strict` keyword |
-| Mermaid | `%%` comments, `%%{init}%%` directives, front-matter keys other than `title`, `click` lines, `accTitle` and `accDescr`, and `direction` inside a subgraph |
-
-Some of this loss changes the diagram. Without `strict`, the duplicate edges
-come back. Without the directive, the theme changes.
-
-For a bound record, the damaged text went into the record. Only the local hash
-moved, so the record was `Ahead`, and `gx sync` pushed the text over the
-correct file. `Ahead` looks settled, so nothing asked first. For a loose file,
-the next Save wrote the text.
-
-`DesktopLibrary.writeNow` has a guard, "a visit is not an edit". It did not
-help, and it is right not to. The round trip really CHANGED the text. The guard
-stops clock churn, not a lossy print.
-
-CORRECTION: this section first described a `@startdot` wrapper in a bound
-file, `docker.dot`. The parser refuses that wrapper, so the viewer ignores a
-canvas edit on that file (`graphInSync` is false). The note did not record
-which step removed the wrapper, and the record no longer exists. Comments and
-`strict` are content that a canvas edit really removed, and a test shows it.
-
-What the viewer does now:
-
-- `RoundTripLoss.scan` (in `shared/`) finds the content in the table above. It
-  follows the lexical rules of each language. For example, a `//` inside a
-  quoted string is text, not a comment.
-- For a FILE-BACKED document, the setter of `InternalPhases.fullGraphV` refuses
-  a canvas edit when the scan finds something. File-backed means a loose file,
-  or a record with a binding to a file (`Persistence.isFileBacked`). The text
-  and the record stay unchanged. `errorBus` shows one message. The message
-  names the content and tells the person to edit the text instead.
-- The scan reads the current text. When the person removes that content from
-  the text, canvas edits work again.
-- A refused action does not do its follow-up. For example, a refused delete
-  does not unfold the groups, and a refused duplicate keeps the selection.
-- A record with no file behind it keeps the old behaviour. This was a
-  decision: no file can take the loss there.
-
-Tests: `RoundTripLossSpec` (shared), and `LossyCanvasEditSpec` and
-`RefusedEditFollowUpSpec` (viewer).
-
-What remains open:
-
-- `gx run <file> <mutation>` also prints the whole graph. It removes the same
-  content, `strict` too. `skills/gx/SKILL.md` says that a mutation keeps the
-  graph, and that is not true for `strict`.
-- The scan knows only the content in the table. A printer loss that is not in
-  the table can still reach a file.
-- A format switch on an empty diagram prints the graph in the new language. It
-  does not scan.
-
-## 5. Before the NEXT release
-
-Phase 4 is cleanup and does not gate a release. These do, and all three were
-done for `v0.9.5`:
-
-1. **Rebuild `gx`.** `scripts/build-gx.sh` writes `gx-cli/target/gx`. It is a
-   GraalVM native-image build, separate from the desktop's, so building the
-   desktop leaves it stale. Compare `gx --version` against the branch before
-   you trust any manual test: a `gx` older than the typed open targets does not
-   speak the current `show` protocol, and §10 says why that matters.
-2. **Check Cmd+Q by hand** after any change to the menu, the close handler or
-   the unsaved flag. Nothing automated reaches it.
-3. Run the smoke script. It needs a release desktop binary; §8 gives the order.
-4. **Look at the divergence strip once.** Its buttons are covered by a mounted
-   DOM test, so they render and they work. What no test can show is how the
-   strip LOOKS with two buttons in it. Its CSS copies
-   `.document-conflict-banner`, which ships, so this is a look and not an
-   investigation.
-
-The manual Cmd+Q check was done for `ec8bff95`, which `v0.9.5` contains: the
-dialog appears, the edit stays on screen, and Save writes the file and then
-exits.
-
-CAUTION: `sbt-dynver` computes the version ONCE, when the sbt project loads. A
-server that has been up since before the tag keeps reporting the old one, and
-the string can appear to go backwards between two builds. Run
-`sbt --client reload` and then `show version` after tagging, and confirm it
-prints the new tag before you believe any build.
-
-## 6. What Phase 4 removed
-
-Phase 4 removed the legacy global bridge. Its five items, and what each became:
-
-| Item | Outcome |
-|---|---|
-| 1. Remove global `DesktopBridge.target` | Done. That module no longer names `ViewerState` at all. |
-| 2. Remove global `documentRef` | Was already done, in Phase 2 item 5. |
-| 3. Remove direct source replacement from generic events | Done, after `push-text` gained a target. |
-| 4. Remove acceptance of unaddressed legacy events | Done. The bare `document.changed` is no longer listened to. |
-| 5. Update protocol fixtures and documentation | Done. `local-protocol/README.md` had described `show` as taking a bare path since Phase 1. |
-
-The keystone was a decision, not code: `/v1/push-text` now NAMES the document
-session it is aimed at. It carried text alone and landed in whichever viewer was
-on screen. Once a push names its destination, text with no addressee has no
-legitimate source — which turned items 3 and 4 from judgement calls into
-deletions.
-
-A viewer now follows its OWN session through an owner-scoped signal (§10), so
-Laminar teardown ends it and nothing has to detach anything.
-
-**Two globals stay, and the code says why.** `SessionCommands` and
-`DesktopClose` ask questions that are ABOUT the view on screen — what is
-selected, is there an edit to lose before this window closes. Naming the current
-view is their meaning, not an accident. Item 1 named `DesktopBridge.target`, and
-that is the one that could go.
-
-§16's invariant now holds: the route, the persistence owner, the event target
-and the save destination all derive from one `ViewTarget`.
-
-## 7. What remains
-
-The plan is implemented. Items 1 and 2 were deferred on purpose. Items 3 and 4
-are known defects with no fix.
-
-1. **Two of §8's four resolution actions.** Take the file and keep the library
-   version are built and have buttons; see §3. Write-to-file and detach are
-   not. Write-to-file needs a rule for which binding modes let the page write
-   on a person's behalf. Detach needs that AND new plumbing: no page path can
-   clear a binding, and clearing one races a `gx sync`.
-2. **Confirm the origin path on a real Windows machine.** `originPathOf`
-   returns the path as the binding stores it, which on Windows carries URI
-   separators — `C:/Users/x/a.dot`. The shell normalizes through `Paths.get`,
-   which accepts either, so it should reach the right file. Nothing has run it
-   there. The last bug of this shape opened a second copy of a record beside
-   itself and said nothing (§4).
-3. **`gx run` mutations still remove content from a file.** The viewer now
-   refuses a canvas edit that would remove comments, `strict`, or Mermaid
-   directives from a file-backed document (§4). `gx run <file> <mutation>`
-   prints the whole graph with the same printers and does not scan. Decide
-   whether `gx` refuses too, or only warns.
-4. **Nothing carries an app edit to the file.** Reconciliation has ONE trigger:
-   a document event, which means the FILE changed. An edit in the app makes the
-   record `Ahead` and stops there, whatever the mode says, until someone runs
-   `gx sync`. The watch added in §3 wired file to app; app to file has no
-   trigger at all. Decide whether a save should reconcile, and if so how a push
-   avoids fighting a `gx sync` doing the same thing.
-5. **A quit APPLE EVENT still discards an unsaved edit.** macOS sends one on
-   logout and restart. It bypasses the app menu, so it bypasses the Quit item
-   that asks. Tauri exposes no hook: the run loop reports `Exit` with nothing
-   preventable before it. Cmd+Q and the red button are safe.
-
-## 8. Build the desktop in this order
-
-WARNING: A wrong build order gives a blank window and an `OPEN_TIMEOUT`. This
-looks like a broken handshake. It is not.
+WARNING: A wrong build order gives a blank window and an `OPEN_TIMEOUT`. This looks like a broken handshake, but it is not.
 
 1. `sbt "viewer/fullLinkJS" && npm run build`
 2. `cd desktop/src-tauri && cargo build --release --features tauri/custom-protocol`
+3. `scripts/build-gx.sh` (it writes `gx-cli/target/gx`)
 
-Two rules apply:
+- Build the frontend first. A release build of the desktop embeds the frontend.
+- Give cargo the `tauri/custom-protocol` feature. `cargo tauri build` sets it, but `cargo build --release` alone does not. Without it, the webview loads nothing.
+- Build `gx` and the desktop from the same commit. A `gx` of `v0.9.5` sends the old method `session` and the old `library` target of `show`, and this desktop refuses both.
+- After a tag, run `sbt --client reload`, then `sbt --client "show version"`. Make sure that it prints the new tag before you trust a build (see §4, item 7).
 
-- Build the frontend first. A release build embeds the frontend.
-- Give cargo the `tauri/custom-protocol` feature. `cargo tauri build` sets this
-  feature. `cargo build --release` alone does not. Without the feature the
-  webview loads nothing.
+### 3.2 Run the smoke scripts
 
-The smoke script tests both rules before it starts. The script also uses a
-sandbox `GX_HOME`. The script does not touch your library and does not stop
-your desktop.
+| Script | Desktop binary |
+|---|---|
+| `scripts/local-capabilities-open-handshake-smoke.sh` | release |
+| `scripts/local-capabilities-release-smoke.sh` | release |
+| `scripts/local-capabilities-disk-to-ui-smoke.sh` | release |
+| `scripts/local-capabilities-policy-smoke.sh` | debug (the script builds it) |
+| `scripts/local-capabilities-limits-smoke.sh` | debug (the script builds it) |
+| `scripts/local-capabilities-phase3-smoke.sh` | debug (the script builds it) |
+| `scripts/lib/control-api-selftest.sh` | none |
 
-## 9. Open questions for the user
+Each script makes its own temporary `GX_HOME` and `GX_DIAGRAMS_DIR`, and removes them at the end. The bash scripts use `gx_sandbox_create` in `scripts/lib/control-api.sh`. No script stops a desktop that you run. CI runs the release, disk-to-UI and self-test scripts, and `scripts/local-capabilities-release-smoke.ps1` on Windows. The open-handshake script runs only on a machine with a window.
 
-The deferred WORK is in §7. These are questions about the repository itself:
+CAUTION: A release script on your machine can set the "done" flag of the browser-library copy. Read §4, item 4.
 
-1. The repository has 49 local branches. 40 of them hold work that `viewer`
-   does not contain, and there are 12 remote branches. Examples of the
-   unmerged ones: `desktop-gx-v2`, `wip`, `tmp`, `travel`.
-2. The plan document uses two voices. The Phase 2 item 7 text and the §15.6
-   text use Simplified Technical English. Most of the document does not.
+### 3.3 Check by hand
 
-Four earlier questions are now answered. The plan's `Status:` line reports every
-phase implemented. §15.6 requires the acknowledgment for a file open. The
-desktop asks before Cmd+Q discards an edit — §4 records what that took. And
-`/v1/push-text` names its document session, which is what let Phase 4 finish.
+1. **The migration of a real library.** Copy `~/.graph-explorer` to a temporary directory. Set `GX_HOME` to the copy, and `GX_DIAGRAMS_DIR` to a new empty directory. Start the new desktop, and compare its home page with the old library. Read the report, and look in `Recovered/`. Then run `gx ls` with the same two variables. This check also runs the browser-library copy (§4, item 4).
+2. **Cmd+Q with an unsaved edit.** The dialog must show, the edit must stay, and Save must write the file and then exit. Only a person can do this check: an AppleScript quit does not go through the menu, and a synthetic key press needs accessibility permissions.
+3. **Save and the conflict banner.** A Save of an edit must not show "This file changed on disk" (fixed in `f165e20e`). A change of the file in a different editor while the desktop has an unsaved edit must show it.
+4. **The home page.** "New diagram" makes `Untitled.dot` in the folder for new diagrams. "Rename" renames the file and keeps its metadata. "Remove from library" keeps the file. A missing file shows as missing.
+5. **The desktop commands of `gx`.** Run `gx open`, `gx select`, `gx selection` and `gx fit` against the release desktop. `gx select` of a file that the window does not show must exit 4, and the message must name the file on the screen.
 
-## 10. Cautions
+## 4. Known limits and open defects
 
-- WARNING: If a development server runs, do not edit `Persistence.scala`,
-  `ProjectsStorage`, or `ThumbnailDiskCache`. A server with hot reload writes
-  the real library. No server runs now.
-- WARNING: Do not run `sbt scalafmtAll`. `.scalafmt.conf` sets
-  `maxColumn = 140`, and the sources wrap scaladoc near 78. The task reformats
-  about 340 files and touches `graphviz/`. Match the file you edit by hand.
-- The `show` RPC has no legacy format. `gx` and the desktop must ship together.
-- Do not simplify `graphviz/`. That module is a transcription of Graphviz
-  13.0.1 C source. Idiomatic Scala breaks the byte-exact output.
-- WARNING: `gx` and the desktop must be built together for any manual test.
-  The `show` RPC has no legacy format, and a stale `gx` fails against a new
-  desktop in a way that looks like a broken handshake.
-- Reconciliation compares TEXT, and `gx sync` compares hashes of text. Both use
-  `Reconciler.storedWith` to choose the line ending. Keep it that way. A second
-  convention makes a file read as changed because of its line endings alone.
-- A loose file reaches the page ONLY through the desktop shell. The registry is
-  empty in a browser, so `/documents/<id>` there shows "No such document
-  session". That is correct, and it is not a bug to chase.
+Each item below is checked against the code of this branch.
 
-## 11. Other work in progress
+1. **One group name changes after a write.** `subgraph x { cluster=true }` becomes `subgraph "cluster_x"`, and its name in `gx` changes from `x` to `cluster_x`. Graphviz draws the same diagram.
+2. **`Documents.create` checks, and then moves.** It moves the temporary file with `REPLACE_EXISTING`. Thus a file that a second process makes between the check and the move is lost. The migration of `gx` uses it. The `create_document` command of the desktop uses a hard link and does not have this window.
+3. **`gx remove` while the file is open.** The viewer keeps its metadata. Its next change of any type (an edit of the source too) writes the entry again, with the old hidden elements and collapsed groups, and with no tags or notes. This occurs only when the viewer holds hidden elements, collapsed groups, or a manual language mode.
+4. **The "done" flag of the browser-library copy is in the localStorage of the webview** (`graph-explorer.migrated-to-disk`). `GX_HOME` does not move it. A sandboxed desktop on your machine (a smoke script, or check 1 of §3.3) can copy your browser diagrams into its sandbox, set the flag, and then remove the sandbox. Your real desktop then never copies them. `v0.9.5` used the same key, so this can occur only when no earlier desktop copied the browser library of the webview. To prevent it, start a real desktop one time first.
+5. **A change from `gx` can still be lost while the desktop writes metadata.** The desktop has no 400 ms wait now: each change of the metadata writes the entry at once. But the write merges the fields of the viewer onto the copy of the entry in memory. That copy sees a `gx` change only after the poll of the shell (400 ms) and a new read of the list. A change in the desktop in that interval writes over the change from `gx`. No message shows, because the shell watcher takes the result as a write of the page. Neither side compares before it writes, so a `gx` write can also write over a desktop write that comes between the read and the write of `gx`.
+6. **`gx selection` exits 0 with refs** when the window shows an example or a browser diagram. The JSON has `"path": null`, and stderr says that the window shows no file.
+7. **The version string of a local build comes from the start of the sbt server.** `sbt-dynver` calculates it one time, when the project loads. Now the server reports `0.9.5+14-fd5b0897`, four commits before the tip. Run `sbt --client reload` after a tag.
+8. **A quit Apple event discards an unsaved edit** (older than this branch). macOS sends one at logout and at restart. It does not go through the Quit item of the menu, and Tauri gives no hook. Cmd+Q and the close button of the window ask first.
+9. **An arrow to a subgraph does not reach the nodes of its inner subgraphs** (older than this branch). For `x -> subgraph s { subgraph t { a } b }`, Graphviz makes `x -> a` and `x -> b`, but the Graphviz port of `gx` makes only `x -> b` (`AttrResolver` in `graphviz/shared/.../model/Resolved.scala`). Thus a `gx` write drops `x -> a`, with no message. The browser viewer uses the real Graphviz and is correct.
+10. **The id of a group can move to a different subgraph.** When the names of two subgraphs give one id (`clusterB` and `cluster_B` give `B`), the first gets `B` and the second gets `B_2`. If a person deletes the first subgraph, the second gets `B` on the next read, and the metadata of `group:B` (a collapsed group, for example) then applies to it.
 
-The `/simplify` slice plan continues. Two slices are complete: `viewer/state`
-and `gx-cli`. The next slice is `gx-core`. See the memory file
-`simplify-slice-plan.md`.
+Small cleanups, not defects:
 
-NOTE: `viewer/state` changed a lot in Phase 2, and `gx-cli` lost its
-reconciliation engine in Phase 3. Both slices may need a second pass.
+- The shell still sends each document event two times, also with the old name `document.changed`. Nothing listens to it.
+- The shell passes on `OPEN_DENIED` from the page, but the page never sends it. The page does not call `library_read`.
+- The socket methods `watch`, `unwatch`, `get-document`, `put-document` and `push-text` stay for the smoke scripts. `gx` does not send them.
+- A desktop that is starting answers `STARTING`, and `gx` gives exit 4 for it, not exit 2.
+- A write gives each subgraph `label=""` and `cluster="true"` when the source has neither. Graphviz draws the same diagram, but the diff is larger.
+- The Graphviz port does not print the warning "Duplicate cluster name" for two clusters with one name under different parents.
+
+## 5. Cautions
+
+- WARNING: A debug desktop loads its page from the dev server (`npm run dev`) when one runs. At its first start, that page moves the library of its `GX_HOME`. Set `GX_HOME` and `GX_DIAGRAMS_DIR` before you start a debug desktop for a test.
+- WARNING: Do not run `sbt scalafmtAll`. `.scalafmt.conf` sets `maxColumn = 140`, and the sources wrap near 78. The task changes hundreds of files, `graphviz/` too. Match the file that you edit by hand.
+- Do not simplify `graphviz/`. It is a transcription of the C source of Graphviz 13.0.1, and `CorpusByteExactSpec` pins its output byte for byte. A corpus diff is a regression, never a new baseline.
+
+## 6. History
+
+The handoff of the earlier work (desktop open targets, library records, reconciliation, the divergence strip) is in git: `git show 26d35b01:HANDOFF.md`. Its plan, `docs/desktop-open-targets-and-persistence.md`, and `docs/sources-and-library-architecture.md` are superseded by ADR 0001.

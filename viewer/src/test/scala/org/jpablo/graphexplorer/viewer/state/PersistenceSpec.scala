@@ -1,10 +1,11 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.projects.SortOption
+import org.jpablo.graphexplorer.library.SortOption
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 import upickle.default.{read, write}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -13,15 +14,15 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  def storedProjectKey(projectId: ProjectId): String =
-    s"[StoredString]graph-explorer.project.${projectId.value}"
+  def storedDiagramKey(diagramId: DiagramId): String =
+    s"[StoredString]graph-explorer.project.${diagramId.value}"
 
-  test("Adding a node with smart connection should store the project in localStorage") {
+  test("Adding a node with smart connection should store the diagram in localStorage") {
     withGraphvizAsync { graphviz =>
 
-      val projectName = "my project"
-      val projectId   = ProjectId("test")
-      val viewerState = ViewerState(ViewTarget.LibraryDiagram(projectId), graphviz)
+      val diagramName = "my diagram"
+      val diagramId   = DiagramId("test")
+      val viewerState = ViewerState(ViewTarget.Diagram(diagramId), graphviz)
 
       afterMicrotasks {
         // sanity check
@@ -29,20 +30,20 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
         assertEquals(dom.window.localStorage.length, 0)
 
-        viewerState.project.name.set(projectName)
+        viewerState.storedName.set(diagramName)
         viewerState.addNodeWithSmartConnection()
 
         assertEquals(
           obtained = dom.window.localStorage.length,
           expected = 2,
-          "Should have two items in localStorage: one for the project and one for the graph explorer version"
+          "Should have two items in localStorage: one for the diagram and one for the graph explorer version"
         )
 
-        val storedProjectStr = dom.window.localStorage.getItem(storedProjectKey(projectId))
+        val storedDiagramStr = dom.window.localStorage.getItem(storedDiagramKey(diagramId))
 
         assertEquals(
-          storedProjectStr,
-          s"""{"projectName":"$projectName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}","format":"DOT","autoDetectFormat":true}"""
+          storedDiagramStr,
+          s"""{"projectName":"$diagramName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}","format":"DOT","autoDetectFormat":true}"""
         )
 
         // ---- verify ---

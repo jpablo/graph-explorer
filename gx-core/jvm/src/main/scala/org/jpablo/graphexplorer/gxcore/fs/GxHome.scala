@@ -79,3 +79,39 @@ object GxHome:
 
   /** `$GX_HOME/runtime`: the control file, the socket, the audit log. */
   def runtimeDir(gxHome: Path): Path = gxHome.resolve("runtime")
+
+  /** `$GX_HOME/library/metadata`: one JSON file for each diagram (plan §3).
+    *
+    * It is beside `diagrams/`, the old records. The migration makes it, and
+    * it runs only while this directory does not exist.
+    */
+  def metadataDir(gxHome: Path): Path = libraryDir(gxHome).resolve("metadata")
+
+  val DiagramsDirEnvVar = "GX_DIAGRAMS_DIR"
+
+  /** The folder for new diagrams: `$GX_DIAGRAMS_DIR`, or else
+    * `~/Documents/Graph Explorer`.
+    *
+    * A new diagram is a new file (ADR 0001), and the migration writes the old
+    * records that have no file into this folder. `$GX_HOME` does not move it,
+    * because the diagrams are the files of the person and not the data of
+    * gx. Thus a test that sets `GX_HOME` must also set `GX_DIAGRAMS_DIR`.
+    *
+    * A relative value is refused for the reason that a relative `GX_HOME` is
+    * refused: gx and the desktop do not share a working directory.
+    */
+  def diagramsDir(
+      env:      String => Option[String] = k => sys.env.get(k),
+      userHome: () => Path               = () => Paths.get(sys.props.getOrElse("user.home", "."))
+  ): Either[String, Path] =
+    env(DiagramsDirEnvVar).map(_.trim).filter(_.nonEmpty) match
+      case None => Right(userHome().resolve("Documents").resolve("Graph Explorer"))
+      case Some(dir) =>
+        val path = Paths.get(dir)
+        if path.isAbsolute then Right(path.normalize())
+        else
+          Left(
+            s"$DiagramsDirEnvVar must be an absolute path, but is '$dir'. " +
+              "A relative value resolves against each process's working directory, and gx and " +
+              "the desktop do not share one — they would put new diagrams in different folders without saying so."
+          )

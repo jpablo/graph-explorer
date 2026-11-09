@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.SimpleGraph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, Label, Name}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraphElements, viewerGraphElementsToText}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -1135,4 +1135,159 @@ class ViewerGraphToTextSpec extends FunSuite:
     val text        = viewerGraphToText(viewerGraph, omitInternal = true)
 
     println(text)
+  }
+
+  /** The writer keeps the name that the source gives a subgraph. The id of a
+    * group has no `cluster` prefix, so `clusterB`, `cluster_B` and `cluster01`
+    * cannot come back from the id alone. A canvas edit in the viewer and a
+    * write by gx use this writer.
+    */
+  test("the writer keeps the source name of each subgraph") {
+    val json =
+      """|{
+         |  "name": "G",
+         |  "directed": true,
+         |  "objects": [
+         |    {"name": "clusterB", "label": "", "_gvid": 0, "nodes": [3]},
+         |    {"name": "cluster01", "label": "", "_gvid": 1, "nodes": [4]},
+         |    {"name": "cluster_svc", "label": "", "_gvid": 2, "nodes": [5]},
+         |    {"_gvid": 3, "name": "a", "label": "a"},
+         |    {"_gvid": 4, "name": "b", "label": "b"},
+         |    {"_gvid": 5, "name": "c", "label": "c"}
+         |  ]
+         |}""".stripMargin
+
+    val graph = simplegraph.toViewerGraph(read[SimpleGraph](json))
+    val text  = viewerGraphToText(graph, omitInternal = true)
+
+    for name <- Seq("clusterB", "cluster01", "cluster_svc") do
+      assert(text.contains(s"""subgraph "$name" {"""), s"the writer changed the name $name:\n$text")
+    assert(!text.contains("name="), s"the source name leaked into the attributes:\n$text")
+  }
+
+  test("a source name that no longer agrees with the group falls back to cluster_<id>") {
+    // A copy of a group gets a new id, and the cluster flag can change. The
+    // old name then names a different group, so the writer must not use it.
+    val copied   = ViewerGroup.group(GroupId("g7"), Attributes.of(Name -> "clusterB"))
+    val unfolded = ViewerGroup.group(GroupId("B"), Attributes.of(Name -> "clusterB", Cluster -> false))
+    val elements = ViewerGraphElements(
+      nodes = scala.collection.immutable.VectorMap(
+        NodeId("a") -> ViewerNode.nodeNoDefaults(NodeId("a")),
+        NodeId("b") -> ViewerNode.nodeNoDefaults(NodeId("b"))
+      ),
+      memberships = Map(NodeId("a") -> GroupId("g7"), NodeId("b") -> GroupId("B")),
+      groups = Map(GroupId("g7") -> copied, GroupId("B") -> unfolded)
+    )
+    val text = viewerGraphElementsToText(elements, omitInternal = true)
+    assert(text.contains("""subgraph "cluster_g7" {"""), text)
+    assert(text.contains("""subgraph "B" {"""), text)
+  }
+
+  /** `GroupId.fromDot` gives one id to `clusterB`, `cluster_B` and `B`. The
+    * first of these subgraphs keeps the id, and each later one gets `<id>_2`,
+    * `<id>_3`, and so on. The subgraph `B_2` is the first with its id, so it
+    * keeps it, and the later subgraphs do not get it.
+    */
+  test("each subgraph gets its own id, and the first with an id keeps it") {
+    assertEquals(
+      GroupId.fromDotNames(Vector("clusterB", "B", "B_2", "cluster_B", "other")),
+      Vector(GroupId("B"), GroupId("B_3"), GroupId("B_2"), GroupId("B_4"), GroupId("other"))
+    )
+  }
+
+  /** DOT merges two subgraphs with one name, and the members of the two then
+    * go into one group. Thus the writer never gives two groups one name. Here
+    * two groups have the source name `cluster_B`, and the fallback name of `x`
+    * is the source name of `x_2`.
+    */
+  test("the writer never gives two subgraphs one name") {
+    val members = Vector("a" -> "B", "b" -> "B_2", "c" -> "x", "d" -> "x_2")
+    val elements = ViewerGraphElements(
+      nodes = scala.collection.immutable.VectorMap.from(
+        members.map((node, _) => NodeId(node) -> ViewerNode.nodeNoDefaults(NodeId(node)))
+      ),
+      memberships = members.map((node, group) => NodeId(node) -> GroupId(group)).toMap,
+      groups = Map(
+        GroupId("B")   -> ViewerGroup.group(GroupId("B"), Attributes.of("name" -> "cluster_B", "_gvid" -> "0")),
+        GroupId("B_2") -> ViewerGroup.group(GroupId("B_2"), Attributes.of("name" -> "cluster_B", "_gvid" -> "1")),
+        GroupId("x")   -> ViewerGroup.group(GroupId("x"), Attributes.of("_gvid" -> "2")),
+        GroupId("x_2") -> ViewerGroup.group(GroupId("x_2"), Attributes.of("name" -> "cluster_x", "_gvid" -> "3"))
+      )
+    )
+    val text  = viewerGraphElementsToText(elements, omitInternal = true)
+    val names = """subgraph "([^"]*)"""".r.findAllMatchIn(text).map(_.group(1)).toVector
+    assertEquals(names.sorted, Vector("cluster_B", "cluster_B_2", "cluster_x", "cluster_x_2"), text)
+    for (node, name) <- Vector("a" -> "cluster_B", "b" -> "cluster_B_2", "c" -> "cluster_x_2", "d" -> "cluster_x") do
+      assert(s"""(?s)subgraph "$name" [{][^}]*"$node"""".r.findFirstIn(text).isDefined, s"$node left the subgraph $name:\n$text")
+  }
+
+  /** The text for the layout puts its own `id` on each element, because a
+    * click finds the element by it. An `id` of the source must not replace it
+    * there. The text for a file keeps the `id` of the source.
+    */
+  test("an id of the source goes to the file text, and the layout text keeps its own id") {
+    val a = NodeId("a")
+    val g = GroupId("g")
+    val elements = ViewerGraphElements(
+      nodes = scala.collection.immutable.VectorMap(
+        a -> ViewerNode.nodeNoDefaults(a, Attributes.of(org.jpablo.graphexplorer.viewer.formats.dot.attributes.Id -> "mine"))
+      ),
+      memberships = Map(a -> g),
+      groups = Map(g -> ViewerGroup.group(g, Attributes.of(org.jpablo.graphexplorer.viewer.formats.dot.attributes.Id -> "ours")))
+    )
+    val layout = viewerGraphElementsToText(elements)
+    assert(layout.contains("id=\"node:a\""), s"the layout text lost the id that a click needs:\n$layout")
+    assert(layout.contains("id=\"group:g\""), s"the layout text lost the id that a click needs:\n$layout")
+    assert(!layout.contains("mine") && !layout.contains("ours"), s"an id of the source replaced the id of the layout:\n$layout")
+    val file = viewerGraphElementsToText(elements, omitInternal = true)
+    assert(file.contains("id=\"mine\""), s"the file text dropped the id of the node:\n$file")
+    assert(file.contains("id=\"ours\""), s"the file text dropped the id of the group:\n$file")
+    assert(!file.contains("node:a") && !file.contains("group:g"), s"an id of the layout leaked into the file text:\n$file")
+  }
+
+  /** The reader gives each arrow `label=""` when one arrow has a label, and the
+    * root graph `label=""` when one cluster has a label. Graphviz gives an
+    * arrow and the root graph an empty label by default, so the text for a
+    * file leaves these values out.
+    */
+  test("the text for a file has no empty label on an arrow or on the root graph") {
+    val json =
+      """|{
+         |  "name": "G",
+         |  "directed": true,
+         |  "label": "",
+         |  "objects": [
+         |    {"name": "cluster_x", "label": "X", "_gvid": 0, "nodes": [1]},
+         |    {"_gvid": 1, "name": "a", "label": "a"},
+         |    {"_gvid": 2, "name": "b", "label": "b"}
+         |  ],
+         |  "edges": [
+         |    {"_gvid": 0, "tail": 1, "head": 2, "label": "reads"},
+         |    {"_gvid": 1, "tail": 2, "head": 1, "label": ""}
+         |  ]
+         |}""".stripMargin
+    val graph = simplegraph.toViewerGraph(read[SimpleGraph](json))
+    val text  = viewerGraphToText(graph, omitInternal = true)
+    assert(text.contains("""label="reads""""), text)
+    assert(text.contains("""label="X""""), text)
+    assert(!text.contains("""label="""""), s"the text for a file has an empty label:\n$text")
+  }
+
+  test("an empty label stays where it has a meaning") {
+    val a = NodeId("a")
+    val b = NodeId("b")
+    val arrow = Arrow(a, b, seq = 0, attributes = Attributes.of(Label -> ""))
+    val elements = ViewerGraphElements(
+      nodes = scala.collection.immutable.VectorMap(
+        // A node shows its id when it has no label, so `label=""` hides the id.
+        a -> ViewerNode.nodeNoDefaults(a, Attributes.of(Label -> "")),
+        b -> ViewerNode.nodeNoDefaults(b)
+      ),
+      arrows = Map(arrow.id -> arrow),
+      // An empty arrow label overrides a default label of the `edge` statement.
+      defaultArrowAttributes = Attributes.of(Label -> "d")
+    )
+    val text = viewerGraphElementsToText(elements, omitInternal = true)
+    assert(text.contains(""""a" [label=""]"""), text)
+    assert(text.contains(""""a" -> "b" [label=""]"""), text)
   }

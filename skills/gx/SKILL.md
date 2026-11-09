@@ -1,18 +1,21 @@
 ---
 name: gx
-description: Read, query and edit graph diagrams from the command line with `gx`, the Graph Explorer CLI — list a DOT or Mermaid file's nodes/edges/groups, set attributes, group and hide elements, keep a file synced with the diagram library, and show it in the Graph Explorer desktop app. Use whenever a task involves .dot/.gv/.mmd diagram files, asks what a diagram contains, asks to restyle or restructure one, or asks to open/visualize a graph.
+description: Read and change DOT and Mermaid diagram files from the command line with `gx`, the Graph Explorer CLI — list the nodes, arrows and groups of a file, set attributes, group nodes, hide and tag elements, keep a library of diagrams, and show a file in the Graph Explorer desktop app. Use whenever a task involves .dot/.gv/.mmd diagram files, asks what a diagram contains, asks to restyle or restructure one, or asks to open/visualize a graph.
 license: Apache-2.0
-compatibility: Requires the `gx` binary on PATH (Graph Explorer; download from https://github.com/jpablo/graph-explorer/releases). Everything except `gx open` and `gx session` runs headless — no desktop app and no display needed.
+compatibility: Requires the `gx` binary on PATH (Graph Explorer; download from https://github.com/jpablo/graph-explorer/releases). Only `gx open`, `gx select`, `gx selection` and `gx fit` need the desktop app; every other command runs headless, with no display.
 ---
 
 # Driving Graph Explorer with `gx`
 
-`gx` is a single native binary. It edits diagram files **structurally** — it parses
-DOT/Mermaid into a graph, applies a named command, and writes the graph back — so you can
-say "set `fillcolor` on these three nodes" without writing a regex over someone's DOT.
+`gx` is one native binary. It edits a diagram file **structurally**: it parses the DOT or
+Mermaid text into a graph, makes the change, and writes the graph back. Thus you can say
+"set `fillcolor` on these three nodes" and you do not write a regex over the DOT text.
 
-**Everything except `gx open` and `gx session` works with no GUI running.** Do not start
-the desktop app to inspect or edit a diagram.
+**A diagram is a file.** Each command takes the file first. The file is the only copy of
+the source. There is nothing to import, bind or sync.
+
+**Only the desktop commands need the desktop app** (`open`, `select`, `selection`, `fit`).
+Do not start the desktop app to read or change a diagram.
 
 ## Before anything else
 
@@ -20,198 +23,213 @@ the desktop app to inspect or edit a diagram.
 gx --version
 ```
 
-If that fails, `gx` is not installed — say so and point at
+If that fails, `gx` is not installed. Say so, and point at
 <https://github.com/jpablo/graph-explorer/releases> (the `gx-vX.Y.Z-<platform>` asset).
-Do not try to build it from source unless asked; it is a GraalVM native image and the
-build is not quick.
+Do not build it from source unless the user asks. It is a GraalVM native image, and the
+build is slow.
 
-Then, once per task:
+Then, one time for each task:
 
 ```bash
 gx status
 ```
 
-It prints the library root, how many diagrams are in it, and whether a desktop is up. It
-never fails for want of a desktop.
+It prints the library folder, the number of diagrams in it, and the state of the desktop.
+It exits 0 also when no desktop runs.
 
-## The one distinction that matters: a path vs. a library ref
+## Four kinds of command
 
-Every command takes a `<ref>`, and a ref is resolved in this order:
-
-1. a **library diagram id** (`gx ls`),
-2. an exact **library diagram name**,
-3. a **path** to a file on disk.
-
-Ambiguity is reported, never guessed at.
-
-A loose file on disk needs no setup — `gx run ./arch.dot list-nodes` works immediately.
-But **the record tier only exists for library diagrams**; on a loose file those commands
-refuse with exit 4 and tell you to `gx import` it first.
-
-⚠️ **A name match is not proof you have the right diagram.** The library is global, so a
-name like `infra` may already belong to a diagram bound to a completely different file.
-Resolution reports *ambiguity*, but one exact match is not ambiguous — it is just possibly
-the wrong file. Before acting on a library ref you did not import yourself, check what it
-is bound to:
-
-```bash
-gx ls --json      # or: gx run <ref> get-record --json
-```
-
-and confirm the `origin` is the file you mean. Addressing the **path** instead of the name
-sidesteps the question entirely, and is the safer default when you have a path in hand.
-
-## Three tiers
-
-| Tier | Verb | Operates on | Needs a desktop? |
+| Kind | Commands | Writes | Needs a desktop |
 |---|---|---|---|
-| Document | `gx run <ref> <cmd>` | the diagram **text** — nodes, edges, attributes | no |
-| Record | `gx run <ref> <cmd>` | stored **metadata** — hidden elements, tags, folder | no (library only) |
-| Session | `gx session <cmd>` | the **live view** — selection, viewport | **yes** |
+| Read | `nodes`, `arrows`, `groups`, `attrs` | nothing | no |
+| Change | `set`, `reset`, `group`, `ungroup`, `combine-record`, `split-record`, `transpose-record` | the **file** | no |
+| Metadata | `hide`, `unhide`, `collapse`, `expand`, `tag`, `untag`, `note`, `info`, `ls`, `add`, `remove` | the **library**, never the file | no |
+| Desktop | `open`, `select`, `selection`, `fit` | nothing | **yes** |
 
-`gx run` accepts document and record commands interchangeably; the tier decides what gets
-written, not how you spell the call.
+Add `--json` to each command that prints a result. Parse the JSON, not the columns. The
+columns are for people, and they can change.
+
+## Element names
+
+Each command names elements the way that `gx nodes`, `gx arrows` and `gx groups` print
+them. **Read the names from those commands, and copy them.**
+
+| Name | Means |
+|---|---|
+| `api` | the node `api` |
+| `api..db` | each arrow from `api` to `db` (also in an undirected graph) |
+| `api..db#2` | the second arrow from `api` to `db`, in the order that `gx arrows` prints |
+| `cluster_svc` | the group that the source calls `cluster_svc` (a DOT cluster, or a Mermaid subgraph id) |
+| `node:x`, `group:x`, `arrow:…` | the same with a prefix. Use a prefix only when a node and a group have the same name |
+
+Write an arrow as `api..db`, **never as `api->db`**. A shell reads `>` as a redirect, and
+`gx set f.dot api->db color=red` writes a file named `db`.
+
+A name that names nothing is exit **4**. A malformed name (for example `node:`) is exit
+**1**. The message names each bad name at once:
+
+```
+gx: 'nope' names no node, arrow or group; 'api->db' names no node, arrow or group. Write an arrow as api..db. 'gx nodes', 'gx arrows' and 'gx groups' print the names.
+```
+
+## Read a diagram
 
 ```bash
-gx run --list        # every headless command name
-gx session --list    # the five live-view commands
+gx nodes  arch.dot
+gx arrows arch.dot
+gx groups arch.dot
+gx attrs  arch.dot api api..db cluster_svc
 ```
 
-## Reading a diagram
+Real output, for a file with a cluster `cluster_svc` and two arrows:
+
+```
+$ gx arrows arch.dot
+api..db   api -> db  "reads"
+web..api  web -> api
+
+$ gx arrows arch.dot --json
+[
+  {
+    "name": "api..db",
+    "ref": "arrow:api->db/0",
+    "source": "api",
+    "target": "db",
+    "label": "reads"
+  },
+  ...
+]
+```
+
+`attrs` prints the attributes as the DOT writer of gx prints them. It leaves out the
+internal ones (`_gvid`) and the empty ones.
+
+## Change a diagram
 
 ```bash
-gx run ./arch.dot list-nodes
-gx run ./arch.dot list-arrows
-gx run ./arch.dot list-groups
-gx get ./arch.dot                 # the raw text
-gx get ./arch.dot --json          # text + path + content hash
+gx set   arch.dot api db fillcolor=lightblue style=filled
+gx set   arch.dot api..db color=red label=          # label= removes the label
+gx reset arch.dot api                               # remove each attribute except the label
+gx group arch.dot web db --label "edge tier"        # the output names the new group
+gx ungroup arch.dot cluster_svc                     # the members stay, the group goes
 ```
 
-Output is columns for a human, JSON with `--json`. Real output:
+In `gx set`, an argument of the form `<name>=<value>` is an attribute. Each other argument
+is an element. An empty value removes the attribute. One call can set some attributes and
+remove others.
+
+On success, a change prints one line with the path and the new content hash. `--json`
+gives `{"path": …, "hash": …, "changed": …}`. `gx group` also gives `"group"`, the name
+of the new group (for example `cluster_g1`).
+
+### ⚠️ A change writes the whole file again
+
+gx does not patch the text. It parses the file and **prints the whole graph again** in its
+own form: it quotes each id, makes the indent the same, and moves each arrow into the
+group that owns it.
+
+- gx **refuses** a change to a file with comments or with `strict`, because the rewrite
+  removes them. That is exit **4**, and the message names what the rewrite removes:
+
+  ```
+  gx: gx writes the whole file again, and that removes the comments from /path/arch.dot. Add --reformat to accept the rewrite, or change the text yourself.
+  ```
+
+  Ask the user before you add `--reformat` to a hand-written file.
+- **On a file under version control, show the diff before a commit.** The first change
+  to a hand-written file is mostly a new format.
+- When the user wants small edits to a hand-written file, edit the text yourself, and use
+  gx only to read.
+
+The line endings and the end of the file (a final newline, or none) stay.
+The name and the kind of the graph stay: `graph MyNet { a -- b }` stays undirected and
+stays `MyNet`. Each group keeps its source name: `subgraph clusterB` stays `clusterB`.
+Each `id` attribute stays.
+
+The rewrite also changes one name with no refusal and no message:
+`subgraph x { cluster=true }` becomes `subgraph "cluster_x"`. Check the diff.
+
+### Conflicts
+
+gx reads the file and its hash, makes the change, and writes the file only if it still has
+that hash. If a different writer changed the file in between, gx does not write it, and
+the exit code is **5**:
 
 ```
-$ gx run demo.dot list-arrows
-arrow:api->db/0              source=node:api  target=node:db
-arrow:web->api/1             source=node:web  target=node:api
+gx: /path/arch.dot changed after gx read it, so gx did not write it (expected 3f2a…, found 9c1b…). Run the command again.
 ```
 
-### Never construct an element ref — read it
+Run the command again. It reads the new file.
 
-Refs are `node:<id>`, `arrow:<id>`, `group:<id>`, and only node refs are guessable.
-Arrow ids carry a disambiguating index (`arrow:api->db/0`) and group ids are **not** the
-DOT cluster name (`subgraph cluster_svc` → `group:svc`). Always get refs from
-`list-nodes` / `list-arrows` / `list-groups` first, then pass them verbatim.
+## Remember about a diagram (metadata)
 
-A malformed ref is a **usage** error (exit 1), and every bad one in a batch is reported at
-once rather than one per round trip:
-
-```
-gx: get-attributes: unknown element kind 'nde' in 'nde:a' (expected node, arrow, group)
-```
-
-A ref that is well-formed but names nothing is exit **4**: `gx: get-attributes: no such
-element: node:nope`.
-
-## Editing a diagram
-
-Mutations take their arguments as a JSON object:
+The library keeps metadata about diagram files: tags, notes, hidden elements and collapsed
+groups. **A metadata command never changes the file.** Thus a file that a tool generates
+again keeps its hidden elements and its collapsed groups.
 
 ```bash
-gx run ./arch.dot set-attribute \
-  --params '{"targets":["node:api","node:db"],"name":"fillcolor","value":"lightblue"}'
+gx hide     arch.dot web web..api
+gx unhide   arch.dot web               # or --all
+gx collapse arch.dot cluster_svc
+gx expand   arch.dot --all
+gx tag      arch.dot infra draft
+gx untag    arch.dot draft
+gx note     arch.dot "owned by the platform team"     # or --stdin, or --clear
+gx info     arch.dot --json
+gx ls --tag infra --json
+gx add      arch.dot other.mmd         # put files in the library
+gx remove   arch.dot                   # take it out; the file stays
 ```
 
-For anything with quoting in it — an HTML label, a long node list — pipe it instead:
+- A command that adds metadata (`hide`, `collapse`, `tag`, `note <text>`, `add`) puts the
+  file in the library when it is not there yet. The file must exist.
+- A command that removes metadata (`unhide`, `expand`, `untag`, `note --clear`) on a file
+  that is not in the library does nothing, and exits 0.
+- `info` prints `path`, `inLibrary`, `tags`, `notes`, `hidden`, `collapsed` and
+  `autoDetectFormat`. It prints the hidden elements and the collapsed groups with their
+  names. When the file does not parse, it prints them as refs (`node:api`).
+- `ls` marks an entry whose file is missing with `missing` (`"missing": true` in JSON). The
+  entry stays until a person removes it.
+- The library finds a file by its canonical path. **A rename or a move of the file loses
+  its metadata.**
+- To unhide an element that the file no longer has, give its ref, for example
+  `gx unhide arch.dot node:old`, or use `--all`.
+
+## Show it to the user (the desktop app)
 
 ```bash
-jq -n '{targets:$t,name:"label",value:$v}' --argjson t '["node:api"]' --arg v '<<b>API</b>>' \
-  | gx run ./arch.dot set-attribute --stdin
+gx open      arch.dot
+gx select    arch.dot api api..db
+gx selection --json
+gx fit       arch.dot
 ```
 
-You can also replace the whole text:
+These are the only commands that need the desktop app. With no desktop, they exit **2**
+and say so. That is not a failure of the task: report it, and continue with the headless
+work. A desktop with no diagram on the screen also gives exit 2.
 
-```bash
-gx set ./arch.dot --stdin < new.dot
-gx set ./arch.dot --text 'digraph G { a -> b }'
-```
-
-### ⚠️ A document mutation reformats the whole file
-
-`gx run <file> <mutation>` parses the file and **prints the graph back out in Graph
-Explorer's canonical form**. It is not a surgical patch. Every identifier gets quoted,
-indentation is normalized, and edges move inside the cluster that owns them:
-
-```dot
-digraph G {                              digraph "G" {
-  subgraph cluster_svc {                   graph [label=""];
-    label="services"; api; db     ──►      subgraph "cluster_svc" {
-  }                                          graph [label="services", cluster="true"];
-  api -> db [label="reads"]                  "api"; "db";
-}                                            "api" -> "db" [label="reads"];
-                                           }
-                                         }
-```
-
-The graph is preserved; the formatting, comments and layout of the source are not. So:
-
-- **On a file under version control, show the diff before committing** — the first
-  mutation on a hand-written file is mostly reformatting noise.
-- If the user wants minimal edits to a hand-maintained file, edit the text directly and
-  use `gx run` only for *queries*.
-- Work on a copy when the source file is precious.
-
-The graph's **name and kind are preserved**: `graph MyNet { a -- b }` stays undirected and
-stays `MyNet`.
-
-## Conflict safety
-
-Writes are compare-and-swap on the file's content hash. If the file changed underneath
-you, the write is refused with **exit 5** rather than clobbering it:
-
-```
-gx: conflict — /path/arch.dot changed underneath this write
-gx:   expected 000000000000, found b163c1d6bdfb
-```
-
-`gx get --json` gives you the current `hash`; pass it as `--base <hash>` to make a write
-conditional on it. Without `--base`, `gx` reads the hash itself immediately before
-writing, which is enough for ordinary sequential use.
-
-## Showing it to the user
-
-```bash
-gx open ./arch.dot
-```
-
-This is the only reason to need the desktop app. If none is running it exits **2** and
-says so — that is not a failure of the task, it is a missing window. Report it and carry
-on with the headless work.
-
-`gx session select --params '{"targets":["node:api"]}'` and friends act on whatever is
-currently on screen — there is no `<ref>`, because the live view already knows what it is
-displaying.
+`gx select` and `gx fit` name their file. When the window shows a different diagram, the
+desktop refuses the command (exit **4**), and the message names the diagram on the screen.
+Run `gx open <file>` first, then run the command again. `gx selection` prints the path of
+the diagram on the screen with the names of the selected elements.
 
 ## Gotchas
 
-- `--json` on every command. Parse that, not the column output, which is formatted for
-  people and may add or drop columns.
-- `get-attributes` includes `_gvid`, an internal layout id. Ignore it; do not set it.
-- `gx status` reports `watching N files`, which is what the desktop is *following on
-  disk* — not what is on screen, and not what you just imported.
-- A `gx` before v0.9.5 wrote a synthetic `fillstyle="true"` into files it edited, and then
-  could not re-read them (`could not parse the diagram: assertion failed`). Current `gx`
-  reads those files fine, but drops the attribute — as `dot` does — so a node that looked
-  filled loses its fill. Re-apply it with `style` + `fillcolor` if you see one.
-- A `pull`-mode diagram accepts `gx set` and keeps the edit in the library **without
-  writing the file**. It says so (`saved locally`). If you meant to change the file, bind
-  it `push` or `sync`, or write the path directly.
-- `gx skill` prints where this skill lives, pinned to the running binary. Re-read it after
-  a `gx` upgrade — command names and params are versioned API.
+- `gx watch <file>... --json` prints one JSON line for each change of a file, and it does
+  not stop. Run it in the background and read its output.
+- The library is in `~/.graph-explorer/library/metadata/`. `$GX_HOME` moves it. The
+  folder for new diagrams is `~/Documents/Graph Explorer/`, and `$GX_DIAGRAMS_DIR` moves it.
+  `$GX_HOME` does **not** move that folder: set both for a test.
+- The first library command after an upgrade moves the old library to the new store, one
+  time, and reports to stderr. It never writes over a file. The old records stay.
+- A path can be refused by the policy (exit 4). **Do not work around a refusal**: do not
+  copy the file to a different place, and do not change the environment. Report it.
+- An old command (`import`, `get`, `bind`, `sync`, `run`, `view`, …) exits 1 with one line
+  that names its replacement.
+- `gx skill` prints where this skill is, pinned to the binary that runs. Read it again
+  after an upgrade of gx: the commands are versioned API.
 
-## Additional resources
+## More
 
-- Every command name, its parameters, and the exit codes: [commands.md](commands.md).
-  Load it before issuing any command whose params you are not certain of.
-- Importing, binding, sync modes, watching, and the filesystem sandbox:
-  [library.md](library.md). Load it when the task involves the library rather than a
-  loose file on disk, or when a path is refused by policy.
+- Each command, its flags, its output, and the exit codes: [commands.md](commands.md).
+  Load it before a command whose flags or output you do not know.

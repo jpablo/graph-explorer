@@ -80,6 +80,11 @@ final case class REdge(
   * @param edgeIdxs indices into [[RGraph.edges]] for edges declared *directly*
   *                 in this subgraph.
   * @param children nested subgraphs, in declaration order.
+  *
+  * One [[RSubgraph]] holds all bodies of one cgraph subgraph. Sibling bodies
+  * with the same name are one subgraph (cgraph `agsubg`), and the subgraph
+  * keeps the position of its first body. Thus `nodeIds`, `edgeIdxs`,
+  * `children` and `attrs` contain the data of all of its bodies.
   */
 final case class RSubgraph(
     id:        String,
@@ -125,17 +130,32 @@ object AttrResolver:
 
   private final case class Scope(node: Attrs, edge: Attrs, graph: Attrs)
 
-  /** What a single subgraph level directly declares — the raw material for one
-    * [[RSubgraph]] (the level's own `label`/`rank`) or, at the root, the
-    * top-level `subgraphs` (via `children`). */
-  private final case class Collected(
-      nodeIds:    Vector[String],
-      edgeIdxs:   Vector[Int],
-      children:   Vector[RSubgraph],
-      label:      String,
-      rank:       Option[String],
-      graphAttrs: Vector[(String, String)] // locally-declared graph attrs, in order
-  )
+  /** One subgraph (or the root) while the resolver reads the AST. It becomes
+    * one [[RSubgraph]] at the end.
+    *
+    * cgraph `agsubg(parent, name, TRUE)` finds a subgraph by its name among the
+    * subgraphs of `parent`. If it finds one, it returns it, and the parser
+    * adds the second body to that subgraph. Thus each builder can get more
+    * than one body, and it keeps its data from one body to the next.
+    *
+    * @param graph     the graph-attribute values of the subgraph. A new builder
+    *                  gets the values of the parent scope (cgraph
+    *                  `agraphattr_init`). Each graph-attribute statement then
+    *                  changes them. A new child subgraph gets these values.
+    * @param localNode the node defaults that the bodies of this subgraph
+    *                  declare. cgraph keeps them in the node dictionary of
+    *                  the subgraph, so they apply in a later body too.
+    * @param localEdge the edge defaults that the bodies declare, as for nodes.
+    */
+  private final class Builder(val id: String, var graph: Attrs):
+    val nodeIds   = mutable.LinkedHashSet.empty[String] // first-mention order
+    val edgeIdxs  = mutable.ListBuffer.empty[Int]
+    val children  = mutable.ListBuffer.empty[Builder]   // first-body order
+    val named     = mutable.HashMap.empty[String, Builder] // named children, by name
+    var label     = ""
+    var rank      = Option.empty[String]
+    var localNode = Attrs.empty
+    var localEdge = Attrs.empty
 
   def resolve(g: ast.Graph): RGraph =
     val nodes     = mutable.LinkedHashMap.empty[String, Attrs]
@@ -159,62 +179,83 @@ object AttrResolver:
     def mergeNode(id: String, sc: Scope, explicit: Attrs): Unit =
       nodes(id) = (if nodes.contains(id) then nodes(id) else sc.node) ++ explicit
 
-    /** Allocate a subgraph's resolved name (ticking the anon counter for
-      * anonymous `{ … }`) then recurse — the `{`-time id must precede any
-      * anonymous object created inside. */
-    def enterSub(sg: ast.Subgraph, sc: Scope): RSubgraph =
-      val id = sg.id match
-        case Some(name) => name.value
-        case None       => val s = s"%${anonCtr * 2 + 1}"; anonCtr += 1; s
-      val col = walk(sg.stmts, sc, isRoot = false)
-      // Graph-attr values visible on this subgraph: DOT inheritance = the
-      // enclosing scope's graph attrs at creation, overlaid with local ones.
-      val sgAttrs = sc.graph.toMap ++ col.graphAttrs
+    /** Open a subgraph body, as cgraph `agsubg(parent, name, TRUE)` does.
+      *
+      * A named subgraph that `parent` already has opens again: the body adds
+      * to it, and the subgraph keeps its first position. A subgraph with the
+      * same name under a different parent is a different subgraph, because
+      * `agsubg` looks only at the subgraphs of `parent`. Each anonymous
+      * `{ … }` is a new subgraph, because cgraph gives it a new id. The
+      * anonymous counter ticks before the body, because the `{`-time id comes
+      * before the ids of the anonymous objects in the body. */
+    def enterSub(sg: ast.Subgraph, sc: Scope, parent: Builder): Builder =
+      def create(id: String): Builder =
+        val b = Builder(id, sc.graph)
+        parent.children += b
+        b
+      val b = sg.id match
+        case Some(name) => parent.named.getOrElseUpdate(name.value, create(name.value))
+        case None       => val s = s"%${anonCtr * 2 + 1}"; anonCtr += 1; create(s)
+      // The node and edge dictionaries of a subgraph view the dictionaries of
+      // its parent (cgraph `dtview`). Thus a body sees the current defaults of
+      // the parent, and the defaults of this subgraph replace them. The graph
+      // values of the subgraph go to its children: cgraph
+      // `unviewsubgraphsattr` keeps the old value in an existing subgraph
+      // when the parent declares a new value.
+      val scope = Scope(sc.node ++ b.localNode, sc.edge ++ b.localEdge, b.graph)
+      walk(sg.stmts, scope, b, isRoot = false)
+      b
+
+    /** Make the [[RSubgraph]] tree of a builder, after all of its bodies. */
+    def build(b: Builder): RSubgraph =
+      val sgAttrs = b.graph.toMap
       // is_a_cluster (utils.c:692): case-INSENSITIVE "cluster" name prefix,
       // OR mapbool of the `cluster` attr (inherited defaults included).
       def mapBool(v: String): Boolean = v.toLowerCase match
         case "true" | "yes" => true
         case "false" | "no" => false
         case other          => other.toIntOption.exists(_ > 0)
-      val isClu = id.toLowerCase.startsWith("cluster") || sgAttrs.get("cluster").exists(mapBool)
-      RSubgraph(id, col.label, isClu, col.rank,
-        col.nodeIds, col.edgeIdxs, col.children, sgAttrs)
+      val isClu = b.id.toLowerCase.startsWith("cluster") || sgAttrs.get("cluster").exists(mapBool)
+      RSubgraph(b.id, b.label, isClu, b.rank,
+        b.nodeIds.toVector, b.edgeIdxs.toVector, b.children.iterator.map(build).toVector, sgAttrs)
 
-    def walk(stmts: List[ast.Stmt], sc0: Scope, isRoot: Boolean): Collected =
-      var sc         = sc0
-      val levelNodes = mutable.LinkedHashSet.empty[String] // dedup, first-mention
-      val levelEdges = mutable.ListBuffer.empty[Int]
-      val children   = mutable.ListBuffer.empty[RSubgraph]
-      var label      = ""
-      var rank       = Option.empty[String]
-      val levelGA    = mutable.LinkedHashMap.empty[String, String] // local graph attrs
+    /** Read one body into `level`. A statement changes the data of `level`,
+      * and a default statement also changes the scope of the next statements
+      * in the body. */
+    def walk(stmts: List[ast.Stmt], sc0: Scope, level: Builder, isRoot: Boolean): Unit =
+      var sc = sc0
 
       def captureGraphAttr(k: String, v: String): Unit =
-        if k == "label" then label = v
-        if k == "rank" then rank = Some(v)
-        levelGA(k) = v
+        if k == "label" then level.label = v
+        if k == "rank" then level.rank = Some(v)
+
+      def setGraph(a: Attrs): Unit =
+        if isRoot then rootAttrs = rootAttrs ++ a
+        sc = sc.copy(graph = sc.graph ++ a)
+        level.graph = sc.graph
 
       stmts.foreach {
         case ast.Stmt.AttrStmt(target, as) =>
           val a = Attrs.of(as)
-          sc = target match
-            case ast.AttrTarget.Node  => sc.copy(node = sc.node ++ a)
-            case ast.AttrTarget.Edge  => sc.copy(edge = sc.edge ++ a)
+          target match
+            case ast.AttrTarget.Node =>
+              sc = sc.copy(node = sc.node ++ a)
+              level.localNode = level.localNode ++ a
+            case ast.AttrTarget.Edge =>
+              sc = sc.copy(edge = sc.edge ++ a)
+              level.localEdge = level.localEdge ++ a
             case ast.AttrTarget.Graph =>
-              if isRoot then rootAttrs = rootAttrs ++ a
               as.foreach { case (k, v) => graphAttrKeys += k.value; captureGraphAttr(k.value, v.value) }
-              sc.copy(graph = sc.graph ++ a)
+              setGraph(a)
 
         case ast.Stmt.Assign(k, v) =>
-          val a = Attrs(Map(k.value -> v.value), if v.html then Set(k.value) else Set.empty)
-          if isRoot then rootAttrs = rootAttrs ++ a
           graphAttrKeys += k.value
           captureGraphAttr(k.value, v.value)
-          sc = sc.copy(graph = sc.graph ++ a)
+          setGraph(Attrs(Map(k.value -> v.value), if v.html then Set(k.value) else Set.empty))
 
         case ast.Stmt.NodeStmt(nid, as) =>
           mergeNode(nid.id.value, sc, Attrs.of(as))
-          levelNodes += nid.id.value
+          level.nodeIds += nid.id.value
 
         case ast.Stmt.EdgeStmt(ends, as) =>
           val ea = Attrs.of(as)
@@ -226,22 +267,23 @@ object AttrResolver:
               ensureNode(n.id.value, sc)
               List((n.id.value, n.port))
             case ast.EdgeEnd.Sub(sg) =>
-              val sub = enterSub(sg, sc)
-              children += sub
+              val sub = enterSub(sg, sc, level)
               // cgraph expands a subgraph endpoint via agfstnode/agnxtnode
               // over the subgraph's node SET — ordered by global node seq
               // (creation order), NOT brace order: `2 -> {3;T1}` creates the
               // T1 edge first when T1 predates 3. (`nodes` insertion order
-              // IS seq order.) Subgraph ends carry no port.
+              // IS seq order.) Subgraph ends carry no port. The set of a
+              // subgraph that opens again also has the nodes of its earlier
+              // bodies.
               val seqIdx = nodes.keysIterator.zipWithIndex.toMap
-              sub.nodeIds.sortBy(seqIdx).map((_, None))
+              sub.nodeIds.toVector.sortBy(seqIdx).map((_, None))
           }
-          ids.foreach(_.foreach { case (nm, _) => levelNodes += nm })
+          ids.foreach(_.foreach { case (nm, _) => level.nodeIds += nm })
           ids.zip(ids.drop(1)).foreach { case (tails, heads) =>
             for (t, tp) <- tails; (h, hp) <- heads do
               ensureNode(t, sc)
               ensureNode(h, sc)
-              levelEdges += edges.length     // record index before append
+              level.edgeIdxs += edges.length // record index before append
               // `tailport`/`headport` ATTRS are the same channel as `:port`
               // syntax (the DOT parser stores syntax ports into these attrs;
               // common_init_edge reads them back) — syntax wins when both.
@@ -259,13 +301,11 @@ object AttrResolver:
           }
 
         case ast.Stmt.SubStmt(sg) =>
-          children += enterSub(sg, sc)
+          enterSub(sg, sc, level)
       }
 
-      Collected(levelNodes.toVector, levelEdges.toVector, children.toVector, label, rank,
-        levelGA.toVector)
-
-    val root = walk(g.stmts, Scope(Attrs.empty, Attrs.empty, Attrs.empty), isRoot = true)
+    val root = Builder(g.id.fold("")(_.value), Attrs.empty)
+    walk(g.stmts, Scope(Attrs.empty, Attrs.empty, Attrs.empty), root, isRoot = true)
 
     RGraph(
       strict    = g.strict,
@@ -274,7 +314,7 @@ object AttrResolver:
       rootAttrs = rootAttrs,
       nodes     = nodes.iterator.map { case (id, a) => RNode(id, a) }.toVector,
       edges     = edges.toVector,
-      subgraphs = root.children,
+      subgraphs = root.children.iterator.map(build).toVector,
       graphAttrKeys = graphAttrKeys.toVector
     )
 

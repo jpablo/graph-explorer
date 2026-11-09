@@ -1,0 +1,218 @@
+package org.jpablo.graphexplorer.viewer.desktop
+
+import org.jpablo.graphexplorer.gxcore.command.{ElementRef, LiveViewCodec, LiveViewCommand, LiveViewSelection}
+import org.jpablo.graphexplorer.gxcore.model.LibraryEntry
+import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, ViewerState, ViewTarget}
+import org.scalajs.dom
+
+import scala.scalajs.js
+import scala.util.chaining.scalaUtilChainingOps
+import scala.util.control.NonFatal
+
+/** The live view tier, executed in the page (D7.2).
+  *
+  * This is the one tier the webview *serves*. A socket client asks the desktop
+  * "what is selected"; the Rust shell knows nothing about diagrams (D2.5) and
+  * the page knows everything but holds no capability (D3), so the shell relays
+  * the question here and relays the answer back.
+  *
+  * The page gains nothing by answering. It receives a command from its own host
+  * and returns a value — strictly less than the ambient HTTP credential D3 took
+  * away, and it still cannot initiate anything.
+  */
+object LiveViewCommands:
+
+  /** The event the desktop dispatches, carrying `{id, command, params}`. */
+  private val CommandEventName = "ge:live-view.command"
+
+  /** The Tauri command the answer goes back through. */
+  private val ReplyCommand = "live_view_reply"
+
+  private var installed = false
+  private var target: Option[ViewerState] = None
+
+  /** Start listening, whether or not a diagram is open.
+    *
+    * Separate from `attach` because of what happens otherwise: installed only
+    * when a diagram view mounts, the app sitting on its library route has no
+    * listener at all, so a socket client's question goes unanswered and it waits
+    * out the shell's five-second timeout to be told "the page did not answer".
+    * That is true and useless — the real answer is "nothing is open", which is
+    * a thing the page can say instantly and only if it is listening.
+    *
+    * Found by running it: every unit test had a diagram, because a test that
+    * sets one up is the natural one to write.
+    */
+  def install(): Unit =
+    if !installed then
+      val handler: js.Function1[dom.Event, Unit] = event => handle(event)
+      dom.window.addEventListener(CommandEventName, handler)
+      installed = true
+
+  /** Point the tier at the diagram now on screen. */
+  def attach(state: ViewerState): Unit =
+    install()
+    target = Some(state)
+
+  /** Let go of a viewer that is unmounting, so the tier answers "nothing is
+    * open" rather than reporting on a diagram that left the screen.
+    *
+    * The listener deliberately stays installed — see [[attach]]'s note: a page
+    * on its library route must still be able to answer instantly. Only the
+    * target goes. Identity-checked for the same reason as
+    * [[DesktopBridge.detach]]: the incoming view mounts before the outgoing one
+    * unmounts, so an unconditional clear would discard the live target.
+    */
+  def detach(state: ViewerState): Unit =
+    if target.exists(_ eq state) then target = None
+
+  private[desktop] def reset(): Unit =
+    installed = false
+    target = None
+
+  private[desktop] def currentTarget: Option[ViewerState] = target
+
+  private def handle(event: dom.Event): Unit =
+    val detail = event.asInstanceOf[js.Dynamic].selectDynamic("detail")
+    // The id is what lets the shell match an answer to the question it asked. A
+    // reply without one is unroutable, so there is nothing useful to do with it
+    // and nothing to report it to.
+    val id = field(detail, "id").flatMap(v => if js.typeOf(v) == "number" then Some(v.asInstanceOf[Double]) else None)
+    id match
+      case None => dom.console.warn("live view command arrived with no id; ignoring")
+      case Some(requestId) =>
+        val frame =
+          try ujson.read(js.JSON.stringify(detail.asInstanceOf[js.Any]))
+          catch case NonFatal(_) => ujson.Obj()
+
+        LiveViewCodec.decode(frame) match
+          case Left(error)   => reply(requestId, Left(Refusal("INVALID_REQUEST", error.message)))
+          case Right(command) => reply(requestId, run(command))
+
+  /** A refusal, with the code the caller should branch on.
+    *
+    * `NO_LIVE_VIEW` is carried rather than inferred from the message: a desktop
+    * with nothing open and a desktop with no window are the same situation to
+    * whoever asked — their next move is to open something — and matching on
+    * prose to discover that would be a coupling waiting to break.
+    */
+  private[desktop] case class Refusal(code: String, message: String)
+
+  /** Run against the live view.
+    *
+    * `Left` is a refusal; `Right` is the answer, which is `ujson.Null` for the
+    * mutations. Keeping both in one type is what lets the shell relay either
+    * without knowing which it asked for.
+    */
+  private[desktop] def run(command: LiveViewCommand): Either[Refusal, ujson.Value] =
+    target match
+      case None =>
+        // A desktop with no diagram open. The socket client asked a live-view
+        // question of something that has no live view, and saying so beats
+        // answering "nothing is selected" — which is true but misleading.
+        Refusal("NO_LIVE_VIEW", "no diagram is open").pipe(Left(_))
+
+      case Some(state) =>
+        try
+          command match
+            case LiveViewCommand.Select(path, targets) =>
+              onDiagram(state, path)(state.selection.set1(targets))
+
+            case LiveViewCommand.AddToSelection(path, targets) =>
+              onDiagram(state, path)(state.selection.add(targets))
+
+            case LiveViewCommand.ClearSelection(path) =>
+              onDiagram(state, path)(state.selection.clear())
+
+            case LiveViewCommand.ResetView(path) =>
+              onDiagram(state, path)(state.resetView())
+
+            case LiveViewCommand.PushText(sessionId, text) =>
+              pushText(state, sessionId, text)
+
+            case LiveViewCommand.WhatIsSelected =>
+              val refs = state.selection.now().ids.toVector.map(ElementRef.render).sorted
+              Right(LiveViewSelection.encode(LiveViewSelection(shownPath(state), describe(state), refs)))
+        catch case NonFatal(e) => Left(Refusal("LIVE_VIEW_FAILED", s"${command.name} failed: ${e.getMessage}"))
+
+  /** Change the live view only when it shows the file at `path` (plan §2).
+    *
+    * Before, the page did not read the path. Thus `gx select a.dot …` changed
+    * the selection of whatever diagram was on the screen. The refusal names
+    * the diagram on the screen, so the caller knows what to show first.
+    */
+  private def onDiagram(state: ViewerState, path: String)(change: => Unit): Either[Refusal, ujson.Value] =
+    if shownPath(state).exists(samePath(_, path)) then
+      change
+      Right(ujson.Null)
+    else Left(Refusal("VIEW_REJECTED", s"the desktop shows ${describe(state)}, not $path"))
+
+  /** The canonical path of the file on the screen. The shell gave it to the
+    * document session. It is `None` when the screen shows no file.
+    */
+  private def shownPath(state: ViewerState): Option[String] =
+    state.documentSessionNow.map(_.path)
+
+  /** The two paths name one file. The comparison uses the canonical `file:`
+    * URI, because that URI has one spelling for each file: `C:\x\a.dot` and
+    * `C:/x/a.dot` give the same URI. The library key uses the same rule.
+    */
+  private def samePath(a: String, b: String): Boolean =
+    LibraryEntry.keySource(a) == LibraryEntry.keySource(b)
+
+  /** The diagram on the screen, in words for a person. A refusal and the
+    * answer to `what-is-selected` use the same words.
+    */
+  private def describe(state: ViewerState): String =
+    state.target match
+      case ViewTarget.File(_) =>
+        state.documentSessionNow.fold("a file that is no longer open")(_.path)
+      case ViewTarget.Diagram(_) =>
+        val name = state.storedName.now().trim
+        if name.isEmpty then "a browser diagram with no name" else s"the browser diagram \"$name\""
+      case ViewTarget.Example(_, name) =>
+        s"an example (\"$name\")"
+
+  /** Put text into the document session the caller NAMED.
+    *
+    * The check is the point. This used to arrive as a bare `{text}` and land in
+    * whichever viewer was on screen — a write with no addressee, which is the
+    * same defect class as the open that reported success for a file no viewer
+    * showed. Naming the session makes "the view on screen is not that document"
+    * an answer the caller gets instead of a silent hit on the wrong diagram.
+    *
+    * The text is NOT written to the file, and the session's base does not move.
+    * A push is an edit, so the viewer becomes dirty exactly as it would from
+    * typing — which is what makes this useful for exercising §7.3 and §7.4.
+    */
+  private def pushText(state: ViewerState, sessionId: String, text: String) =
+    DocumentSessionId.parse(sessionId) match
+      case None =>
+        Left(Refusal("INVALID_REQUEST", s"'$sessionId' is not a document session id"))
+      case Some(id) =>
+        state.target match
+          case ViewTarget.File(shown) if shown == id =>
+            state.replaceSourceDetectingFormat(text)
+            Right(ujson.Null)
+          case _ =>
+            Left(Refusal("VIEW_REJECTED", s"the view on screen is not document session '$sessionId'"))
+
+  private def reply(id: Double, outcome: Either[Refusal, ujson.Value]): Unit =
+    val args = outcome match
+      case Right(value) =>
+        js.Dynamic.literal(id = id, ok = true, result = js.JSON.parse(ujson.write(value)))
+      case Left(refusal) =>
+        js.Dynamic.literal(id = id, ok = false, code = refusal.code, message = refusal.message)
+
+    // Fire and forget: the shell is waiting on its own timeout, so a failure to
+    // deliver the reply is its problem to notice rather than something the page
+    // can fix by retrying.
+    import scala.concurrent.ExecutionContext.Implicits.global
+    DesktopIpc.invoke(ReplyCommand, args).failed.foreach: error =>
+      dom.console.warn(s"could not deliver a live view reply: ${error.getMessage}")
+
+  private def field(value: js.Any, name: String): Option[js.Any] =
+    if js.isUndefined(value) || value == null then None
+    else
+      val selected = value.asInstanceOf[js.Dynamic].selectDynamic(name)
+      if js.isUndefined(selected) || selected == null then None else Some(selected)

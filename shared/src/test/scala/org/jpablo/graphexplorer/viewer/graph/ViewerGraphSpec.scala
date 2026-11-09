@@ -374,4 +374,36 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     assertEquals(newGroup.attributes.get(AttributeId("fillcolor")).map(_.toString), Some("lightblue"))
   }
 
+  /** A copy is a new element, so it does not keep the `id` of the source. The
+    * DOT writer now keeps `id` in a file. Thus a copy with the same `id` gave
+    * two elements with one `id` in the file. Before, the writer dropped each
+    * `id`, and the copy did not show.
+    */
+  test("duplicateSelection does not copy the id attribute of a node, a group, or an arrow") {
+    val g     = GroupId("g")
+    val arrow = Arrow(a, b, Attributes.of("id" -> "eid"))
+    val initialGraph = ViewerGraph(ViewerGraphElements(
+      nodes = VectorMap(nodeWithId(a, "id" -> "nid"), nodeWithId(b, "label" -> "b")),
+      arrows = Map(arrow.id -> arrow),
+      groups = Map(rootId -> rootGroup, g -> group(g, Attributes.of("id" -> "gid"))),
+      memberships = Map(b -> g)
+    ))
+    val idKey = AttributeId("id")
+
+    val (afterNode, newFromNode) = initialGraph.duplicateSelection(IdsByKind(nodes = Set(a)))
+    val newNode = newFromNode.collect { case id: NodeId => id }.head
+    assert(!afterNode.nodes(newNode).attributes.contains(idKey), "the copy of a node kept its id")
+    assertEquals(afterNode.nodes(a).attributes.get(idKey).map(_.toString), Some("nid"), "the source node lost its id")
+
+    val (afterGroup, newFromGroup) = initialGraph.duplicateSelection(IdsByKind(groups = Set(g)))
+    val newGroup = newFromGroup.collect { case id: GroupId => id }.head
+    assert(!afterGroup.groups(newGroup).attributes.contains(idKey), "the copy of a group kept its id")
+    assertEquals(afterGroup.groups(g).attributes.get(idKey).map(_.toString), Some("gid"), "the source group lost its id")
+
+    val (afterArrow, newFromArrow) = initialGraph.duplicateSelection(IdsByKind(arrows = Set(arrow.id)))
+    val newArrow = newFromArrow.collect { case id: ArrowId => id }.head
+    assert(!afterArrow.arrows(newArrow).attributes.contains(idKey), "the copy of an arrow kept its id")
+    assertEquals(afterArrow.arrows(arrow.id).attributes.get(idKey).map(_.toString), Some("eid"), "the source arrow lost its id")
+  }
+
 end ViewerGraphSpec

@@ -132,10 +132,11 @@ class PolicySpec extends FunSuite:
     assertEquals(FileOrigins.originOf(link, dir), FileOrigins.originOf(target, dir))
   }
 
-  /** P0 measured this: macOS and Windows report case-insensitive filesystems,
-    * Linux does not. Where the filesystem says two spellings are one file, the
-    * origin must agree — otherwise two library records bind to one file and
-    * fight over it.
+  /** P0 measured this: the file systems of macOS and Windows are
+    * case-insensitive, and the file system of Linux is not. If the file system
+    * says that two spellings are one file, the origin must agree. If not, two
+    * diagrams have a binding to one file, and they write over the changes of
+    * each other.
     */
   tmp.test("§4.2: on a case-insensitive filesystem, two spellings give ONE origin") { dir =>
     val f = dir.resolve("CaseTest.dot")

@@ -69,6 +69,40 @@ object GroupId:
       GroupId(cleanId) -> true
     case _ => GroupId(cluster) -> false
 
+  /** The id of each DOT subgraph. `names` has the names of the subgraphs in
+    * the order of the source (by `_gvid`).
+    *
+    * [[fromDot]] gives one id to `clusterB`, `cluster_B` and `B`. Thus the
+    * first of these subgraphs gets the id of `fromDot`, and each later one
+    * gets `<id>_2`, `<id>_3`, and so on. A later subgraph gets the first of
+    * these ids that is free: no subgraph has it, and `fromDot` does not give
+    * it to a subgraph.
+    *
+    * A subgraph that is the first with its `fromDot` id keeps that id. Thus
+    * a diagram with no collision keeps the ids that it had before this rule,
+    * and the metadata that names `group:<id>` still finds its group.
+    */
+  def fromDotNames(names: Seq[String]): Vector[GroupId] =
+    val ids      = names.toVector.map(fromDot(_)._1)
+    val reserved = ids.toSet
+    ids
+      .foldLeft((Vector.empty[GroupId], Set.empty[GroupId])):
+        case ((done, used), id) =>
+          val free =
+            if !used.contains(id) then id
+            else Iterator.from(2).map(n => GroupId(s"${id.value}_$n")).filterNot(c => reserved(c) || used(c)).next()
+          (done :+ free, used + free)
+      ._1
+
+  /** True when [[fromDotNames]] can give `id` to a subgraph with this name:
+    * the id of [[fromDot]], or that id with `_2`, `_3`, and so on.
+    */
+  def canBeFromDot(name: String, id: GroupId): Boolean =
+    val base   = fromDot(name)._1.value
+    val suffix = id.value.stripPrefix(s"${base}_")
+    id.value == base ||
+    (id.value.startsWith(s"${base}_") && suffix.toIntOption.exists(n => n >= 2 && n.toString == suffix))
+
   val groupId = raw"group:(.+)".r
 
   def fromSvg(idAttr: String): Option[GroupId] = idAttr match

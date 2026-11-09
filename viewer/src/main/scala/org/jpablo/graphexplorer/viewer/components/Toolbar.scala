@@ -19,7 +19,7 @@ import org.scalajs.dom.svg.SVG
   * right. Occasional actions live inside menus or ⌘K, preferences behind the
   * gear — the bar itself carries only what gets hourly use.
   */
-def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState): Div =
+def Toolbar(diagramName: Signal[String], commands: Commands, state: ViewerState): Div =
   import commands.{all, routerCmds, sections}
 
   def shapePreview(shape: Shape): ReactiveSvgElement[SVG] | String =
@@ -100,10 +100,10 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             span(
               cls   := "cursor-pointer hover:underline decoration-dotted underline-offset-4",
               title := "Rename diagram",
-              text <-- projectName,
-              onClick --> all.changeProjectName.execute()
+              text <-- diagramName,
+              onClick --> all.renameDiagram.execute()
             ),
-            IconButtonTitled("bi-pencil text-[.65rem]", "Change title")(all.changeProjectName.execute())
+            IconButtonTitled("bi-pencil text-[.65rem]", "Change title")(all.renameDiagram.execute())
           )
         )
       )

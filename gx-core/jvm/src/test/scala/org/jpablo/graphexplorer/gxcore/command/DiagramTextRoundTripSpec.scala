@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.gxcore.command
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.{GroupId, NodeId}
 
 /** `gx` must be able to read back what `gx` wrote.
   *
@@ -32,12 +32,12 @@ class DiagramTextRoundTripSpec extends FunSuite:
   test("a filled node survives a round trip") {
     val filled = DiagramText
       .parse("""digraph "G" { "a" -> "b" }""")
-      .map(g => DocumentCommands.run(g, DocumentCommand.SetAttribute(Set(NodeId("a")), "fillcolor", "red")))
+      .map(g => SourceCommands.run(g, SourceCommand.SetAttribute(Set(NodeId("a")), "fillcolor", "red")))
       .fold(fail(_), identity)
       .fold(e => fail(e.message), identity)
 
     val text = filled match
-      case CommandResult.Updated(g) => DiagramText.render(g)
+      case SourceResult.Updated(g) => DiagramText.render(g)
       case other                    => fail(s"expected an update, got $other")
 
     // The synthetic sub-attribute is an internal spelling of `style="filled"`
@@ -89,3 +89,103 @@ class DiagramTextRoundTripSpec extends FunSuite:
     // Named so a failure says which direction was lost.
     assert(reparse("""digraph G { subgraph cluster_svc { api; db } api -> db }""").isRight)
   }
+
+  // ------------------------------------------------- group names (plan §2.1)
+
+  /** A group has the name that its source gives it. A write must keep that
+    * name, because the next gx command finds the group by it. Before, the
+    * writer printed `cluster_<id>`, so `clusterB` became `cluster_B`.
+    */
+  private def groupNamesAfterWrite(text: String): Vector[String] =
+    val written = DiagramText.parseNamed(text).map(n => DiagramText.render(n.graph, n.format)).fold(fail(_), identity)
+    DiagramText.parseNamed(written).fold(e => fail(s"$e\n$written"), _.names.groups.map(_._2))
+
+  for (source, name) <- Vector(
+      "digraph G { subgraph clusterB { a } }"            -> "clusterB",
+      "digraph G { subgraph cluster01 { a } }"           -> "cluster01",
+      "digraph G { subgraph cluster_svc { api; db } }"   -> "cluster_svc",
+      "digraph G { subgraph plain { a } }"               -> "plain",
+      "flowchart LR\n  subgraph api_tier\n    a --> b\n  end\n" -> "api_tier"
+    )
+  do
+    test(s"a write keeps the group name $name"):
+      assertEquals(groupNamesAfterWrite(source), Vector(name))
+
+  test("a second write keeps the group name too"):
+    val once = DiagramText.parseNamed("digraph G { subgraph clusterB { a } }")
+      .map(n => DiagramText.render(n.graph, n.format)).fold(fail(_), identity)
+    assertEquals(groupNamesAfterWrite(once), Vector("clusterB"))
+
+  test("a new group gets the name cluster_<id>, and that name finds it"):
+    val named = DiagramText.parseNamed("digraph G { a; b }").fold(fail(_), identity)
+    val grouped = SourceCommands.run(named.graph, SourceCommand.Group(Set(NodeId("a"), NodeId("b")), "pair"))
+      .fold(e => fail(e.message), _.updatedGraph.getOrElse(fail("no graph")))
+    val text  = DiagramText.render(grouped, named.format)
+    val again = DiagramText.parseNamed(text).fold(fail(_), identity)
+    val (id, name) = again.names.groups.headOption.getOrElse(fail(s"no group in\n$text"))
+    assertEquals(name, s"cluster_${id.value}")
+    assertEquals(again.names.resolve(name), Right(Vector(id)))
+
+  // ------------------------------------------------- the id attribute
+
+  /** The DOT writer left out each `id` attribute of the source. Thus a write
+    * of a different change removed `id` from the file, with no message, and
+    * `RoundTripLoss` did not find the loss. The text for the layout puts its
+    * own `id` on each element, because a click finds the element by it. The
+    * text for a file must keep the `id` of the source.
+    */
+  test("a write keeps the id attribute of the graph, a node, an arrow, and a group"):
+    val source = """digraph G { id="rid"; subgraph cluster_x { id="gid"; a [id="nid"] } a -> b [id="eid"] }"""
+    val text   = DiagramText.parse(source).map(DiagramText.render).fold(fail(_), identity)
+    for id <- Vector("rid", "nid", "eid", "gid") do
+      assert(text.contains(s"id=\"$id\""), s"the write dropped id=\"$id\":\n$text")
+    val twice = DiagramText.parse(text).map(DiagramText.render).fold(fail(_), identity)
+    assertEquals(twice, text, "the second write disagreed with the first")
+
+  // ------------------------------------- two subgraphs, one id (plan §2.1)
+
+  /** `GroupId.fromDot` removes the `cluster` prefix. Thus `clusterB` and
+    * `cluster_B` both gave the id `B`, and the reader made one group of the two
+    * subgraphs. A write kept one subgraph, and the members of the other left
+    * the group, with no message. A plain subgraph `B` and `clusterB` had the
+    * same problem.
+    *
+    * The first subgraph keeps the id that it had before. Metadata that names
+    * `group:B` (a collapsed group, for example) then still finds it.
+    */
+  for (source, names) <- Vector(
+      "digraph G { subgraph clusterB { a } subgraph cluster_B { b } c }" -> Vector("clusterB", "cluster_B"),
+      "digraph G { subgraph B { a } subgraph clusterB { b } c }"         -> Vector("B", "clusterB"),
+      // The full name of the second subgraph, `B`, is also the id of the first.
+      "digraph G { subgraph clusterB { a } subgraph B { b } c }"         -> Vector("clusterB", "B")
+    )
+  do
+    test(s"two subgraphs whose names give one id stay two groups: ${names.mkString(" and ")}"):
+      val named = DiagramText.parseNamed(source).fold(fail(_), identity)
+      assertEquals(named.graph.groups.size, 2, "the reader made one group of two subgraphs")
+      assertEquals(named.names.groups.map(_._2), names, "the names of the groups")
+      assertEquals(named.names.resolve(names(0)), Right(Vector(GroupId("B"))), "the first subgraph lost its old id")
+      val written = DiagramText.render(named.graph, named.format)
+      val again   = DiagramText.parseNamed(written).fold(e => fail(s"$e\n$written"), identity)
+      assertEquals(again.names.groups.map(_._2), names, s"a write changed the names of the groups:\n$written")
+      for (member, name) <- Vector("a" -> names(0), "b" -> names(1)) do
+        val group = again.names.resolve(name).fold(e => fail(s"$e\n$written"), identity)
+        assertEquals(group, again.graph.memberships.get(NodeId(member)).toVector, s"$member left the subgraph $name:\n$written")
+
+  /** In DOT, two sibling subgraphs with one name are one subgraph: Graphviz
+    * merges them (checked with `dot -Tcanon`, Graphviz 14.1.5). The reader of
+    * gx kept two. When each subgraph got its own group, a write then printed
+    * `cluster_x` and `cluster_x_2`, and one cluster became two, with no
+    * message.
+    */
+  test("two sibling subgraphs with one name are one group, as in Graphviz"):
+    val source = "digraph G { subgraph cluster_x { a } subgraph cluster_x { b } c }"
+    val named  = DiagramText.parseNamed(source).fold(fail(_), identity)
+    assertEquals(named.graph.groups.size, 1, "the reader made two groups of one subgraph")
+    assertEquals(named.names.groups.map(_._2), Vector("cluster_x"))
+    val written = DiagramText.render(named.graph, named.format)
+    val again   = DiagramText.parseNamed(written).fold(e => fail(s"$e\n$written"), identity)
+    assertEquals(again.names.groups.map(_._2), Vector("cluster_x"), s"a write changed the subgraphs:\n$written")
+    val group = again.names.resolve("cluster_x").fold(e => fail(s"$e\n$written"), identity)
+    for member <- Vector("a", "b") do
+      assertEquals(group, again.graph.memberships.get(NodeId(member)).toVector, s"$member left cluster_x:\n$written")

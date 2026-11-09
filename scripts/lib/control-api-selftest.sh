@@ -115,6 +115,8 @@ stub_pid=$!
 cleanup() {
   kill "${stub_pid}" >/dev/null 2>&1 || true
   rm -rf "${stub_dir}"
+  # The sandbox of the checks of gx_sandbox_create, if a check stopped early.
+  gx_sandbox_remove
 }
 trap cleanup EXIT
 
@@ -203,6 +205,52 @@ check "the stale socket file is still there" "0" "$([[ -S "${stub_sock}" ]] && e
 _="$(api_status || true)"
 check "a stale socket reads as unreachable"  "unreachable" "$(api_last_status)"
 check "control_ready says no"                "1"           "$(control_ready && echo 0 || echo 1)"
+
+# --- the sandbox of a gate ---------------------------------------------------
+# Each gate that starts the desktop or gx must run in its own GX_HOME and
+# GX_DIAGRAMS_DIR. Else the first start of a new desktop moves the real library
+# of the person. These checks run last, because gx_sandbox_create changes
+# CONTROL_RUNTIME_FILE, which the checks above point at the stub.
+saved_tmpdir="${TMPDIR:-}"
+expected_base="${TMPDIR:-/tmp}"
+expected_base="${expected_base%/}"
+
+# In the real TMPDIR, with a short name, as a gate makes it. The cleanup above
+# removes it if a check stops the script.
+gx_sandbox_create st >/dev/null
+check "the sandbox exists"                     "0" "$([[ -d "${GX_SANDBOX}" ]] && echo 0 || echo 1)"
+check "the sandbox is in TMPDIR"               "${expected_base}" "$(dirname "${GX_SANDBOX}")"
+check "GX_HOME is the sandbox"                 "${GX_SANDBOX}" "${GX_HOME}"
+check "GX_DIAGRAMS_DIR is in the sandbox"      "${GX_SANDBOX}/diagrams" "${GX_DIAGRAMS_DIR}"
+check "the runtime file is in the sandbox"     "${GX_SANDBOX}/runtime/control.json" "${CONTROL_RUNTIME_FILE}"
+# A child process (the desktop, gx) must see the variables.
+check "a child sees GX_HOME"                   "${GX_SANDBOX}" "$(bash -c 'printf %s "${GX_HOME}"')"
+check "a child sees GX_DIAGRAMS_DIR"           "${GX_SANDBOX}/diagrams" "$(bash -c 'printf %s "${GX_DIAGRAMS_DIR}"')"
+check "the python client follows GX_HOME" "${GX_SANDBOX}/runtime/control.json" \
+  "$(env -u CONTROL_RUNTIME_FILE python3 -B -c "import importlib.util as u
+s = u.spec_from_file_location('c', '${CONTROL_CLIENT}'); m = u.module_from_spec(s); s.loader.exec_module(m)
+print(m.DEFAULT_CONTROL)")"
+
+touch "${GX_SANDBOX}/a-file"
+gx_sandbox_remove
+check "the sandbox goes, with its files"       "1" "$([[ -e "${GX_SANDBOX}" ]] && echo 0 || echo 1)"
+
+# The removal must never remove a directory that it did not make.
+other_dir="${stub_dir}/not-a-sandbox"
+mkdir -p "${other_dir}"
+( GX_SANDBOX="${other_dir}"; gx_sandbox_remove )
+check "a different directory stays"            "0" "$([[ -d "${other_dir}" ]] && echo 0 || echo 1)"
+
+# A socket path over 100 bytes makes the desktop refuse to start. The helper
+# says so at once, and leaves nothing behind.
+long_dir="${stub_dir}/$(printf 'x%.0s' $(seq 1 90))"
+mkdir -p "${long_dir}"
+export TMPDIR="${long_dir}"
+if gx_sandbox_create selftest >/dev/null 2>&1; then long_outcome=0; else long_outcome=1; fi
+check "a socket path over 100 bytes is refused" "1" "${long_outcome}"
+check "and the refused sandbox does not stay"   "" "$(ls -A "${long_dir}")"
+
+if [[ -n "${saved_tmpdir}" ]]; then export TMPDIR="${saved_tmpdir}"; else unset TMPDIR; fi
 
 echo
 if [[ "${failures}" -eq 0 ]]; then

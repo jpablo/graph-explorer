@@ -6,18 +6,20 @@ import java.nio.file.{Files, Path, Paths}
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-/** Turning a path a human typed into the canonical identity of a file.
+/** This object changes a path that a person typed into the canonical identity
+  * of a file.
   *
-  * This is the only supported way to build a `file:` [[OriginUri]], because the
-  * URI is the join key between the library, the watch registry and the CLI: two
-  * spellings of one file MUST collapse to one value here, or the library grows a
-  * second record for the same file and the two fight over it in `Sync` mode.
+  * This is the only supported way to make a `file:` [[OriginUri]]. The URI is
+  * the join key between the library, the watch registry and the CLI. Thus two
+  * spellings of one file MUST become one value here. If not, the library gets a
+  * second diagram for the same file. In `Sync` mode, the two diagrams then
+  * write over the changes of each other.
   *
-  * The spellings that have to collapse are not hypothetical. P0 measured them:
-  * macOS and Windows both report case-INSENSITIVE filesystems and Linux does
-  * not, so `/Users/x/A.dot` and `/Users/x/a.dot` are one file on two platforms
-  * of three. `toRealPath` is what recovers the filesystem's own answer, rather
-  * than us guessing at case-folding rules per platform.
+  * The spellings that must become one value are real. P0 measured them: the
+  * file systems of macOS and Windows are case-INSENSITIVE, and the file system
+  * of Linux is not. Thus `/Users/x/A.dot` and `/Users/x/a.dot` are one file on
+  * two of three platforms. `toRealPath` gets the answer from the file system,
+  * so we do not guess the case rules of each platform.
   */
 object FileOrigins:
 

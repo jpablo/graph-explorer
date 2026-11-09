@@ -1,5 +1,7 @@
 # Desktop Open Targets and Persistence
 
+> **Superseded (2026-11-08) by `docs/adr/0001-the-file-is-the-only-copy.md`.** The `library` target and the library diagram are gone. Each diagram on the desktop is a file, so `show` has one target kind, `file`, and each diagram opens through its file, with an explicit Save. `local-protocol/README.md` describes what runs now. The text below is the history of the design.
+
 Status: Phases 0-4 implemented. The deferred items are listed in HANDOFF.md. Reviewed against `31b72b14` (2026-08-22).
 
 Reads with:

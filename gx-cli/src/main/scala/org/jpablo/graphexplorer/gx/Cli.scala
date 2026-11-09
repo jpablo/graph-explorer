@@ -1,580 +1,1251 @@
 package org.jpablo.graphexplorer.gx
 
-import org.jpablo.graphexplorer.gxcore.fs.*
-import org.jpablo.graphexplorer.gxcore.model.*
 import org.jpablo.graphexplorer.gxcore.command.{
-  AnyCommand,
-  CommandError,
-  CommandResult,
   DiagramText,
-  DocumentCommand,
-  DocumentCommands,
-  RecordCommand,
-  SessionCodec,
-  SessionCommand,
-  RecordCommands,
-  RecordResult
+  ElementName,
+  ElementNames,
+  ElementRef,
+  LiveViewCodec,
+  LiveViewCommand,
+  LiveViewSelection,
+  MetadataCommand,
+  MetadataCommands,
+  SourceCommand,
+  SourceCommands
 }
+import org.jpablo.graphexplorer.gxcore.fs.*
+import org.jpablo.graphexplorer.gxcore.model.{ContentHash, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
+import org.jpablo.graphexplorer.gxcore.store.{MetadataError, MetadataMigrationExecutor, MetadataMigrationResult}
+import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, RoundTripLoss, UnmodeledContent}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, Label, Name}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models.{ArrowId, ElementId, GroupId, NodeId, ViewerGroup}
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, Path, Paths}
 import scala.util.control.NonFatal
 
-/** Why a reference resolved to no single diagram. Two cases, not one: "you
-  * typed a name nothing has" and "you typed a name several things share" need
-  * different answers from the user.
-  */
-private enum RefError derives CanEqual:
-  case NotFound(ref: String)
-  case Ambiguous(ref: String, matches: Vector[Diagram])
-
-/** What one reconciliation did.
+/** The `gx` command surface (plan §2).
   *
-  * `failure` is a store write that did NOT land. It used to be discarded —
-  * `env.store.save(updated)` with the Either thrown away at three sites — so
-  * `gx sync` printed Behind/Ahead and exited 0 after failing to persist the
-  * record it had just reconciled. The next run then redid the same work from
-  * the same stale baseline, silently, forever.
-  */
-private case class SyncOutcome(diagram: Diagram, state: SyncState, failure: Option[String])
-
-/** What `gx open` decided a reference means (§3.1 of
-  * docs/desktop-open-targets-and-persistence.md).
+  * Each command is a verb, and the diagram FILE comes first. The file is the
+  * only copy of the source of a diagram (ADR 0001):
   *
-  * Distinct from [[Target]], which answers "library record or file on disk?"
-  * for the document tier. This one crosses the wire: the desktop has to know
-  * which it was given, because a record and a loose file have different owners
-  * and different persistence rules, and a path cannot tell them apart. Sending
-  * only a path is what made an open lose its record identity — and made an
-  * UNBOUND record unopenable, since it has no path to send.
-  */
-private enum OpenTarget derives CanEqual:
-  case Library(id: DiagramId)
-  case File(path: Path)
-
-/** What a reference on the command line turned out to mean. */
-private enum Target derives CanEqual:
-  case InLibrary(diagram: Diagram)
-
-  /** A path that is not in the library. Still perfectly usable: under D1 a
-    * document's revision is the hash of its bytes, so reading and conditionally
-    * writing a file needs no registration first. v1 could not do this — `get`
-    * failed with "path is not currently watched" until you had called `watch`.
-    */
-  case OnDisk(path: Path)
-
-/** The `gx` command surface (§8).
+  *   - A read command (`nodes`, `arrows`, `groups`, `attrs`) parses the file.
+  *   - A change command (`set`, `group`, …) writes the file. It writes only
+  *     when the file still has the hash that gx read. It refuses a write that
+  *     removes comments or `strict`, unless the caller adds `--reformat`.
+  *   - A metadata command (`hide`, `tag`, …) writes the library entry of the
+  *     file, and never the file.
+  *   - A desktop command (`open`, `select`, `selection`, `fit`) needs a running
+  *     desktop. Each other command works with no desktop.
   *
-  * Every command here is D7.2's **document** or **record** tier, so every one of
-  * them works with no desktop running — which is the whole point of the
-  * redesign. `open` is the single session-tier command, and the only one that
-  * can fail for want of a window.
+  * Most callers are agents. Thus each result has `--json`, and each error
+  * names what is wrong and what to do.
   */
 object Cli:
 
   private val Usage =
     """gx — Graph Explorer command line
       |
-      |  gx status [--json]                     library and desktop state
-      |  gx import <path> [--mode M] [--folder F] [--name N]
-      |  gx ls [--folder F] [--json]
-      |  gx get <ref> [--json]                  print a diagram's text
-      |  gx set <ref> (--stdin | --text T) [--base H]
-      |  gx bind <ref> <path> [--mode M]        attach an origin
-      |  gx unbind <ref>
-      |  gx sync [<ref>] [--all] [--json]       reconcile with origins
-      |  gx watch [<ref>...] [--all] [--json]   stream changes to stdout
-      |  gx run <ref> <command> [--params J]    a document or record command
-      |  gx session <command> [--params J]      act on the LIVE view (needs a desktop)
-      |  gx open <ref> [--loose]                show it in the desktop
-      |                                         (--loose: the FILE at that path,
-      |                                          never the record bound to it)
+      |Read a diagram
+      |  gx nodes  <file> [--json]
+      |  gx arrows <file> [--json]
+      |  gx groups <file> [--json]
+      |  gx attrs  <file> <element>... [--json]
       |
-      |  gx skill [<version>] [--latest]        where the agent skill lives
+      |Change a diagram (gx writes the file)
+      |  gx set     <file> <element>... <name>=<value>...    (<name>= removes the attribute)
+      |  gx reset   <file> <element>...           remove each attribute except the label
+      |  gx group   <file> <element>... [--label L]
+      |  gx ungroup <file> <group>...
+      |  gx combine-record   <file> <node>...
+      |  gx split-record     <file> <node>
+      |  gx transpose-record <file> <node>
       |
-      |  M = detached | pull | push | sync      (default: pull)
-      |  gx run --list                          the commands `run` accepts
+      |Remember about a diagram (gx writes the metadata, never the file)
+      |  gx hide     <file> <element>...    gx unhide <file> (<element>... | --all)
+      |  gx collapse <file> <group>...      gx expand <file> (<group>... | --all)
+      |  gx tag      <file> <tag>...        gx untag  <file> <tag>...
+      |  gx note     <file> (<text> | --stdin | --clear)
+      |  gx info     <file> [--json]        the metadata of a diagram
+      |  gx ls [--tag T] [--json]           the library
+      |  gx add <file>...                   put a diagram in the library
+      |  gx remove <file>...                take it out (the file stays)
       |
-      |Everything except `open` works with no desktop running.
+      |The desktop app
+      |  gx open      <file>
+      |  gx select    <file> <element>...
+      |  gx selection [--json]              what is selected, and in which diagram
+      |  gx fit       <file>                show the whole diagram
+      |
+      |Other
+      |  gx status    gx watch <file>... [--json]    gx skill    gx --version
       |""".stripMargin
+
+  // ------------------------------------------------------- command table
+
+  /** One command: its name, its synopsis for an error message, the flags that
+    * it takes, and its body. `library` is true for a command that reads or
+    * writes the library. The migration runs before such a command.
+    */
+  private final case class Command(
+      name:     String,
+      synopsis: String,
+      switches: Set[String],
+      values:   Set[String],
+      library:  Boolean,
+      body:     (Command, Args, CliEnv) => Int
+  )
+
+  private val Json   = Set("json")
+  private val Change = Set("json", "reformat")
+
+  private val Commands: Vector[Command] = Vector(
+    Command("nodes", "gx nodes <file> [--json]", Json, Set.empty, false, readNodes),
+    Command("arrows", "gx arrows <file> [--json]", Json, Set.empty, false, readArrows),
+    Command("groups", "gx groups <file> [--json]", Json, Set.empty, false, readGroups),
+    Command("attrs", "gx attrs <file> <element>... [--json]", Json, Set.empty, false, readAttrs),
+    Command("set", "gx set <file> <element>... <name>=<value>...", Change, Set.empty, false, setAttributes),
+    Command("reset", "gx reset <file> <element>...", Change, Set.empty, false, reset),
+    Command("group", "gx group <file> <element>... [--label L]", Change, Set("label"), false, group),
+    Command("ungroup", "gx ungroup <file> <group>...", Change, Set.empty, false, ungroup),
+    Command("combine-record", "gx combine-record <file> <node>...", Change, Set.empty, false, combineRecord),
+    Command("split-record", "gx split-record <file> <node>", Change, Set.empty, false, splitRecord),
+    Command("transpose-record", "gx transpose-record <file> <node>", Change, Set.empty, false, transposeRecord),
+    Command("hide", "gx hide <file> <element>...", Json, Set.empty, true, hide),
+    Command("unhide", "gx unhide <file> (<element>... | --all)", Json + "all", Set.empty, true, unhide),
+    Command("collapse", "gx collapse <file> <group>...", Json, Set.empty, true, collapse),
+    Command("expand", "gx expand <file> (<group>... | --all)", Json + "all", Set.empty, true, expand),
+    Command("tag", "gx tag <file> <tag>...", Json, Set.empty, true, tag),
+    Command("untag", "gx untag <file> <tag>...", Json, Set.empty, true, untag),
+    Command("note", "gx note <file> (<text> | --stdin | --clear)", Json ++ Set("stdin", "clear"), Set.empty, true, note),
+    Command("info", "gx info <file> [--json]", Json, Set.empty, true, info),
+    Command("ls", "gx ls [--tag T] [--json]", Json, Set("tag"), true, ls),
+    Command("add", "gx add <file>... [--json]", Json, Set.empty, true, add),
+    Command("remove", "gx remove <file>... [--json]", Json, Set.empty, true, remove),
+    Command("open", "gx open <file> [--json]", Json, Set.empty, false, open),
+    Command("select", "gx select <file> <element>... [--json]", Json, Set.empty, false, select),
+    Command("selection", "gx selection [--json]", Json, Set.empty, false, selection),
+    Command("fit", "gx fit <file> [--json]", Json, Set.empty, false, fit),
+    Command("status", "gx status [--json]", Json, Set.empty, true, status),
+    Command("watch", "gx watch <file>... [--json] [--interval MS]", Json, Set("interval"), false, watch),
+    Command("skill", "gx skill [<version>] [--latest] [--json]", Json + "latest", Set.empty, false, skill)
+  )
+
+  /** The commands that plan §2 removes, and what to use instead. An old name
+    * fails with one line, so an agent with an old habit learns the new verb.
+    * The old `gx run` command names are here too.
+    */
+  private val Gone: Map[String, String] = Map(
+    "import"           -> "use 'gx add <file>'",
+    "get"              -> "read the file itself, or use 'gx nodes <file>' and 'gx attrs <file> <element>...'",
+    "bind"             -> "the file is the diagram; use 'gx add <file>'",
+    "unbind"           -> "use 'gx remove <file>'",
+    "sync"             -> "the file is the only copy of a diagram, so there is nothing to sync",
+    "run"              -> "use a verb such as 'gx set <file> …'",
+    "view"             -> "use 'gx select', 'gx selection' or 'gx fit'",
+    "session"          -> "use 'gx select', 'gx selection' or 'gx fit'",
+    "push-text"        -> "write the file; the desktop follows the file",
+    "unset"            -> "use 'gx set <file> <element>... <name>='",
+    "rename-diagram"   -> "rename the file, or use 'gx tag <file> <tag>'",
+    "move-to-folder"   -> "move the file, or use 'gx tag <file> <tag>'",
+    "list-nodes"       -> "use 'gx nodes <file>'",
+    "list-arrows"      -> "use 'gx arrows <file>'",
+    "list-groups"      -> "use 'gx groups <file>'",
+    "get-attributes"   -> "use 'gx attrs <file> <element>...'",
+    "set-attribute"    -> "use 'gx set <file> <element>... <name>=<value>'",
+    "remove-attribute" -> "use 'gx set <file> <element>... <name>='",
+    "get-metadata"     -> "use 'gx info <file>'",
+    "set-notes"        -> "use 'gx note <file> <text>'",
+    "what-is-selected" -> "use 'gx selection'",
+    "reset-view"       -> "use 'gx fit <file>'"
+  )
+
+  /** The flags that plan §2 removes, and what to use instead. */
+  private val GoneFlags: Map[String, String] = Map(
+    "mode"   -> "the file is the only copy of a diagram, so there is no sync mode",
+    "params" -> "give the arguments as words, for example 'gx set <file> api color=red'",
+    "base"   -> "gx reads the hash of the file itself, and a conflict is exit 5",
+    "loose"  -> "'gx open <file>' always opens the file",
+    "folder" -> "use tags: 'gx tag <file> <tag>' and 'gx ls --tag <tag>'",
+    "text"   -> "write the file yourself, or use 'gx set <file> <element>... <name>=<value>...'",
+    "stdin"  -> "write the file yourself, or use 'gx set <file> <element>... <name>=<value>...'",
+    "name"   -> "the name of a diagram is the title in its source, or else its file name",
+    "list"   -> "'gx help' lists the commands",
+    "open"   -> "use 'gx open <file>'"
+  )
+
+  // ------------------------------------------------------------- entry
 
   def run(argv: Vector[String], env: CliEnv): Int =
     argv.headOption match
-      case None | Some("--help") | Some("-h") | Some("help") =>
+      case None =>
         env.out(Usage)
-        if argv.isEmpty then ExitCode.Usage else ExitCode.Ok
+        ExitCode.Usage
 
-      case Some("--version") | Some("version") =>
+      case Some("--help" | "-h" | "help") =>
+        env.out(Usage)
+        ExitCode.Ok
+
+      case Some("--version" | "version") =>
         env.out(buildinfo.BuildInfo.version)
         ExitCode.Ok
 
-      case Some(command) =>
-        Args.parse(argv.drop(1)) match
-          case Left(why) =>
-            env.err(s"gx: $why")
-            ExitCode.Usage
-          case Right(args) =>
-            try dispatch(command, args, env)
-            catch
-              case NonFatal(e) =>
-                env.err(s"gx: unexpected failure: $e")
-                ExitCode.Unknown
-
-  private def dispatch(command: String, args: Args, env: CliEnv): Int =
-    command match
-      case "status" => status(args, env)
-      case "import" => importFile(args, env)
-      case "ls"     => ls(args, env)
-      case "get"    => get(args, env)
-      case "set"    => set(args, env)
-      case "bind"   => bind(args, env)
-      case "unbind" => unbind(args, env)
-      case "sync"   => sync(args, env)
-      case "watch"  => watch(args, env)
-      case "run"     => runCommand(args, env)
-      case "session" => sessionCommand(args, env)
-      case "open"   => open(args, env)
-      case "skill"  => skill(args, env)
-      case other =>
-        env.err(s"gx: unknown command '$other'\n")
-        env.err(Usage)
+      case Some(name) if Gone.contains(name) =>
+        env.err(s"gx: '$name' is gone; ${Gone(name)} (see 'gx help')")
         ExitCode.Usage
+
+      case Some(name) =>
+        Commands.find(_.name == name) match
+          case None =>
+            env.err(s"gx: unknown command '$name'. 'gx help' lists the commands.")
+            ExitCode.Usage
+          case Some(command) =>
+            Args.parse(argv.drop(1)) match
+              case Left(why) =>
+                env.err(s"gx: $why")
+                ExitCode.Usage
+              case Right(args) =>
+                checkFlags(command, args, env).getOrElse:
+                  try
+                    val stopped = if command.library then migrate(env) else None
+                    stopped.getOrElse(command.body(command, args, env))
+                  catch
+                    case NonFatal(e) =>
+                      env.err(s"gx: unexpected failure: $e")
+                      ExitCode.Unknown
+
+  /** Refuse a flag that the command does not take, with one line. A removed
+    * flag names its replacement. An unknown flag names the flags that the
+    * command takes.
+    */
+  private def checkFlags(command: Command, args: Args, env: CliEnv): Option[Int] =
+    val bad =
+      args.switches.toVector.sorted.find(s => !command.switches.contains(s)) orElse
+        args.values.keys.toVector.sorted.find(v => !command.values.contains(v))
+    bad.map: flag =>
+      GoneFlags.get(flag) match
+        case Some(instead) => env.err(s"gx: '--$flag' is gone; $instead (see 'gx help')")
+        case None if command.switches.contains(flag) =>
+          env.err(s"gx: --$flag takes no value; usage: ${command.synopsis}")
+        case None if command.values.contains(flag) =>
+          env.err(s"gx: --$flag needs a value; usage: ${command.synopsis}")
+        case None =>
+          val takes = (command.switches ++ command.values).toVector.sorted.map("--" + _)
+          val list  = if takes.isEmpty then "no flags" else takes.mkString(", ")
+          env.err(s"gx: '${command.name}' does not take --$flag; it takes $list")
+      ExitCode.Usage
+
+  /** The one-time migration of plan §4. It runs before a library command, and
+    * only while `metadata/` does not exist. `None` means "continue".
+    */
+  private def migrate(env: CliEnv): Option[Int] =
+    val target = GxHome.metadataDir(env.gxHome)
+    MetadataMigrationExecutor.run(env.gxHome, env.diagramsDir, env.now) match
+      case MetadataMigrationResult.AlreadyDone => None
+      case MetadataMigrationResult.Done(report) =>
+        if report.nonEmpty then
+          env.err(s"gx: the library moved to $target (one time). The old records in diagrams/ stay unchanged.")
+          report.foreach(line => env.err(s"gx:   $line"))
+        None
+      case MetadataMigrationResult.Failed(reason, report) =>
+        env.err(s"gx: the one-time move of the library to $target failed: $reason")
+        report.foreach(line => env.err(s"gx:   $line"))
+        env.err("gx: the old library is unchanged. Correct the cause, then run the command again.")
+        Some(ExitCode.Unknown)
+
+  // --------------------------------------------------------- the file
+
+  /** The diagram file of a command: the first argument, resolved against the
+    * working directory of the user, checked by the policy, and canonical.
+    */
+  private def fileArg(command: Command, args: Args, env: CliEnv): Either[Int, Path] =
+    args.positionalAt(0) match
+      case None =>
+        env.err(s"gx: ${command.name} needs a <file>; usage: ${command.synopsis}")
+        Left(ExitCode.Usage)
+      case Some(raw) => checkPolicy(raw, env)
+
+  /** The policy evaluates the canonical path: symlinks resolved, and one
+    * spelling for each file (`FileOrigins.canonicalize`).
+    */
+  private def checkPolicy(raw: String, env: CliEnv): Either[Int, Path] =
+    env.policy.evaluate(env.cwd.resolve(raw), env.cwd) match
+      case Right(resolved) => Right(resolved)
+      case Left(denial) =>
+        env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
+        env.err(s"gx: ${denial.reason}")
+        Left(ExitCode.InvalidPathOrPolicy)
+
+  /** The file must exist, because the command reads it. */
+  private def requireFile(path: Path, env: CliEnv): Either[Int, Path] =
+    if Files.isRegularFile(path) then Right(path)
+    else
+      env.err(if Files.exists(path) then s"gx: $path is not a file" else s"gx: $path does not exist")
+      Left(ExitCode.InvalidPathOrPolicy)
+
+  /** A file, its text and its hash as gx read them, and the parsed diagram. */
+  private final case class Loaded(path: Path, doc: Document, diagram: DiagramText.Named):
+    def graph: ViewerGraph    = diagram.graph
+    def names: ElementNames   = diagram.names
+    def format: DiagramFormat = diagram.format
+
+  private def load(path: Path, env: CliEnv): Either[Int, Loaded] =
+    Documents.read(path) match
+      case Left(DocumentError.NotFound(_)) =>
+        env.err(s"gx: $path does not exist")
+        Left(ExitCode.InvalidPathOrPolicy)
+      case Left(DocumentError.NotAFile(_)) =>
+        env.err(s"gx: $path is not a file")
+        Left(ExitCode.InvalidPathOrPolicy)
+      case Left(other) =>
+        env.err(s"gx: cannot read $path: ${describe(other)}")
+        Left(ExitCode.InvalidPathOrPolicy)
+      case Right(doc) =>
+        DiagramText.parseNamed(doc.text) match
+          case Left(why) =>
+            env.err(s"gx: $path: $why")
+            Left(ExitCode.InvalidPathOrPolicy)
+          case Right(diagram) => Right(Loaded(path, doc, diagram))
+
+  private def loadFile(command: Command, args: Args, env: CliEnv): Either[Int, Loaded] =
+    fileArg(command, args, env).flatMap(load(_, env))
+
+  // ---------------------------------------------------- element names
+
+  /** The texts that are not element names at all. A malformed name is a usage
+    * error (exit 1).
+    */
+  private def malformed(texts: Seq[String]): Seq[String] =
+    texts.flatMap: text =>
+      if text.isEmpty then Some("an element name cannot be empty")
+      else ElementName.parse(text).left.toOption
+
+  /** Resolve element names against the diagram. A malformed name is exit 1. A
+    * name that names nothing is exit 4. The message reports each bad name, so
+    * an agent can correct all of them in one step.
+    */
+  private def resolve(texts: Seq[String], names: ElementNames, env: CliEnv): Either[Int, Vector[ElementId]] =
+    val bad = malformed(texts)
+    if bad.nonEmpty then
+      env.err(s"gx: ${bad.mkString("; ")}")
+      Left(ExitCode.Usage)
+    else
+      names.resolveAll(texts).left.map: why =>
+        env.err(s"gx: $why. 'gx nodes', 'gx arrows' and 'gx groups' print the names.")
+        ExitCode.InvalidPathOrPolicy
+
+  private def isGroup(id: ElementId): Boolean = id match
+    case _: GroupId => true
+    case _          => false
+
+  private def kindOf(id: ElementId): String = id match
+    case _: NodeId  => "a node"
+    case _: ArrowId => "an arrow"
+    case _: GroupId => "a group"
+
+  /** Refuse an element of a kind that the command does not take (exit 4). */
+  private def onlyKinds[A](
+      command: Command,
+      ids:     Vector[ElementId],
+      names:   ElementNames,
+      takes:   String,
+      env:     CliEnv
+  )(pick: PartialFunction[ElementId, A]): Either[Int, Vector[A]] =
+    ids.find(id => !pick.isDefinedAt(id)) match
+      case Some(other) =>
+        env.err(s"gx: ${command.name} takes $takes; '${names.render(other)}' is ${kindOf(other)}")
+        Left(ExitCode.InvalidPathOrPolicy)
+      case None => Right(ids.collect(pick))
+
+  // ------------------------------------------------------------- read
+
+  private def readNodes(command: Command, args: Args, env: CliEnv): Int =
+    readOnly(command, args, env): loaded =>
+      val rows = loaded.names.nodes.map: (id, name) =>
+        (name, ElementRef.render(id), labelOf(loaded.graph.nodes.get(id).map(_.label.toString)))
+      if args.json then
+        printJson(rows.map((name, ref, label) => ujson.Obj("name" -> name, "ref" -> ref, "label" -> optional(label))), env)
+      else columns(rows.map((name, _, label) => name -> label.map(quoted).getOrElse(""))).foreach(env.out)
+      ExitCode.Ok
+
+  private def readArrows(command: Command, args: Args, env: CliEnv): Int =
+    readOnly(command, args, env): loaded =>
+      val op = if loaded.graph.tpe.isDirected then "->" else "--"
+      val rows = loaded.names.arrows.flatMap: (id, name) =>
+        loaded.graph.arrows.get(id).map: arrow =>
+          val label = labelOf(arrow.attributes.values.get(Label.attrId).map(_.toString))
+          (name, ElementRef.render(id), loaded.names.render(arrow.source), loaded.names.render(arrow.target), label)
+      if args.json then
+        printJson(
+          rows.map((name, ref, source, target, label) =>
+            ujson.Obj("name" -> name, "ref" -> ref, "source" -> source, "target" -> target, "label" -> optional(label))
+          ),
+          env
+        )
+      else
+        columns(rows.map((name, _, source, target, label) =>
+          name -> (s"$source $op $target" + label.map(l => s"  ${quoted(l)}").getOrElse(""))
+        )).foreach(env.out)
+      ExitCode.Ok
+
+  private def readGroups(command: Command, args: Args, env: CliEnv): Int =
+    readOnly(command, args, env): loaded =>
+      val rows = loaded.names.groups.map: (id, name) =>
+        val label  = labelOf(loaded.graph.groups.get(id).map(_.label.toString))
+        val parent = loaded.graph.membership(id).map(loaded.names.render)
+        (name, ElementRef.render(id), label, parent)
+      if args.json then
+        printJson(
+          rows.map((name, ref, label, parent) =>
+            ujson.Obj("name" -> name, "ref" -> ref, "label" -> optional(label), "parent" -> optional(parent))
+          ),
+          env
+        )
+      else
+        columns(rows.map((name, _, label, parent) =>
+          name -> (label.map(quoted).toVector ++ parent.map(p => s"(in $p)")).mkString("  ")
+        )).foreach(env.out)
+      ExitCode.Ok
+
+  private def readAttrs(command: Command, args: Args, env: CliEnv): Int =
+    readOnly(command, args, env): loaded =>
+      val texts = args.positional.drop(1)
+      if texts.isEmpty then
+        env.err(s"gx: attrs needs at least one <element>; usage: ${command.synopsis}")
+        ExitCode.Usage
+      else
+        resolve(texts, loaded.names, env) match
+          case Left(code) => code
+          case Right(ids) =>
+            // The attributes as the DOT writer prints them: `style=filled`,
+            // not the internal parts of a style.
+            val printed = loaded.graph.copy(elements = loaded.graph.elements.combineStyleAttributes)
+            val items   = ids.map(id => (loaded.names.render(id), ElementRef.render(id), attributesOf(printed, id)))
+            if args.json then
+              printJson(
+                items.map((name, ref, attrs) =>
+                  ujson.Obj(
+                    "name"       -> name,
+                    "ref"        -> ref,
+                    "attributes" -> ujson.Obj.from(attrs.map((k, v) => k -> ujson.Str(v)))
+                  )
+                ),
+                env
+              )
+            else
+              for (name, _, attrs) <- items do
+                env.out(name)
+                attrs.foreach((k, v) => env.out(s"  $k=$v"))
+            ExitCode.Ok
+
+  /** A read command: it parses the file, and it never writes anything. */
+  private def readOnly(command: Command, args: Args, env: CliEnv)(body: Loaded => Int): Int =
+    loadFile(command, args, env).fold(identity, body)
+
+  /** The attributes of an element, as the DOT writer prints them. Thus the
+    * list leaves out:
+    *
+    *   - the internal keys: `_gvid` and the other `_` keys,
+    *   - the source name of a group (it is the name, not an attribute),
+    *   - an empty value: the reader gives each arrow `label=""` when one arrow
+    *     has a label,
+    *   - a group attribute that has its default value (`labelloc=t`), except
+    *     `cluster`.
+    */
+  private def attributesOf(graph: ViewerGraph, id: ElementId): Vector[(String, String)] =
+    val defaults: Map[String, String] = id match
+      case _: GroupId =>
+        ViewerGroup.defaultGroupAttributes.values.map((k, v) => k.value -> v.toString).toMap - Cluster.attrId.value
+      case _ => Map.empty
+    graph.getAttributesById(id).values.toVector
+      .map((k, v) => k.value -> v.toString)
+      .filterNot: (k, v) =>
+        k.startsWith("_") || v.isEmpty || defaults.get(k).contains(v) ||
+          (isGroup(id) && k == Name.attrId.value)
+
+  /** `\N` is the DOT default label (the node id), so it is no label. */
+  private def labelOf(label: Option[String]): Option[String] =
+    label.filter(l => l.nonEmpty && l != "\\N")
+
+  private def optional(value: Option[String]): ujson.Value = value.map(ujson.Str(_)).getOrElse(ujson.Null)
+
+  private def quoted(text: String): String = "\"" + text.replace("\"", "\\\"") + "\""
+
+  private def printJson(items: Vector[ujson.Value], env: CliEnv): Unit =
+    env.out(ujson.Arr.from(items).render(indent = 2))
+
+  /** Two columns: the name, then a description. The names line up. */
+  private def columns(rows: Vector[(String, String)]): Vector[String] =
+    val width = rows.map(_._1.length).maxOption.getOrElse(0)
+    rows.map((name, description) =>
+      if description.isEmpty then name else name.padTo(width, ' ') + "  " + description
+    )
+
+  // ----------------------------------------------------------- change
+
+  /** `name=value` is an attribute; each other argument is an element. The
+    * value can contain `=` and newlines.
+    */
+  private val AttributeArg = "(?s)([A-Za-z_][A-Za-z0-9_]*)=(.*)".r
+
+  private def setAttributes(command: Command, args: Args, env: CliEnv): Int =
+    val (attributes, elements) = args.positional.drop(1).partitionMap:
+      case AttributeArg(name, value) => Left(name -> value)
+      case other                     => Right(other)
+    val repeated = attributes.groupBy(_._1).collect { case (name, all) if all.size > 1 => name }.toVector.sorted
+    // gx refuses the names that start with `_`. The DOT writer leaves `_gvid`
+    // out of the file, so a set of it would change nothing and still exit 0.
+    // The writer keeps `id`, so gx accepts it.
+    val dropped = attributes.map(_._1).filter(_.startsWith("_")).distinct
+
+    def usage(why: String): Int =
+      env.err(s"gx: $why; usage: ${command.synopsis}")
+      ExitCode.Usage
+
+    if args.positional.isEmpty then usage("set needs a <file>")
+    else if elements.isEmpty then usage("set needs at least one <element> before the attributes")
+    else if attributes.isEmpty then usage("set needs at least one <name>=<value> (an empty value removes the attribute)")
+    else if repeated.nonEmpty then usage(s"set gives ${repeated.mkString(", ")} more than once; give each attribute once")
+    else if dropped.nonEmpty then usage(s"gx cannot write ${dropped.mkString(", ")}: its DOT writer leaves it out of the file")
+    else
+      change(command, args, env): loaded =>
+        resolve(elements, loaded.names, env).flatMap: ids =>
+          val targets = ids.toSet
+          val steps = attributes.map: (name, value) =>
+            if value.isEmpty then SourceCommand.RemoveAttribute(targets, name)
+            else SourceCommand.SetAttribute(targets, name, value)
+          steps
+            .foldLeft[Either[Int, ViewerGraph]](Right(loaded.graph))((graph, step) => graph.flatMap(runSource(_, step, env)))
+            .map(_ -> Vector.empty)
+
+  private def reset(command: Command, args: Args, env: CliEnv): Int =
+    withElements(command, args, env): (loaded, ids) =>
+      runSource(loaded.graph, SourceCommand.ResetAttributes(ids.toSet), env).map(_ -> Vector.empty)
+
+  private def group(command: Command, args: Args, env: CliEnv): Int =
+    withElements(command, args, env): (loaded, ids) =>
+      onlyKinds(command, ids, loaded.names, "nodes and groups", env) {
+        case n: NodeId  => n: ElementId
+        case g: GroupId => g: ElementId
+      }.flatMap: members =>
+        val label = args.value("label").getOrElse("")
+        runSource(loaded.graph, SourceCommand.Group(members.toSet, label), env).map: next =>
+          // The output names the new group, because the next command needs the
+          // name. It is the name that the writer prints.
+          val made = (next.groupIds -- loaded.graph.groupIds).headOption
+          next -> made.map(id => "group" -> ElementNames(next, loaded.format).render(id)).toVector
+
+  /** `ungroup` takes groups. The members of each group move out to the parent
+    * of the group, and the empty group goes away.
+    */
+  private def ungroup(command: Command, args: Args, env: CliEnv): Int =
+    withElements(command, args, env): (loaded, ids) =>
+      onlyKinds(command, ids, loaded.names, "groups", env) { case g: GroupId => g }.flatMap: groups =>
+        val members: Set[ElementId] = loaded.graph.getDirectChildren(groups.toSet).map(m => m: ElementId)
+        runSource(loaded.graph, SourceCommand.Ungroup(members), env).map(_ -> Vector.empty)
+
+  private def combineRecord(command: Command, args: Args, env: CliEnv): Int =
+    withElements(command, args, env): (loaded, ids) =>
+      onlyKinds(command, ids, loaded.names, "nodes", env) { case n: NodeId => n }.flatMap: nodes =>
+        if !loaded.graph.canCombineNodes(nodes.toSet) then
+          env.err("gx: combine-record needs two or more nodes, and the nodes must be in the same group")
+          Left(ExitCode.InvalidPathOrPolicy)
+        else runSource(loaded.graph, SourceCommand.CombineIntoRecord(nodes.toSet), env).map(_ -> Vector.empty)
+
+  private def splitRecord(command: Command, args: Args, env: CliEnv): Int =
+    oneRecord(command, args, env)(SourceCommand.SplitRecord(_))
+
+  private def transposeRecord(command: Command, args: Args, env: CliEnv): Int =
+    oneRecord(command, args, env)(SourceCommand.TransposeRecord(_))
+
+  private def oneRecord(command: Command, args: Args, env: CliEnv)(make: NodeId => SourceCommand): Int =
+    if args.positional.size > 2 then
+      env.err(s"gx: ${command.name} takes exactly one <node>; usage: ${command.synopsis}")
+      ExitCode.Usage
+    else
+      withElements(command, args, env): (loaded, ids) =>
+        onlyKinds(command, ids, loaded.names, "a node", env) { case n: NodeId => n }.flatMap:
+          case Vector(node) if loaded.graph.isRecordNode(node) =>
+            runSource(loaded.graph, make(node), env).map(_ -> Vector.empty)
+          case Vector(node) =>
+            env.err(s"gx: '${loaded.names.render(node)}' is not a record node: its shape is not record or Mrecord")
+            Left(ExitCode.InvalidPathOrPolicy)
+          case several =>
+            env.err(s"gx: ${command.name} takes one node, and the name gives ${several.size}")
+            Left(ExitCode.Usage)
+
+  /** A change command whose arguments after the file are element names. */
+  private def withElements(command: Command, args: Args, env: CliEnv)(
+      edit: (Loaded, Vector[ElementId]) => Either[Int, (ViewerGraph, Vector[(String, String)])]
+  ): Int =
+    if args.positional.sizeIs == 1 then
+      env.err(s"gx: ${command.name} needs at least one element; usage: ${command.synopsis}")
+      ExitCode.Usage
+    else
+      change(command, args, env): loaded =>
+        resolve(args.positional.drop(1), loaded.names, env).flatMap(ids => edit(loaded, ids))
+
+  private def runSource(graph: ViewerGraph, command: SourceCommand, env: CliEnv): Either[Int, ViewerGraph] =
+    SourceCommands.run(graph, command) match
+      case Right(result) =>
+        result.updatedGraph.toRight:
+          env.err(s"gx: unexpected failure: ${command.name} gave no graph")
+          ExitCode.Unknown
+      case Left(error) =>
+        env.err(s"gx: ${error.message}")
+        Left(ExitCode.InvalidPathOrPolicy)
+
+  /** The steps of each change (plan §2):
+    *
+    *   1. Read the file and its hash, and parse it.
+    *   2. Make the change on the graph.
+    *   3. Render the text. If it is the same text, write nothing.
+    *   4. Refuse a write that removes content that the graph does not keep
+    *      (comments, `strict`), unless the caller gives `--reformat`.
+    *   5. Write the file only if it still has the hash of step 1. Else stop
+    *      with exit 5, and the file stays as the other writer left it.
+    *
+    * `edit` gives the new graph, and the extra fields for the output.
+    */
+  private def change(command: Command, args: Args, env: CliEnv)(
+      edit: Loaded => Either[Int, (ViewerGraph, Vector[(String, String)])]
+  ): Int =
+    loadFile(command, args, env).flatMap(loaded => edit(loaded).map(loaded -> _)) match
+      case Left(code) => code
+      case Right((loaded, (graph, extra))) =>
+        val text = DiagramText.render(graph, loaded.format)
+        val lost = RoundTripLoss.scan(loaded.doc.text, loaded.format)
+        if text == loaded.doc.text then reportWrite(loaded.path, loaded.doc.hash, changed = false, extra, args, env)
+        else if lost.nonEmpty && !args.has("reformat") then
+          env.err(
+            s"gx: gx writes the whole file again, and that removes ${listed(lost)} from ${loaded.path}. " +
+              "Add --reformat to accept the rewrite, or change the text yourself."
+          )
+          ExitCode.InvalidPathOrPolicy
+        else
+          env.beforeWrite(loaded.path)
+          Documents.write(loaded.path, text, loaded.doc.hash) match
+            case Left(DocumentError.Conflict(_, expected, actual)) =>
+              env.audit.record(AuditEvent.Conflict(loaded.path.toString, expected, actual, "cli"))
+              env.err(
+                s"gx: ${loaded.path} changed after gx read it, so gx did not write it " +
+                  s"(expected ${expected.hex.take(12)}, found ${actual.hex.take(12)}). Run the command again."
+              )
+              ExitCode.Conflict
+            case Left(err) =>
+              env.err(s"gx: cannot write ${loaded.path}: ${describe(err)}")
+              ExitCode.InvalidPathOrPolicy
+            case Right(doc) =>
+              env.audit.record(AuditEvent.Written(loaded.path.toString, doc.hash, "cli"))
+              reportWrite(loaded.path, doc.hash, changed = true, extra, args, env)
+
+  private def reportWrite(
+      path:    Path,
+      hash:    ContentHash,
+      changed: Boolean,
+      extra:   Vector[(String, String)],
+      args:    Args,
+      env:     CliEnv
+  ): Int =
+    if args.json then
+      val fields = Vector[(String, ujson.Value)]("path" -> path.toString, "hash" -> hash.hex, "changed" -> changed)
+      env.out(ujson.Obj.from(fields ++ extra.map((k, v) => k -> ujson.Str(v))).render(indent = 2))
+    else
+      val notes = Option.unless(changed)("unchanged").toVector ++ extra.map((k, v) => s"$k $v")
+      env.out((Vector(path.toString, hash.hex) ++ notes).mkString("  "))
+    ExitCode.Ok
+
+  /** "the comments and the `strict` keyword", in the order of the enum. */
+  private def listed(lost: Set[UnmodeledContent]): String =
+    UnmodeledContent.values.toList.filter(lost.contains).map(_.label) match
+      case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
+      case names                         => names.mkString
+
+  // ---------------------------------------------------------- metadata
+
+  /** The entry of a file. An entry file that the store cannot read is an
+    * error, because a write would replace it.
+    */
+  private def entryOf(path: Path, env: CliEnv): Either[Int, Option[LibraryEntry]] =
+    env.library.get(path.toString) match
+      case Right(entry)                    => Right(Some(entry))
+      case Left(MetadataError.NotFound(_)) => Right(None)
+      case Left(other) =>
+        env.err(s"gx: the library entry of $path cannot be read ($other). 'gx remove $path' removes it.")
+        Left(ExitCode.Unknown)
+
+  /** Change the metadata of a file.
+    *
+    * With no entry, `create` decides. A command that adds metadata makes the
+    * entry, and that puts the diagram in the library. A command that removes
+    * metadata does nothing, and gives `None`. Only a file that exists can get a
+    * new entry.
+    */
+  private def updateEntry(path: Path, create: Boolean, env: CliEnv)(
+      update: DiagramMetadata => DiagramMetadata
+  ): Either[Int, Option[LibraryEntry]] =
+    entryOf(path, env).flatMap:
+      case Some(entry) =>
+        val next = update(entry.metadata)
+        if next == entry.metadata then Right(Some(entry))
+        else put(entry.copy(metadata = next, updatedAt = env.now()), env).map(Some(_))
+      case None if !create => Right(None)
+      case None =>
+        requireFile(path, env).flatMap: _ =>
+          val now  = env.now()
+          val meta = update(DiagramMetadata.empty)
+          put(LibraryEntry(path.toString, meta, now, now), env).map(Some(_))
+
+  private def put(entry: LibraryEntry, env: CliEnv): Either[Int, LibraryEntry] =
+    env.library.put(entry).left.map: err =>
+      env.err(s"gx: cannot write the library entry of ${entry.path}: $err")
+      ExitCode.Unknown
+
+  /** The names of the elements of the file, when the file parses. */
+  private def namesOf(path: Path): Option[ElementNames] =
+    Documents.read(path).toOption.flatMap(doc => DiagramText.parseNamed(doc.text).toOption).map(_.names)
+
+  /** A stored ref, as a name when the file parses, else as the ref.
+    * `ElementNames.render` gives the ref spelling for an element that the file
+    * does not have.
+    */
+  private def displayed(refs: Iterable[String], names: Option[ElementNames]): Vector[String] =
+    refs.toVector.map(ref =>
+      (names, ElementRef.parse(ref).toOption) match
+        case (Some(n), Some(id)) => n.render(id)
+        case _                   => ref
+    ).sorted
+
+  private def infoJson(path: Path, entry: Option[LibraryEntry], names: Option[ElementNames]): ujson.Obj =
+    val meta = entry.map(_.metadata)
+    ujson.Obj(
+      "path"             -> path.toString,
+      "inLibrary"        -> entry.isDefined,
+      "tags"             -> ujson.Arr.from(meta.toVector.flatMap(_.tags).map(ujson.Str(_))),
+      "notes"            -> meta.map(_.notes).getOrElse(""),
+      "hidden"           -> ujson.Arr.from(displayed(meta.toVector.flatMap(_.hiddenElements), names).map(ujson.Str(_))),
+      "collapsed"        -> ujson.Arr.from(displayed(meta.toVector.flatMap(_.collapsedGroups), names).map(ujson.Str(_))),
+      "autoDetectFormat" -> meta.flatMap(_.autoDetectFormat).map(ujson.Bool(_)).getOrElse(ujson.Null)
+    )
+
+  /** A value of `info`, for a person. */
+  private def text(value: ujson.Value): String = value match
+    case ujson.Arr(items) => if items.isEmpty then "(none)" else items.map(_.str).mkString(", ")
+    case ujson.Str(s)     => if s.isEmpty then "(none)" else s
+    case other            => if other.isNull then "(not set)" else other.render()
+
+  /** The output of a metadata command: the metadata of the file with
+    * `--json`, else one line with the field that the command changes.
+    */
+  private def reportEntry(
+      path:  Path,
+      entry: Option[LibraryEntry],
+      names: Option[ElementNames],
+      field: String,
+      args:  Args,
+      env:   CliEnv
+  ): Int =
+    if args.json then env.out(infoJson(path, entry, names).render(indent = 2))
+    else if entry.isEmpty then env.out(s"$path  not in the library; nothing to change")
+    else env.out(s"$path  $field: ${text(infoJson(path, entry, names)(field)).linesIterator.mkString(" / ")}")
+    ExitCode.Ok
+
+  private def hide(command: Command, args: Args, env: CliEnv): Int =
+    addElements(command, args, env, "hidden"): (_, ids) =>
+      Right(MetadataCommand.Hide(ids.toSet))
+
+  private def collapse(command: Command, args: Args, env: CliEnv): Int =
+    addElements(command, args, env, "collapsed"): (loaded, ids) =>
+      onlyKinds(command, ids, loaded.names, "groups", env) { case g: GroupId => g }
+        .map(groups => MetadataCommand.Collapse(groups.toSet))
+
+  /** `hide` and `collapse`: resolve the names against the file, then store
+    * the elements in the ref spelling. The file must parse.
+    */
+  private def addElements(command: Command, args: Args, env: CliEnv, field: String)(
+      make: (Loaded, Vector[ElementId]) => Either[Int, MetadataCommand]
+  ): Int =
+    val texts = args.positional.drop(1)
+    loadFile(command, args, env) match
+      case Left(code) => code
+      case Right(_) if texts.isEmpty =>
+        env.err(s"gx: ${command.name} needs at least one element; usage: ${command.synopsis}")
+        ExitCode.Usage
+      case Right(loaded) =>
+        val result =
+          for
+            ids   <- resolve(texts, loaded.names, env)
+            meta  <- make(loaded, ids)
+            entry <- updateEntry(loaded.path, create = true, env)(MetadataCommands.run(_, meta))
+          yield entry
+        result.fold(identity, entry => reportEntry(loaded.path, entry, Some(loaded.names), field, args, env))
+
+  private def unhide(command: Command, args: Args, env: CliEnv): Int =
+    removeElements(command, args, env, "hidden", MetadataCommand.UnhideAll)(_.hiddenElements): (_, ids) =>
+      Right(MetadataCommand.Unhide(ids.toSet))
+
+  private def expand(command: Command, args: Args, env: CliEnv): Int =
+    removeElements(command, args, env, "collapsed", MetadataCommand.ExpandAll)(_.collapsedGroups): (names, ids) =>
+      ids.find(!isGroup(_)) match
+        case Some(other) =>
+          val name = names.fold(ElementRef.render(other))(_.render(other))
+          env.err(s"gx: expand takes groups; '$name' is ${kindOf(other)}")
+          Left(ExitCode.InvalidPathOrPolicy)
+        case None => Right(MetadataCommand.Expand(ids.collect { case g: GroupId => g }.toSet))
+
+  /** `unhide` and `expand`: the elements, or `--all`.
+    *
+    * A name resolves against the file when the file parses. An element that
+    * the file no longer has can still go out of the metadata by its ref
+    * spelling, for example `node:old`.
+    */
+  private def removeElements(command: Command, args: Args, env: CliEnv, field: String, all: MetadataCommand)(
+      stored: DiagramMetadata => Set[String]
+  )(make: (Option[ElementNames], Vector[ElementId]) => Either[Int, MetadataCommand]): Int =
+    val texts = args.positional.drop(1)
+    def usage(why: String): Int =
+      env.err(s"gx: ${command.name} $why; usage: ${command.synopsis}")
+      ExitCode.Usage
+    fileArg(command, args, env) match
+      case Left(code)                                     => code
+      case Right(_) if texts.isEmpty && !args.has("all")  => usage("needs elements or --all")
+      case Right(_) if texts.nonEmpty && args.has("all")  => usage("takes elements or --all, not both")
+      case Right(path) =>
+        entryOf(path, env) match
+          case Left(code)  => code
+          case Right(None) => reportEntry(path, None, None, field, args, env)
+          case Right(Some(entry)) =>
+            val names = namesOf(path)
+            val metaCommand =
+              if args.has("all") then Right(all)
+              else resolveStored(texts, names, stored(entry.metadata), path, env).flatMap(make(names, _))
+            metaCommand
+              .flatMap(c => updateEntry(path, create = false, env)(MetadataCommands.run(_, c)))
+              .fold(identity, e => reportEntry(path, e, names, field, args, env))
+
+  /** Resolve names for a removal. The file decides when it parses. A ref
+    * spelling that is in the metadata also works.
+    */
+  private def resolveStored(
+      texts:  Seq[String],
+      names:  Option[ElementNames],
+      stored: Set[String],
+      path:   Path,
+      env:    CliEnv
+  ): Either[Int, Vector[ElementId]] =
+    val bad = malformed(texts)
+    if bad.nonEmpty then
+      env.err(s"gx: ${bad.mkString("; ")}")
+      Left(ExitCode.Usage)
+    else
+      val results = texts.map: text =>
+        val storedRef = ElementRef.parse(text).toOption.filter(id => stored.contains(ElementRef.render(id)))
+        names match
+          case Some(n) => n.resolve(text).left.flatMap(why => storedRef.map(Vector(_)).toRight(why))
+          case None =>
+            storedRef.map(Vector(_)).toRight:
+              s"gx cannot parse $path, so it cannot resolve '$text'. Give the ref spelling (for example node:$text), or --all"
+      val (failed, found) = results.partitionMap(identity)
+      if failed.nonEmpty then
+        env.err(s"gx: ${failed.mkString("; ")}")
+        Left(ExitCode.InvalidPathOrPolicy)
+      else Right(found.flatten.distinct.toVector)
+
+  private def tag(command: Command, args: Args, env: CliEnv): Int =
+    withTags(command, args, env): (path, tags) =>
+      updateEntry(path, create = true, env)(MetadataCommands.run(_, MetadataCommand.Tag(tags)))
+
+  private def untag(command: Command, args: Args, env: CliEnv): Int =
+    withTags(command, args, env): (path, tags) =>
+      updateEntry(path, create = false, env)(MetadataCommands.run(_, MetadataCommand.Untag(tags)))
+
+  private def withTags(command: Command, args: Args, env: CliEnv)(
+      update: (Path, List[String]) => Either[Int, Option[LibraryEntry]]
+  ): Int =
+    val tags = args.positional.drop(1).toList
+    fileArg(command, args, env) match
+      case Left(code) => code
+      case Right(_) if tags.isEmpty =>
+        env.err(s"gx: ${command.name} needs at least one <tag>; usage: ${command.synopsis}")
+        ExitCode.Usage
+      case Right(_) if tags.exists(_.trim.isEmpty) =>
+        env.err("gx: a tag cannot be empty")
+        ExitCode.Usage
+      case Right(path) =>
+        update(path, tags).fold(identity, entry => reportEntry(path, entry, None, "tags", args, env))
+
+  private def note(command: Command, args: Args, env: CliEnv): Int =
+    val texts   = args.positional.drop(1)
+    val sources = texts.size + Seq("stdin", "clear").count(args.has)
+    fileArg(command, args, env) match
+      case Left(code) => code
+      case Right(_) if texts.size > 1 =>
+        env.err(s"gx: note takes one <text>; put the text in quotes; usage: ${command.synopsis}")
+        ExitCode.Usage
+      case Right(_) if sources != 1 =>
+        env.err(s"gx: note needs exactly one of <text>, --stdin and --clear; usage: ${command.synopsis}")
+        ExitCode.Usage
+      case Right(_) if texts.headOption.exists(_.isEmpty) =>
+        env.err("gx: the text of the note is empty; --clear removes the note")
+        ExitCode.Usage
+      case Right(path) =>
+        // Text from stdin loses its last line endings, as `$(...)` does in a shell.
+        val note =
+          if args.has("clear") then ""
+          else if args.has("stdin") then env.stdin().reverse.dropWhile(c => c == '\n' || c == '\r').reverse
+          else texts.head
+        updateEntry(path, create = note.nonEmpty, env)(MetadataCommands.run(_, MetadataCommand.SetNotes(note)))
+          .fold(identity, entry => reportEntry(path, entry, None, "notes", args, env))
+
+  private def info(command: Command, args: Args, env: CliEnv): Int =
+    fileArg(command, args, env).flatMap(path => entryOf(path, env).map(path -> _)) match
+      case Left(code) => code
+      case Right((path, None)) if !Files.exists(path) =>
+        env.err(s"gx: $path does not exist, and it is not in the library")
+        ExitCode.InvalidPathOrPolicy
+      case Right((path, entry)) =>
+        val json = infoJson(path, entry, namesOf(path))
+        if args.json then env.out(json.render(indent = 2))
+        else
+          val width = json.obj.keys.map(_.length).max + 1
+          for (key, value) <- json.obj do
+            val lines = text(value).linesIterator.toVector
+            env.out(s"${(key + ":").padTo(width, ' ')} ${lines.mkString("\n" + " " * (width + 1))}")
+        ExitCode.Ok
+
+  private def ls(command: Command, args: Args, env: CliEnv): Int =
+    if args.positional.nonEmpty then
+      env.err(s"gx: ls takes no file; usage: ${command.synopsis}")
+      ExitCode.Usage
+    else
+      for bad <- env.library.unreadable() do
+        env.err(s"gx: warning: the library entry ${bad.file} cannot be read (${bad.message}). It is not in the list.")
+      val rows = env.library.list()
+        .filter(e => args.value("tag").forall(e.metadata.tags.contains))
+        .map(e => e -> !Files.exists(Paths.get(e.path)))
+      if args.json then
+        printJson(
+          rows.map((e, missing) =>
+            ujson.Obj("path" -> e.path, "tags" -> ujson.Arr.from(e.metadata.tags.map(ujson.Str(_))), "missing" -> missing)
+          ),
+          env
+        )
+      else if rows.isEmpty then env.out("(no diagrams)")
+      else
+        for (e, missing) <- rows do
+          val tags = Option.when(e.metadata.tags.nonEmpty)(s"tags: ${e.metadata.tags.mkString(", ")}")
+          env.out((Vector(e.path) ++ tags ++ Option.when(missing)("missing")).mkString("  "))
+      ExitCode.Ok
+
+  private def add(command: Command, args: Args, env: CliEnv): Int =
+    // Each file is checked before the first write, so a bad file adds nothing.
+    val checked = files(command, args, env).flatMap(paths =>
+      paths.foldLeft[Either[Int, Vector[Path]]](Right(Vector.empty))((acc, p) => acc.flatMap(ok => requireFile(p, env).map(ok :+ _)))
+    )
+    val results = checked.flatMap: paths =>
+      paths.foldLeft[Either[Int, Vector[(Path, Boolean)]]](Right(Vector.empty)): (acc, path) =>
+        for
+          done  <- acc
+          entry <- entryOf(path, env)
+          added <- if entry.isDefined then Right(false) else updateEntry(path, create = true, env)(identity).map(_ => true)
+        yield
+          // V-08: the audit log records each path that gx lets into the library.
+          if added then env.audit.record(AuditEvent.Allowed(path.toString, "add"))
+          done :+ (path -> added)
+    results.fold(
+      identity,
+      rows =>
+        if args.json then printJson(rows.map((p, added) => ujson.Obj("path" -> p.toString, "added" -> added)), env)
+        else for (p, added) <- rows do env.out(s"$p  ${if added then "added" else "already in the library"}")
+        ExitCode.Ok
+    )
+
+  private def remove(command: Command, args: Args, env: CliEnv): Int =
+    val results = files(command, args, env).flatMap: paths =>
+      paths.foldLeft[Either[Int, Vector[(Path, Boolean)]]](Right(Vector.empty)): (acc, path) =>
+        acc.flatMap: done =>
+          env.library.remove(path.toString) match
+            case Right(removed) => Right(done :+ (path -> removed))
+            case Left(err) =>
+              env.err(s"gx: cannot remove the library entry of $path: $err")
+              Left(ExitCode.Unknown)
+    results.fold(
+      identity,
+      rows =>
+        if args.json then printJson(rows.map((p, removed) => ujson.Obj("path" -> p.toString, "removed" -> removed)), env)
+        else
+          for (p, removed) <- rows do
+            env.out(s"$p  ${if removed then "removed from the library; the file stays" else "not in the library; nothing to change"}")
+        ExitCode.Ok
+    )
+
+  /** Each positional argument is a file. Each goes through the policy. */
+  private def files(command: Command, args: Args, env: CliEnv): Either[Int, Vector[Path]] =
+    if args.positional.isEmpty then
+      env.err(s"gx: ${command.name} needs at least one <file>; usage: ${command.synopsis}")
+      Left(ExitCode.Usage)
+    else
+      args.positional
+        .foldLeft[Either[Int, Vector[Path]]](Right(Vector.empty))((acc, raw) => acc.flatMap(done => checkPolicy(raw, env).map(done :+ _)))
+        .map(_.distinct)
+
+  // ----------------------------------------------------------- desktop
+
+  /** `open` sends `show` with a FILE target: the desktop watches the file and
+    * raises its window.
+    */
+  private def open(command: Command, args: Args, env: CliEnv): Int =
+    fileArg(command, args, env).flatMap(requireFile(_, env)) match
+      case Left(code) => code
+      case Right(path) =>
+        val payload = ujson.Obj("target" -> ujson.Obj("kind" -> "file", "path" -> path.toString))
+        desktop("show", payload, env, refused = "the desktop refused to open it"): result =>
+          val focused = result.objOpt.flatMap(_.get("focused")).flatMap(_.boolOpt).getOrElse(true)
+          if args.json then env.out(ujson.Obj("path" -> path.toString, "focused" -> focused).render(indent = 2))
+          else
+            env.out(s"showing $path")
+            // A desktop can run with no window on the screen. Say so, because
+            // the person cannot see a success.
+            if !focused then env.err("gx: the desktop is running but has no window to raise")
+          ExitCode.Ok
+
+  /** `select` resolves the names against the file, and sends the refs and
+    * the canonical path of the file.
+    *
+    * The page compares the path with the diagram on the screen (plan §2). For
+    * a different diagram, it refuses with `VIEW_REJECTED`, and the message
+    * names the diagram on the screen.
+    */
+  private def select(command: Command, args: Args, env: CliEnv): Int =
+    val texts = args.positional.drop(1)
+    loadFile(command, args, env) match
+      case Left(code) => code
+      case Right(_) if texts.isEmpty =>
+        env.err(s"gx: select needs at least one element; usage: ${command.synopsis}")
+        ExitCode.Usage
+      case Right(loaded) =>
+        resolve(texts, loaded.names, env) match
+          case Left(code) => code
+          case Right(ids) =>
+            val frame = LiveViewCodec.encode(LiveViewCommand.Select(loaded.path.toString, ids.toSet))
+            liveView(frame, env, Some(loaded.path)): _ =>
+              val names = ids.map(loaded.names.render)
+              if args.json then
+                env.out(
+                  ujson.Obj(
+                    "path"     -> loaded.path.toString,
+                    "selected" -> ujson.Arr.from(ids.map(ElementRef.render).sorted.map(ujson.Str(_))),
+                    "names"    -> ujson.Arr.from(names.map(ujson.Str(_)))
+                  ).render(indent = 2)
+                )
+              else env.out(s"${loaded.path}  selected: ${names.mkString(", ")}")
+              ExitCode.Ok
+
+  /** `selection` asks the desktop what is selected, and in which diagram.
+    *
+    * The page answers with the path of the file on the screen and the refs
+    * (`LiveViewSelection`). gx renders the names against that file, so an
+    * agent can give them to the next command. When the screen shows no file
+    * (an example), or gx cannot read the file, the selection stays in the ref
+    * spelling, and stderr says why.
+    */
+  private def selection(command: Command, args: Args, env: CliEnv): Int =
+    if args.positional.nonEmpty then
+      env.err(s"gx: selection takes no file; usage: ${command.synopsis}")
+      ExitCode.Usage
+    else
+      liveView(LiveViewCodec.encode(LiveViewCommand.WhatIsSelected), env, None): result =>
+        LiveViewSelection.decode(result) match
+          case Left(why) =>
+            env.err(s"gx: the desktop gave an answer that this gx cannot read ($why).")
+            env.err(s"gx: use the same version of Graph Explorer Desktop and gx (this gx is ${buildinfo.BuildInfo.version})")
+            ExitCode.Unknown
+          case Right(answer) =>
+            val names = answer.path match
+              case None =>
+                env.err(s"gx: the desktop shows ${answer.shows}, and it is not a file. The selection is in the ref spelling.")
+                None
+              case Some(path) => selectionNames(path, env)
+            val shown = answer.selection.map: ref =>
+              (names, ElementRef.parse(ref).toOption) match
+                case (Some(n), Some(id)) => n.render(id)
+                case _                   => ref
+            if args.json then
+              env.out(
+                ujson.Obj(
+                  "path"      -> answer.path.fold(ujson.Null)(ujson.Str(_)),
+                  "selection" -> ujson.Arr.from(shown.map(ujson.Str(_)))
+                ).render(indent = 2)
+              )
+            else
+              val what = if shown.isEmpty then "nothing selected" else s"selected: ${shown.mkString(", ")}"
+              env.out(answer.path.fold(what)(path => s"$path  $what"))
+            ExitCode.Ok
+
+  /** The element names of the file on the screen. `None`, and a line on
+    * stderr, when the policy refuses the path, or the file cannot be read or
+    * parsed. Then the selection stays in the ref spelling.
+    */
+  private def selectionNames(path: String, env: CliEnv): Option[ElementNames] =
+    env.policy.evaluate(Paths.get(path), env.cwd) match
+      case Left(denial) =>
+        env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
+        env.err(s"gx: gx may not read $path (${denial.reason}). The selection is in the ref spelling.")
+        None
+      case Right(allowed) =>
+        Documents.read(allowed).left.map(describe).flatMap(doc => DiagramText.parseNamed(doc.text)) match
+          case Right(diagram) => Some(diagram.names)
+          case Left(why) =>
+            env.err(s"gx: gx cannot read $path ($why). The selection is in the ref spelling.")
+            None
+
+  private def fit(command: Command, args: Args, env: CliEnv): Int =
+    fileArg(command, args, env).flatMap(requireFile(_, env)) match
+      case Left(code) => code
+      case Right(path) =>
+        liveView(LiveViewCodec.encode(LiveViewCommand.ResetView(path.toString)), env, Some(path)): _ =>
+          if args.json then env.out(ujson.Obj("path" -> path.toString).render(indent = 2))
+          else env.out(s"$path  fit to the window")
+          ExitCode.Ok
+
+  /** A live view command. `file` is the diagram that the command names. When
+    * the desktop shows a different diagram, the page refuses with
+    * `VIEW_REJECTED`, and gx tells the caller to show the file first.
+    */
+  private def liveView(frame: ujson.Obj, env: CliEnv, file: Option[Path])(onOk: ujson.Value => Int): Int =
+    file match
+      case Some(path) =>
+        env.rpc("live-view", frame) match
+          case Left(ChannelError.Rpc("VIEW_REJECTED", message, _)) =>
+            env.err(s"gx: the desktop refused it (VIEW_REJECTED): $message")
+            env.err(s"gx: show the file first: gx open ${shellWord(path.toString)}, then retry")
+            ExitCode.InvalidPathOrPolicy
+          case other => outcome(other, env, refused = "the desktop refused it")(onOk)
+      case None => desktop("live-view", frame, env, refused = "the desktop refused it")(onOk)
+
+  /** A path as one word for a shell: as it is when it has only safe
+    * characters, and else in single quotes.
+    */
+  private def shellWord(text: String): String =
+    if text.nonEmpty && text.forall(c => c.isLetterOrDigit || "/._-+:@%=,".contains(c)) then text
+    else "'" + text.replace("'", "'\\''") + "'"
+
+  /** One request to the desktop, and the exit code of each failure. */
+  private def desktop(method: String, params: ujson.Obj, env: CliEnv, refused: String)(
+      onOk: ujson.Value => Int
+  ): Int =
+    outcome(env.rpc(method, params), env, refused)(onOk)
+
+  private def outcome(answer: Either[ChannelError, ujson.Value], env: CliEnv, refused: String)(
+      onOk: ujson.Value => Int
+  ): Int =
+    answer match
+      case Right(result) => onOk(result)
+
+      case Left(ChannelError.NoDesktop(detail)) =>
+        env.err("gx: no desktop is running. Start Graph Explorer Desktop, then retry.")
+        env.err("gx: (every other gx command works without it)")
+        env.err(s"gx: ($detail)")
+        ExitCode.NeedsDesktop
+
+      // A desktop that is up but has no window. Nothing is wrong with the
+      // request, so this is NeedsDesktop and not a refusal.
+      case Left(ChannelError.Rpc("NO_WINDOW", message, _)) =>
+        env.err(s"gx: the desktop is running but has no window to show it in ($message)")
+        env.err("gx: open the Graph Explorer window, then retry")
+        ExitCode.NeedsDesktop
+
+      // A desktop with no diagram on the screen. The next step is the same as
+      // with no desktop: show the diagram.
+      case Left(ChannelError.Rpc("NO_LIVE_VIEW", message, _)) =>
+        env.err(s"gx: $message")
+        env.err("gx: show the diagram first: gx open <file>")
+        ExitCode.NeedsDesktop
+
+      case Left(ChannelError.Rpc(code, message, _)) =>
+        env.err(s"gx: $refused ($code): $message")
+        ExitCode.InvalidPathOrPolicy
+
+      case Left(ChannelError.Io(message)) =>
+        env.err(s"gx: control channel error: $message")
+        ExitCode.Unknown
 
   // ------------------------------------------------------------- status
 
-  /** Reports and exits 0 even with no desktop.
-    *
-    * In v1 this was the ONLY command that worked without one, and it exited 2 to
-    * say so. Now a missing desktop is ordinary — it stops exactly one command —
-    * so reporting it is information, not failure.
+  /** It exits 0 also with no desktop. A missing desktop stops only the
+    * desktop commands, so it is information and not a failure.
     */
-  private def status(args: Args, env: CliEnv): Int =
-    val diagrams = env.store.list()
-    val bound    = diagrams.count(_.isBound)
-
-    // One question, not two. v1 asked "is it running?" and then asked the
-    // desktop separately; a single `status` call answers both, and answers the
-    // first one the only way that means anything — by connecting.
-    val desktop = env.rpc("status", ujson.Obj()).toOption.flatMap(_.objOpt)
-    val watchItems = desktop.flatMap(_.get("watches")).flatMap(_.arrOpt).toVector.flatten
-    val watchPaths = watchItems.flatMap(_.objOpt.flatMap(_.get("path")).flatMap(_.strOpt)).sorted
-    val watches    = watchItems.size
-
-    // Three states, not two. The socket now answers from the moment the process
-    // starts — it is bound before the webview, which on Windows can take half a
-    // minute — so "the call succeeded" no longer means "there is a window".
-    // A desktop that is starting used to be reported as absent, which is the
-    // one thing it definitely was not.
-    //
-    // `state` absent means a desktop from before this existed: it only ever
-    // answered once it was fully up, so treating it as running is right.
-    val starting = desktop.flatMap(_.get("state")).flatMap(_.strOpt).contains("starting")
-    val running  = desktop.isDefined && !starting
-
-    if args.json then
-      env.out(
-        ujson.Obj(
-          "ok"              -> true,
-          "library"         -> env.store.root.toString,
-          "diagrams"        -> diagrams.size,
-          "bound"           -> bound,
-          "desktopRunning"  -> running,
-          "desktopStarting" -> starting,
-          "desktopWatches"  -> watches,
-          "desktopWatchPaths" -> ujson.Arr.from(watchPaths.map(ujson.Str(_)))
-        ).render(indent = 2)
-      )
+  private def status(command: Command, args: Args, env: CliEnv): Int =
+    if args.positional.nonEmpty then
+      env.err(s"gx: status takes no file; usage: ${command.synopsis}")
+      ExitCode.Usage
     else
-      env.out(s"library:  ${env.store.root}")
-      env.out(s"diagrams: ${diagrams.size} ($bound bound)")
-      // NOT "open". This counts the desktop's WATCH registry, which only
-      // `open_document` (the UI) and the `watch`/`show` RPC ever add to —
-      // `gx import` touches neither. Saying "1 open" right after an import
-      // told the reader the desktop had their diagram when it did not, which
-      // is the one thing the number cannot mean.
-      if running then env.out(s"desktop:  running (${watching(watches)})")
-      else if starting then env.out("desktop:  starting (its window is not up yet)")
-      else env.out("desktop:  not running (only `gx open` needs it)")
-    ExitCode.Ok
+      val entries = env.library.list()
+      val missing = entries.count(e => !Files.exists(Paths.get(e.path)))
 
-  /** What the desktop is following on disk, phrased so it cannot be misread as
-    * what the desktop is displaying. Those are different sets: a watched file
-    * need not be on screen, and D7.3 means an imported diagram is on neither.
-    */
+      val desktop    = env.rpc("status", ujson.Obj()).toOption.flatMap(_.objOpt)
+      val watchItems = desktop.flatMap(_.get("watches")).flatMap(_.arrOpt).toVector.flatten
+      val watchPaths = watchItems.flatMap(_.objOpt.flatMap(_.get("path")).flatMap(_.strOpt)).sorted
+
+      // The socket answers from the start of the process, before the window.
+      // Thus "the call succeeded" does not mean "there is a window". With no
+      // `state`, the desktop is older than the field. It answered only when it
+      // was fully up, so it is running.
+      val starting = desktop.flatMap(_.get("state")).flatMap(_.strOpt).contains("starting")
+      val running  = desktop.isDefined && !starting
+
+      if args.json then
+        env.out(
+          ujson.Obj(
+            "ok"                -> true,
+            "library"           -> env.library.root.toString,
+            "diagrams"          -> entries.size,
+            "missing"           -> missing,
+            "desktopRunning"    -> running,
+            "desktopStarting"   -> starting,
+            "desktopWatches"    -> watchItems.size,
+            "desktopWatchPaths" -> ujson.Arr.from(watchPaths.map(ujson.Str(_)))
+          ).render(indent = 2)
+        )
+      else
+        env.out(s"library:  ${env.library.root}")
+        env.out(s"diagrams: ${entries.size}" + (if missing > 0 then s" ($missing missing)" else ""))
+        // NOT "open": this is the WATCH registry of the desktop. A watched
+        // file need not be on the screen.
+        if running then env.out(s"desktop:  running (${watching(watchItems.size)})")
+        else if starting then env.out("desktop:  starting (its window is not up yet)")
+        else env.out("desktop:  not running (only open, select, selection and fit need it)")
+      ExitCode.Ok
+
   private def watching(n: Int): String =
     if n == 0 then "watching nothing"
     else if n == 1 then "watching 1 file"
     else s"watching $n files"
 
-  // ------------------------------------------------------------- import
-
-  private def importFile(args: Args, env: CliEnv): Int =
-    args.positionalAt(0) match
-      case None =>
-        env.err("gx: import needs a path")
-        ExitCode.Usage
-      case Some(raw) =>
-        modeOf(args, default = SyncMode.Pull) match
-          case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
-          case Right(mode) =>
-            val path = env.cwd.resolve(raw)
-            checkPolicy(path, env) match
-              case Left(code) => code
-              case Right(resolved) =>
-                Documents.read(resolved) match
-                  case Left(err) =>
-                    env.err(s"gx: cannot read ${resolved}: ${describe(err)}")
-                    ExitCode.InvalidPathOrPolicy
-                  case Right(doc) =>
-                    val origin = FileOrigins.originOf(resolved, env.cwd)
-                    val scheme = origin.scheme
-                    scheme.rejectionFor(mode) match
-                      case Some(why) =>
-                        env.err(s"gx: $why")
-                        ExitCode.Usage
-                      case None =>
-                        val existing = env.store.findByOrigin(origin)
-                        if existing.nonEmpty then
-                          // §3.1: uniqueness on origin is a policy, not a
-                          // structural rule. Warn and reuse rather than
-                          // silently creating a second record that will fight
-                          // the first over the same file.
-                          env.err(s"gx: already imported as ${existing.head.id.value}")
-                          printDiagram(existing.head, args, env)
-                          ExitCode.Ok
-                        else
-                          val name = args.value("name").getOrElse(defaultName(resolved))
-                          val d = Diagram(
-                            id = DiagramId(freshId(name, env)),
-                            name = name,
-                            folder = args.value("folder").map(FolderPath.parse).getOrElse(FolderPath.root),
-                            format = detectFormat(doc.text),
-                            text = doc.text,
-                            binding = Some(Binding(origin, mode, doc.hash, env.now())),
-                            metadata = DiagramMetadata.empty,
-                            createdAt = env.now(),
-                            updatedAt = env.now()
-                          )
-                          persist(d, env): saved =>
-                            env.audit.record(AuditEvent.Allowed(resolved.toString, "import"))
-                            printDiagram(saved, args, env)
-                            ExitCode.Ok
-
-  // ----------------------------------------------------------------- ls
-
-  private def ls(args: Args, env: CliEnv): Int =
-    val all = env.store.list()
-    val selected = args.value("folder").map(FolderPath.parse) match
-      case Some(f) => all.filter(_.folder.isUnder(f))
-      case None    => all
-    if args.json then
-      env.out(ujson.Arr.from(selected.map(summaryJson)).render(indent = 2))
-    else if selected.isEmpty then env.out("(no diagrams)")
-    else
-      for d <- selected do
-        val origin = d.binding.map(b => s"  ${b.mode}  ${b.origin.value}").getOrElse("")
-        env.out(f"${d.id.value}%-28s ${d.folder.render}%-16s ${d.name}$origin")
-    ExitCode.Ok
-
-  // ---------------------------------------------------------------- get
-
-  private def get(args: Args, env: CliEnv): Int =
-    withTarget(args, env): target =>
-      target match
-        case Target.InLibrary(d) =>
-          if args.json then env.out(summaryJson(d).render(indent = 2)) else env.out(d.text)
-          ExitCode.Ok
-        case Target.OnDisk(path) =>
-          Documents.read(path) match
-            case Left(err) =>
-              env.err(s"gx: ${describe(err)}")
-              ExitCode.InvalidPathOrPolicy
-            case Right(doc) =>
-              if args.json then
-                env.out(
-                  ujson
-                    .Obj("path" -> path.toString, "hash" -> doc.hash.hex, "text" -> doc.text)
-                    .render(indent = 2)
-                )
-              else env.out(doc.text)
-              ExitCode.Ok
-
-  // ---------------------------------------------------------------- set
-
-  private def set(args: Args, env: CliEnv): Int =
-    textFrom(args, env) match
-      case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
-      case Right(text) =>
-        withTarget(args, env)(applyText(_, text, args, env, source = "cli"))
-
-  /** Write new text to whatever the reference turned out to mean.
-    *
-    * Shared by `set` and `run` rather than copied: a command that rewrites the
-    * diagram has to land the same way a hand-written `set` does — same
-    * compare-and-swap, same mode rules, same audit line — or "the same edit"
-    * would mean two different things depending on how it was expressed.
-    */
-  private def applyText(target: Target, text: String, args: Args, env: CliEnv, source: String): Int =
-    target match
-      case Target.OnDisk(path) => writeFile(path, text, args, env, source)
-      case Target.InLibrary(d) =>
-        val updated = d.copy(text = text, updatedAt = env.now())
-        d.binding.filter(b => b.mode.pushes) match
-          case None =>
-            // Local-only by mode: Pull keeps UI/CLI edits in the store and
-            // never writes them back (§5.3). Saving the record is the whole
-            // operation, and the divergence it creates is reported by
-            // `gx sync` rather than resolved behind the user's back.
-            persist(updated, env): _ =>
-              reportSet(updated, wroteOrigin = false, args, env); ExitCode.Ok
-          case Some(binding) =>
-            binding.origin.filePath.map(Paths.get(_)) match
-              case None =>
-                env.err(s"gx: cannot write to ${binding.origin.value}")
-                ExitCode.InvalidPathOrPolicy
-              case Some(path) =>
-                Documents.write(path, text, binding.baseHash) match
-                  case Left(DocumentError.Conflict(_, expected, actual)) =>
-                    conflict(path.toString, expected, actual, env)
-                  case Left(err) =>
-                    env.err(s"gx: ${describe(err)}")
-                    ExitCode.InvalidPathOrPolicy
-                  case Right(doc) =>
-                    val synced = updated.copy(
-                      text = doc.text,
-                      binding = Some(binding.copy(baseHash = doc.hash, lastSyncAt = env.now()))
-                    )
-                    persist(synced, env): _ =>
-                      env.audit.record(AuditEvent.Written(path.toString, doc.hash, source))
-                      reportSet(synced, wroteOrigin = true, args, env)
-                      ExitCode.Ok
-
-  private def writeFile(path: Path, text: String, args: Args, env: CliEnv, source: String): Int =
-    checkPolicy(path, env) match
-      case Left(code) => code
-      case Right(resolved) =>
-        val base = args.value("base").map(ContentHash.fromHex).orElse(Documents.hashOf(resolved))
-        base match
-          case None =>
-            // No file yet: creating one is not a conditional write, and pretending
-            // it is would make `gx set` unable to make a new diagram.
-            Documents.create(resolved, text) match
-              case Left(err) => env.err(s"gx: ${describe(err)}"); ExitCode.InvalidPathOrPolicy
-              case Right(doc) =>
-                env.audit.record(AuditEvent.Written(resolved.toString, doc.hash, source))
-                if args.json then env.out(fileJson(resolved, doc.hash).render(indent = 2))
-                else env.out(s"${resolved}  ${doc.hash.hex.take(12)}")
-                ExitCode.Ok
-          case Some(expected) =>
-            Documents.write(resolved, text, expected) match
-              case Left(DocumentError.Conflict(_, exp, actual)) => conflict(resolved.toString, exp, actual, env)
-              case Left(err) => env.err(s"gx: ${describe(err)}"); ExitCode.InvalidPathOrPolicy
-              case Right(doc) =>
-                env.audit.record(AuditEvent.Written(resolved.toString, doc.hash, source))
-                if args.json then env.out(fileJson(resolved, doc.hash).render(indent = 2))
-                else env.out(s"${resolved}  ${doc.hash.hex.take(12)}")
-                ExitCode.Ok
-
-  // --------------------------------------------------------- bind/unbind
-
-  private def bind(args: Args, env: CliEnv): Int =
-    (args.positionalAt(0), args.positionalAt(1)) match
-      case (Some(ref), Some(rawPath)) =>
-        modeOf(args, default = SyncMode.Pull) match
-          case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
-          case Right(mode) =>
-            resolveRef(ref, env) match
-              case Left(err) => reportRef(err, env)
-              case Right(d) =>
-                val path = env.cwd.resolve(rawPath)
-                checkPolicy(path, env) match
-                  case Left(code) => code
-                  case Right(resolved) =>
-                    val origin = FileOrigins.originOf(resolved, env.cwd)
-                    origin.scheme.rejectionFor(mode) match
-                      case Some(why) => env.err(s"gx: $why"); ExitCode.Usage
-                      case None =>
-                        // Bind against what is on disk now, so the binding starts
-                        // agreed rather than immediately Behind. A missing file
-                        // binds against the diagram's own text: the origin is
-                        // where it is going, not where it came from.
-                        val base = Documents
-                          .hashOf(resolved)
-                          .getOrElse(Hashing.ofText(d.text, LineEnding.Lf))
-                        val bound = d.copy(
-                          binding = Some(Binding(origin, mode, base, env.now())),
-                          updatedAt = env.now()
-                        )
-                        persist(bound, env): _ =>
-                          printDiagram(bound, args, env); ExitCode.Ok
-      case _ =>
-        env.err("gx: bind needs a diagram and a path")
-        ExitCode.Usage
-
-  private def unbind(args: Args, env: CliEnv): Int =
-    args.positionalAt(0) match
-      case None =>
-        env.err("gx: unbind needs a diagram")
-        ExitCode.InvalidPathOrPolicy
-      case Some(ref) =>
-        resolveRef(ref, env) match
-          case Left(err) => reportRef(err, env)
-          case Right(d) =>
-            val detached = d.copy(binding = None, updatedAt = env.now())
-            persist(detached, env): _ =>
-              printDiagram(detached, args, env); ExitCode.Ok
-
-  // --------------------------------------------------------------- sync
-
-  private def sync(args: Args, env: CliEnv): Int =
-    val (unknown, found) = selectedRefs(args, env)
-    // Report every bad ref, not just the first: a script passing ten names
-    // wants all the typos at once.
-    if unknown.nonEmpty then unknown.map(reportRef(_, env)).last
-    else syncTargets(found.filter(_.isBound), args, env)
-
-  private def syncTargets(targets: Vector[Diagram], args: Args, env: CliEnv): Int =
-    if targets.isEmpty then
-      env.out(if args.json then "[]" else "(nothing bound to sync)")
-      ExitCode.Ok
-    else
-      val results  = targets.map(syncOne(_, env))
-      val diverged = results.count(_.state == SyncState.Diverged)
-      val failures = results.flatMap(o => o.failure.map(o.diagram.id.value -> _))
-      if args.json then
-        env.out(
-          ujson.Arr
-            .from(results.map(o =>
-              ujson.Obj("id" -> o.diagram.id.value, "state" -> o.state.toString)
-            ))
-            .render(indent = 2)
-        )
-      else for o <- results do env.out(f"${o.diagram.id.value}%-28s ${o.state}")
-
-      for (id, why) <- failures do env.err(s"gx: $id reconciled but could not be saved: $why")
-
-      // A write that did not land outranks divergence: divergence is a state
-      // the user can act on, an unsaved record is one they have not been told
-      // about. Divergence is a state, not an error (§5.2) — but a script that
-      // just pushed and wants to know whether it landed deserves a non-zero code.
-      if failures.nonEmpty then ExitCode.Unknown
-      else if diverged > 0 then ExitCode.Conflict
-      else ExitCode.Ok
-
-  private def syncOne(d: Diagram, env: CliEnv): SyncOutcome =
-    // Save, and KEEP the answer. Every branch below goes through here.
-    def store(updated: Diagram, state: SyncState): SyncOutcome =
-      env.store.save(updated) match
-        case Left(e)      => SyncOutcome(updated, state, Some(e.toString))
-        case Right(saved) => SyncOutcome(saved, state, None)
-
-    // Binding updates are the caller's: the reconciler decides the new base,
-    // and only this side knows the clock.
-    def rebound(binding: Binding, base: ContentHash) =
-      binding.copy(baseHash = base, lastSyncAt = env.now())
-
-    val path = d.binding.flatMap(_.origin.filePath.map(Paths.get(_)))
-    // ONE read of the origin: it answers every question the plan asks, and the
-    // Pull branch reuses its text rather than reading the same file twice.
-    val origin = path.flatMap(Documents.read(_).toOption)
-
-    // The decision lives in gx-core, so the app can ask it too (§8). This
-    // method is now the I/O half: read, ask, perform, save.
-    val plan = Reconciler.plan(
-      d.binding,
-      d.text,
-      origin.map(doc => OriginSnapshot(doc.text, doc.hash, doc.lineEnding)),
-      Hashing.ofText
-    )
-
-    (d.binding, plan.action) match
-      case (Some(binding), ReconcileAction.AdoptOrigin(text, base)) =>
-        store(
-          d.copy(
-            text = text,
-            binding = Some(rebound(binding, base)),
-            updatedAt = env.now()
-          ),
-          plan.state
-        )
-
-      case (Some(binding), ReconcileAction.WriteOrigin(text, expecting)) =>
-        (for
-          p   <- path
-          doc <- Documents.write(p, text, expecting).toOption
-        yield
-          // The hash of what the write PRODUCED, not a prediction of it. The
-          // two agree — a write reproduces the file's line ending, which is the
-          // convention `local` was hashed with — and using the write's own
-          // answer keeps that agreement from being load-bearing.
-          env.audit.record(AuditEvent.Written(p.toString, doc.hash, "sync"))
-          store(d.copy(binding = Some(rebound(binding, doc.hash))), plan.state)
-        ).getOrElse(SyncOutcome(d, plan.state, None))
-
-      case (Some(binding), ReconcileAction.AdvanceBase(base)) =>
-        store(d.copy(binding = Some(rebound(binding, base))), plan.state)
-
-      case (Some(binding), ReconcileAction.DoNothing) =>
-        plan match
-          case ReconcilePlan.Bound(SyncState.Diverged, _, local) =>
-            env.audit.record(AuditEvent.Conflict(binding.origin.value, binding.baseHash, local, "sync"))
-          case _ => ()
-        // Nothing was written, so there is nothing that could fail to save.
-        SyncOutcome(d, plan.state, None)
-
-      case (None, _) =>
-        // No origin to reconcile against. Not stored: nothing changed.
-        SyncOutcome(d, plan.state, None)
-
   // -------------------------------------------------------------- watch
 
-  /** Stream changes to stdout, one line per event.
-    *
-    * This is the headless primitive v1 lacked: a change stream a script or an
-    * agent can pipe, with no window anywhere in the picture. `--open` is
-    * accepted and warned about rather than silently ignored, which is what v1
-    * did with it (the brief's §3: "`openInUi` is parsed into `_open_in_ui` and
-    * discarded").
+  /** Stream the changes of files to stdout, one line for each event. It needs
+    * no desktop, so a script or an agent can pipe it. It stops only when the
+    * process stops.
     */
-  private def watch(args: Args, env: CliEnv): Int =
-    // Resolve each ref ONCE. This used to run findInLibrary twice per argument
-    // — once to collect the diagrams, once to test emptiness — and each call
-    // scans the whole library.
-    val (unresolved, found) = selectedRefs(args, env)
-    val diagrams            = found.filter(_.isBound)
-
-    // Only "nothing matched" can mean "this is a path"; an ambiguous ref is a
-    // ref, and watching a FILE of that name is not what was asked for.
-    val (ambiguous, missing) = unresolved.partitionMap:
-      case err: RefError.Ambiguous => Left(err)
-      case RefError.NotFound(ref)  => Right(ref)
-
-    // A ref that is not in the library is a PATH, and every other path-taking
-    // command runs it past the access policy first. watch did not, which made
-    // it the one way to point gx at a file the policy forbids.
-    val (denied, allowed) = missing.partitionMap(raw => checkPolicy(env.cwd.resolve(raw), env))
-
-    if ambiguous.nonEmpty then ambiguous.map(reportRef(_, env)).last
-    else if denied.nonEmpty then denied.head
-    else
-      val fromPaths = allowed.map(FileOrigins.originOf(_, env.cwd))
-      val origins   = (diagrams.flatMap(_.binding.map(_.origin)) ++ fromPaths).distinct
-
-      if origins.isEmpty then
-        env.err("gx: nothing to watch")
+  private def watch(command: Command, args: Args, env: CliEnv): Int =
+    val interval = args.value("interval") match
+      case None      => Right(50L)
+      case Some(raw) => raw.toLongOption.filter(_ >= 0).toRight(raw)
+    (files(command, args, env), interval) match
+      case (Left(code), _) => code
+      case (_, Left(raw)) =>
+        env.err(s"gx: --interval needs a number of milliseconds, 0 or more, not '$raw'; usage: ${command.synopsis}")
         ExitCode.Usage
-      else
-        if args.has("open") && !env.desktopRunning() then
-          env.err("gx: --open needs a running desktop; watching anyway")
-
-        val interval = args.value("interval").flatMap(_.toLongOption).getOrElse(50L)
-        val registry = WatchRegistry(env.audit, debounceMs = interval)
+      case (Right(paths), Right(ms)) =>
+        val origins  = paths.map(FileOrigins.originOf(_, env.cwd)).distinct
+        val registry = WatchRegistry(env.audit, debounceMs = ms)
         origins.foreach(registry.watch)
         for o <- origins do env.err(s"watching ${o.value}")
-
         while env.keepWatching() do
           for event <- registry.poll() do emitWatchEvent(event, args, env)
-          env.sleep(interval)
+          env.sleep(ms)
         ExitCode.Ok
 
   private def emitWatchEvent(event: WatchEvent, args: Args, env: CliEnv): Unit =
@@ -582,353 +1253,21 @@ object Cli:
       case WatchEvent.Changed(u, h)  => ("changed", u, h)
       case WatchEvent.Restored(u, h) => ("restored", u, h)
       case WatchEvent.Deleted(u, h)  => ("deleted", u, h)
-    if args.json then
-      env.out(ujson.Obj("event" -> kind, "origin" -> uri.value, "hash" -> hash.hex).render())
+    if args.json then env.out(ujson.Obj("event" -> kind, "origin" -> uri.value, "hash" -> hash.hex).render())
     else env.out(s"$kind\t${uri.value}")
-
-  // ---------------------------------------------------------------- run
-
-  /** The document tier over a file (D7.2), headless.
-    *
-    * The same vocabulary the UI executes — `gx-core/command` defines it once and
-    * this is the second of its three callers (D7.1). A mutation lands exactly
-    * the way `gx set` lands text, through `applyText`, so "the same edit"
-    * cannot mean two things depending on how it was expressed.
-    */
-  private def runCommand(args: Args, env: CliEnv): Int =
-    if args.has("list") then
-      // Discoverability is part of the vocabulary being a vocabulary: a name
-      // nobody can enumerate is not addressable in any useful sense.
-      listNames(AnyCommand.names, args, env)
-    else
-      (args.positionalAt(0), args.positionalAt(1)) match
-        case (Some(_), Some(commandName)) =>
-          paramsFrom(args, env) match
-            case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
-            case Right(params) =>
-              AnyCommand.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
-                case Left(CommandError.UnknownCommand(name)) =>
-                  env.err(s"gx: unknown command '$name'")
-                  env.err(s"gx: try one of: ${AnyCommand.names.mkString(", ")}")
-                  ExitCode.Usage
-                case Left(error) =>
-                  env.err(s"gx: ${error.message}")
-                  ExitCode.Usage
-                case Right(command) =>
-                  withTarget(args, env)(execute(_, command, args, env))
-        case _ =>
-          env.err("gx: run needs a diagram and a command")
-          env.err(s"gx: commands: ${AnyCommand.names.mkString(", ")}")
-          ExitCode.Usage
-
-  private def execute(target: Target, command: AnyCommand, args: Args, env: CliEnv): Int =
-    command match
-      case AnyCommand.Doc(c) => executeDocument(target, c, args, env)
-      case AnyCommand.Rec(c) => executeRecord(target, c, args, env)
-
-  /** The record tier operates on stored METADATA, so it needs a record — and a
-    * loose file on disk does not have one.
-    *
-    * Refused with the fix rather than with a shrug: `gx import` is what turns a
-    * path into something that can carry tags and hidden elements, and saying so
-    * is more useful than "not found".
-    */
-  private def executeRecord(target: Target, command: RecordCommand, args: Args, env: CliEnv): Int =
-    target match
-      case Target.OnDisk(path) =>
-        env.err(s"gx: '${path.getFileName}' is not in the library, so it has no record to change")
-        env.err(s"gx: import it first:  gx import ${path.getFileName}")
-        ExitCode.InvalidPathOrPolicy
-
-      case Target.InLibrary(d) =>
-        RecordCommands.run(d, command) match
-          case Left(error) =>
-            env.err(s"gx: ${error.message}")
-            ExitCode.InvalidPathOrPolicy
-
-          case Right(RecordResult.Answered(value)) =>
-            printAnswer(value, args, env)
-            ExitCode.Ok
-
-          case Right(RecordResult.Updated(updated)) =>
-            // Metadata only: the record is saved, and the ORIGIN is untouched
-            // whatever the sync mode says. That is §5.3.1's split doing its job
-            // — hiding a node must never make a regenerating origin conflict.
-            persist(updated.copy(updatedAt = env.now()), env): saved =>
-              if args.json then env.out(summaryJson(saved).render(indent = 2))
-              else env.out(s"${saved.id.value}  ${command.name}")
-              ExitCode.Ok
-
-  private def executeDocument(target: Target, command: DocumentCommand, args: Args, env: CliEnv): Int =
-    textOf(target, env) match
-      case Left(code) => code
-      case Right(text) =>
-        DiagramText.parseDocument(text) match
-          case Left(why) =>
-            env.err(s"gx: $why")
-            ExitCode.InvalidPathOrPolicy
-          case Right(diagram) =>
-            DocumentCommands.run(diagram.graph, command) match
-              case Left(error) =>
-                // A refusal is the desktop-less equivalent of a greyed-out menu
-                // item, and exit 4 is what the CLI already uses for "this
-                // reference is not usable".
-                env.err(s"gx: ${error.message}")
-                ExitCode.InvalidPathOrPolicy
-
-              case Right(CommandResult.Answered(value)) =>
-                // A query never writes. This is the reason D4's channel is
-                // request/response at all — "list the nodes" has an answer, and
-                // no amount of watched state expresses one.
-                printAnswer(value, args, env)
-                ExitCode.Ok
-
-              case Right(CommandResult.Updated(updated)) =>
-                applyText(target, DiagramText.render(updated, diagram.format), args, env, source = "command")
-
-  /** JSON for a machine, columns for a person — the same split `ls` makes.
-    *
-    * A query's answer is a `ujson.Value` because it crosses a wire, but a human
-    * running `gx run x list-nodes` wants what `ls` gives them, not a JSON
-    * document to read past.
-    */
-  private def printAnswer(value: ujson.Value, args: Args, env: CliEnv): Unit =
-    val rows = value.arrOpt.toVector.flatten.flatMap(_.objOpt)
-    if args.json || rows.isEmpty || !rows.forall(_.contains("ref")) then
-      env.out(value.render(indent = 2))
-    else
-      for row <- rows do
-        val ref = row.get("ref").flatMap(_.strOpt).getOrElse("")
-        // `filterNot` rather than `- "ref"`: a ujson.Obj is backed by a MUTABLE
-        // map, whose `-` is deprecated because it mutates in place. Removing a
-        // key from the answer while printing it would be a fine way to make the
-        // JSON and column forms disagree about what a row contains.
-        val rest = row.toVector
-          .filterNot((k, _) => k == "ref")
-          // A null is the JSON form's way of saying "absent", and the column
-          // form should say it by leaving the column out — `label=null` on every
-          // unlabelled node is noise, and this listing is the one a person reads.
-          .filterNot((_, v) => v.isNull)
-          .map((k, v) => s"$k=${v.strOpt.getOrElse(v.render())}")
-        env.out(if rest.isEmpty then ref else f"$ref%-28s ${rest.mkString("  ")}")
-
-  private def textOf(target: Target, env: CliEnv): Either[Int, String] =
-    target match
-      case Target.InLibrary(d) => Right(d.text)
-      case Target.OnDisk(path) =>
-        Documents.read(path) match
-          case Right(doc) => Right(doc.text)
-          case Left(err) =>
-            env.err(s"gx: ${describe(err)}")
-            Left(ExitCode.InvalidPathOrPolicy)
-
-  /** Params as JSON, from a flag or from stdin.
-    *
-    * `--stdin` matches `gx set`'s convention, and it is not a nicety: a
-    * `set-attribute` carrying an HTML label, or a `group` over fifty nodes, is
-    * past what belongs on a command line and well past what a shell will quote
-    * correctly.
-    */
-  private def paramsFrom(args: Args, env: CliEnv): Either[String, ujson.Obj] =
-    val raw =
-      if args.has("stdin") then Some(env.stdin())
-      else args.value("params")
-    raw.map(_.trim).filter(_.nonEmpty) match
-      case None => Right(ujson.Obj())
-      case Some(text) =>
-        try
-          ujson.read(text).objOpt.map(ujson.Obj.from).toRight("params must be a JSON object")
-        catch case NonFatal(e) => Left(s"params is not valid JSON: ${e.getMessage}")
-
-  // ------------------------------------------------------------ session
-
-  /** The session tier (D7.2): the live view, so a running desktop is required.
-    *
-    * No `<ref>` argument, and that is the tier's whole shape rather than an
-    * omission — a session command acts on what is ON SCREEN, and the desktop
-    * already knows what that is. Naming a diagram here would be asking a
-    * question about a thing that may not be the thing being displayed.
-    */
-  private def sessionCommand(args: Args, env: CliEnv): Int =
-    if args.has("list") then
-      listNames(SessionCommand.names, args, env)
-    else
-      args.positionalAt(0) match
-        case None =>
-          env.err("gx: session needs a command")
-          env.err(s"gx: commands: ${SessionCommand.names.mkString(", ")}")
-          ExitCode.Usage
-        case Some(commandName) =>
-          paramsFrom(args, env) match
-            case Left(why) => env.err(s"gx: $why"); ExitCode.Usage
-            case Right(params) =>
-              SessionCodec.decode(ujson.Obj("command" -> commandName, "params" -> params)) match
-                case Left(CommandError.UnknownCommand(name)) =>
-                  env.err(s"gx: unknown session command '$name'")
-                  // The tiers are separate verbs, so naming the other one is
-                  // the difference between a dead end and a next step.
-                  if AnyCommand.names.contains(name) then
-                    env.err(s"gx: '$name' is a headless command — try:  gx run <ref> $name")
-                  else env.err(s"gx: try one of: ${SessionCommand.names.mkString(", ")}")
-                  ExitCode.Usage
-
-                case Left(error) =>
-                  env.err(s"gx: ${error.message}")
-                  ExitCode.Usage
-
-                case Right(command) =>
-                  env.rpc("session", SessionCodec.encode(command)) match
-                    case Right(result) =>
-                      if command.isQuery then printSessionAnswer(result, args, env)
-                      else env.out(command.name)
-                      ExitCode.Ok
-
-                    case Left(ChannelError.NoDesktop(_)) =>
-                      env.err("gx: no desktop is running, and the session tier needs one.")
-                      env.err("gx: (every `gx run` command works without it)")
-                      ExitCode.NeedsDesktop
-
-                    case Left(ChannelError.Rpc(code, message, _)) =>
-                      // NO_SESSION is "a desktop, but nothing on screen" — the
-                      // tier's defining limit, and worth the same exit code as
-                      // no desktop at all, since the caller's next move is the
-                      // same: open something.
-                      if code == "NO_SESSION" then
-                        env.err(s"gx: $message")
-                        ExitCode.NeedsDesktop
-                      else
-                        env.err(s"gx: the desktop refused it ($code): $message")
-                        ExitCode.InvalidPathOrPolicy
-
-                    case Left(ChannelError.Io(message)) =>
-                      env.err(s"gx: control channel error: $message")
-                      ExitCode.Unknown
-
-  private def printSessionAnswer(result: ujson.Value, args: Args, env: CliEnv): Unit =
-    if args.json then env.out(result.render(indent = 2))
-    else
-      result.arrOpt match
-        case Some(items) if items.isEmpty => env.out("(nothing selected)")
-        case Some(items)                  => items.flatMap(_.strOpt).foreach(env.out)
-        case None                         => env.out(result.render(indent = 2))
-
-  // --------------------------------------------------------------- open
-
-  /** The one session-tier command (D7.2). It needs a live view, and there is no
-    * live view without a window — a limit of the concept, not of the CLI.
-    *
-    * What it sends is `show`: watch the file AND raise the window. The desktop
-    * treats that as `watch` plus focus rather than a separate operation, so a
-    * diagram opened from the shell and one opened in the UI are the same state.
-    */
-  private def open(args: Args, env: CliEnv): Int =
-    if args.positional.isEmpty then
-      env.err("gx: open needs a diagram")
-      ExitCode.Usage
-    else
-      // Resolved BEFORE the desktop is consulted: a typo'd name should say so,
-      // not blame a missing window.
-      openTarget(args, env) match
-        case Left(code) => code
-        case Right(target) =>
-          // Typed, not a bare path (§3.1). Which KIND this is decides who owns
-          // the document on the other side, and the desktop cannot infer that
-          // from a path.
-          val payload = target match
-            case OpenTarget.Library(id) =>
-              ujson.Obj("target" -> ujson.Obj("kind" -> "library", "diagramId" -> id.value))
-            case OpenTarget.File(path) =>
-              ujson.Obj("target" -> ujson.Obj("kind" -> "file", "path" -> path.toString))
-
-          val shown = target match
-            case OpenTarget.Library(id) => id.value
-            case OpenTarget.File(path)  => path.toString
-
-          env.rpc("show", payload) match
-            case Right(result) =>
-              val focused = result.objOpt.flatMap(_.get("focused")).flatMap(_.boolOpt).getOrElse(true)
-              if args.json then
-                env.out(
-                  ujson
-                    .Obj(
-                      "kind"    -> (target match
-                        case _: OpenTarget.Library => "library"
-                        case _: OpenTarget.File    => "file"),
-                      "ref"     -> shown,
-                      "focused" -> focused
-                    )
-                    .render(indent = 2)
-                )
-              else
-                env.out(s"showing $shown")
-                // A desktop can be running with no window on screen. Saying so
-                // beats reporting success for something the user cannot see.
-                if !focused then env.err("gx: the desktop is running but has no window to raise")
-              ExitCode.Ok
-
-            case Left(ChannelError.NoDesktop(detail)) =>
-              env.err("gx: no desktop is running. Start Graph Explorer Desktop, then retry.")
-              env.err("gx: (every other gx command works without it)")
-              env.err(s"gx: ($detail)")
-              ExitCode.NeedsDesktop
-
-            // A desktop that is up but has no window to show it in. Not the
-            // same as refusing the path: nothing is wrong with what was asked,
-            // and the user's next move is to bring the app up rather than to
-            // fix an argument — which is what NeedsDesktop already means.
-            case Left(ChannelError.Rpc("NO_WINDOW", message, _)) =>
-              env.err(s"gx: the desktop is running but has no window to show it in ($message)")
-              env.err("gx: open the Graph Explorer window, then retry")
-              ExitCode.NeedsDesktop
-
-            case Left(ChannelError.Rpc(code, message, _)) =>
-              env.err(s"gx: the desktop refused to open it ($code): $message")
-              ExitCode.InvalidPathOrPolicy
-
-            case Left(ChannelError.Io(message)) =>
-              env.err(s"gx: control channel error: $message")
-              ExitCode.Unknown
-
-  /** `open` takes the same references every other command does — an id, a name,
-    * or a path — but the desktop only understands files, so a library diagram
-    * has to resolve to the origin it is bound to.
-    */
-  private def openTarget(args: Args, env: CliEnv): Either[Int, OpenTarget] =
-    val ref = args.positional.head
-
-    // `--loose` is the escape hatch of §3.3: open the FILE at this path, even
-    // if a record is bound to it. Without it there is no way to say "the file,
-    // not the record" — and opening a loose file must never import it.
-    if args.has("loose") then checkPolicy(env.cwd.resolve(ref), env).map(OpenTarget.File(_))
-    else
-      resolveRef(ref, env) match
-        case Left(err: RefError.Ambiguous) => Left(reportRef(err, env))
-
-        // A record opens AS a record, bound or not. It used to be refused when
-        // it had no origin ("nothing to open"), which was only true while an
-        // open could name nothing but a path: the record has text of its own
-        // and is perfectly displayable (§3.2).
-        case Right(d) => Right(OpenTarget.Library(d.id))
-
-        case Left(_: RefError.NotFound) =>
-          checkPolicy(env.cwd.resolve(ref), env).map(OpenTarget.File(_))
 
   // -------------------------------------------------------------- skill
 
-  /** Print where the agent skill lives, and the sentence to hand an agent.
+  /** Print where the agent skill is, and the sentence to give an agent.
     *
-    * Deliberately NOT an installer. The skill is a prompt that a coding agent
-    * will load and act on, so writing it into someone's agent directory is a
-    * decision rather than a side effect of asking where it is — and every
-    * harness keeps skills somewhere different anyway. Printing a location plus
-    * the instruction works for all of them and leaves the human in the loop.
+    * It does NOT install the skill. The skill is a prompt that a coding agent
+    * loads and acts on, so a write into an agent directory is a decision of
+    * the person. Each harness also keeps skills in a different place.
     *
-    * Pinned to this binary by default. The skill names commands, param keys and
-    * exit codes, all of which are API that moves between releases, so an agent
-    * reading the branch tip while driving an older `gx` would be reading about
-    * commands it does not have.
+    * The location is pinned to this binary by default. The skill names
+    * commands, flags and exit codes, and they change between releases.
     */
-  private def skill(args: Args, env: CliEnv): Int =
+  private def skill(command: Command, args: Args, env: CliEnv): Int =
     SkillLocation.resolve(
       requested = args.positionalAt(0),
       latest = args.has("latest"),
@@ -958,14 +1297,13 @@ object Cli:
           env.out("")
           env.out("Tell your coding agent:")
           env.out("")
-          // Second person, addressed to the agent rather than about it, so the
-          // block can be pasted straight into a prompt. The URL gets a line of
-          // its own: it is the one part that must survive being copied out of a
-          // wrapped terminal intact.
+          // Addressed to the agent, so that the block can go into a prompt as
+          // it is. The URL has its own line, so that it survives a copy out of
+          // a terminal that wraps the lines.
           env.out("  Read and analyze the skill at")
           env.out(s"    ${found.raw}")
           env.out(s"  together with ${SkillLocation.SupportingFiles.mkString(" and ")} beside it, which it links.")
-          env.out("  Check it against the `gx` on this machine, then install all three as a")
+          env.out("  Check it against the `gx` on this machine, then install the files as a")
           env.out(s"  skill named `${SkillLocation.Name}` wherever this harness keeps skills — for Claude")
           env.out(s"  Code that is ${SkillLocation.Name}/ under .claude/skills/ in the project, or under")
           env.out("  your home directory to have it everywhere. Keep the frontmatter intact.")
@@ -981,180 +1319,11 @@ object Cli:
               case None       => env.out("Pin it to a release instead:  gx skill <version>")
         ExitCode.Ok
 
-  // ---------------------------------------------------------- resolution
-
-  private def withTarget(args: Args, env: CliEnv)(f: Target => Int): Int =
-    args.positionalAt(0) match
-      case None =>
-        env.err("gx: this command needs a diagram or a path")
-        ExitCode.Usage
-      case Some(ref) =>
-        resolveRef(ref, env) match
-          case Right(d) => f(Target.InLibrary(d))
-          // Only "nothing matched" can mean "this is a path". An ambiguous ref
-          // falling through here is how `gx set <ambiguous>` ended up writing
-          // to a FILE of that name instead of refusing.
-          case Left(err: RefError.Ambiguous) => reportRef(err, env)
-          case Left(_: RefError.NotFound) =>
-            val path = env.cwd.resolve(ref)
-            checkPolicy(path, env) match
-              case Left(code) => code
-              case Right(resolved) => f(Target.OnDisk(resolved))
-
-  /** id, then exact name, then the origin path. Ambiguity is reported rather
-    * than resolved by picking one, because "gx set" on the wrong diagram is not
-    * a mistake the user can see happening.
-    *
-    * That promise used to be unkept: this returned None for "nothing matched"
-    * AND for "several matched", so every caller rendered both as "no diagram
-    * matches" — and the ones that fall back to treating the ref as a PATH did
-    * so on an ambiguous name, which is the wrong-diagram write the paragraph
-    * above is about.
-    */
-  private def resolveRef(ref: String, env: CliEnv): Either[RefError, Diagram] =
-    val all = env.store.list()
-    lazy val byName = all.filter(_.name == ref)
-    lazy val byOrigin =
-      val origin = FileOrigins.originOf(env.cwd.resolve(ref), env.cwd)
-      all.filter(_.binding.exists(_.origin == origin))
-
-    all.find(_.id.value == ref) match
-      case Some(d) => Right(d)
-      case None =>
-        // Tier order is preserved: a unique name beats an origin match, and an
-        // origin match still answers when the name tier found nothing usable.
-        (byName, byOrigin) match
-          case (Vector(one), _)     => Right(one)
-          case (_, Vector(one))     => Right(one)
-          case (Vector(), Vector()) => Left(RefError.NotFound(ref))
-          case (many, others)       => Left(RefError.Ambiguous(ref, (many ++ others).distinct))
-
-  /** True when the ref names something in the library. Callers that fall back
-    * to a path use this; an AMBIGUOUS ref is not a path and must not fall
-    * through, so they check [[resolveRef]] rather than this.
-    */
-  private def findInLibrary(ref: String, env: CliEnv): Option[Diagram] =
-    resolveRef(ref, env).toOption
-
-  private def reportRef(err: RefError, env: CliEnv): Int = err match
-    case RefError.NotFound(ref) =>
-      env.err(s"gx: no diagram matches '$ref'")
-      ExitCode.InvalidPathOrPolicy
-    case RefError.Ambiguous(ref, matches) =>
-      env.err(s"gx: '$ref' matches ${matches.size} diagrams — name one by id:")
-      for d <- matches do env.err(s"gx:   ${d.id.value}  ${d.name}")
-      ExitCode.InvalidPathOrPolicy
-
-  // ------------------------------------------------------------- helpers
-
-  /** Save, or report the failure the same way everywhere. A store write that
-    * fails is `Unknown`, not a success with a warning — the six call sites that
-    * spelled this out by hand could each have answered differently.
-    */
-  private def persist(d: Diagram, env: CliEnv)(onSaved: Diagram => Int): Int =
-    env.store.save(d) match
-      case Left(e)      => env.err(s"gx: $e"); ExitCode.Unknown
-      case Right(saved) => onSaved(saved)
-
-  /** The vocabulary of a command tier, for `--list`. Both tiers print it the
-    * same way; two copies is how the two `--list` flags start differing.
-    */
-  private def listNames(names: Vector[String], args: Args, env: CliEnv): Int =
-    if args.json then env.out(ujson.Arr.from(names.map(ujson.Str(_))).render(indent = 2))
-    else names.foreach(env.out)
-    ExitCode.Ok
-
-  /** `--all`, or no arguments at all, means the whole library; otherwise the
-    * positional refs, resolved. `sync` and `watch` are documented as sharing
-    * that rule, so they read it from here rather than each restating it.
-    *
-    * Failures are RETURNED, not dropped. Flat-mapping them away is what made
-    * `gx sync typo` print "(nothing bound to sync)" and exit 0 — a script that
-    * mistyped a name was told it had succeeded.
-    */
-  private def selectedRefs(args: Args, env: CliEnv): (Vector[RefError], Vector[Diagram]) =
-    if args.has("all") || args.positional.isEmpty then (Vector.empty, env.store.list())
-    else args.positional.partitionMap(resolveRef(_, env))
-
-  private def checkPolicy(path: Path, env: CliEnv): Either[Int, Path] =
-    env.policy.evaluate(path, env.cwd) match
-      case Right(resolved) => Right(resolved)
-      case Left(denial) =>
-        env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
-        env.err(s"gx: ${denial.reason}")
-        Left(ExitCode.InvalidPathOrPolicy)
-
-  private def conflict(path: String, expected: ContentHash, actual: ContentHash, env: CliEnv): Int =
-    env.audit.record(AuditEvent.Conflict(path, expected, actual, "cli"))
-    env.err(s"gx: conflict — $path changed underneath this write")
-    env.err(s"gx:   expected ${expected.hex.take(12)}, found ${actual.hex.take(12)}")
-    ExitCode.Conflict
-
-  private def textFrom(args: Args, env: CliEnv): Either[String, String] =
-    (args.has("stdin"), args.value("text")) match
-      case (true, _)        => Right(env.stdin())
-      case (false, Some(t)) => Right(t)
-      case (false, None)    => Left("provide --stdin or --text")
-
-  private def modeOf(args: Args, default: SyncMode): Either[String, SyncMode] =
-    args.value("mode") match
-      case None => Right(default)
-      case Some(raw) =>
-        SyncMode.values.find(_.toString.equalsIgnoreCase(raw)) match
-          case Some(m) => Right(m)
-          case None =>
-            Left(s"unknown mode '$raw' (expected ${SyncMode.values.map(_.toString.toLowerCase).mkString(", ")})")
-
-  private def detectFormat(text: String): String =
-    org.jpablo.graphexplorer.viewer.backends.DiagramFormat.detect(text).toString
-
-  private def defaultName(path: Path): String =
-    val n = path.getFileName.toString
-    val i = n.lastIndexOf('.')
-    if i > 0 then n.substring(0, i) else n
-
-  private def freshId(name: String, env: CliEnv): String =
-    val slug = name.map(c => if c.isLetterOrDigit then c.toLower else '-').take(40)
-    val base = if slug.isEmpty then "diagram" else slug
-    if !env.store.contains(DiagramId(base)) then base
-    else LazyList.from(2).map(i => s"$base-$i").find(s => !env.store.contains(DiagramId(s))).getOrElse(base)
+  // ------------------------------------------------------------ helpers
 
   private def describe(err: DocumentError): String = err match
-    case DocumentError.NotFound(p)         => s"no such file: $p"
-    case DocumentError.NotAFile(p)         => s"not a regular file: $p"
-    case DocumentError.AlreadyExists(p)    => s"already exists: $p"
-    case DocumentError.Io(p, m)            => s"$p: $m"
-    case DocumentError.Conflict(p, _, _)   => s"conflict on $p"
-
-  private def summaryJson(d: Diagram): ujson.Obj =
-    ujson.Obj(
-      "id"     -> d.id.value,
-      "name"   -> d.name,
-      "folder" -> d.folder.render,
-      "format" -> d.format,
-      "origin" -> d.binding.map(b => ujson.Str(b.origin.value)).getOrElse(ujson.Null),
-      "mode"   -> d.binding.map(b => ujson.Str(b.mode.toString)).getOrElse(ujson.Null)
-    )
-
-  private def fileJson(path: Path, hash: ContentHash): ujson.Obj =
-    ujson.Obj("path" -> path.toString, "hash" -> hash.hex)
-
-  private def printDiagram(d: Diagram, args: Args, env: CliEnv): Unit =
-    if args.json then env.out(summaryJson(d).render(indent = 2))
-    else
-      env.out(s"id:     ${d.id.value}")
-      env.out(s"name:   ${d.name}")
-      env.out(s"folder: ${d.folder.render}")
-      d.binding.foreach: b =>
-        env.out(s"origin: ${b.origin.value}")
-        env.out(s"mode:   ${b.mode}")
-
-  private def reportSet(d: Diagram, wroteOrigin: Boolean, args: Args, env: CliEnv): Unit =
-    if args.json then
-      env.out(ujson.Obj("id" -> d.id.value, "wroteOrigin" -> wroteOrigin).render(indent = 2))
-    else if wroteOrigin then env.out(s"${d.id.value}  written to ${d.binding.map(_.origin.value).getOrElse("")}")
-    else
-      env.out(s"${d.id.value}  saved locally")
-      d.binding.foreach: b =>
-        if !b.mode.pushes then
-          env.out(s"(${b.mode} does not write back; the origin is unchanged)")
+    case DocumentError.NotFound(p)       => s"no such file: $p"
+    case DocumentError.NotAFile(p)       => s"not a regular file: $p"
+    case DocumentError.AlreadyExists(p)  => s"already exists: $p"
+    case DocumentError.Io(p, m)          => s"$p: $m"
+    case DocumentError.Conflict(p, _, _) => s"conflict on $p"
