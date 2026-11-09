@@ -171,3 +171,21 @@ class DiagramTextRoundTripSpec extends FunSuite:
       for (member, name) <- Vector("a" -> names(0), "b" -> names(1)) do
         val group = again.names.resolve(name).fold(e => fail(s"$e\n$written"), identity)
         assertEquals(group, again.graph.memberships.get(NodeId(member)).toVector, s"$member left the subgraph $name:\n$written")
+
+  /** In DOT, two sibling subgraphs with one name are one subgraph: Graphviz
+    * merges them (checked with `dot -Tcanon`, Graphviz 14.1.5). The reader of
+    * gx kept two. When each subgraph got its own group, a write then printed
+    * `cluster_x` and `cluster_x_2`, and one cluster became two, with no
+    * message.
+    */
+  test("two sibling subgraphs with one name are one group, as in Graphviz"):
+    val source = "digraph G { subgraph cluster_x { a } subgraph cluster_x { b } c }"
+    val named  = DiagramText.parseNamed(source).fold(fail(_), identity)
+    assertEquals(named.graph.groups.size, 1, "the reader made two groups of one subgraph")
+    assertEquals(named.names.groups.map(_._2), Vector("cluster_x"))
+    val written = DiagramText.render(named.graph, named.format)
+    val again   = DiagramText.parseNamed(written).fold(e => fail(s"$e\n$written"), identity)
+    assertEquals(again.names.groups.map(_._2), Vector("cluster_x"), s"a write changed the subgraphs:\n$written")
+    val group = again.names.resolve("cluster_x").fold(e => fail(s"$e\n$written"), identity)
+    for member <- Vector("a", "b") do
+      assertEquals(group, again.graph.memberships.get(NodeId(member)).toVector, s"$member left cluster_x:\n$written")
