@@ -3,7 +3,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/debug/graph-explorer-desktop"
 
 # The gates drive the control API directly. `gx` is Scala now and speaks no
@@ -24,8 +23,16 @@ cleanup() {
     kill "${desktop_pid}" >/dev/null 2>&1 || true
     wait "${desktop_pid}" >/dev/null 2>&1 || true
   fi
+  # After the desktop stops, so that nothing writes into the sandbox any more.
+  gx_sandbox_remove
 }
 trap cleanup EXIT
+
+# A SANDBOX GX_HOME and GX_DIAGRAMS_DIR, not the real ones of the person (see
+# gx_sandbox_create). This gate used to use a desktop that was already up. A
+# desktop of the person is not in the sandbox, so the gate now always starts
+# its own one, and does not touch the desktop of the person.
+gx_sandbox_create phase3
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {

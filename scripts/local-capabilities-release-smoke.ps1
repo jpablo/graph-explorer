@@ -25,7 +25,20 @@ $desktop = "desktop/src-tauri/target/release/graph-explorer-desktop.exe"
 $gx = "gx-cli/target/gx.exe"
 if (-not (Test-Path $desktop)) { throw "missing desktop binary: $desktop" }
 if (-not (Test-Path $gx)) { throw "missing gx binary: $gx" }
-$control = Join-Path $HOME ".graph-explorer/runtime/control.json"
+
+# A SANDBOX GX_HOME and GX_DIAGRAMS_DIR, not the real ones of the person. The
+# first start of a new desktop moves the library to the metadata store, and
+# writes files into the folder for new diagrams; `gx status` does the same.
+# GX_HOME does not move that folder, so the sandbox sets both. The socket is in
+# the sandbox too, so this gate does not stop or use a desktop that the person
+# runs. The desktop and gx read the variables from the environment of this
+# process. The name is short, because a socket path must be 100 bytes or less.
+$sandbox = Join-Path $env:TEMP ("gx-rel-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+New-Item -ItemType Directory -Path $sandbox | Out-Null
+$env:GX_HOME = $sandbox
+$env:GX_DIAGRAMS_DIR = Join-Path $sandbox "diagrams"
+$control = Join-Path $sandbox "runtime/control.json"
+Write-Host "sandbox GX_HOME: $sandbox"
 
 $script:rpcId = 0
 function Invoke-Control($method, $params) {
@@ -77,10 +90,6 @@ function Invoke-Control($method, $params) {
   finally { $client.Dispose() }
 }
 
-Get-Process graph-explorer-desktop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Remove-Item "$HOME/.graph-explorer/runtime/control.json" -ErrorAction SilentlyContinue
-Remove-Item "$HOME/.graph-explorer/runtime/control.sock" -ErrorAction SilentlyContinue
-
 # The desktop's own output is captured, because the previous run failed
 # here with "did not become ready" and NOTHING else: the readiness loop
 # swallowed every exception, so a bind failure, a crash and a slow
@@ -89,9 +98,13 @@ Remove-Item "$HOME/.graph-explorer/runtime/control.sock" -ErrorAction SilentlyCo
 # job was to report it.
 $outLog = Join-Path $env:TEMP "gx-desktop-out.log"
 $errLog = Join-Path $env:TEMP "gx-desktop-err.log"
-$desktopProc = Start-Process -FilePath $desktop -PassThru `
-  -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+$desktopProc = $null
 try {
+  # Inside the try, so that the finally removes the sandbox also when the
+  # start fails.
+  $desktopProc = Start-Process -FilePath $desktop -PassThru `
+    -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+
   # BUDGET: 120s, not the 30s this used to allow.
   #
   # The desktop binds its control socket inside tauri's `setup`, which runs
@@ -113,7 +126,7 @@ try {
   # Deadline-based rather than a fixed iteration count: an iteration is a
   # connect attempt plus a sleep, so `120 iterations` was never 30 seconds of
   # anything in particular.
-  $runtimeDir = Join-Path $HOME ".graph-explorer/runtime"
+  $runtimeDir = Join-Path $sandbox "runtime"
   $waitStarted = Get-Date
   $deadline = $waitStarted.AddSeconds(120)
   $ready = $false
@@ -259,5 +272,10 @@ digraph G {
 finally {
   if ($desktopProc -and -not $desktopProc.HasExited) {
     Stop-Process -Id $desktopProc.Id -Force -ErrorAction SilentlyContinue
+    # Windows cannot delete a file that a process holds open (the audit log,
+    # the socket), so wait until the desktop is gone.
+    Wait-Process -Id $desktopProc.Id -Timeout 10 -ErrorAction SilentlyContinue
   }
+  # The whole sandbox: the library, the diagrams, the socket and the audit log.
+  Remove-Item -LiteralPath $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 }

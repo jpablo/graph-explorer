@@ -186,8 +186,8 @@ const NOTES = {
     agent: ["Coding agent.", "An agent uses gx to read and change diagrams. It does not need a screen."],
     file: ["diagram.dot.", "A text file in your project. The desktop app watches it, and ⌘S writes your edits back to it."],
     gx: ["gx.", "The command-line tool. It edits files, adds them to the library, and tells the desktop app what to show."],
-    library: ["Library.", "A folder of diagrams on your disk. The desktop app and gx share it."],
-    desktop: ["Graph Explorer Desktop.", "The window. It shows a file or a library diagram, and it draws the diagram again when the source changes."],
+    library: ["Library.", "The list of your diagram files, with their tags, notes, and hidden elements. The desktop app and gx share it. The files stay where they are."],
+    desktop: ["Graph Explorer Desktop.", "The window. It shows a diagram file, and it draws the diagram again when the source changes."],
 };
 
 function setUpFlow() {

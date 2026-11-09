@@ -395,6 +395,13 @@ over the wire.
 > `LIVE_VIEW_TIMEOUT`, the event `ge:session.command` → `ge:live-view.command`, and
 > the Tauri command `session_reply` → `live_view_reply`. The text below keeps the
 > old names, because it tells the history of the design.
+>
+> **Superseded, 2026-11-08.** `docs/adr/0001-the-file-is-the-only-copy.md`
+> replaces the library parts of this document and the record tier. A diagram is
+> a file, and the library keeps only metadata about each file, by its path. The
+> metadata tier writes that entry, never a record. `gx view`, `gx run`,
+> `get-metadata`, `move-to-folder` and `rename-diagram` are gone too; `gx help`
+> lists the commands, and `local-protocol/README.md` describes the protocol.
 
 | Tier | Operates on | Examples | Headless? |
 |---|---|---|---|

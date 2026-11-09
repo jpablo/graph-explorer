@@ -3,7 +3,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/release/graph-explorer-desktop"
 
 # shellcheck source=scripts/lib/control-api.sh
@@ -20,8 +19,17 @@ cleanup() {
     kill "${desktop_pid}" >/dev/null 2>&1 || true
     wait "${desktop_pid}" >/dev/null 2>&1 || true
   fi
+  # After the desktop stops, so that nothing writes into the sandbox any more.
+  gx_sandbox_remove
 }
 trap cleanup EXIT
+
+# A SANDBOX GX_HOME and GX_DIAGRAMS_DIR, not the real ones of the person (see
+# gx_sandbox_create). The release page moves the library to the metadata store
+# at its first start, and that must not be the real library. The socket is in
+# the sandbox too, so this gate does not stop a desktop that the person runs.
+gx_sandbox_create release
+RUNTIME_FILE="${CONTROL_RUNTIME_FILE}"
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -48,9 +56,6 @@ if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "missing release desktop binary at ${DESKTOP_BIN}" >&2
   exit 1
 fi
-
-pkill -f graph-explorer-desktop >/dev/null 2>&1 || true
-rm -f "${RUNTIME_FILE}"
 
 echo "starting release desktop runtime..."
 "${DESKTOP_BIN}" >/tmp/graph-explorer-desktop-release-smoke.log 2>&1 &

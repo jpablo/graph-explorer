@@ -27,8 +27,13 @@ import os
 import socket
 import sys
 
+# The runtime file follows GX_HOME, as the desktop and gx do. A blank GX_HOME
+# means "not set", as it does for them.
 DEFAULT_CONTROL = os.path.join(
-    os.path.expanduser("~"), ".graph-explorer", "runtime", "control.json"
+    os.environ.get("GX_HOME", "").strip()
+    or os.path.join(os.path.expanduser("~"), ".graph-explorer"),
+    "runtime",
+    "control.json",
 )
 
 

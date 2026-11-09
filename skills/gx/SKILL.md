@@ -145,6 +145,13 @@ The line endings and the end of the file (a final newline, or none) stay.
 The name and the kind of the graph stay: `graph MyNet { a -- b }` stays undirected and
 stays `MyNet`. Each group keeps its source name: `subgraph clusterB` stays `clusterB`.
 
+The rewrite also loses some content with no refusal and no message. Check the diff:
+
+- **Each `id` attribute goes.** A change to node `b` also removes `id=foo` from node `a`.
+- `subgraph x { cluster=true }` becomes `subgraph "cluster_x"`.
+- `clusterB` and `cluster_B` in one file are one group to gx. A write keeps one of the two
+  subgraphs, and the members of the other subgraph leave the group.
+
 ### Conflicts
 
 gx reads the file and its hash, makes the change, and writes the file only if it still has
@@ -203,6 +210,11 @@ gx fit       arch.dot
 These are the only commands that need the desktop app. With no desktop, they exit **2**
 and say so. That is not a failure of the task: report it, and continue with the headless
 work. A desktop with no diagram on the screen also gives exit 2.
+
+`gx select` and `gx fit` name their file. When the window shows a different diagram, the
+desktop refuses the command (exit **4**), and the message names the diagram on the screen.
+Run `gx open <file>` first, then run the command again. `gx selection` prints the path of
+the diagram on the screen with the names of the selected elements.
 
 ## Gotchas
 

@@ -1,6 +1,6 @@
 # Plan: the file is the diagram
 
-Status: proposed (2026-11-08). Decision: `docs/adr/0001-the-file-is-the-only-copy.md`. Terms: `CONTEXT.md`.
+Status: done (2026-11-08), on the branch `gx-simplification`. Phase 1 is `4bf5fdba`, phase 2 is `563de6b2`, phase 3a is `8c29e043`, phase 3b is `f165e20e`, and phase 4 is the commit that adds this line. `HANDOFF.md` has the state and the known limits. Decision: `docs/adr/0001-the-file-is-the-only-copy.md`. Terms: `CONTEXT.md`.
 
 ## 1. Goal
 

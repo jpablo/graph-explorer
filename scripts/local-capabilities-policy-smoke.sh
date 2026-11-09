@@ -3,7 +3,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNTIME_FILE="${HOME}/.graph-explorer/runtime/control.json"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/debug/graph-explorer-desktop"
 
 # shellcheck source=scripts/lib/control-api.sh
@@ -20,8 +19,16 @@ cleanup() {
   fi
   [[ -n "${allowed_dir}" && -d "${allowed_dir}" ]] && rm -rf "${allowed_dir}"
   [[ -n "${blocked_dir}" && -d "${blocked_dir}" ]] && rm -rf "${blocked_dir}"
+  # After the desktop stops, so that nothing writes into the sandbox any more.
+  gx_sandbox_remove
 }
 trap cleanup EXIT
+
+# A SANDBOX GX_HOME and GX_DIAGRAMS_DIR, not the real ones of the person (see
+# gx_sandbox_create). A debug desktop loads its page from the dev server when
+# one runs, and that page moves the library at its first start. The socket is
+# in the sandbox too, so this gate does not stop a desktop that the person runs.
+gx_sandbox_create policy
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -58,9 +65,6 @@ if [[ ! -x "${DESKTOP_BIN}" ]]; then
   echo "building desktop binary..."
   (cd "${ROOT_DIR}/desktop/src-tauri" && cargo build)
 fi
-
-pkill -f graph-explorer-desktop >/dev/null 2>&1 || true
-rm -f "${RUNTIME_FILE}"
 
 allowed_dir="$(mktemp -d /tmp/gx-policy-allow-XXXXXX)"
 blocked_dir="$(mktemp -d /tmp/gx-policy-block-XXXXXX)"

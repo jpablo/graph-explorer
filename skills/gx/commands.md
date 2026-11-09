@@ -50,22 +50,26 @@ These write the file. Each one takes `--json` and `--reformat`.
 - In `set`, an argument that matches `^[A-Za-z_][A-Za-z0-9_]*=` is an attribute, and each
   other argument is an element. A value can contain `=`. Give each attribute one time. A
   `set` with no element or with no attribute is exit 1. gx refuses `id` and the `_`
-  attributes (exit 1), because its DOT writer leaves them out of the file.
+  attributes (exit 1), because its DOT writer leaves them out of the file. For the same
+  reason, **each change removes each `id` attribute that the file has**, with no message.
 - An element of the wrong kind is exit 4: `gx: ungroup takes groups; 'api' is a node`.
 - **Output:** one line, `<path>  <hash>`. When the change gives the same text, gx writes
   nothing and adds `unchanged`. `gx group` adds `group <name>`.
   `--json`: `{"path": …, "hash": …, "changed": true|false}`, and `"group": …` for `gx group`.
 - **Refusal:** a change to a file with content that the graph does not keep is exit 4. The
   message names the content: the comments, the `strict` keyword, and for Mermaid the
-  `%%{…}%%` directives, the `click` lines, `accTitle`/`accDescr`, and `direction` lines in
-  subgraphs. `--reformat` accepts the rewrite.
+  `%%{…}%%` directives and the front matter, the `click` lines, `accTitle`/`accDescr`, and
+  `direction` lines in subgraphs. `--reformat` accepts the rewrite.
 - **Conflict:** gx writes the file only if it has the hash that gx read. Else it writes
   nothing, and the exit code is 5. Run the command again.
 - A write keeps the line endings of the file (LF or CRLF) and its end (a final newline, or
   none). It leaves out an empty label on an arrow or on the graph, because that is the
   default of Graphviz.
 - A new group gets the name `cluster_<id>` in DOT (for example `cluster_g1`). A group from
-  the source keeps its source name (`clusterB`, `cluster01`, `cluster_svc`).
+  the source keeps its source name (`clusterB`, `cluster01`, `cluster_svc`), with two
+  exceptions. `subgraph x { cluster=true }` becomes `cluster_x`. `clusterB` and
+  `cluster_B` in one file are one group (`group:B`): a write keeps one of the two
+  subgraphs, and the members of the other subgraph leave the group.
 
 ## Metadata
 
@@ -124,6 +128,8 @@ command does not run it.
 
 - With no desktop, each of these is exit 2. A desktop with no window, or with no diagram on
   the screen, is exit 2 too. Your next step is the same: show the diagram.
+- Each other refusal of the desktop is exit 4, and the message has its code. A desktop
+  that is still starting gives `STARTING`: wait a few seconds, and run the command again.
 - `gx select` resolves the names against the file before it sends them. A bad name is
   exit 4, and nothing goes to the desktop.
 - `gx select` and `gx fit` name their file. When the desktop shows a different diagram,
@@ -132,8 +138,9 @@ command does not run it.
   `gx open <file>`.
 - `selection` prints `<path>  selected: api, api..db` (or `<path>  nothing selected`).
   The names are element names of that file, so the next command can take them.
-  `path` is `null` when the desktop shows no file (an example). Then stderr says so,
-  and the selection is in the ref spelling.
+  `path` is `null` when the desktop shows no file (an example, or a browser diagram). Then
+  stderr says so, the line has no `<path>`, the selection is in the ref spelling, and the
+  exit code is still 0.
 
 ## Other
 
@@ -164,10 +171,10 @@ place, and do not change the environment. Report the refusal, and let the user d
 |---|---|---|
 | 0 | ok | |
 | 1 | usage: a bad command line, a **malformed** element name, an unknown or removed flag or command | correct the command line; the message says how |
-| 2 | needs a desktop: only `open`, `select`, `selection` and `fit` | start the desktop, or continue without it |
-| 4 | a path, an element or a file is not usable: the file does not exist or does not parse, the policy refuses the path, a name names nothing or the wrong kind, or a change would remove comments or `strict` | read the message; use `gx nodes`/`arrows`/`groups` for names; `--reformat` for a refusal |
+| 2 | needs a desktop: only `open`, `select`, `selection` and `fit`. Also a desktop with no window, or with no diagram on the screen | start the desktop, or continue without it |
+| 4 | a path, an element or a file is not usable: the file does not exist or does not parse, the policy refuses the path, a name names nothing or the wrong kind, or a change would remove comments or `strict`. Also each other refusal of the desktop, for example `VIEW_REJECTED` | read the message; use `gx nodes`/`arrows`/`groups` for names; `--reformat` for a refusal; `gx open <file>` for `VIEW_REJECTED` |
 | 5 | conflict: the file changed after gx read it, and gx wrote nothing | run the command again |
-| 6 | unexpected | report it |
+| 6 | unexpected, or gx cannot read or write the library (for example, the one-time migration failed) | read the message, and report it |
 
 Exit 3 does not exist. It meant an auth failure in v1.
 
