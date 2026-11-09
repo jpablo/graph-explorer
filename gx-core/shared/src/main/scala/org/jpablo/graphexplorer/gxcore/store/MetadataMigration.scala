@@ -108,27 +108,19 @@ object MetadataMigration:
 
     def entry(state: State, record: LegacyRecord, path: String, sourceText: String, line: String): State =
       val meta      = record.metadata
-      val name      = meta.name.trim
+      val name      = record.name.trim
       val title     = SourceTitle.of(formatOf(record), sourceText)
       val base      = LibraryEntry.nameOf(path)
-      val folderTag = Option.unless(meta.folder.isRoot)(meta.folder.segments.mkString("/"))
+      val folderTag = Option.unless(record.folder.isRoot)(record.folder.segments.mkString("/"))
       val nameTag   = Option.when(name.nonEmpty && name != DefaultName && !title.contains(name) && name != base)(name)
       val e = LibraryEntry(
         path = path,
-        metadata = DiagramMetadata(
-          name = base,
-          folder = FolderPath.root,
-          hiddenElements = meta.hiddenElements,
-          collapsedGroups = meta.collapsedGroups,
-          tags = (meta.tags ++ folderTag ++ nameTag).distinct,
-          notes = meta.notes,
-          autoDetectFormat = meta.autoDetectFormat
-        ),
+        metadata = meta.copy(tags = (meta.tags ++ folderTag ++ nameTag).distinct),
         createdAt = record.createdAt,
         updatedAt = now
       )
       val lines = Vector(line) ++
-        folderTag.map(t => s"${label(record)}: the folder ${meta.folder.render} is now the tag \"$t\".") ++
+        folderTag.map(t => s"${label(record)}: the folder ${record.folder.render} is now the tag \"$t\".") ++
         nameTag.map(t => s"${label(record)}: the name is now the tag \"$t\".")
       state.copy(entries = state.entries :+ e, claimed = state.claimed + path.toLowerCase, report = state.report ++ lines)
 
@@ -138,7 +130,7 @@ object MetadataMigration:
       * safe: it finds the files of the first run again.
       */
     def newFile(state: State, record: LegacyRecord, subfolder: Option[String], why: String): State =
-      val base = SafeFileName.of(record.metadata.name)
+      val base = SafeFileName.of(record.name)
       val ext  = extensionOf(formatOf(record))
       val dir  = subfolder.fold("")(_ + "/")
 
@@ -206,7 +198,7 @@ object MetadataMigration:
       claimed: Set[String] = Set.empty
   )
 
-  private def label(record: LegacyRecord): String = s"\"${record.metadata.name}\" [${record.id}]"
+  private def label(record: LegacyRecord): String = s"\"${record.name}\" [${record.id}]"
 
   /** The old model kept the text of a bound record in the line endings of its
     * file. Thus a different line ending is not a different text.

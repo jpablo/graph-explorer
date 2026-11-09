@@ -148,6 +148,6 @@ object EphemeralPersistence:
     */
   def example(initialSource: Option[String], name: String): EphemeralPersistence =
     EphemeralPersistence(
-      DiagramSnapshot.minimal(initialSource).modify(_.metadata.name).setTo(name),
+      DiagramSnapshot.minimal(initialSource).copy(name = name),
       "Copy this example to your library before you save it"
     )

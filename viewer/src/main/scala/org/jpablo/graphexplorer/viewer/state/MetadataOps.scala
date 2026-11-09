@@ -33,9 +33,6 @@ final class MetadataOps(val metadata: Var[DiagramMetadata])(using owner: Owner):
   /** Replace all of the metadata, for example with the metadata of a different writer. */
   def set(next: DiagramMetadata): Unit = metadata.set(next)
 
-  val name: Var[String] =
-    metadata.zoomLazy(_.name)((m, n) => m.copy(name = n)).distinct
-
   val hiddenElements: Var[ElementIds] =
     metadata.zoomLazy(MetadataOps.hiddenIn)(MetadataOps.withHidden).distinct
 
@@ -52,7 +49,7 @@ final class MetadataOps(val metadata: Var[DiagramMetadata])(using owner: Owner):
     metadata.zoomLazy(_.autoDetectFormat.getOrElse(true))((m, on) => m.copy(autoDetectFormat = Some(on))).distinct
 
   // Keep each view running, so that its `now()` is fresh (see the class comment).
-  List[Var[?]](name, hiddenElements, collapsedGroups, autoDetectFormat).foreach(_.signal.foreach(_ => ()))
+  List[Var[?]](hiddenElements, collapsedGroups, autoDetectFormat).foreach(_.signal.foreach(_ => ()))
 
 end MetadataOps
 

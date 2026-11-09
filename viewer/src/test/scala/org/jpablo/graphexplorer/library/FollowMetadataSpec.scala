@@ -40,7 +40,7 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
   private val text = "digraph G {\n  a -> b\n}"
 
   /** Open `path` with an entry of `metadata`, and run `body` on the viewer. */
-  private def onOpenFile(metadata: DiagramMetadata = DiagramMetadata(name = "a"), inLibrary: Boolean = true)(
+  private def onOpenFile(metadata: DiagramMetadata = DiagramMetadata(), inLibrary: Boolean = true)(
       body: (FakeDesktopShell, DesktopLibrary, ViewerState) => Future[Unit]
   ): Future[Unit] =
     val shell = FakeDesktopShell()
@@ -76,7 +76,7 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
   // ------------------------------------------------------------- load
 
   test("the metadata of a file loads from its entry"):
-    onOpenFile(DiagramMetadata(name = "a", hiddenElements = Set("node:a"), collapsedGroups = Set("group:g"))): (shell, _, state) =>
+    onOpenFile(DiagramMetadata(hiddenElements = Set("node:a"), collapsedGroups = Set("group:g"))): (shell, _, state) =>
       Future:
         same(state.hiddenElements.now().nodeIds, Set(NodeId("a")), "the hidden elements of the entry")
         same(state.metadata.now().collapsedGroups, Set("group:g"), "the collapsed groups of the entry")
@@ -130,10 +130,10 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
   // ------------------------------------------------------------- rename
 
   test("a rename in the viewer moves the file and its metadata, and the next hide goes to the new entry"):
-    onOpenFile(DiagramMetadata(name = "a", hiddenElements = Set("node:a"))): (shell, _, state) =>
+    onOpenFile(DiagramMetadata(hiddenElements = Set("node:a"))): (shell, _, state) =>
       val title = state.displayTitle.observe(using state.owner)
       state
-        .renameFile("b")
+        .rename("b")
         .flatMap(_ => afterMicrotasks(()))
         .map: _ =>
           same(title.now(), "b", "the title does not follow the new file name")
@@ -149,7 +149,7 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
       shell.files("/w/b.dot") = "digraph { b }"
       val errors = scala.collection.mutable.Buffer.empty[String]
       state.errorBus.events.foreach(errors += _)(using state.owner)
-      state.renameFile("b").map: _ =>
+      state.rename("b").map: _ =>
         check(errors.exists(_.contains("exists")), s"no refusal for the person: $errors")
         same(shell.files.get(path), Some(text))
         same(shell.files.get("/w/b.dot"), Some("digraph { b }"))

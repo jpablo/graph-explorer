@@ -122,12 +122,12 @@ object BrowserLibrary extends DiagramLibrary:
     // runs per keystroke, and only a blank incoming name (the accident path)
     // has to look at the old payload.
     def storedPayloadName: String =
-      try read[DiagramSnapshot](diagramStorageNow.now()).metadata.name
+      try read[DiagramSnapshot](diagramStorageNow.now()).name
       catch case _: Throwable => ""
 
     // synchronize DiagramSnapshot ~> storage
     diagramSnapshot.signal.distinct.changes.foreach: state =>
-      val guarded = state.modify(_.metadata.name).setTo(guardedDiagramName(state.metadata.name, storedPayloadName))
+      val guarded = state.copy(name = guardedDiagramName(state.name, storedPayloadName))
       // Write the payload of the diagram.
       diagramStorage.set(write(guarded))
       // Write the time and the name into the entry in the library index.
@@ -136,7 +136,7 @@ object BrowserLibrary extends DiagramLibrary:
           .using: entry =>
             entry.copy(
               lastModified = System.currentTimeMillis(),
-              name = guardedDiagramName(guarded.metadata.name, entry.name)
+              name = guardedDiagramName(guarded.name, entry.name)
             )
     diagramSnapshot
 
@@ -187,7 +187,7 @@ object BrowserLibrary extends DiagramLibrary:
     *
     * The usual create path puts the source in the route, and it gives the
     * name `defaultDiagramName`. That path cannot set a different name. On the
-    * first change, the payload sync writes `name = state.metadata.name` into the
+    * first change, the payload sync writes `name = state.name` into the
     * index entry, so it replaces a name that only the entry has. This method
     * writes the payload first, so the payload and the entry have the same name
     * from the start. The diagram page then restores the payload, because
@@ -198,7 +198,7 @@ object BrowserLibrary extends DiagramLibrary:
     val id = createEmptyDiagram(name)
     writeLocalStorage(
       diagramKey(id),
-      write(DiagramSnapshot.minimal(Some(source)).modify(_.metadata.name).setTo(name))
+      write(DiagramSnapshot.minimal(Some(source)).copy(name = name))
     )
     id
 
@@ -339,7 +339,7 @@ object BrowserLibrary extends DiagramLibrary:
       val format = state.format
         .flatMap(f => scala.util.Try(DiagramFormat.valueOf(f)).toOption)
         .getOrElse(DiagramFormat.detect(state.source))
-      val name    = state.metadata.name
+      val name    = state.name
       val backend = languages.forFormat(format)
       val displayName =
         if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name

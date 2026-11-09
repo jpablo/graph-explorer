@@ -92,7 +92,7 @@ class DesktopMigrationSpec extends FunSuite with TestHelpers with LoggedChecks:
     shell.files(path) = "digraph G { a }"
     // The person tagged the copy after the first run, which crashed before
     // it marked the copy done.
-    shell.putEntry(LibraryEntry(path, DiagramMetadata(name = "Architecture", tags = List("mine")), 1, 1))
+    shell.putEntry(LibraryEntry(path, DiagramMetadata(tags = List("mine")), 1, 1))
     shell.install()
     DesktopLibrary
       .load()

@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.gxcore.command.{
   ElementRef,
   LiveViewCodec,
   LiveViewCommand,
+  LiveViewSelection,
   MetadataCommand,
   MetadataCommands,
   SourceCommand,
@@ -692,7 +693,7 @@ object Cli:
       case None =>
         requireFile(path, env).flatMap: _ =>
           val now  = env.now()
-          val meta = update(DiagramMetadata(name = LibraryEntry.nameOf(path.toString)))
+          val meta = update(DiagramMetadata.empty)
           put(LibraryEntry(path.toString, meta, now, now), env).map(Some(_))
 
   private def put(entry: LibraryEntry, env: CliEnv): Either[Int, LibraryEntry] =
@@ -1008,11 +1009,12 @@ object Cli:
             if !focused then env.err("gx: the desktop is running but has no window to raise")
           ExitCode.Ok
 
-  /** `select` resolves the names against the file, and sends the refs.
+  /** `select` resolves the names against the file, and sends the refs and
+    * the canonical path of the file.
     *
-    * The params also have the canonical path. The page does not check it yet.
-    * Phase 3 adds the check: then the desktop refuses a command for a
-    * different diagram.
+    * The page compares the path with the diagram on the screen (plan §2). For
+    * a different diagram, it refuses with `VIEW_REJECTED`, and the message
+    * names the diagram on the screen.
     */
   private def select(command: Command, args: Args, env: CliEnv): Int =
     val texts = args.positional.drop(1)
@@ -1025,8 +1027,8 @@ object Cli:
         resolve(texts, loaded.names, env) match
           case Left(code) => code
           case Right(ids) =>
-            val frame = withPath(LiveViewCodec.encode(LiveViewCommand.Select(ids.toSet)), loaded.path)
-            liveView(frame, env): _ =>
+            val frame = LiveViewCodec.encode(LiveViewCommand.Select(loaded.path.toString, ids.toSet))
+            liveView(frame, env, Some(loaded.path)): _ =>
               val names = ids.map(loaded.names.render)
               if args.json then
                 env.out(
@@ -1039,44 +1041,105 @@ object Cli:
               else env.out(s"${loaded.path}  selected: ${names.mkString(", ")}")
               ExitCode.Ok
 
+  /** `selection` asks the desktop what is selected, and in which diagram.
+    *
+    * The page answers with the path of the file on the screen and the refs
+    * (`LiveViewSelection`). gx renders the names against that file, so an
+    * agent can give them to the next command. When the screen shows no file
+    * (an example), or gx cannot read the file, the selection stays in the ref
+    * spelling, and stderr says why.
+    */
   private def selection(command: Command, args: Args, env: CliEnv): Int =
     if args.positional.nonEmpty then
       env.err(s"gx: selection takes no file; usage: ${command.synopsis}")
       ExitCode.Usage
     else
-      liveView(LiveViewCodec.encode(LiveViewCommand.WhatIsSelected), env): result =>
-        // Today the page answers with the refs only. Phase 3 adds the diagram.
-        val refs = result.arrOpt.toVector.flatten.flatMap(_.strOpt)
-        if args.json then
-          env.out(ujson.Obj("path" -> ujson.Null, "selected" -> ujson.Arr.from(refs.map(ujson.Str(_)))).render(indent = 2))
-        else if refs.isEmpty then env.out("(nothing selected)")
-        else refs.foreach(env.out)
-        ExitCode.Ok
+      liveView(LiveViewCodec.encode(LiveViewCommand.WhatIsSelected), env, None): result =>
+        LiveViewSelection.decode(result) match
+          case Left(why) =>
+            env.err(s"gx: the desktop gave an answer that this gx cannot read ($why).")
+            env.err(s"gx: use the same version of Graph Explorer Desktop and gx (this gx is ${buildinfo.BuildInfo.version})")
+            ExitCode.Unknown
+          case Right(answer) =>
+            val names = answer.path match
+              case None =>
+                env.err(s"gx: the desktop shows ${answer.shows}, and it is not a file. The selection is in the ref spelling.")
+                None
+              case Some(path) => selectionNames(path, env)
+            val shown = answer.selection.map: ref =>
+              (names, ElementRef.parse(ref).toOption) match
+                case (Some(n), Some(id)) => n.render(id)
+                case _                   => ref
+            if args.json then
+              env.out(
+                ujson.Obj(
+                  "path"      -> answer.path.fold(ujson.Null)(ujson.Str(_)),
+                  "selection" -> ujson.Arr.from(shown.map(ujson.Str(_)))
+                ).render(indent = 2)
+              )
+            else
+              val what = if shown.isEmpty then "nothing selected" else s"selected: ${shown.mkString(", ")}"
+              env.out(answer.path.fold(what)(path => s"$path  $what"))
+            ExitCode.Ok
+
+  /** The element names of the file on the screen. `None`, and a line on
+    * stderr, when the policy refuses the path, or the file cannot be read or
+    * parsed. Then the selection stays in the ref spelling.
+    */
+  private def selectionNames(path: String, env: CliEnv): Option[ElementNames] =
+    env.policy.evaluate(Paths.get(path), env.cwd) match
+      case Left(denial) =>
+        env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
+        env.err(s"gx: gx may not read $path (${denial.reason}). The selection is in the ref spelling.")
+        None
+      case Right(allowed) =>
+        Documents.read(allowed).left.map(describe).flatMap(doc => DiagramText.parseNamed(doc.text)) match
+          case Right(diagram) => Some(diagram.names)
+          case Left(why) =>
+            env.err(s"gx: gx cannot read $path ($why). The selection is in the ref spelling.")
+            None
 
   private def fit(command: Command, args: Args, env: CliEnv): Int =
     fileArg(command, args, env).flatMap(requireFile(_, env)) match
       case Left(code) => code
       case Right(path) =>
-        liveView(withPath(LiveViewCodec.encode(LiveViewCommand.ResetView), path), env): _ =>
+        liveView(LiveViewCodec.encode(LiveViewCommand.ResetView(path.toString)), env, Some(path)): _ =>
           if args.json then env.out(ujson.Obj("path" -> path.toString).render(indent = 2))
           else env.out(s"$path  fit to the window")
           ExitCode.Ok
 
-  /** Put the canonical path into the params of a live view frame. */
-  private def withPath(frame: ujson.Obj, path: Path): ujson.Obj =
-    val params = frame.value.get("params").flatMap(_.objOpt).map(ujson.Obj.from).getOrElse(ujson.Obj())
-    params("path") = path.toString
-    frame("params") = params
-    frame
+  /** A live view command. `file` is the diagram that the command names. When
+    * the desktop shows a different diagram, the page refuses with
+    * `VIEW_REJECTED`, and gx tells the caller to show the file first.
+    */
+  private def liveView(frame: ujson.Obj, env: CliEnv, file: Option[Path])(onOk: ujson.Value => Int): Int =
+    file match
+      case Some(path) =>
+        env.rpc("live-view", frame) match
+          case Left(ChannelError.Rpc("VIEW_REJECTED", message, _)) =>
+            env.err(s"gx: the desktop refused it (VIEW_REJECTED): $message")
+            env.err(s"gx: show the file first: gx open ${shellWord(path.toString)}, then retry")
+            ExitCode.InvalidPathOrPolicy
+          case other => outcome(other, env, refused = "the desktop refused it")(onOk)
+      case None => desktop("live-view", frame, env, refused = "the desktop refused it")(onOk)
 
-  private def liveView(frame: ujson.Obj, env: CliEnv)(onOk: ujson.Value => Int): Int =
-    desktop("live-view", frame, env, refused = "the desktop refused it")(onOk)
+  /** A path as one word for a shell: as it is when it has only safe
+    * characters, and else in single quotes.
+    */
+  private def shellWord(text: String): String =
+    if text.nonEmpty && text.forall(c => c.isLetterOrDigit || "/._-+:@%=,".contains(c)) then text
+    else "'" + text.replace("'", "'\\''") + "'"
 
   /** One request to the desktop, and the exit code of each failure. */
   private def desktop(method: String, params: ujson.Obj, env: CliEnv, refused: String)(
       onOk: ujson.Value => Int
   ): Int =
-    env.rpc(method, params) match
+    outcome(env.rpc(method, params), env, refused)(onOk)
+
+  private def outcome(answer: Either[ChannelError, ujson.Value], env: CliEnv, refused: String)(
+      onOk: ujson.Value => Int
+  ): Int =
+    answer match
       case Right(result) => onOk(result)
 
       case Left(ChannelError.NoDesktop(detail)) =>

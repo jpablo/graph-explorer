@@ -33,7 +33,7 @@ class DesktopLibrarySpec extends FunSuite with TestHelpers with LoggedChecks:
     js.Dynamic.global.window.__TAURI__ = null
 
   private def entry(path: String, tags: List[String] = Nil, hidden: Set[String] = Set.empty, at: Long = 1) =
-    LibraryEntry(path, DiagramMetadata(name = LibraryEntry.nameOf(path), tags = tags, hiddenElements = hidden), at, at)
+    LibraryEntry(path, DiagramMetadata(tags = tags, hiddenElements = hidden), at, at)
 
   private def withShell[A](f: FakeDesktopShell => Future[A]): Future[A] =
     val shell = FakeDesktopShell()

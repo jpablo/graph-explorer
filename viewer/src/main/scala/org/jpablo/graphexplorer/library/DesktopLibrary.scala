@@ -206,7 +206,7 @@ final class DesktopLibrary private () extends LibraryListing:
     if unchanged then Future.unit
     else
       val now  = js.Date.now().toLong
-      val base = current.fold(DiagramMetadata(name = LibraryEntry.nameOf(path)))(_.metadata)
+      val base = current.fold(DiagramMetadata.empty)(_.metadata)
       put(
         key,
         LibraryEntry(
@@ -267,7 +267,7 @@ final class DesktopLibrary private () extends LibraryListing:
       case Success(file) =>
         val now = js.Date.now().toLong
         keyOf(file.path)
-          .flatMap(key => put(key, LibraryEntry(file.path, DiagramMetadata(name = LibraryEntry.nameOf(file.path)), now, now)))
+          .flatMap(key => put(key, LibraryEntry(file.path, DiagramMetadata.empty, now, now)))
           .transformWith:
             case Failure(e) =>
               // The file exists, so the person must hear where it is.
@@ -325,7 +325,7 @@ final class DesktopLibrary private () extends LibraryListing:
         case Some(entry) =>
           keyOf(to)
             .flatMap: newKey =>
-              val moved = entry.copy(path = to, metadata = entry.metadata.copy(name = LibraryEntry.nameOf(to)), updatedAt = js.Date.now().toLong)
+              val moved = entry.copy(path = to, updatedAt = js.Date.now().toLong)
               put(newKey, moved)
             .transformWith:
               case Failure(error) =>

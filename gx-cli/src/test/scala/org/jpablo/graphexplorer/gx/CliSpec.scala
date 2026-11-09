@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.gxcore.store.MetadataStore
 import java.nio.file.{Files, Path, Paths}
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
+import scala.util.chaining.scalaUtilChainingOps
 
 /** The `gx` command surface of plan §2: the file comes first, and each
   * command is a verb.
@@ -1001,18 +1002,86 @@ class CliSpec extends FunSuite:
     assert(n.stderr.contains("none open"), n.stderr)
   }
 
-  tmp.test("selection prints the refs, and says so when nothing is selected") { dir =>
-    val r = Run(dir, answer = (_, _) => Right(ujson.Arr("node:a", "node:b")))
+  /** A desktop that refuses a live view command for a different diagram, as
+    * the page does (`LiveViewCommands`).
+    */
+  private def showing(onScreen: String): (String, ujson.Obj) => Either[ChannelError, ujson.Value] =
+    (_, frame) =>
+      val path = frame("params").obj.get("path").flatMap(_.strOpt).getOrElse("")
+      if path == onScreen then Right(ujson.Null)
+      else Left(ChannelError.Rpc("VIEW_REJECTED", s"the desktop shows $onScreen, not $path", ujson.Obj()))
+
+  tmp.test("select for a diagram that is not on the screen is exit 4, and says what is on the screen and what to do") {
+    dir =>
+      val f = arch(dir).toRealPath().toString
+      val r = Run(dir, answer = showing("/w/other.dot"))
+      assertEquals(r("select", "arch.dot", "api"), ExitCode.InvalidPathOrPolicy, r.stderr)
+      assert(r.stderr.contains("the desktop shows /w/other.dot, not " + f), r.stderr)
+      assert(r.stderr.contains("gx open " + f), r.stderr)
+      assertEquals(r.stdout, "")
+      val ok = Run(dir, answer = showing(f))
+      assertEquals(ok("select", "arch.dot", "api"), ExitCode.Ok, ok.stderr)
+  }
+
+  tmp.test("fit for a diagram that is not on the screen is exit 4, and says what is on the screen") { dir =>
+    val f = arch(dir).toRealPath().toString
+    val r = Run(dir, answer = (_, _) => Left(ChannelError.Rpc("VIEW_REJECTED", "the desktop shows an example (\"Logo\"), not " + f, ujson.Obj())))
+    assertEquals(r("fit", "arch.dot"), ExitCode.InvalidPathOrPolicy, r.stderr)
+    assert(r.stderr.contains("an example (\"Logo\")"), r.stderr)
+    assert(r.stderr.contains("gx open " + f), r.stderr)
+  }
+
+  /** The answer of the page to `what-is-selected`. */
+  private def selectionAnswer(path: Option[String], shows: String, refs: String*): ujson.Value =
+    ujson.Obj("path" -> path.fold(ujson.Null)(ujson.Str(_)), "shows" -> shows, "selection" -> ujson.Arr.from(refs))
+
+  tmp.test("selection prints the names of the selected elements and the path of the file") { dir =>
+    val f        = arch(dir).toRealPath().toString
+    val arrowRef = Run(dir).pipe(a => { a("arrows", "arch.dot", "--json"); a.json.arr.find(_("name").str == "api..db").get("ref").str })
+    val answer   = selectionAnswer(Some(f), f, "node:api", arrowRef)
+    val r        = Run(dir, answer = (_, _) => Right(answer))
     assertEquals(r("selection"), ExitCode.Ok, r.stderr)
     assertEquals(r.sent.head._1, "live-view")
     assertEquals(r.sent.head._2("command").str, "what-is-selected")
-    assertEquals(r.lines, Vector("node:a", "node:b"))
-    val j = Run(dir, answer = (_, _) => Right(ujson.Arr("node:a")))
+    assertEquals(r.lines, Vector(s"$f  selected: api, api..db"))
+    val j = Run(dir, answer = (_, _) => Right(answer))
     assertEquals(j("selection", "--json"), ExitCode.Ok, j.stderr)
-    assertEquals(j.json("selected").arr.map(_.str).toVector, Vector("node:a"))
-    val e = Run(dir, answer = (_, _) => Right(ujson.Arr()))
+    assertEquals(j.json, ujson.Obj("path" -> f, "selection" -> ujson.Arr("api", "api..db")))
+    val e = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(f), f)))
     assertEquals(e("selection"), ExitCode.Ok, e.stderr)
-    assert(e.stdout.contains("nothing selected"), e.stdout)
+    assertEquals(e.lines, Vector(s"$f  nothing selected"))
+  }
+
+  tmp.test("selection says so when the screen shows no file, and gives the refs") { dir =>
+    val answer = selectionAnswer(None, "an example (\"Logo\")", "node:a")
+    val r      = Run(dir, answer = (_, _) => Right(answer))
+    assertEquals(r("selection"), ExitCode.Ok, r.stderr)
+    assert(r.stderr.contains("the desktop shows an example (\"Logo\")"), r.stderr)
+    assert(r.stderr.contains("not a file"), r.stderr)
+    assertEquals(r.lines, Vector("selected: node:a"))
+    val j = Run(dir, answer = (_, _) => Right(answer))
+    assertEquals(j("selection", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json, ujson.Obj("path" -> ujson.Null, "selection" -> ujson.Arr("node:a")))
+  }
+
+  tmp.test("selection gives the refs when gx cannot read the file on the screen") { dir =>
+    val gone = dir.resolve("gone.dot").toString
+    val r    = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(gone), gone, "node:a")))
+    assertEquals(r("selection", "--json"), ExitCode.Ok, r.stderr)
+    assert(r.stderr.contains(gone), r.stderr)
+    assertEquals(r.json, ujson.Obj("path" -> gone, "selection" -> ujson.Arr("node:a")))
+  }
+
+  tmp.test("selection with nothing on the screen is exit 2, as before") { dir =>
+    val n = Run(dir, answer = (_, _) => Left(ChannelError.Rpc("NO_LIVE_VIEW", "no diagram is open", ujson.Obj())))
+    assertEquals(n("selection"), ExitCode.NeedsDesktop)
+    assert(n.stderr.contains("no diagram is open"), n.stderr)
+  }
+
+  tmp.test("selection refuses an answer that it cannot read, and says to use one version of the desktop and gx") { dir =>
+    val r = Run(dir, answer = (_, _) => Right(ujson.Arr("node:a")))
+    assertEquals(r("selection"), ExitCode.Unknown, r.stderr)
+    assert(r.stderr.contains("same version"), r.stderr)
   }
 
   tmp.test("fit sends reset-view with the path") { dir =>

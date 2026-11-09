@@ -101,7 +101,17 @@ case class ViewerState(
     * no metadata in the library, and its metadata stays here, in memory.
     */
   lazy val metadata: MetadataOps =
-    MetadataOps(Var(DiagramMetadata(name = "")))
+    MetadataOps(Var(DiagramMetadata.empty))
+
+  /** The stored name of a browser diagram (the web app), or the name of an
+    * example. `restorePersistedState` sets it from the store.
+    *
+    * It is not metadata. A file has no stored name, because its name is the
+    * title in its source, or else its file name (CONTEXT.md). Thus the value
+    * stays empty for a file. A browser diagram has no file, so the web app
+    * keeps a name for it (`DiagramSnapshot.name`).
+    */
+  lazy val storedName: Var[String] = Var("")
 
   val undoEvent: EventBus[Unit]        = EventBus()
   val redoEvent: EventBus[Unit]        = EventBus()
@@ -211,7 +221,7 @@ case class ViewerState(
           .combineWithFn(sourceText.signal, formatSelection.signal): (fileName, source, format) =>
             languages.forFormat(format).extractTitle(source).getOrElse(fileName)
       case _ =>
-        metadata.name.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
+        storedName.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
           if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
           else languages.forFormat(format).extractTitle(source).getOrElse(name)
 

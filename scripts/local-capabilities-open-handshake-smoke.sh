@@ -175,17 +175,33 @@ echo "cold file open acknowledged"
 
 # The acknowledgment is a readiness barrier, not a dispatch receipt. A live view
 # command on the next line must see the new viewer every time.
+#
+# A live view command names its diagram by the CANONICAL path (plan §2). On
+# macOS, a temporary directory is behind a symlink, so the path that the shell
+# gives the page differs from the path that this script wrote.
+cold_canonical="$(cd "$(dirname "${cold_file}")" && pwd -P)/$(basename "${cold_file}")"
 echo "checking immediate live view readiness..."
 for attempt in 1 2 3; do
   body="$(api_show_file "${cold_file}")"
   [[ "$(api_last_status)" == "ok" ]] || fail "open ${attempt} failed before readiness check"
-  body="$(api_reset_view)"
+  body="$(api_reset_view "${cold_canonical}")"
   [[ "$(api_last_status)" == "ok" ]] || {
     echo "${body}" >&2
     fail "reset-view failed immediately after successful open ${attempt} (code: $(api_last_error_code))"
   }
 done
 echo "three immediate reset-view calls succeeded"
+
+# A live view command for a diagram that is not on the screen is refused, and
+# the message names the file on the screen.
+body="$(api_reset_view "${GX_HOME}/not-on-the-screen.dot")"
+[[ "$(api_last_status)" == "error" && "$(api_last_error_code)" == "VIEW_REJECTED" ]] || {
+  echo "${body}" >&2
+  fail "a reset-view for a different file was not refused with VIEW_REJECTED (code: $(api_last_error_code))"
+}
+jq -r '.error.message // ""' <<<"${body}" | grep -qF "${cold_canonical}" \
+  || fail "the VIEW_REJECTED message does not name the file on the screen: ${body}"
+echo "a reset-view for a different file was refused, and the refusal names the file on the screen"
 
 # ------------------------------- 1. an open on a possibly-starting desktop
 #

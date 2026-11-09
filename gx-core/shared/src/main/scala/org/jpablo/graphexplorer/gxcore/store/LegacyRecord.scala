@@ -1,9 +1,22 @@
 package org.jpablo.graphexplorer.gxcore.store
 
-import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, FolderPath, OriginUri}
+import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, OriginUri}
 import upickle.default.ReadWriter
 
 import scala.util.control.NonFatal
+
+/** A folder of the OLD library, for example `/systems/core`.
+  *
+  * The library has no folders now (CONTEXT.md). Only an old record has one,
+  * and the migration makes a tag of it (plan §4). Thus this type is private to
+  * the migration.
+  */
+private[store] final case class FolderPath(segments: List[String]) derives CanEqual:
+  def render: String  = if segments.isEmpty then "/" else segments.mkString("/", "/", "")
+  def isRoot: Boolean = segments.isEmpty
+
+private[store] object FolderPath:
+  val root: FolderPath = FolderPath(Nil)
 
 /** One old record of `$GX_HOME/library/diagrams/`, as the migration reads it.
   *
@@ -14,9 +27,15 @@ import scala.util.control.NonFatal
   *
   * `origin` is the URI of the binding, as the record keeps it. It can be a
   * `file:` URI or a URI of a different scheme (`https:`).
+  *
+  * `name` and `folder` are the name and the folder of the old record. The
+  * metadata of a diagram has neither now, so the record keeps them apart from
+  * `metadata`. The migration reads them to make the file name and the tags.
   */
 private[store] final case class LegacyRecord(
     id:        String,
+    name:      String,
+    folder:    FolderPath,
     format:    String,
     text:      String,
     origin:    Option[String],
@@ -42,12 +61,12 @@ private[store] object LegacyRecord:
       Right(
         LegacyRecord(
           id = s.id.value,
+          name = s.name,
+          folder = FolderPath(s.folder.segments),
           format = s.format,
           text = s.text,
           origin = s.binding.map(_.origin),
           metadata = DiagramMetadata(
-            name = s.name,
-            folder = FolderPath(s.folder.segments),
             hiddenElements = m.hiddenElements,
             collapsedGroups = m.collapsedGroups,
             tags = m.tags,
@@ -115,7 +134,7 @@ final class OldRecords private[store] (
     * diagrams, because the plan uses again a file that has the same text.
     */
   def fileNameBases: Vector[String] =
-    records.map(r => SafeFileName.of(r.metadata.name)).distinct
+    records.map(r => SafeFileName.of(r.name)).distinct
 
 object OldRecords:
 
@@ -131,6 +150,6 @@ object OldRecords:
       content.flatMap(LegacyRecord.read).left.map: why =>
         s"the old record diagrams/$name cannot be read ($why). It stays there, unchanged."
     OldRecords(
-      read.flatMap(_.toOption).sortBy(r => (r.metadata.folder.render, r.metadata.name.toLowerCase, r.id)),
+      read.flatMap(_.toOption).sortBy(r => (r.folder.render, r.name.toLowerCase, r.id)),
       read.flatMap(_.left.toOption)
     )

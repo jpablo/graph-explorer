@@ -15,7 +15,6 @@ class LibraryEntrySpec extends FunSuite:
   private val representative = LibraryEntry(
     path = path,
     metadata = DiagramMetadata(
-      name = "arch",
       hiddenElements = Set("node:b", "node:a"),
       collapsedGroups = Set("group:svc"),
       tags = List("infra", "systems/core"),
@@ -36,7 +35,7 @@ class LibraryEntrySpec extends FunSuite:
   test("the writer gives the pinned JSON"):
     assertEquals(upickle.default.write(representative), representativeJson)
     assertEquals(
-      upickle.default.write(LibraryEntry(path, DiagramMetadata(name = "arch"), 1, 2)),
+      upickle.default.write(LibraryEntry(path, DiagramMetadata(), 1, 2)),
       minimalJson
     )
 
@@ -46,19 +45,17 @@ class LibraryEntrySpec extends FunSuite:
       List("path", "tags", "notes", "hiddenElements", "collapsedGroups", "autoDetectFormat", "createdAt", "updatedAt")
     )
 
-  test("the writer does not save the name or the folder"):
-    val entry = representative.copy(
-      metadata = representative.metadata.copy(name = "Another name", folder = FolderPath(List("systems")))
-    )
-    assertEquals(upickle.default.write(entry), representativeJson)
-
   test("the pinned JSON reads back to the same entry"):
     assertEquals(upickle.default.read[LibraryEntry](representativeJson), representative)
 
-  test("a read sets the name to the base name of the file and the folder to the root"):
-    val read = upickle.default.read[LibraryEntry](minimalJson)
-    assertEquals(read.metadata.name, "arch")
-    assertEquals(read.metadata.folder, FolderPath.root)
+  test("a read of the minimal JSON gives the empty metadata"):
+    assertEquals(upickle.default.read[LibraryEntry](minimalJson), LibraryEntry(path, DiagramMetadata.empty, 1, 2))
+
+  test("a read ignores a name and a folder in the file, and a write does not give them back"):
+    val withName = minimalJson.replace("\"tags\":[]", "\"name\":\"Architecture\",\"folder\":{\"segments\":[\"x\"]},\"tags\":[]")
+    val read     = upickle.default.read[LibraryEntry](withName)
+    assertEquals(read, LibraryEntry(path, DiagramMetadata.empty, 1, 2))
+    assertEquals(upickle.default.write(read), minimalJson)
 
   test("the base name drops only the last extension, for each separator"):
     assertEquals(LibraryEntry.nameOf("/a/b/arch.dot"), "arch")

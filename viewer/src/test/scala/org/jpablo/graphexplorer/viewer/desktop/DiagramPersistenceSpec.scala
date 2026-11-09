@@ -32,7 +32,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
       val loose = ViewerState(ViewTarget.File(open.id), graphviz)
 
       afterMicrotasks {
-        loose.metadata.name.set("renamed while looking at a file")
+        loose.storedName.set("renamed while looking at a file")
         loose.addNodeWithSmartConnection()
 
         assertEquals(
@@ -44,7 +44,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
         // The same edits through a library target DO reach storage, so the
         // assertion above measures the target and not a broken test.
         val library = ViewerState(ViewTarget.diagram("a-real-record"), graphviz)
-        library.metadata.name.set("a record")
+        library.storedName.set("a record")
         library.addNodeWithSmartConnection()
 
         assertEquals(storedDiagramKeys.size, 1)
@@ -71,7 +71,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
   test("an example reports that it has nowhere to save") {
     val example = DiagramPersistence.forTarget(ViewTarget.Example("logo", "Logo"), Some("digraph G { a }"))
 
-    assertEquals(example.initial.metadata.name, "Logo")
+    assertEquals(example.initial.name, "Logo")
     example.saveNow(example.initial).map: result =>
       assert(
         result match

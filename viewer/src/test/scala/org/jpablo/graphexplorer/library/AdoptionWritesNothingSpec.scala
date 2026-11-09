@@ -55,7 +55,7 @@ class AdoptionWritesNothingSpec extends FunSuite with TestHelpers with LoggedChe
     val shell = FakeDesktopShell()
     shell.install()
     shell.files(path) = text
-    shell.putEntry(LibraryEntry(path, DiagramMetadata(name = "a"), createdAt = 1, updatedAt = 1))
+    shell.putEntry(LibraryEntry(path, DiagramMetadata(), createdAt = 1, updatedAt = 1))
     val owner = ManualOwner()
     DesktopLibrary
       .load()

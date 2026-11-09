@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.library
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, FolderPath}
+import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot
 import upickle.default.{read, write}
 
@@ -26,11 +26,11 @@ class BrowserPayloadSpec extends FunSuite:
     source = "digraph G {\n  a -> b\n}",
     format = Some("DOT"),
     metadata = DiagramMetadata(
-      name = "Pinned",
       hiddenElements = Set("node:a", "arrow:e1", "group:g"),
       collapsedGroups = Set("group:g1", "group:g2"),
       autoDetectFormat = Some(false)
-    )
+    ),
+    name = "Pinned"
   )
 
   test("the codec writes the JSON that the browser library has always stored"):
@@ -45,16 +45,17 @@ class BrowserPayloadSpec extends FunSuite:
 
   test("an old payload with missing fields reads them as their defaults"):
     val old = read[DiagramSnapshot]("""{"projectName":"Old","source":"digraph G {}"}""")
-    assertEquals(old, DiagramSnapshot("digraph G {}", None, DiagramMetadata(name = "Old")))
+    assertEquals(old, DiagramSnapshot("digraph G {}", None, DiagramMetadata(), name = "Old"))
     assertEquals(old.metadata.autoDetectFormat, None, "None, which the viewer reads as on")
 
   test("an empty payload reads as an unnamed, empty diagram"):
-    assertEquals(read[DiagramSnapshot]("{}"), DiagramSnapshot("", None, DiagramMetadata(name = "")))
+    assertEquals(read[DiagramSnapshot]("{}"), DiagramSnapshot("", None, DiagramMetadata(), name = ""))
 
-  test("the browser library stores no folder, tags or notes, and does not invent them"):
-    val withLibraryFields = representative.copy(metadata =
-      representative.metadata.copy(folder = FolderPath.parse("/a"), tags = List("t"), notes = "n")
-    )
+  test("the browser library stores no tags or notes, and does not invent them"):
+    val withLibraryFields = representative.copy(metadata = representative.metadata.copy(tags = List("t"), notes = "n"))
     assertEquals(write(withLibraryFields), pinned, "the stored form has no field for them")
     val back = read[DiagramSnapshot](pinned).metadata
-    assertEquals((back.folder, back.tags, back.notes), (FolderPath.root, Nil, ""))
+    assertEquals((back.tags, back.notes), (Nil, ""))
+
+  test("the stored name of a browser diagram is the projectName field"):
+    assertEquals(write(representative.copy(name = "Renamed")), pinned.replace("\"Pinned\"", "\"Renamed\""))

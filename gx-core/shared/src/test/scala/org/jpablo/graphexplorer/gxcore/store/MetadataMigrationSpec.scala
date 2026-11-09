@@ -19,14 +19,17 @@ class MetadataMigrationSpec extends FunSuite:
       text:     String = "digraph G { a -> b }\n",
       binding:  Option[String] = None,
       format:   String = "DOT",
-      metadata: DiagramMetadata => DiagramMetadata = identity
+      metadata: DiagramMetadata => DiagramMetadata = identity,
+      folder:   FolderPath = FolderPath.root
   ): LegacyRecord =
     LegacyRecord(
       id = id,
+      name = name,
+      folder = folder,
       format = format,
       text = text,
       origin = binding,
-      metadata = metadata(DiagramMetadata(name = name)),
+      metadata = metadata(DiagramMetadata()),
       createdAt = 1000L,
       updatedAt = 2000L
     )
@@ -236,7 +239,7 @@ class MetadataMigrationSpec extends FunSuite:
   // ------------------------------------------------ the metadata
 
   test("a folder that is not the root becomes a tag"):
-    val r = record("n", "Notes", metadata = m => m.copy(folder = FolderPath(List("systems", "core")), tags = List("a")))
+    val r = record("n", "Notes", folder = FolderPath(List("systems", "core")), metadata = m => m.copy(tags = List("a")))
     assertEquals(plan(Vector(r)).entries.head.metadata.tags, List("a", "systems/core"))
 
   test("the root folder gives no tag"):
@@ -298,15 +301,14 @@ class MetadataMigrationSpec extends FunSuite:
     assertEquals(e.updatedAt, now)
 
   test("a tag is not added two times"):
-    val r = record("n", "Notes", metadata = m => m.copy(folder = FolderPath(List("x")), tags = List("x")))
+    val r = record("n", "Notes", folder = FolderPath(List("x")), metadata = m => m.copy(tags = List("x")))
     assertEquals(plan(Vector(r)).entries.head.metadata.tags, List("x"))
 
-  test("an entry has the name and the folder that the store gives it when it reads it"):
+  test("an entry is what the store gives back when it reads the entry"):
     // Thus a write of the plan and a read of the store give equal entries.
-    val r = record("n", "Notes", metadata = m => m.copy(folder = FolderPath(List("x"))))
+    val r = record("n", "Notes", folder = FolderPath(List("x")))
     val e = plan(Vector(r)).entries.head
-    assertEquals(e.metadata.name, "Notes")
-    assertEquals(e.metadata.folder, FolderPath.root)
+    assertEquals(upickle.default.read[LibraryEntry](upickle.default.write(e)), e)
 
   test("no records give an empty plan"):
     assertEquals(plan(Vector.empty), MetadataMigrationPlan(Vector.empty, Vector.empty, Vector.empty))

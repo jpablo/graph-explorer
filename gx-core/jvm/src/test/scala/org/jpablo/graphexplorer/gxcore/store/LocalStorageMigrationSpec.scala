@@ -46,7 +46,7 @@ class LocalStorageMigrationSpec extends FunSuite:
 
   test("a browser diagram becomes an old record with its text, its name, its format and its dates"):
     val r = read(directory("p1" -> "Architecture"), _ => Some(payload("digraph G { a }"))).records.head
-    assertEquals(r.metadata.name, "Architecture")
+    assertEquals(r.name, "Architecture")
     // The old `source` field held the TEXT. The new model calls that `text`,
     // and "source" or "origin" names the place that it came from.
     assertEquals(r.text, "digraph G { a }")
@@ -84,7 +84,7 @@ class LocalStorageMigrationSpec extends FunSuite:
     assertEquals(r.metadata.hiddenElements, Set("who knows")) // best effort, never fatal
 
   test("a never-renamed browser diagram keeps the default name rather than an empty one"):
-    assertEquals(read(directory("p1" -> ""), _ => Some(payload("x", name = "Untitled"))).records.head.metadata.name, "Untitled")
+    assertEquals(read(directory("p1" -> ""), _ => Some(payload("x", name = "Untitled"))).records.head.name, "Untitled")
 
   // ------------------------------------------------------ never destroy
 
@@ -100,7 +100,7 @@ class LocalStorageMigrationSpec extends FunSuite:
     */
   test("a directory entry with no payload is reported, not invented"):
     val old = read(directory("p1" -> "A", "p2" -> "B"), id => Option.when(id == "p1")(payload("x")))
-    assertEquals(old.records.map(_.metadata.name), Vector("A"))
+    assertEquals(old.records.map(_.name), Vector("A"))
     assertEquals(old.unreadable.size, 1)
     assert(old.unreadable.head.contains("[p2]"), old.unreadable)
 
@@ -109,7 +109,7 @@ class LocalStorageMigrationSpec extends FunSuite:
       directory("p1" -> "A", "bad" -> "B", "p3" -> "C"),
       id => Some(if id == "bad" then "{{{" else payload("ok"))
     )
-    assertEquals(old.records.map(_.metadata.name), Vector("A", "C"))
+    assertEquals(old.records.map(_.name), Vector("A", "C"))
     assertEquals(old.unreadable.size, 1)
     assert(old.unreadable.head.contains("[bad]"), old.unreadable)
 

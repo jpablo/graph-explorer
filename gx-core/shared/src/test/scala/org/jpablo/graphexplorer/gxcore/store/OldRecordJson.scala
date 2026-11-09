@@ -19,8 +19,8 @@ object OldRecordJson:
     ujson.write(
       ujson.Obj(
         "id"     -> ujson.Obj("value" -> r.id),
-        "name"   -> m.name,
-        "folder" -> ujson.Obj("segments" -> ujson.Arr.from(m.folder.segments)),
+        "name"   -> r.name,
+        "folder" -> ujson.Obj("segments" -> ujson.Arr.from(r.folder.segments)),
         "format" -> r.format,
         "text"   -> r.text,
         "binding" -> r.origin.fold(ujson.Null): origin =>

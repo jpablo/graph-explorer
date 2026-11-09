@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
+import org.jpablo.graphexplorer.gxcore.fs.LineEnding
 import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
 
 /** What the page knows about each open file (§5).
@@ -60,6 +61,16 @@ object DesktopDocumentRegistry:
       */
     def baseName: String =
       path.split("[/\\\\]").filter(_.nonEmpty).lastOption.getOrElse(path)
+
+    /** True when the file has `text`: a save of `text` writes the text that
+      * the file has now.
+      *
+      * The two texts can differ in the line endings and in the final newline,
+      * because a save keeps those of the file (V-04). A canvas edit prints LF
+      * with no final newline, so an exact comparison called a CRLF file dirty
+      * after each save of it.
+      */
+    def holds(text: String): Boolean = LineEnding.sameOnDisk(sourceText, text)
 
   /** A `Var`, so a view can follow its own session (§10).
     *

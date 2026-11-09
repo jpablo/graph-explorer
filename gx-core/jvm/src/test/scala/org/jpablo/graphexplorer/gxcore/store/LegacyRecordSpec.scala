@@ -31,12 +31,12 @@ class LegacyRecordSpec extends FunSuite:
       read(representativeJson),
       LegacyRecord(
         id = "arch",
+        name = "Architecture",
+        folder = FolderPath(List("systems", "core")),
         format = "DOT",
         text = "digraph G {\n  a -> b\n}\n",
         origin = Some("file:///tmp/gx/arch.dot"),
         metadata = DiagramMetadata(
-          name = "Architecture",
-          folder = FolderPath(List("systems", "core")),
           hiddenElements = Set("node:a"),
           tags = List("infra", "draft"),
           autoDetectFormat = Some(true)
@@ -46,14 +46,13 @@ class LegacyRecordSpec extends FunSuite:
       )
     )
 
-  test("an old file gives the name and the folder to the metadata, and the defaults to the rest"):
+  test("an old file gives the name and the folder to the record, and the defaults to the metadata"):
     val r = read(minimalJson)
     assertEquals(r.origin, None)
+    assertEquals((r.name, r.folder), ("Architecture", FolderPath.root))
     assertEquals(
       r.metadata,
       DiagramMetadata(
-        name = "Architecture",
-        folder = FolderPath.root,
         hiddenElements = Set.empty,
         collapsedGroups = Set.empty,
         tags = Nil,

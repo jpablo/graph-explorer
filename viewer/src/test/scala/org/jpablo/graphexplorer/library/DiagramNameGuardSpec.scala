@@ -44,9 +44,9 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     val state = BrowserLibrary.createDiagramPersistence(id, None)
 
     // The write a half-initialized viewer makes: name still pre-restore "", source live.
-    state.set(state.now().modify(_.metadata.name).setTo("").copy(source = "digraph G { a }"))
+    state.set(state.now().copy(name = "").copy(source = "digraph G { a }"))
 
-    assertEquals(storedPayload(id).metadata.name, "Groups", "the payload keeps its name")
+    assertEquals(storedPayload(id).name, "Groups", "the payload keeps its name")
     assertEquals(entryName(id), Some("Groups"), "the index entry keeps its name")
     assertEquals(storedPayload(id).source, "digraph G { a }", "the guard protects one field, not the whole write")
 
@@ -55,9 +55,9 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     val id    = BrowserLibrary.createDiagram("Groups", "digraph G {}")
     val state = BrowserLibrary.createDiagramPersistence(id, None)
 
-    state.set(state.now().modify(_.metadata.name).setTo("   "))
+    state.set(state.now().copy(name = "   "))
 
-    assertEquals(storedPayload(id).metadata.name, "Groups")
+    assertEquals(storedPayload(id).name, "Groups")
     assertEquals(entryName(id), Some("Groups"))
 
   test("a real rename still reaches both the payload and the index entry"):
@@ -65,9 +65,9 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     val id    = BrowserLibrary.createDiagram("Old name", "digraph G {}")
     val state = BrowserLibrary.createDiagramPersistence(id, None)
 
-    state.set(state.now().modify(_.metadata.name).setTo("New name"))
+    state.set(state.now().copy(name = "New name"))
 
-    assertEquals(storedPayload(id).metadata.name, "New name")
+    assertEquals(storedPayload(id).name, "New name")
     assertEquals(entryName(id), Some("New name"))
 
   test("a real name repairs a payload the accident already blanked"):
@@ -76,7 +76,7 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     dom.window.localStorage.setItem(payloadKey(id), """{"projectName":"","source":"digraph G {}"}""")
     val state = BrowserLibrary.createDiagramPersistence(id, None)
 
-    state.set(state.now().modify(_.metadata.name).setTo("Groups"))
+    state.set(state.now().copy(name = "Groups"))
 
-    assertEquals(storedPayload(id).metadata.name, "Groups")
+    assertEquals(storedPayload(id).name, "Groups")
     assertEquals(entryName(id), Some("Groups"))

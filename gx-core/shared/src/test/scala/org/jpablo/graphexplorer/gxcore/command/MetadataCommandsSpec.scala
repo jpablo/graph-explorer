@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.models.{ArrowId, GroupId, NodeId}
   */
 class MetadataCommandsSpec extends FunSuite:
 
-  private val meta = DiagramMetadata(name = "arch")
+  private val meta = DiagramMetadata()
 
   private def updated(command: MetadataCommand, m: DiagramMetadata = meta): DiagramMetadata =
     MetadataCommands.run(m, command)
@@ -86,10 +86,10 @@ class MetadataCommandsSpec extends FunSuite:
 
   test("every live view command round-trips through the wire form"):
     val commands = Vector(
-      LiveViewCommand.Select(Set(NodeId("a"), GroupId("g"))),
-      LiveViewCommand.AddToSelection(Set(ArrowId("e1"))),
-      LiveViewCommand.ClearSelection,
-      LiveViewCommand.ResetView,
+      LiveViewCommand.Select("/w/arch.dot", Set(NodeId("a"), GroupId("g"))),
+      LiveViewCommand.AddToSelection("/w/arch.dot", Set(ArrowId("e1"))),
+      LiveViewCommand.ClearSelection("/w/arch.dot"),
+      LiveViewCommand.ResetView("/w/arch.dot"),
       LiveViewCommand.PushText("doc-abc123", "digraph G { a }"),
       LiveViewCommand.WhatIsSelected
     )
@@ -99,9 +99,47 @@ class MetadataCommandsSpec extends FunSuite:
   test("a live view command shares the frame shape of every other tier"):
     // The page receives `{command, params}` exactly as the socket does — one
     // envelope for the whole system, so there is no second format to learn.
-    val frame = LiveViewCodec.encode(LiveViewCommand.Select(Set(NodeId("a"))))
+    val frame = LiveViewCodec.encode(LiveViewCommand.Select("/w/arch.dot", Set(NodeId("a"))))
     assertEquals(frame("command").str, "select")
     assertEquals(frame("params")("targets").arr.map(_.str).toVector, Vector("node:a"))
+    assertEquals(frame("params")("path").str, "/w/arch.dot")
+
+  test("a command that changes the live view names its diagram, and is refused without one"):
+    // plan §2: a desktop command names its diagram. A command with no path
+    // has no addressee, and the page would apply it to whatever is on the
+    // screen.
+    for name <- Vector("select", "add-to-selection", "clear-selection", "reset-view") do
+      val params = ujson.Obj("targets" -> ujson.Arr("node:a"))
+      assertEquals(
+        LiveViewCodec.decode(ujson.Obj("command" -> name, "params" -> params)),
+        Left(CommandError.BadArgument(name, LiveViewCodec.MissingPath)),
+        name
+      )
+      params("path") = "  "
+      assertEquals(
+        LiveViewCodec.decode(ujson.Obj("command" -> name, "params" -> params)),
+        Left(CommandError.BadArgument(name, LiveViewCodec.MissingPath)),
+        s"$name: a blank path names nothing either"
+      )
+
+  test("the question what is selected needs no path, because its answer names the diagram"):
+    assertEquals(
+      LiveViewCodec.decode(ujson.Obj("command" -> "what-is-selected", "params" -> ujson.Obj())),
+      Right(LiveViewCommand.WhatIsSelected)
+    )
+
+  test("the answer to what is selected names the diagram on the screen"):
+    val answers = Vector(
+      LiveViewSelection(Some("/w/arch.dot"), "/w/arch.dot", Vector("node:a", "arrow:a->b/0")),
+      LiveViewSelection(None, "an example (\"Logo\")", Vector.empty)
+    )
+    for answer <- answers do assertEquals(LiveViewSelection.decode(LiveViewSelection.encode(answer)), Right(answer))
+    assertEquals(
+      LiveViewSelection.encode(answers.head),
+      ujson.Obj("path" -> "/w/arch.dot", "shows" -> "/w/arch.dot", "selection" -> ujson.Arr("node:a", "arrow:a->b/0"))
+    )
+    assertEquals(LiveViewSelection.encode(answers(1))("path"), ujson.Null)
+    assert(LiveViewSelection.decode(ujson.Arr("node:a")).isLeft, "an answer from an older page is not a selection")
 
   test("a push names the document it is aimed at, and is refused without one"):
     // The whole point of the field. A push used to carry text alone, and the

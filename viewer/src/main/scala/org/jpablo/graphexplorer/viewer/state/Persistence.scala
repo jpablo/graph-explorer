@@ -15,6 +15,7 @@ enum LeaveIntent derives CanEqual:
   case Navigate(route: Route)
   case CloseWindow
 import org.jpablo.graphexplorer.gxcore.command.ElementRef
+import org.jpablo.graphexplorer.gxcore.fs.LineEnding
 import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
@@ -61,6 +62,10 @@ trait Persistence:
 
   /** The editor holds an edit that the file does not have (§7.3, `local` vs `base`).
     *
+    * A text that differs from the file only in the line endings or in the
+    * final newline is not an edit, because a save keeps those of the file
+    * (V-04, `Session.holds`).
+    *
     * It is false for a browser diagram, which saves on each keystroke, so it
     * is never behind. Only a file can be in the "unsaved" state.
     */
@@ -69,7 +74,7 @@ trait Persistence:
       case ViewTarget.File(_) =>
         documentSession
           .combineWith(sourceText.signal)
-          .map((session, text) => session.exists(_.sourceText != text))
+          .map((session, text) => session.exists(!_.holds(text)))
           .distinct // the same comparison `documentIsDirty` makes, in Signal form
       case _ => Signal.fromValue(false)
 
@@ -100,10 +105,17 @@ trait Persistence:
     * is in the editor now:
     *
     *   - the editor matches what was adopted: no edit to lose, take the file.
+    *   - the editor moved, and the file has the edit of the editor: a save of
+    *     this view, or the same edit from a different writer. The file is the
+    *     new base, and there is no conflict. Before, a save of this view
+    *     recorded a conflict with the text that the save wrote.
     *   - the editor moved AND the file moved: both versions matter, so keep the
     *     edit on screen and record the conflict. §7.3 forbids replacing dirty
     *     text silently.
     *   - the editor moved and the file did not: nothing happened.
+    *
+    * "Matches" and "has" ignore the line endings and the final newline, because
+    * a save keeps those of the file (V-04).
     */
   private def followDocumentSession(): Unit =
     target match
@@ -112,11 +124,13 @@ trait Persistence:
         documentSession.changes.foreach:
           case None => ()
           case Some(current) =>
-            val editorMoved = sourceText.now() != lastAdopted
+            val editorMoved = !LineEnding.sameOnDisk(lastAdopted, sourceText.now())
             val fileMoved   = current.sourceText != lastAdopted
             if !editorMoved then
               lastAdopted = current.sourceText
               replaceSourceDetectingFormat(current.sourceText)
+            else if current.holds(sourceText.now()) then
+              lastAdopted = current.sourceText
             else if fileMoved then
               DesktopDocumentRegistry.markConflict(session, current.revision, current.sourceText)
       case _ => ()
@@ -153,17 +167,18 @@ trait Persistence:
       case ViewTarget.Diagram(_)    => false
       case ViewTarget.Example(_, _) => false
 
-  /** Rename the file of this view (desktop).
+  /** Rename this diagram.
     *
-    * `newName` is a file name, with no folder. A name with no extension keeps
-    * the extension of the file. The library renames the file first, and then
-    * moves its entry. A refusal, or a file that moved while its metadata did
-    * not, goes to the person on `errorBus`.
+    * On the desktop, a diagram is a file, and a rename renames the FILE.
+    * `newName` is then a file name, with no folder. A name with no extension
+    * keeps the extension of the file. The library renames the file first, and
+    * then moves its entry. A refusal, or a file that moved while its metadata
+    * did not, goes to the person on `errorBus`.
     *
-    * With no desktop library (a browser, or a test), the name is only the name
-    * on the screen, as before.
+    * Each other view (a browser diagram, an example, or a file with no desktop
+    * library) changes its stored name. A browser diagram saves that name.
     */
-  def renameFile(newName: String)(using ExecutionContext): Future[Unit] =
+  def rename(newName: String)(using ExecutionContext): Future[Unit] =
     (target, Library.desktop) match
       case (ViewTarget.File(session), Some(library)) =>
         library.renameFile(session, newName).map:
@@ -171,7 +186,7 @@ trait Persistence:
           case FileRename.Refused(message)             => errorBus.emit(message)
           case FileRename.MetadataNotMoved(_, message) => errorBus.emit(message)
       case _ =>
-        metadata.name.set(newName)
+        storedName.set(newName)
         Future.unit
 
   /** The same question as [[documentDirty]], answered now rather than observed.
@@ -183,7 +198,7 @@ trait Persistence:
   def documentIsDirty: Boolean =
     target match
       case ViewTarget.File(session) =>
-        DesktopDocumentRegistry.get(session).exists(_.sourceText != sourceText.now())
+        DesktopDocumentRegistry.get(session).exists(!_.holds(sourceText.now()))
       case _ => false
 
   /** The file changed under an edit, and both versions are kept (§7.3). */
@@ -240,6 +255,7 @@ trait Persistence:
     // Thus the restore applies auto-detect itself.
     val restoredMetadata = restoredDiagram.metadata
     metadata.set(restoredMetadata.copy(autoDetectFormat = Some(restoredMetadata.autoDetectFormat.getOrElse(true))))
+    storedName.set(restoredDiagram.name)
     phases.applyAutoDetectNow()
 
     Var.set(
@@ -273,6 +289,7 @@ trait Persistence:
     Signal
       .combine(
         metadata.signal,
+        storedName.signal,
         sourceText.signal,
         formatSelection.signal
       )
@@ -340,7 +357,8 @@ trait Persistence:
     DiagramSnapshot(
       source = sourceText.now(),
       format = Some(formatSelection.now().toString),
-      metadata = metadata.now()
+      metadata = metadata.now(),
+      name = storedName.now()
     )
 
   /** Save this diagram, because the person asked (§11).
@@ -374,13 +392,24 @@ trait Persistence:
     */
   def closePersistence(): Unit = persistence.close()
 
-/** One diagram as the viewer saves it: the source, the format, and the metadata.
+/** One diagram as the viewer saves it: the source, the format, the metadata,
+  * and the stored name.
   *
   * The metadata is the type of `gx-core`, so the viewer and the library have
   * one model of it. `format` is the name of a `DiagramFormat`. It is a string,
   * so an unknown format round-trips.
+  *
+  * `name` is the stored name of a browser diagram (the web app), or the name
+  * of an example. It is not metadata. A file has no stored name, because its
+  * name is the title in its source, or else its file name (CONTEXT.md). Thus
+  * `name` is empty for a file, and `FilePersistence` does not read it.
   */
-final case class DiagramSnapshot(source: String, format: Option[String], metadata: DiagramMetadata) derives CanEqual
+final case class DiagramSnapshot(
+    source:   String,
+    format:   Option[String],
+    metadata: DiagramMetadata,
+    name:     String = ""
+) derives CanEqual
 
 object DiagramSnapshot:
   val minimalGraphText = "digraph G {\n}"
@@ -399,7 +428,8 @@ object DiagramSnapshot:
     DiagramSnapshot(
       source = source.getOrElse(minimalGraphText),
       format = None,
-      metadata = DiagramMetadata(name = defaultDiagramName)
+      metadata = DiagramMetadata.empty,
+      name = defaultDiagramName
     )
 
   /** The shape of a diagram in the browser library (`localStorage`).
@@ -409,8 +439,9 @@ object DiagramSnapshot:
     * order and the defaults must not change. upickle omits a field that is
     * equal to its default. `BrowserPayloadSpec` pins the JSON.
     *
-    * The browser library has never stored a folder, tags or notes. A read
-    * gives their defaults, and a write drops them. The sets are typed, so they
+    * `projectName` is the stored name ([[DiagramSnapshot.name]]). The browser
+    * library has never stored tags or notes. A read gives their defaults, and
+    * a write drops them. The sets are typed, so they
     * cannot hold a ref that this build does not parse. Only this viewer writes
     * the browser library, so such a ref does not occur there.
     */
@@ -433,7 +464,7 @@ object DiagramSnapshot:
     Stored(
       hiddenElements = MetadataOps.hiddenIn(m),
       collapsedGroups = MetadataOps.collapsedIn(m),
-      projectName = m.name,
+      projectName = snapshot.name,
       source = snapshot.source,
       format = snapshot.format,
       autoDetectFormat = m.autoDetectFormat
@@ -444,11 +475,11 @@ object DiagramSnapshot:
       source = stored.source,
       format = stored.format,
       metadata = DiagramMetadata(
-        name = stored.projectName,
         hiddenElements = MetadataOps.render(stored.hiddenElements),
         collapsedGroups = stored.collapsedGroups.map(ElementRef.render),
         autoDetectFormat = stored.autoDetectFormat
-      )
+      ),
+      name = stored.projectName
     )
 
 case class ViewerSettings(

@@ -30,7 +30,6 @@ These parse the file and write nothing.
 - `label` and `parent` are `null` when there is none. `source`, `target` and `parent` are
   element names.
 - `ref` is the element in the ref spelling (`node:api`, `arrow:api->db/0`, `group:svc`).
-  `gx selection` prints refs.
 - `attrs` gives the attributes as the DOT writer prints them. It leaves out `_gvid` and the
   other internal attributes, empty values, and group attributes that have their default.
 
@@ -120,15 +119,21 @@ command does not run it.
 |---|---|---|
 | `gx open <file>` | `show` with `{"target": {"kind": "file", "path"}}` | `{path, focused}` |
 | `gx select <file> <element>...` | the live view command `select` with the refs and the path | `{path, selected: [refs], names}` |
-| `gx selection` | the live view command `what-is-selected` | `{path, selected: [refs]}` |
+| `gx selection` | the live view command `what-is-selected` | `{path, selection: [names]}` |
 | `gx fit <file>` | the live view command `reset-view` with the path | `{path}` |
 
 - With no desktop, each of these is exit 2. A desktop with no window, or with no diagram on
   the screen, is exit 2 too. Your next step is the same: show the diagram.
 - `gx select` resolves the names against the file before it sends them. A bad name is
   exit 4, and nothing goes to the desktop.
-- `selection` prints one ref on each line, or `(nothing selected)`. `path` is `null` until
-  the desktop tells which diagram it shows.
+- `gx select` and `gx fit` name their file. When the desktop shows a different diagram,
+  the desktop refuses the command: exit 4, and the message names the diagram on the
+  screen (`the desktop shows /w/b.dot, not /w/a.dot`). Show the file first with
+  `gx open <file>`.
+- `selection` prints `<path>  selected: api, api..db` (or `<path>  nothing selected`).
+  The names are element names of that file, so the next command can take them.
+  `path` is `null` when the desktop shows no file (an example). Then stderr says so,
+  and the selection is in the ref spelling.
 
 ## Other
 

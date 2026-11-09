@@ -39,18 +39,15 @@ def RenameDiagramDialog(state: ViewerState) =
   def saveAndClose(): Unit =
     // Blank input is not a rename — same outcome as Cancel (see above).
     val newName = modalText.now()
-    if newName.trim.nonEmpty then
-      if renamesFile then state.renameFile(newName.trim)
-      else state.metadata.name.set(newName)
+    if newName.trim.nonEmpty then state.rename(if renamesFile then newName.trim else newName)
     closeDialog()
 
   /** The name to start with: the file name of a file, and else the stored name. */
   def currentName: String =
     state.target match
       case ViewTarget.File(_) if renamesFile =>
-        state.documentSessionNow.fold(state.metadata.name.now()): s =>
-          s.path.substring(s.path.lastIndexWhere(c => c == '/' || c == '\\') + 1)
-      case _ => state.metadata.name.now()
+        state.documentSessionNow.fold(state.storedName.now())(_.baseName)
+      case _ => state.storedName.now()
 
   div(
     idAttr := "rename-project-dialog",

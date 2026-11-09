@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import com.raquo.airstream.core.{EventStream, Signal}
+import org.jpablo.graphexplorer.gxcore.fs.LineEnding
 import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.library.DesktopLibrary
 import org.jpablo.graphexplorer.viewer.state.{DiagramPersistence, DiagramSnapshot, DocumentSessionId, SaveResult}
@@ -36,7 +37,7 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
         DiagramSnapshot(
           source = open.sourceText,
           format = None,
-          metadata = library.flatMap(_.metadataOf(open.path)).getOrElse(DiagramMetadata(name = LibraryEntry.nameOf(open.path)))
+          metadata = library.flatMap(_.metadataOf(open.path)).getOrElse(DiagramMetadata.empty)
         )
       case None =>
         // The route named a session the registry does not hold. A viewer opens
@@ -89,6 +90,12 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
     * because a save advances it and an external change replaces it. A copy held
     * here would go stale, and a stale base revision turns every second save
     * into a conflict.
+    *
+    * V-04: the save keeps the line endings of the file and its end (a final
+    * newline, or none), as `gx` does (`LineEnding.savedOver`). A canvas edit
+    * prints LF with no final newline. Before, a Save wrote that text as it
+    * was, and one change to one attribute changed each line of a CRLF file.
+    * Each save of the desktop app comes through this method.
     */
   def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
@@ -96,13 +103,15 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
       case None =>
         Future.successful(SaveResult.Failed("this document session is no longer open"))
       case Some(open) =>
+        val text = LineEnding.savedOver(open.sourceText, next.source)
         DesktopIpc
-          .saveDocument(open.path, next.source, open.revision)
+          .saveDocument(open.path, text, open.revision)
           .map:
             case DesktopIpc.SaveOutcome.Saved(path, revision) =>
               // The registry advances, so the NEXT save compares against what
-              // this one wrote.
-              DesktopDocumentRegistry.record(path, revision, next.source)
+              // this one wrote. It holds the text that is in the file, so the
+              // next save keeps the same line endings.
+              DesktopDocumentRegistry.record(path, revision, text)
               SaveResult.Saved
             case DesktopIpc.SaveOutcome.Conflict(_) =>
               SaveResult.Conflict("The file changed on disk. Reload it and try again.")

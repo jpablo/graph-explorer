@@ -30,7 +30,7 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
         assertEquals(dom.window.localStorage.length, 0)
 
-        viewerState.metadata.name.set(diagramName)
+        viewerState.storedName.set(diagramName)
         viewerState.addNodeWithSmartConnection()
 
         assertEquals(

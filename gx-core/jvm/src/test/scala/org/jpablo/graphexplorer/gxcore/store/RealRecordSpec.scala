@@ -29,7 +29,7 @@ class RealRecordSpec extends FunSuite:
   test("a record written by the real gx parses"):
     val r = record
     assertEquals(r.id, "demo")
-    assertEquals(r.metadata.name, "demo")
+    assertEquals(r.name, "demo")
     assertEquals(r.format, "DOT")
     assert(r.text.startsWith("digraph Demo"), r.text)
     assertEquals(r.origin, Some("file:///private/tmp/gx-fixture/demo.dot"), "gx import binds the record to its origin")

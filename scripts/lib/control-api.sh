@@ -173,8 +173,11 @@ api_unwatch() {
   _api_call unwatch "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
+# A live view command NAMES its diagram: `api_reset_view <canonical path>`.
+# The page refuses it with VIEW_REJECTED when the window shows a different
+# diagram, and with INVALID_REQUEST when the path is missing (plan §2).
 api_reset_view() {
-  _api_call live-view '{"command":"reset-view","params":{}}'
+  _api_call live-view "$(_jq -n --arg path "$1" '{command: "reset-view", params: {path: $path}}')"
 }
 
 api_get() {

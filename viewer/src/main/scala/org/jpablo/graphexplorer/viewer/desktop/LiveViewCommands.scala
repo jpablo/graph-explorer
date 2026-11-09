@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
-import org.jpablo.graphexplorer.gxcore.command.{ElementRef, LiveViewCodec, LiveViewCommand}
+import org.jpablo.graphexplorer.gxcore.command.{ElementRef, LiveViewCodec, LiveViewCommand, LiveViewSelection}
+import org.jpablo.graphexplorer.gxcore.model.LibraryEntry
 import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, ViewerState, ViewTarget}
 import org.scalajs.dom
 
@@ -114,32 +115,63 @@ object LiveViewCommands:
       case Some(state) =>
         try
           command match
-            case LiveViewCommand.Select(targets) =>
-              state.selection.set1(targets)
-              Right(ujson.Null)
+            case LiveViewCommand.Select(path, targets) =>
+              onDiagram(state, path)(state.selection.set1(targets))
 
-            case LiveViewCommand.AddToSelection(targets) =>
-              state.selection.add(targets)
-              Right(ujson.Null)
+            case LiveViewCommand.AddToSelection(path, targets) =>
+              onDiagram(state, path)(state.selection.add(targets))
 
-            case LiveViewCommand.ClearSelection =>
-              state.selection.clear()
-              Right(ujson.Null)
+            case LiveViewCommand.ClearSelection(path) =>
+              onDiagram(state, path)(state.selection.clear())
 
-            case LiveViewCommand.ResetView =>
-              state.resetView()
-              Right(ujson.Null)
+            case LiveViewCommand.ResetView(path) =>
+              onDiagram(state, path)(state.resetView())
 
             case LiveViewCommand.PushText(sessionId, text) =>
               pushText(state, sessionId, text)
 
             case LiveViewCommand.WhatIsSelected =>
-              Right(
-                ujson.Arr.from(
-                  state.selection.now().ids.toVector.map(ElementRef.render).sorted.map(ujson.Str(_))
-                )
-              )
+              val refs = state.selection.now().ids.toVector.map(ElementRef.render).sorted
+              Right(LiveViewSelection.encode(LiveViewSelection(shownPath(state), describe(state), refs)))
         catch case NonFatal(e) => Left(Refusal("LIVE_VIEW_FAILED", s"${command.name} failed: ${e.getMessage}"))
+
+  /** Change the live view only when it shows the file at `path` (plan §2).
+    *
+    * Before, the page did not read the path. Thus `gx select a.dot …` changed
+    * the selection of whatever diagram was on the screen. The refusal names
+    * the diagram on the screen, so the caller knows what to show first.
+    */
+  private def onDiagram(state: ViewerState, path: String)(change: => Unit): Either[Refusal, ujson.Value] =
+    if shownPath(state).exists(samePath(_, path)) then
+      change
+      Right(ujson.Null)
+    else Left(Refusal("VIEW_REJECTED", s"the desktop shows ${describe(state)}, not $path"))
+
+  /** The canonical path of the file on the screen. The shell gave it to the
+    * document session. It is `None` when the screen shows no file.
+    */
+  private def shownPath(state: ViewerState): Option[String] =
+    state.documentSessionNow.map(_.path)
+
+  /** The two paths name one file. The comparison uses the canonical `file:`
+    * URI, because that URI has one spelling for each file: `C:\x\a.dot` and
+    * `C:/x/a.dot` give the same URI. The library key uses the same rule.
+    */
+  private def samePath(a: String, b: String): Boolean =
+    LibraryEntry.keySource(a) == LibraryEntry.keySource(b)
+
+  /** The diagram on the screen, in words for a person. A refusal and the
+    * answer to `what-is-selected` use the same words.
+    */
+  private def describe(state: ViewerState): String =
+    state.target match
+      case ViewTarget.File(_) =>
+        state.documentSessionNow.fold("a file that is no longer open")(_.path)
+      case ViewTarget.Diagram(_) =>
+        val name = state.storedName.now().trim
+        if name.isEmpty then "a browser diagram with no name" else s"the browser diagram \"$name\""
+      case ViewTarget.Example(_, name) =>
+        s"an example (\"$name\")"
 
   /** Put text into the document session the caller NAMED.
     *

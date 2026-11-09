@@ -56,6 +56,24 @@ object LineEnding:
     else if text.endsWith("\n") then text
     else text + "\n"
 
+  /** The text that a save of `text` writes over `file` (V-04): the line
+    * endings of `file`, and the end of `file`.
+    *
+    * `Documents.write` applies this rule for `gx`, and `FilePersistence`
+    * applies it for each save of the desktop app. Before, a canvas edit and a
+    * Save on the desktop changed a CRLF file to LF and removed its final
+    * newline.
+    */
+  def savedOver(file: String, text: String): String =
+    detect(file).applyTo(withEndOf(file, text))
+
+  /** True when a save of `text` over `file` writes `file` again: the two texts
+    * differ at most in the line endings and in the final newline. The desktop
+    * uses it to decide if an editor holds an edit that the file does not have.
+    */
+  def sameOnDisk(file: String, text: String): Boolean =
+    savedOver(file, text) == file
+
   extension (e: LineEnding)
     /** Rewrite text to use this convention, whatever it currently uses. */
     def applyTo(text: String): String =

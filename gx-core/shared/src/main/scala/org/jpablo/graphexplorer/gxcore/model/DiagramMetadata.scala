@@ -1,30 +1,5 @@
 package org.jpablo.graphexplorer.gxcore.model
 
-import upickle.default.ReadWriter
-
-/** Where a diagram sits in the library's own hierarchy.
-  *
-  * Virtual, not the filesystem's. §7: mirroring the filesystem breaks the moment
-  * origins include URLs and database connections, which have no shared tree to
-  * mirror. `gx import <directory>` mirrors a directory's shape into folders at
-  * import time; after that the two are independent.
-  */
-final case class FolderPath(segments: List[String]) derives ReadWriter, CanEqual:
-  def render: String            = if segments.isEmpty then "/" else segments.mkString("/", "/", "")
-  def isRoot: Boolean           = segments.isEmpty
-  def parent: FolderPath        = FolderPath(segments.dropRight(1))
-  def child(name: String)       = FolderPath(segments :+ name)
-  def isUnder(other: FolderPath): Boolean = segments.startsWith(other.segments)
-
-object FolderPath:
-  val root: FolderPath = FolderPath(Nil)
-
-  /** Parse `/a/b`. Empty segments collapse, so `//a//b/` and `/a/b` are one
-    * folder — the same "two spellings, one thing" rule the origin URIs follow.
-    */
-  def parse(raw: String): FolderPath =
-    FolderPath(raw.split('/').iterator.filter(_.nonEmpty).toList)
-
 /** Everything about a diagram that is not its text.
   *
   * The metadata/text split is a design rule, not bookkeeping (§5.3.1). Anything
@@ -32,11 +7,14 @@ object FolderPath:
   * conflicts with a regenerating origin; anything living in the text does
   * conflict. New features should be asked which side they fall on, because the
   * answer decides whether they break the follow-the-file flow.
+  *
+  * The metadata has no name and no folder (CONTEXT.md, ADR 0001). The name of
+  * a diagram is the title in its source, or else its file name. The library
+  * has no folders. A person uses tags and the folders of the file system. The
+  * web app keeps a stored name for each browser diagram, outside this type
+  * (`DiagramSnapshot.name` in the viewer).
   */
 final case class DiagramMetadata(
-    /** Every diagram has a name, so the name has no default. */
-    name:            String,
-    folder:          FolderPath = FolderPath.root,
     hiddenElements:  Set[String] = Set.empty,
     collapsedGroups: Set[String] = Set.empty,
     tags:            List[String] = Nil,
@@ -52,3 +30,8 @@ final case class DiagramMetadata(
       */
     autoDetectFormat: Option[Boolean] = None
 ) derives CanEqual
+
+object DiagramMetadata:
+
+  /** The metadata of a diagram that has none yet. */
+  val empty: DiagramMetadata = DiagramMetadata()

@@ -1586,23 +1586,28 @@ fn run_live_view_command(
 
     match outcome {
         Ok(outcome) if outcome.ok => Ok(outcome.result),
-        Ok(outcome) => Err((
-            // An ALLOWLIST, so the page cannot mint codes a caller would have
-            // to discover by reading prose. Each one here means a different
-            // next move: open something, fix the argument, or look at what is
-            // on screen. Anything else is a failure with no advice to give.
-            match outcome.code.as_str() {
-                "NO_LIVE_VIEW" => "NO_LIVE_VIEW",
-                "INVALID_REQUEST" => "INVALID_REQUEST",
-                "VIEW_REJECTED" => "VIEW_REJECTED",
-                _ => "LIVE_VIEW_FAILED",
-            },
-            outcome.message,
-        )),
+        Ok(outcome) => Err((live_view_failure_code(&outcome.code), outcome.message)),
         Err(_) => Err((
             "LIVE_VIEW_TIMEOUT",
             format!("the page did not answer '{command}' within {LIVE_VIEW_TIMEOUT:?}"),
         )),
+    }
+}
+
+/// The code that the relay gives for a refusal of the page.
+///
+/// This is an ALLOWLIST. Thus the page cannot make a code that a caller must
+/// find in the prose. Each code here tells the caller a different next step:
+/// open a diagram (`NO_LIVE_VIEW`), correct the argument (`INVALID_REQUEST`),
+/// or show the diagram that the command names (`VIEW_REJECTED`; its message
+/// names the diagram on the screen). Each other code is `LIVE_VIEW_FAILED`, a
+/// failure with no advice.
+fn live_view_failure_code(code: &str) -> &'static str {
+    match code {
+        "NO_LIVE_VIEW" => "NO_LIVE_VIEW",
+        "INVALID_REQUEST" => "INVALID_REQUEST",
+        "VIEW_REJECTED" => "VIEW_REJECTED",
+        _ => "LIVE_VIEW_FAILED",
     }
 }
 
@@ -3909,6 +3914,26 @@ fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: Rece
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The relay keeps the codes of the page that tell the caller what to do
+    /// next. `VIEW_REJECTED` is the refusal of a live view command for a
+    /// diagram that is not on the screen (plan §2). Its message names the
+    /// diagram on the screen, and `gx` prints it.
+    #[test]
+    fn the_relay_keeps_the_codes_of_the_page_that_name_a_next_step() {
+        for code in ["NO_LIVE_VIEW", "INVALID_REQUEST", "VIEW_REJECTED"] {
+            assert_eq!(live_view_failure_code(code), code, "the relay changed {code}");
+        }
+    }
+
+    /// A code that is not in the list is a failure with no advice. The page
+    /// cannot make a code that a caller must find in the prose.
+    #[test]
+    fn the_relay_gives_an_unknown_code_of_the_page_as_live_view_failed() {
+        for code in ["", "SOMETHING_NEW", "view_rejected", "INTERNAL"] {
+            assert_eq!(live_view_failure_code(code), "LIVE_VIEW_FAILED", "the relay kept {code:?}");
+        }
+    }
 
     /// An open must not be answered by the shell alone.
     ///

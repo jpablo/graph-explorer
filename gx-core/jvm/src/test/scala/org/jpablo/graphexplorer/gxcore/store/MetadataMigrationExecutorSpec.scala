@@ -32,10 +32,12 @@ class MetadataMigrationExecutorSpec extends FunSuite:
   private def record(id: String, name: String, text: String, file: Option[Path] = None): LegacyRecord =
     LegacyRecord(
       id = id,
+      name = name,
+      folder = FolderPath.root,
       format = "DOT",
       text = text,
       origin = file.map(f => FileOrigins.originOf(f).value),
-      metadata = DiagramMetadata(name = name, hiddenElements = Set("node:a")),
+      metadata = DiagramMetadata(hiddenElements = Set("node:a")),
       createdAt = 10L,
       updatedAt = 20L
     )
@@ -202,7 +204,7 @@ class MetadataMigrationExecutorSpec extends FunSuite:
     Files.writeString(target, "digraph { mine }\n")
     val plan = MetadataMigrationPlan(
       files = Vector(PlannedFile(target.toString, "digraph { other }\n")),
-      entries = Vector(LibraryEntry(target.toString, DiagramMetadata(name = "A"), 1L, 2L)),
+      entries = Vector(LibraryEntry(target.toString, DiagramMetadata(), 1L, 2L)),
       report = Vector.empty
     )
 

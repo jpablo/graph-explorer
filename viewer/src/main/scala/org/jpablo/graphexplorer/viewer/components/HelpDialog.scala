@@ -51,7 +51,7 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
                 kbd(cls := "kbd kbd-sm", "Drag"),
                 span(" between nodes")
               ),
-              td("Create a new edge between nodes")
+              td("Create a new arrow between nodes")
             ),
             tr(
               td(

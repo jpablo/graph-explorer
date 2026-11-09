@@ -41,8 +41,8 @@ class LibraryViewSpec extends FunSuite with TestHelpers with LoggedChecks:
     val shell = FakeDesktopShell()
     shell.install()
     shell.files("/w/present.dot") = "digraph G {\n  label=\"Present diagram\"\n  a\n}"
-    shell.putEntry(LibraryEntry("/w/present.dot", DiagramMetadata(name = "present"), 2, 2))
-    shell.putEntry(LibraryEntry("/w/gone.dot", DiagramMetadata(name = "gone"), 1, 1))
+    shell.putEntry(LibraryEntry("/w/present.dot", DiagramMetadata(), 2, 2))
+    shell.putEntry(LibraryEntry("/w/gone.dot", DiagramMetadata(), 1, 1))
     val container = dom.document.createElement("div")
     dom.document.body.appendChild(container)
     DesktopLibrary

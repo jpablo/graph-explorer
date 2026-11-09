@@ -121,14 +121,14 @@ object LocalStorageMigration:
       Right(
         LegacyRecord(
           id = id.value,
+          name = name,
+          folder = FolderPath.root,
           format = format,
           text = text,
           // A browser diagram has no origin: it never came from a file, and
           // an invented one would name a path that does not exist.
           origin = None,
           metadata = DiagramMetadata(
-            name = name,
-            folder = FolderPath.root,
             hiddenElements = idsIn(o.get("hiddenElements")),
             // Groups by construction, so the kind is known even when the old
             // payload carried no tag.

@@ -25,7 +25,7 @@ class MetadataStoreSpec extends FunSuite:
   private def entry(path: String, tags: List[String] = Nil) =
     LibraryEntry(
       path = path,
-      metadata = DiagramMetadata(name = LibraryEntry.nameOf(path), tags = tags, hiddenElements = Set("node:a")),
+      metadata = DiagramMetadata(tags = tags, hiddenElements = Set("node:a")),
       createdAt = 1L,
       updatedAt = 2L
     )
@@ -40,14 +40,11 @@ class MetadataStoreSpec extends FunSuite:
     assertEquals(store.get("/work/arch.dot"), Right(e))
     assert(store.contains("/work/arch.dot"))
 
-  tmp.test("a get gives the base name as the name, whatever name the put had"):
-    dir =>
-      val store = storeIn(dir)
-      val e     = entry("/work/arch.dot").copy(metadata = DiagramMetadata(name = "Architecture", folder = FolderPath(List("x"))))
-      store.put(e).fold(err => fail(s"$err"), identity)
-      val read = store.get("/work/arch.dot").fold(err => fail(s"$err"), identity)
-      assertEquals(read.metadata.name, "arch")
-      assertEquals(read.metadata.folder, FolderPath.root)
+  tmp.test("an entry file has no name and no folder"): dir =>
+    val store = storeIn(dir)
+    store.put(entry("/work/arch.dot")).fold(err => fail(s"$err"), identity)
+    val json = ujson.read(Files.readString(Files.list(dir.resolve("metadata")).iterator.asScala.next())).obj
+    assert(!json.contains("name") && !json.contains("folder"), json.keys.toString)
 
   tmp.test("a missing entry is NotFound, not an exception"): dir =>
     assertEquals(storeIn(dir).get("/work/none.dot"), Left(MetadataError.NotFound("/work/none.dot")))

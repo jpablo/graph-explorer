@@ -53,9 +53,8 @@ object LibraryEntry:
     * The sets are sorted vectors, so that one entry always gives the same
     * bytes.
     *
-    * The stored form has no `name` and no `folder`. Phase 3b removes the two
-    * fields from `DiagramMetadata`. Until then, a read sets `name` to the base
-    * name of the file and `folder` to the root.
+    * The stored form has no `name` and no `folder`, because a diagram has
+    * neither in the library (CONTEXT.md).
     */
   private final case class Stored(
       path:             String,
@@ -87,9 +86,6 @@ object LibraryEntry:
     LibraryEntry(
       path = s.path,
       metadata = DiagramMetadata(
-        // Phase 3b removes `name` and `folder` from `DiagramMetadata`.
-        name = nameOf(s.path),
-        folder = FolderPath.root,
         hiddenElements = s.hiddenElements.toSet,
         collapsedGroups = s.collapsedGroups.toSet,
         tags = s.tags,

@@ -20,12 +20,18 @@ import org.jpablo.graphexplorer.viewer.models.ElementId
   * answers questions — while still gaining nothing: it receives a command and
   * returns a value, which is strictly less than the ambient HTTP credential D3
   * took away.
+  *
+  * A command that changes the live view NAMES its diagram (plan §2). `path` is
+  * the canonical path of the diagram file. The page refuses the command with
+  * `VIEW_REJECTED` when the live view shows a different diagram, and the
+  * refusal names the diagram on the screen. Without the path, a command for
+  * one diagram changed the diagram that was on the screen.
   */
 enum LiveViewCommand derives CanEqual:
-  case Select(targets: Set[ElementId])
-  case AddToSelection(targets: Set[ElementId])
-  case ClearSelection
-  case ResetView
+  case Select(path: String, targets: Set[ElementId])
+  case AddToSelection(path: String, targets: Set[ElementId])
+  case ClearSelection(path: String)
+  case ResetView(path: String)
 
   /** Replace the text of ONE named document session.
     *
@@ -40,7 +46,9 @@ enum LiveViewCommand derives CanEqual:
     */
   case PushText(sessionId: String, text: String)
 
-  /** Query. */
+  /** Query. It needs no path, because the answer names the diagram on the
+    * screen ([[LiveViewSelection]]).
+    */
   case WhatIsSelected
 
   def name: String = LiveViewCommand.nameOf(this)
@@ -52,12 +60,12 @@ enum LiveViewCommand derives CanEqual:
 object LiveViewCommand:
 
   def nameOf(command: LiveViewCommand): String = command match
-    case Select(_)         => "select"
-    case AddToSelection(_) => "add-to-selection"
-    case ClearSelection    => "clear-selection"
-    case ResetView         => "reset-view"
-    case PushText(_, _)    => "push-text"
-    case WhatIsSelected    => "what-is-selected"
+    case Select(_, _)         => "select"
+    case AddToSelection(_, _) => "add-to-selection"
+    case ClearSelection(_)    => "clear-selection"
+    case ResetView(_)         => "reset-view"
+    case PushText(_, _)       => "push-text"
+    case WhatIsSelected       => "what-is-selected"
 
   val tier: Tier = Tier.LiveView
 
@@ -72,13 +80,18 @@ object LiveViewCodec:
   def encode(command: LiveViewCommand): ujson.Obj =
     ujson.Obj("command" -> command.name, "params" -> params(command))
 
+  /** The message of a refusal for a command with no `path`. */
+  val MissingPath: String =
+    "missing required 'path': the canonical path of the diagram file that the command is for"
+
   private def params(command: LiveViewCommand): ujson.Obj = command match
-    case LiveViewCommand.Select(targets)         => ujson.Obj("targets" -> refs(targets))
-    case LiveViewCommand.AddToSelection(targets) => ujson.Obj("targets" -> refs(targets))
+    case LiveViewCommand.Select(path, targets)         => ujson.Obj("path" -> path, "targets" -> refs(targets))
+    case LiveViewCommand.AddToSelection(path, targets) => ujson.Obj("path" -> path, "targets" -> refs(targets))
+    case LiveViewCommand.ClearSelection(path)          => ujson.Obj("path" -> path)
+    case LiveViewCommand.ResetView(path)               => ujson.Obj("path" -> path)
     case LiveViewCommand.PushText(sessionId, text) =>
       ujson.Obj("sessionId" -> sessionId, "text" -> text)
-    case LiveViewCommand.ClearSelection | LiveViewCommand.ResetView | LiveViewCommand.WhatIsSelected =>
-      ujson.Obj()
+    case LiveViewCommand.WhatIsSelected => ujson.Obj()
 
   private def refs(ids: Set[ElementId]): ujson.Arr =
     ujson.Arr.from(ids.toVector.map(ElementRef.render).sorted)
@@ -94,13 +107,20 @@ object LiveViewCodec:
 
   private def decodeNamed(name: String, params: ujson.Obj): Either[CommandError, LiveViewCommand] =
     name match
-      case "select"           => targets(name, params).map(LiveViewCommand.Select(_))
-      case "add-to-selection" => targets(name, params).map(LiveViewCommand.AddToSelection(_))
-      case "clear-selection"  => Right(LiveViewCommand.ClearSelection)
-      case "reset-view"       => Right(LiveViewCommand.ResetView)
+      case "select"           => path(name, params).flatMap(p => targets(name, params).map(LiveViewCommand.Select(p, _)))
+      case "add-to-selection" => path(name, params).flatMap(p => targets(name, params).map(LiveViewCommand.AddToSelection(p, _)))
+      case "clear-selection"  => path(name, params).map(LiveViewCommand.ClearSelection(_))
+      case "reset-view"       => path(name, params).map(LiveViewCommand.ResetView(_))
       case "what-is-selected" => Right(LiveViewCommand.WhatIsSelected)
       case "push-text"        => pushText(params)
       case other              => Left(CommandError.UnknownCommand(other))
+
+  /** The path is REQUIRED. A command with no path names no diagram, and the
+    * page would apply it to the diagram on the screen.
+    */
+  private def path(command: String, params: ujson.Obj): Either[CommandError, String] =
+    params.value.get("path").flatMap(_.strOpt).filter(_.trim.nonEmpty)
+      .toRight(CommandError.BadArgument(command, MissingPath))
 
   /** Both fields are REQUIRED. A push with no session names no document, which
     * is the shape this command exists to stop accepting.
@@ -121,3 +141,37 @@ object LiveViewCodec:
         if texts.sizeIs != items.size then
           Left(CommandError.BadArgument(command, "every target must be a string like 'node:a'"))
         else ElementRef.parseAll(texts).left.map(CommandError.BadArgument(command, _))
+
+/** The answer of the page to `what-is-selected`: the selection, and the
+  * diagram that it is in.
+  *
+  *   - `path` is the canonical path of the file on the screen. It is `None`
+  *     when the screen shows a diagram that is not a file (an example, or a
+  *     browser diagram).
+  *   - `shows` names the diagram on the screen for a person: the path of a
+  *     file, `an example ("Logo")`, or `the browser diagram "Groups"`. A
+  *     `VIEW_REJECTED` message uses the same words.
+  *   - `selection` has the selected elements in the `ElementRef` spelling.
+  *     The caller renders the names against the file.
+  */
+final case class LiveViewSelection(path: Option[String], shows: String, selection: Vector[String]) derives CanEqual
+
+object LiveViewSelection:
+
+  def encode(answer: LiveViewSelection): ujson.Obj =
+    ujson.Obj(
+      "path"      -> answer.path.fold(ujson.Null)(ujson.Str(_)),
+      "shows"     -> answer.shows,
+      "selection" -> ujson.Arr.from(answer.selection.map(ujson.Str(_)))
+    )
+
+  /** A different shape is an answer from a page of a different version. */
+  def decode(value: ujson.Value): Either[String, LiveViewSelection] =
+    val fields = value.objOpt
+    val path   = fields.flatMap(_.get("path"))
+    val refs   = fields.flatMap(_.get("selection")).flatMap(_.arrOpt).map(_.toVector.flatMap(_.strOpt))
+    (path, refs) match
+      case (Some(p), Some(selection)) if p.isNull || p.strOpt.isDefined =>
+        val shows = fields.flatMap(_.get("shows")).flatMap(_.strOpt).orElse(p.strOpt).getOrElse("a diagram that is not a file")
+        Right(LiveViewSelection(p.strOpt, shows, selection))
+      case _ => Left(s"the answer has no 'path' and 'selection': ${value.render()}")
