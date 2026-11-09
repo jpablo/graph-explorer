@@ -181,6 +181,18 @@ class RecordTreeSpec extends ScalaCheckSuite:
     assertEquals(RecordTree.storedText("a\\"), "a")
     assertEquals(RecordTree.storedText("a\\lb"), "a\\lb")
 
+  test("storedText: a backslash before a control character goes with it"):
+    // The same rule as for a parsed label (see below). If only the control
+    // character goes, the backslash joins the next character: `n` becomes
+    // the line break `\n`.
+    assertEquals(RecordTree.storedText("\\\tn"), "n")
+    assertEquals(RecordTree.storedText("a\\\u0001b"), "ab")
+    // A pair of backslashes is one escaped backslash. It does not escape the
+    // control character after it, so only the control character goes.
+    assertEquals(RecordTree.storedText("a\\\\\tb"), "a\\\\b")
+    // A newline is not dropped: it becomes `\n`, as before.
+    assertEquals(RecordTree.storedText("a\nb"), "a\\nb")
+
   test("displayText: specials unescape, \\n becomes a newline, \\l stays"):
     assertEquals(RecordTree.displayText("a\\|b"), "a|b")
     assertEquals(RecordTree.displayText("a\\nb"), "a\nb")
@@ -242,6 +254,36 @@ class RecordTreeSpec extends ScalaCheckSuite:
     // space they want kept, and canonicalising must not silently delete it.
     val tree = RecordTree.parse("a \\ b")
     assertEquals(RecordTree.serialize(tree), "a b")
+
+  /** A control character after a backslash. On 2026-11-08 the seed
+    * lAzZcFrC6Q-0j-OKtl5vwpWI3wf-i2d2OmDEt8ze3WL= found it. ScalaCheck shrank
+    * it to three characters: a backslash, a NUL character, and a backslash.
+    *
+    * The parser skips a control character, but it keeps a control character
+    * that follows a backslash. The first pass gave a backslash and a NUL
+    * character. The second parse trimmed the NUL character at the end, and
+    * the field became empty. Thus the first pass was not a fixed point.
+    */
+  test("an escaped control character settles in ONE pass"):
+    def once(s: String) = RecordTree.serialize(RecordTree.parse(s))
+    def shown(s: String) = s.flatMap(c => if c < ' ' then f"\\u${c.toInt}%04x" else c.toString)
+
+    val labels = Vector("\\\u0000\\", "\\\u0000", "a\\\u0001b", "a \\\t b", "\\\u0000 a", "x\\\\\\\u0000", "a|\\\u0000|b")
+    for label <- labels do
+      assertEquals(shown(once(once(label))), shown(once(label)), s"not a fixed point after one pass: ${shown(label)}")
+      // Leaf text holds no control character, as with the text from the dialog.
+      for leaf <- RecordTree.leaves(RecordTree.parse(label)) do
+        assert(!leaf.text.exists(_ < ' '), s"a control character in the leaf text ${shown(leaf.text)}, from ${shown(label)}")
+
+  test("a backslash before a control character goes with it, and the next character keeps its meaning"):
+    // The renderer shows a backslash and a control character as the control
+    // character alone, which is invisible. If only the control character
+    // goes, the backslash joins the next character: `n` becomes the line
+    // break `\n`.
+    def once(s: String) = RecordTree.serialize(RecordTree.parse(s))
+    assertEquals(once("\\\u0001n"), "n")
+    assertEquals(once("a\\\u0001b"), "ab")
+    assertEquals(once("\\\u0000\\"), "")
 
   /** The counterexample the property above found, pinned so it is checked on
     * every run rather than whenever a seed happens to reach it.

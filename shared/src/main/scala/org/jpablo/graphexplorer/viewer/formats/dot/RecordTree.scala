@@ -16,6 +16,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
   *     and collapsed (exactly what the parser would do anyway);
   *   - leaf `text` never ends in an unpaired backslash (it would swallow
   *     the following separator when serialized);
+  *   - leaf `text` holds no control character, and no backslash that
+  *     escaped one (see [[dropControlChars]]);
   *   - `port` is `None` rather than `Some("")`, and empty text is `""`
   *     rather than the parser's internal `" "`;
   *   - groups are never empty.
@@ -52,9 +54,11 @@ object RecordTree:
     val port = f.id.map(_.trim).filter(_.nonEmpty)
     if f.isLeaf then
       val text = f.text.map(t => if t == " " then "" else t).getOrElse("")
-      // Collapse BEFORE dropping a dangling backslash: dropping one can itself
-      // expose a trailing space, and that path re-trims on its own.
-      Leaf(port, dropUnpairedTrailingBackslash(collapseUnescapedSpaces(text)))
+      // Drop the control characters first: the removal of a pair can put two
+      // spaces side by side. Collapse BEFORE dropping a dangling backslash:
+      // dropping one can itself expose a trailing space, and that path
+      // re-trims on its own.
+      Leaf(port, dropUnpairedTrailingBackslash(collapseUnescapedSpaces(dropControlChars(text))))
     else Group(port, f.flds.map(fromField))
 
   /** Canonical label string: fields joined with `" | "`, `<port> ` prefixes,
@@ -249,21 +253,53 @@ object RecordTree:
         i += 1
     sb.result()
 
-  /** Dialog text → canonical stored form: newlines become `\n`, control
-    * characters drop, record specials escape, unescaped spaces collapse and
-    * trim (all exactly what the parser would do). User-typed escapes such
-    * as `\l` pass through; a trailing unpaired backslash is dropped (it
-    * would swallow the following separator).
+  /** Dialog text → canonical stored form: newlines become `\n`, other
+    * control characters drop (with a backslash that escapes one), record
+    * specials escape, unescaped spaces collapse and trim (all exactly what
+    * the parser would do). User-typed escapes such as `\l` pass through; a
+    * trailing unpaired backslash is dropped (it would swallow the following
+    * separator).
     */
   def storedText(display: String): String =
     val normalized = display.replace("\r\n", "\n").replace('\r', '\n')
     val sb         = StringBuilder()
     for c <- normalized do
       if c == '\n' then sb ++= "\\n"
-      else if c < ' ' then ()
       else if Specials(c) then { sb += '\\'; sb += c }
       else sb += c
-    dropUnpairedTrailingBackslash(sb.result().trim.replaceAll(" {2,}", " "))
+    dropUnpairedTrailingBackslash(dropControlChars(sb.result()).trim.replaceAll(" {2,}", " "))
+
+  /** Remove every control character, and the backslash that escapes one.
+    *
+    * Restores the invariant at the top: leaf `text` holds no control
+    * character. The engine's parser skips a control character, but it keeps
+    * one that comes after a backslash. Its `flush` then trims the field with
+    * `String.trim`, which removes a control character at the end. Thus
+    * `"\␀\"` gave the leaf `"\␀"`, and only a SECOND parse made it empty. A
+    * ScalaCheck seed found it; the counterexample is pinned in RecordTreeSpec.
+    *
+    * The backslash goes with the control character. The label renderer
+    * shows `\` and a control character as the control character alone, so
+    * the pair is invisible. If only the control character goes, the
+    * backslash joins the next character and changes its meaning: `n`
+    * becomes the line break `\n`.
+    *
+    * Escape-aware: `\\` is one escaped backslash. It does not escape the
+    * next character, so a control character there goes alone.
+    */
+  private def dropControlChars(s: String): String =
+    val sb = StringBuilder()
+    var i  = 0
+    while i < s.length do
+      val c = s.charAt(i)
+      if c == '\\' && i + 1 < s.length then
+        val n = s.charAt(i + 1)
+        if n >= ' ' then { sb += c; sb += n }
+        i += 2
+      else
+        if c >= ' ' then sb += c
+        i += 1
+    sb.result()
 
   /** Collapse and trim runs of UNESCAPED spaces.
     *
