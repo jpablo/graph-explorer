@@ -81,3 +81,54 @@ class GxHomeSpec extends FunSuite:
     assertEquals(GxHome.libraryDir(root), Paths.get("/tmp/scratch/library"))
     assertEquals(GxHome.runtimeDir(root), Paths.get("/tmp/scratch/runtime"))
   }
+
+  // ------------------------------------------------ the folder of new diagrams
+
+  test("with no GX_DIAGRAMS_DIR, new diagrams go to ~/Documents/Graph Explorer") {
+    assertEquals(
+      GxHome.diagramsDir(env(), home("/Users/someone")),
+      Right(Paths.get("/Users/someone/Documents/Graph Explorer"))
+    )
+  }
+
+  test("GX_DIAGRAMS_DIR replaces the folder of new diagrams") {
+    assertEquals(
+      GxHome.diagramsDir(env("GX_DIAGRAMS_DIR" -> "/tmp/../tmp/diagrams"), home("/Users/someone")),
+      Right(Paths.get("/tmp/diagrams"))
+    )
+  }
+
+  test("GX_HOME does not move the folder of new diagrams") {
+    // The diagrams are the files of the person, not the data of gx. A test
+    // that moves GX_HOME must also set GX_DIAGRAMS_DIR, or it writes into
+    // the real Documents folder.
+    assertEquals(
+      GxHome.diagramsDir(env("GX_HOME" -> "/tmp/scratch"), home("/Users/someone")),
+      Right(Paths.get("/Users/someone/Documents/Graph Explorer"))
+    )
+  }
+
+  test("a relative GX_DIAGRAMS_DIR is REFUSED, as a relative GX_HOME is") {
+    for relative <- List("diagrams", "./diagrams", "../diagrams", "a/b") do
+      GxHome.diagramsDir(env("GX_DIAGRAMS_DIR" -> relative), home("/Users/someone")) match
+        case Right(path) => fail(s"[$relative] should have been refused, got $path")
+        case Left(why) =>
+          assert(why.contains("GX_DIAGRAMS_DIR"), s"[$relative] the reason should name the variable: $why")
+          assert(why.contains("absolute"), s"[$relative] the reason should name the rule: $why")
+          assert(why.contains(relative), s"[$relative] the reason should quote the value: $why")
+  }
+
+  test("a blank GX_DIAGRAMS_DIR means unset") {
+    for blank <- List("", "   ") do
+      assertEquals(
+        GxHome.diagramsDir(env("GX_DIAGRAMS_DIR" -> blank), home("/Users/someone")),
+        Right(Paths.get("/Users/someone/Documents/Graph Explorer")),
+        s"blank value [$blank] should read as unset"
+      )
+  }
+
+  test("the metadata store is in the library, beside the old records") {
+    val root = Paths.get("/tmp/scratch")
+    assertEquals(GxHome.metadataDir(root), Paths.get("/tmp/scratch/library/metadata"))
+    assertEquals(GxHome.metadataDir(root).getParent, GxHome.libraryDir(root))
+  }
