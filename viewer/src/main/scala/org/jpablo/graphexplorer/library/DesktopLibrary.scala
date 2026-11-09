@@ -1,395 +1,533 @@
 package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.gxcore.model.*
-import org.jpablo.graphexplorer.gxcore.store.DiagramFileName
-import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages}
-import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc
+import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.gxcore.store.{MetadataMigration, SafeFileName}
+import org.jpablo.graphexplorer.router.Route
+import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, SourceTitle}
+import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopIpc}
+import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc.{DiagramsFolder, FileSnapshot, IpcFailure}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, DocumentSessionId}
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.scalajs.js
+import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
-/** The desktop library: the on-disk store, mirrored in memory (D7.3).
+/** What the home page knows about the file of an entry. */
+enum FileState derives CanEqual:
+  case Loaded(text: String, revision: String)
+  case Missing
+  case Unreadable(message: String)
+
+/** What a rename of a file did. */
+enum FileRename derives CanEqual:
+  /** The file and its entry (if it had one) have the new name. */
+  case Done(path: String)
+
+  /** Nothing changed. `message` tells the person why. */
+  case Refused(message: String)
+
+  /** The file has the new name, but its entry did not move. */
+  case MetadataNotMoved(path: String, message: String)
+
+/** The library of the desktop app: the metadata entries of
+  * `$GX_HOME/library/metadata/`, mirrored in memory (ADR 0001, plan §3).
   *
-  * The store IS the live state, so `gx import` with no window open puts a
-  * diagram in the library the UI reads — no message sent, no second copy. What
-  * makes that workable from a webview is the mirror: disk access is async and
-  * the whole storage surface is synchronous, so reads answer from memory and
-  * writes go out behind them.
+  * A diagram is a file, and the library is the set of files that have an
+  * entry. `gx` writes the same directory, so `gx hide` or `gx add` with no
+  * window open changes the library that the app reads. The shell sends
+  * `ge:library.changed` when the directory changes for a reason that the page
+  * did not cause, and the mirror reads it again.
   *
-  * The mirror is refreshed by `ge:library.changed`, which the shell emits when
-  * the directory moves for a reason the page did not cause.
+  * The key of an entry is the hex SHA-256 of the canonical `file:` URI of its
+  * path ([[LibraryEntry.keySource]]). The page makes the URI with the shared
+  * function and asks the shell for the hash (`hash_text`), so the key is the
+  * key that `gx` computes. The id of a diagram in the list is its key.
+  *
+  * The source of each diagram is in its file, never here. The home page reads
+  * each file for its title and its thumbnail (`read_document`, with no watch),
+  * and a diagram opens through its file (`open_document`), with a document
+  * session, an explicit Save and the conflict banner.
   */
-final class DesktopLibrary(seed: Vector[Diagram]) extends DiagramLibrary:
+final class DesktopLibrary private () extends LibraryListing:
   import DesktopLibrary.*
 
-  given owner: Owner = unsafeWindowOwner
+  /** The entries, by key. */
+  private val entries: Var[Map[String, LibraryEntry]] = Var(Map.empty)
 
-  private val diagrams: Var[Map[String, Diagram]] =
-    Var(seed.map(d => d.id.value -> d).toMap)
-
-  /** Snapshots still waiting to be written, by diagram id.
-    *
-    * An entry here separates two cases. In one case, the diagram changed and
-    * the page must follow it. In the other case, the diagram changed while
-    * the person typed. The two cases have different correct answers.
+  /** The key of each path that the library has hashed. A key never changes,
+    * so the cache never goes stale.
     */
-  private var pending: Map[String, DiagramSnapshot] = Map.empty
+  private val keys: Var[Map[String, String]] = Var(Map.empty)
 
-  /** The text that each open diagram had at the start. With it, the library
-    * can tell an external edit to the SAME field from an external edit to a
-    * different field.
+  /** The file of each entry, as the last read found it. */
+  private val files: Var[Map[String, FileState]] = Var(Map.empty)
+
+  /** A clock of the changes that this page makes, so that a refresh that
+    * started before a change cannot undo it in the mirror.
     */
-  private var seededText: Map[String, String] = Map.empty
+  private var changeClock               = 0L
+  private var lastChange: Map[String, Long] = Map.empty
 
-  dom.window.addEventListener(
-    LibraryChangedEvent,
-    ((_: dom.Event) => { refresh(); () }): js.Function1[dom.Event, Unit]
-  )
+  private var hashing: Map[String, Future[String]]       = Map.empty
+  private var waitingWrites: Map[String, DiagramMetadata] = Map.empty
 
-  // ------------------------------------------------------------- reading
+  private val onLibraryChanged: js.Function1[dom.Event, Unit] = _ => { refresh(); () }
 
-  def index: Signal[LibraryIndex] = diagrams.signal.map(toIndex)
+  dom.window.addEventListener(LibraryChangedEvent, onLibraryChanged)
 
-  def indexNow(): LibraryIndex = toIndex(diagrams.now())
+  /** Stop the listener of `ge:library.changed`. */
+  def close(): Unit = dom.window.removeEventListener(LibraryChangedEvent, onLibraryChanged)
 
-  private def indexByOrigin(byId: Map[String, Diagram]): Map[String, List[BoundDiagram]] =
-    byId.values.toList
-      .flatMap: d =>
-        for
-          binding <- d.binding
-          path    <- binding.origin.filePath
-        yield pathKey(path) -> BoundDiagram(d.id, d.text, binding)
-      .groupMap(_._1)(_._2)
+  // ------------------------------------------------------------- the list
 
-  /** The one form of a path that the two sides of the comparison use.
-    *
-    * The two sides come by different routes. The shell gives a canonical path
-    * as the platform writes it: `C:\Users\x\a.dot` on Windows. A binding stores
-    * a URI. `filePath` decodes the URI to `C:/Users/x/a.dot`, because
-    * `fromCanonicalPath` writes URI separators. Thus one file has two
-    * forms, and a byte comparison does not find the match.
-    *
-    * That miss is SILENT, and it costs much. The file looks unbound, so it
-    * opens as a loose file next to the diagram that already has it. The two
-    * then disagree about the same file.
-    *
-    * Only the separator is different. The case is already the same: the two
-    * sides use the form that the file system uses, which `canonicalization.json`
-    * pins for the two languages. The two sides also remove the Windows `\\?\`
-    * verbatim prefix.
+  /** The list changes when an entry changes, and when a file is read: the
+    * name of a diagram is the title in its source.
     */
-  private def pathKey(path: String): String = path.replace('\\', '/')
+  def index: Signal[LibraryIndex] = entries.signal.combineWith(files.signal).map(toIndex)
 
-  private def toIndex(byId: Map[String, Diagram]): LibraryIndex =
+  def indexNow(): LibraryIndex = toIndex(entries.now(), files.now())
+
+  private def toIndex(byKey: Map[String, LibraryEntry], fileStates: Map[String, FileState]): LibraryIndex =
     LibraryIndex(
-      byId.values.toList
-        .map: d =>
-          DiagramSummary(d.id, d.metadata.name, lastModified = d.updatedAt, createdAt = d.createdAt)
-        // Newest first, matching what the localStorage directory accumulates by
-        // prepending: the library must not reorder itself when the backend changes.
-        .sortBy(-_.lastModified)
+      byKey.toList
+        .map: (key, e) =>
+          DiagramSummary(DiagramId(key), nameOf(e.path, fileStates.get(e.path)), lastModified = e.updatedAt, createdAt = e.createdAt)
+        // Newest first, as the browser library gives its list.
+        .sortBy(d => (-d.lastModified, d.id.value))
     )
 
-  def diagramExists(id: DiagramId): Boolean = diagrams.now().contains(id.value)
-
-  /** The diagrams, by the file that is their origin (§8, Phase 3 item 1).
-    *
-    * This is a real index, so an event does not scan the library. The index
-    * is DERIVED, and the code does not keep it by hand. It changes when
-    * `diagrams` changes, so it always agrees with the diagrams. A second map
-    * that the code keeps by hand is faster to update, but it can become stale.
-    *
-    * The key is the PATH, because a path is what the event gives. The shell
-    * gives a canonical path in a document event. A binding stores a canonical
-    * URI, and `filePath` decodes it to a path. A diagram whose origin is not a
-    * file (an `https:` origin) has no key here, and no event reaches it this
-    * way. That is correct, because nothing on this computer can change it.
+  /** The name of a diagram: the title in its source, or else its file name
+    * with no extension (CONTEXT.md).
     */
-  private val boundByPath: StrictSignal[Map[String, List[BoundDiagram]]] =
-    diagrams.signal.map(indexByOrigin).observe
+  private def nameOf(path: String, state: Option[FileState]): String =
+    state
+      .collect { case FileState.Loaded(text, _) => SourceTitle.of(DiagramFormat.detect(text), text) }
+      .flatten
+      .getOrElse(LibraryEntry.nameOf(path))
 
-  /** One bus for each diagram, so a view gets only the writes that it did
-    * not make.
-    *
-    * Only the watcher in `createDiagramPersistence` sends events on these
-    * buses. That is the full guarantee: an event here comes from the library,
-    * and never from the view that listens.
-    */
-  private val externalBuses = scala.collection.mutable.Map.empty[String, EventBus[DiagramSnapshot]]
+  def diagramExists(id: DiagramId): Boolean = entries.now().contains(id.value)
 
-  private def externalBus(id: String): EventBus[DiagramSnapshot] =
-    externalBuses.getOrElseUpdate(id, EventBus[DiagramSnapshot]())
+  /** The path of the file of a diagram in the list. */
+  def pathOf(id: DiagramId): Option[String] = entries.now().get(id.value).map(_.path)
 
-  override def diagramChangedExternally(id: DiagramId): EventStream[DiagramSnapshot] =
-    externalBus(id.value).events
+  /** The diagram in the list that has this file, if one has. */
+  def idOfPath(path: String): Option[DiagramId] =
+    keys.now().get(path).filter(entries.now().contains).map(DiagramId(_))
 
-  override def diagramsBoundTo(path: String): List[BoundDiagram] =
-    boundByPath.now().getOrElse(pathKey(path), Nil)
-
-  /** The binding of the diagram, read directly and not through the index.
-    *
-    * The method does NOT use [[boundByPath]]. The keys of that index are
-    * [[pathKey]] forms: they are for the COMPARISON of two paths, and the
-    * shell must not get them. `filePath` gives the path as the binding stores
-    * it, and the shell must get that path.
-    *
-    * On Windows, that path is `C:/Users/x/a.dot`, with URI separators, because
-    * `fromCanonicalPath` writes them. The shell normalizes the path with
-    * `Paths.get`, which accepts the two separators, so the path finds the
-    * correct file. But §7 of HANDOFF.md keeps this on the list to test on a
-    * real Windows computer. The last bug of this shape was silent.
-    */
-  override def originPathOf(id: DiagramId): Option[String] =
-    diagrams.now().get(id.value).flatMap(_.binding).flatMap(_.origin.filePath)
+  def fileState(id: DiagramId): Option[FileState] =
+    entries.now().get(id.value).flatMap(e => files.now().get(e.path))
 
   def diagramSource(id: DiagramId): Signal[String] =
-    diagrams.signal.map(_.get(id.value).map(_.text).getOrElse(DiagramSnapshot.minimalGraphText))
+    entries.signal
+      .combineWith(files.signal)
+      .map: (byKey, fileStates) =>
+        byKey
+          .get(id.value)
+          .flatMap(e => fileStates.get(e.path))
+          .collect { case FileState.Loaded(text, _) => text }
+          .getOrElse(DiagramSnapshot.minimalGraphText)
+      .distinct
 
-  def findDiagramBySource(dot: String): Option[DiagramId] =
-    diagrams.now().values.collectFirst { case d if d.text == dot => d.id }
-
-  def diagramCardInfo(id: DiagramId, languages: DiagramLanguages): Option[DiagramCardInfo] =
-    diagrams.now().get(id.value).map: d =>
-      val format = d.format
-        .pipeOpt(f => scala.util.Try(DiagramFormat.valueOf(f)).toOption)
-        .getOrElse(DiagramFormat.detect(d.text))
-      val backend = languages.forFormat(format)
-      val name = d.metadata.name
-      val displayName =
-        if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
-        else backend.extractTitle(d.text).getOrElse(name)
-      DiagramCardInfo(format, displayName, backend.diagramKind(d.text))
-
-  extension (s: String) private def pipeOpt[A](f: String => Option[A]): Option[A] = f(s)
-
-  // ------------------------------------------------------------- writing
-
-  def createEmptyDiagram(name: String): DiagramId =
-    val id  = DiagramId.random
-    val now = js.Date.now().toLong
-    val d = Diagram(
-      id = id,
-      format = "",
-      text = DiagramSnapshot.minimalGraphText,
-      binding = None,
-      metadata = DiagramMetadata(name = name, folder = FolderPath.root),
-      createdAt = now,
-      updatedAt = now
-    )
-    put(d)
-    id
-
-  def createDiagram(name: String, source: String): DiagramId =
-    val id = createEmptyDiagram(name)
-    diagrams.now().get(id.value).foreach(d => put(d.copy(text = source, updatedAt = js.Date.now().toLong)))
-    id
-
-  def deleteDiagram(id: DiagramId): Unit =
-    diagrams.update(_ - id.value)
-    pending -= id.value
-    seededText -= id.value
-    DesktopIpc
-      .invoke("library_delete", js.Dynamic.literal(name = fileNameFor(id)))
-      .failed
-      .foreach(e => dom.console.error(s"could not delete ${id.value}: ${e.getMessage}"))
-
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
-    val initial =
-      diagrams.now().get(id.value).fold(DiagramSnapshot.minimal(initialSource))(LibraryMapping.toSnapshot)
-
-    seededText += id.value -> initial.source
-    val state = Var(initial)
-
-    state.signal.distinct.changes.foreach: next =>
-      pending += id.value -> next
-      schedule(id)
-
-    // An external change while this diagram is open. When no write waits,
-    // the page follows the diagram: the source AND the metadata. That IS
-    // D7.3, and that is how a headless `gx run hide` shows on the screen
-    // without a reload.
-    diagrams.signal.changes.foreach: byId =>
-      byId.get(id.value).foreach: latest =>
-        if !pending.contains(id.value) then
-          val fresh = LibraryMapping.toSnapshot(latest)
-          if fresh != state.now() then
-            seededText += id.value -> fresh.source
-            state.set(fresh)
-            // The ONE place an outside write is announced. Setting the `Var`
-            // above is not enough — its stream also carries this view's own
-            // writes, and a consumer cannot tell them apart.
-            externalBus(id.value).emit(fresh)
-        else if latest.text != seededText.getOrElse(id.value, latest.text) then
-          // Both sides changed the text. The user is looking at theirs, so it
-          // wins — but silently discarding a `gx set` would be the kind of
-          // loss that is only noticed much later.
-          dom.console.warn(
-            s"[library] ${id.value} was edited on disk while you were typing; " +
-              "the on-screen version was kept."
-          )
-          seededText += id.value -> latest.text
-
-    state
-
-  /** Store what reconciliation decided (§8, Phase 3 item 4).
-    *
-    * The write goes through `put`, so an open viewer follows it.
-    * `createDiagramPersistence` watches `diagrams`, and it sets its `Var` when
-    * the person does not edit. When the person edits, it warns and keeps the
-    * edit. Thus a raw origin event must never go to `ViewerState` directly
-    * (item 6). A change must go to the diagram, and all other parts follow
-    * from there.
-    *
-    * CAUTION: this comment said that the viewer followed long before it did.
-    * The `Var` write is only one half. For a long time, nothing used the other
-    * half: the viewer read the store ONCE at mount, so a pull went to the store
-    * and did not show on the screen. `Persistence.followDiagram` uses it now.
-    * A write to this `Var` is not a proof that a person saw it.
-    *
-    * `updatedAt` changes only when the TEXT changes. A pull changes the source.
-    * A move of a stale baseline does not change the source, and the library
-    * sorts by that field. Thus a `Converged` diagram must not go to the top of
-    * the list for a change that nobody made.
+  /** What a card shows. `None` while the file is not read yet. A missing file
+    * shows as missing: its name is the file name, and `problem` says why.
     */
-  override def storeReconciliation(id: DiagramId, text: Option[String], base: ContentHash): Unit =
-    for
-      d       <- diagrams.now().get(id.value)
-      binding <- d.binding
-    do
-      val at = js.Date.now().toLong
+  def diagramCardInfo(id: DiagramId, languages: DiagramLanguages): Option[DiagramCardInfo] =
+    entries.now().get(id.value).flatMap: e =>
+      val fileName = LibraryEntry.nameOf(e.path)
+      files.now().get(e.path).map:
+        case FileState.Loaded(text, _) =>
+          val format  = DiagramFormat.detect(text)
+          val backend = languages.forFormat(format)
+          DiagramCardInfo(format, backend.extractTitle(text).getOrElse(fileName), backend.diagramKind(text))
+        case FileState.Missing =>
+          DiagramCardInfo(formatOfPath(e.path), fileName, None, problem = Some(s"The file is missing: ${e.path}"))
+        case FileState.Unreadable(message) =>
+          DiagramCardInfo(formatOfPath(e.path), fileName, None, problem = Some(s"The file cannot be read: $message"))
+
+  /** "Remove from library": the entry goes, and the file stays. */
+  def deleteDiagram(id: DiagramId): Unit =
+    removeEntry(id.value)
+    ()
+
+  // ------------------------------------------------- the metadata of a file
+
+  /** The metadata of the entry of a file, if the library has one. */
+  def metadataOf(path: String): Option[DiagramMetadata] =
+    keys.now().get(path).flatMap(entries.now().get).map(_.metadata)
+
+  /** The entry of a file as it changes. It starts the hash of the path, if
+    * the library does not know the key of the path yet.
+    */
+  def entrySignal(path: String): Signal[Option[LibraryEntry]] =
+    keyOf(path).failed.foreach(e => dom.console.warn(s"[library] no key for $path: ${messageOf(e)}"))
+    keys.signal
+      .combineWith(entries.signal)
+      .map((byPath, byKey) => byPath.get(path).flatMap(byKey.get))
+      .distinct
+
+  /** Give the metadata of the viewer of a file to its entry.
+    *
+    * The viewer owns the hidden elements, the collapsed groups and the
+    * language mode. The entry owns the rest: the tags and the notes, which the
+    * viewer has no UI for. The write merges the two onto the entry as it is
+    * NOW. Thus a `gx tag` that arrives while the file is on the screen stays
+    * after the next hide in the viewer.
+    *
+    * Only a change writes. When the viewer gives what the entry already holds
+    * (an edit of the source, a visit, the adoption of an outside change), the
+    * write does not occur. A visit is not an edit, and a write would move
+    * `updatedAt`. A file with no entry gets one on its first change, and that
+    * puts it in the library, as `gx hide` does.
+    */
+  def writeMetadata(path: String, viewer: DiagramMetadata): Unit =
+    keys.now().get(path) match
+      case Some(key) =>
+        putMetadata(key, path, viewer)
+        ()
+      case None =>
+        // The key comes from the shell. Keep only the latest value while it
+        // comes, so that a burst of changes gives one write.
+        waitingWrites += path -> viewer
+        keyOf(path).foreach: key =>
+          waitingWrites.get(path).foreach: latest =>
+            waitingWrites -= path
+            putMetadata(key, path, latest)
+
+  private def putMetadata(key: String, path: String, viewer: DiagramMetadata): Future[Unit] =
+    val current = entries.now().get(key)
+    val unchanged = current match
+      case Some(e) => Owned.of(e.metadata) == Owned.of(viewer)
+      case None    => Owned.of(viewer) == Owned.none
+    if unchanged then Future.unit
+    else
+      val now  = js.Date.now().toLong
+      val base = current.fold(DiagramMetadata(name = LibraryEntry.nameOf(path)))(_.metadata)
       put(
-        d.copy(
-          text = text.getOrElse(d.text),
-          binding = Some(binding.copy(baseHash = base, lastSyncAt = at)),
-          updatedAt = if text.isDefined then at else d.updatedAt
+        key,
+        LibraryEntry(
+          path = current.fold(path)(_.path),
+          metadata = base.copy(
+            hiddenElements = viewer.hiddenElements,
+            collapsedGroups = viewer.collapsedGroups,
+            autoDetectFormat = viewer.autoDetectFormat
+          ),
+          createdAt = current.fold(now)(_.createdAt),
+          updatedAt = now
         )
       )
 
-  /** Write the snapshot, merged onto the diagram as it is NOW, and not as it
-    * was when the page opened it.
-    *
-    * That merge is the compare-and-swap. `LibraryMapping.mergeViewerSave` is
-    * the one merge rule: it copies the tags, the notes, the folder, the
-    * binding and `createdAt` from `latest`. The method reads `latest` again at
-    * the time of the write. Thus a `gx run tag` that arrives during an edit
-    * stays after the next keystroke, and a stale copy does not overwrite it.
+  // ------------------------------------------------------------- the files
+
+  /** Open the file of a diagram in the list: watch it, and make its document
+    * session. The result is the route of the session.
     */
-  private def writeNow(id: DiagramId, state: DiagramSnapshot): Unit =
-    val latest  = diagrams.now().get(id.value)
-    val diagram = LibraryMapping.mergeViewerSave(id, state, latest, js.Date.now().toLong)
+  def open(id: DiagramId): Future[Either[String, Route]] =
+    entries.now().get(id.value) match
+      case None => Future.successful(Left("This diagram is not in the library any more."))
+      case Some(entry) => openPath(entry.path)
 
-    // A visit is not an edit. When the merge gives the diagram that the
-    // library already holds, only the clock is different. A write of it moves
-    // `updatedAt`, and the library sorts by that field. Thus the diagrams move
-    // in the list only because a person looked at one.
-    //
-    // This is a guard, not a fix for a live bug. `signal.distinct` already
-    // stops a state that did not change. The guard catches the case that
-    // `distinct` cannot see: a different snapshot that maps to the same
-    // diagram. The adoption of a change from a different writer is one such
-    // case: the `Var` above takes that change, and its own listener marks a
-    // write, but the write maps to the diagram that the library holds.
-    //
-    // (A really new field DOES write, one time. When a person opens a diagram
-    // from before `autoDetectFormat`, the field becomes `true` and the library
-    // saves it. That is the default of the viewer, it is older than D7.3, and
-    // it occurs one time for each diagram.)
-    val unchanged = latest.exists(current => diagram.copy(updatedAt = current.updatedAt) == current)
-    if !unchanged then put(diagram)
-
-  private def put(d: Diagram): Unit =
-    diagrams.update(_.updated(d.id.value, d))
-    val json = upickle.default.write(d, indent = 2)
+  private[library] def openPath(path: String): Future[Either[String, Route]] =
     DesktopIpc
-      .invoke("library_write", js.Dynamic.literal(name = s"${DiagramFileName.of(d.id)}.json", json = json))
-      .failed
-      .foreach(e => dom.console.error(s"could not save ${d.id.value}: ${e.getMessage}"))
+      .openFile(path)
+      .map: snapshot =>
+        files.update(_.updated(path, FileState.Loaded(snapshot.text, snapshot.revision)))
+        // The shell gives the canonical spelling of the path. It names the
+        // same file, so it has the same entry.
+        keys.now().get(path).foreach(key => keys.update(_.updated(snapshot.path, key)))
+        val session = DesktopDocumentRegistry.record(snapshot.path, snapshot.revision, snapshot.text)
+        Right(Route.File(session.id.value))
+      .recoverWith:
+        case NonFatal(error) =>
+          readFileState(path).map: (_, state) =>
+            files.update(_.updated(path, state))
+            state match
+              case FileState.Missing => Left(s"The file $path is missing. Put it back, or remove it from the library.")
+              case _                 => Left(s"Could not open $path: ${messageOf(error)}")
 
-  private def fileNameFor(id: DiagramId): String = s"${DiagramFileName.of(id)}.json"
-
-  // ------------------------------------------------------------- pacing
-
-  private var timers: Map[String, Int] = Map.empty
-
-  /** A file write per keystroke would rewrite the whole diagram through an IPC
-    * hop; `localStorage` never had to care. The cost of batching is a window in
-    * which edits exist only in memory, which is what [[flush]] closes.
-    */
-  private def schedule(id: DiagramId): Unit =
-    timers.get(id.value).foreach(dom.window.clearTimeout)
-    val handle = dom.window.setTimeout(
-      () =>
-        timers -= id.value
-        pending.get(id.value).foreach: state =>
-          pending -= id.value
-          writeNow(id, state)
-      ,
-      WriteDebounceMs
-    )
-    timers += id.value -> handle
-
-  override def flush(): Unit =
-    val outstanding = pending
-    pending = Map.empty
-    timers.values.foreach(dom.window.clearTimeout)
-    timers = Map.empty
-    outstanding.foreach: (idValue, state) =>
-      writeNow(DiagramId(idValue), state)
-
-  // ------------------------------------------------------------ refresh
-
-  /** Re-read the whole library.
+  /** "New diagram": a NEW file in the folder for new diagrams, with an entry,
+    * open on the screen (ADR 0001).
     *
-    * Returns its Future so a test can assert V-15 by awaiting it rather than
-    * sleeping and hoping — the same reason the shell's watcher decision was
-    * pulled out of its thread.
+    * The name is `<name><extension>`, and then `<name> 2<extension>`, and so
+    * on: the shell refuses a name that exists (`create_document`), and the
+    * next number is tried.
+    */
+  def newDiagram(name: String, text: String, extension: String): Future[Either[String, Route]] =
+    val created =
+      for
+        folder <- DesktopIpc.diagramsFolder()
+        file   <- createUnique(folder, SafeFileName.of(name), extension, text)
+      yield file
+    created.transformWith:
+      case Failure(e) => Future.successful(Left(s"Could not make a new diagram: ${messageOf(e)}"))
+      case Success(file) =>
+        val now = js.Date.now().toLong
+        keyOf(file.path)
+          .flatMap(key => put(key, LibraryEntry(file.path, DiagramMetadata(name = LibraryEntry.nameOf(file.path)), now, now)))
+          .transformWith:
+            case Failure(e) =>
+              // The file exists, so the person must hear where it is.
+              Future.successful(Left(s"The new file ${file.path} exists, but it could not join the library (${messageOf(e)})."))
+            case Success(_) =>
+              files.update(_.updated(file.path, FileState.Loaded(file.text, file.revision)))
+              openPath(file.path)
+
+  private def createUnique(folder: DiagramsFolder, base: String, extension: String, text: String): Future[FileSnapshot] =
+    val taken = folder.existing.map(_.toLowerCase).toSet
+    def attempt(n: Int): Future[FileSnapshot] =
+      val fileName = SafeFileName.numbered(base, n) + extension
+      if taken.contains(fileName.toLowerCase) then attempt(n + 1)
+      else
+        DesktopIpc.createFile(MetadataMigration.pathIn(folder.path, fileName), text).recoverWith:
+          case IpcFailure("DOCUMENT_EXISTS", _) if n < MaxNumber => attempt(n + 1)
+    attempt(1)
+
+  /** "Rename": rename the FILE, and then move its entry to the key of the new
+    * path (ADR 0001, plan §6).
+    *
+    * The file goes first. If the entry does not move, the file has the new
+    * name and the result says so: the person sees the file, and the metadata
+    * stays with the old name. The shell refuses a name that exists.
+    *
+    * The document session moves to the new path, so the view on the screen
+    * stays, and the next save writes the new file. The shell moved its watch.
+    */
+  def renameFile(session: DocumentSessionId, newName: String): Future[FileRename] =
+    DesktopDocumentRegistry.get(session) match
+      case None => Future.successful(FileRename.Refused("This file is not open any more."))
+      case Some(open) =>
+        fileNameFor(newName, open.path) match
+          case Left(why) => Future.successful(FileRename.Refused(why))
+          case Right(fileName) =>
+            DesktopIpc.renameFile(open.path, siblingOf(open.path, fileName)).transformWith:
+              case Failure(IpcFailure("DOCUMENT_EXISTS", _)) =>
+                Future.successful(FileRename.Refused(s"A file named $fileName exists already. Choose a different name."))
+              case Failure(error) =>
+                Future.successful(FileRename.Refused(s"Could not rename the file: ${messageOf(error)}"))
+              case Success(renamed) =>
+                DesktopDocumentRegistry.move(session, renamed.path)
+                files.update: states =>
+                  states.get(open.path).fold(states)(state => states.removed(open.path).updated(renamed.path, state))
+                moveEntry(open.path, renamed.path)
+
+  /** Move the entry of `from` to the key of `to`. Write the new entry first,
+    * and then remove the old one. Thus a failure leaves two entries, and never
+    * none.
+    */
+  private def moveEntry(from: String, to: String): Future[FileRename] =
+    keyOf(from).flatMap: oldKey =>
+      entries.now().get(oldKey) match
+        case None => Future.successful(FileRename.Done(to))
+        case Some(entry) =>
+          keyOf(to)
+            .flatMap: newKey =>
+              val moved = entry.copy(path = to, metadata = entry.metadata.copy(name = LibraryEntry.nameOf(to)), updatedAt = js.Date.now().toLong)
+              put(newKey, moved)
+            .transformWith:
+              case Failure(error) =>
+                Future.successful(
+                  FileRename.MetadataNotMoved(
+                    to,
+                    s"The file is now $to, but its metadata could not move (${messageOf(error)}). " +
+                      "The library still has the metadata under the old name of the file."
+                  )
+                )
+              case Success(_) =>
+                removeEntry(oldKey).transform:
+                  case Success(_) => Success(FileRename.Done(to))
+                  case Failure(error) =>
+                    Success(
+                      FileRename.MetadataNotMoved(
+                        to,
+                        s"The file is now $to, and its metadata moved with it. The old entry could not go " +
+                          s"(${messageOf(error)}), so the library also lists the old name as a missing file. " +
+                          "Remove that one from the library."
+                      )
+                    )
+
+  /** Read each file of the list again, for the titles and the thumbnails. The
+    * home page calls this when it opens, because a different tool can change
+    * a file at any time.
+    */
+  def readFiles(): Future[Unit] =
+    readPaths(entries.now().values.map(_.path).toVector.distinct)
+
+  private def readUnknownFiles(): Future[Unit] =
+    val known = files.now()
+    readPaths(entries.now().values.map(_.path).toVector.distinct.filterNot(known.contains))
+
+  private def readPaths(paths: Vector[String]): Future[Unit] =
+    Future.traverse(paths)(readFileState).map(states => files.update(_ ++ states))
+
+  private def readFileState(path: String): Future[(String, FileState)] =
+    DesktopIpc
+      .readFile(path)
+      .map(snapshot => path -> FileState.Loaded(snapshot.text, snapshot.revision))
+      .recover:
+        case IpcFailure("DOCUMENT_MISSING", _) => path -> FileState.Missing
+        case NonFatal(error)                    => path -> FileState.Unreadable(messageOf(error))
+
+  // ----------------------------------------------------------- the entries
+
+  /** Write an entry. The mirror changes at once, and the write goes to the
+    * shell. A failed write reads the store again, so that the mirror shows
+    * what the disk holds.
+    */
+  private[library] def put(key: String, entry: LibraryEntry): Future[Unit] =
+    entries.update(_.updated(key, entry))
+    keys.update(_.updated(entry.path, key))
+    markChange(key)
+    DesktopIpc
+      .libraryWrite(s"$key.json", upickle.default.write(entry, indent = 2))
+      .andThen:
+        case Failure(error) =>
+          dom.console.error(s"[library] could not save the metadata of ${entry.path}: ${messageOf(error)}")
+          refresh()
+
+  private def removeEntry(key: String): Future[Unit] =
+    entries.update(_.removed(key))
+    markChange(key)
+    DesktopIpc
+      .libraryDelete(s"$key.json")
+      .map(_ => ())
+      .andThen:
+        case Failure(error) =>
+          dom.console.error(s"[library] could not remove $key.json: ${messageOf(error)}")
+          refresh()
+
+  private[library] def contains(key: String): Boolean = entries.now().contains(key)
+
+  private def markChange(key: String): Unit =
+    changeClock += 1
+    lastChange += key -> changeClock
+
+  /** The key of a path: from the cache, or from the shell. Two calls for one
+    * path while the shell works get the same answer.
+    */
+  private[library] def keyOf(path: String): Future[String] =
+    keys.now().get(path) match
+      case Some(key) => Future.successful(key)
+      case None =>
+        hashing.get(path) match
+          case Some(waiting) => waiting
+          case None =>
+            val result = DesktopIpc
+              .entryNameOf(path)
+              .map: name =>
+                val key = name.stripSuffix(".json")
+                keys.update(_.updated(path, key))
+                key
+              .andThen { case _ => hashing -= path }
+            hashing += path -> result
+            result
+
+  /** Read the store again (V-15: a diagram that `gx add` wrote is there).
+    *
+    * An entry that this page changed after the read started keeps the value
+    * of the page: the read can hold the bytes from before that change.
+    *
+    * Returns its Future so a test can wait for it rather than sleep.
     */
   private[library] def refresh(): Future[Unit] =
-    DesktopLibrary.load().map: loaded =>
-      diagrams.set(loaded.map(d => d.id.value -> d).toMap)
+    val started = changeClock
+    loadEntries()
+      .map: loaded =>
+        val changedHere = lastChange.collect { case (key, at) if at > started => key }
+        val current     = entries.now()
+        entries.set(changedHere.foldLeft(loaded)((m, key) => current.get(key).fold(m.removed(key))(m.updated(key, _))))
+      .flatMap(_ => readUnknownFiles())
+
+  /** Each entry that the shell can see, and whose name is the key of its path.
+    *
+    * An entry that does not parse, or whose name is not the key of its path,
+    * is REPORTED and skipped. One bad file must not take down the whole library.
+    * `MetadataStore.unreadable()` makes the same choice on the JVM. When the
+    * shell cannot list the store, the mirror keeps what it has.
+    */
+  private def loadEntries(): Future[Map[String, LibraryEntry]] =
+    DesktopIpc
+      .libraryList()
+      .flatMap: stored =>
+        val parsed = stored.flatMap: file =>
+          file.content match
+            case Left(why) =>
+              dom.console.warn(s"[library] ${file.name} could not be read: $why")
+              None
+            case Right(json) =>
+              try Some(file.name -> upickle.default.read[LibraryEntry](json))
+              catch
+                case NonFatal(e) =>
+                  dom.console.warn(s"[library] ${file.name} is not a readable entry: ${e.getMessage}")
+                  None
+        Future
+          .traverse(parsed): (name, entry) =>
+            keyOf(entry.path)
+              .map: key =>
+                if s"$key.json" == name then Some(key -> entry)
+                else
+                  dom.console.warn(
+                    s"[library] $name is the entry of ${entry.path}, and its name is not the key of that path. " +
+                      "The list does not show it."
+                  )
+                  None
+              .recover { case NonFatal(e) => dom.console.warn(s"[library] no key for ${entry.path}: ${messageOf(e)}"); None }
+          .map(_.flatten.toMap)
+      .recover:
+        case NonFatal(e) =>
+          dom.console.error(s"[library] could not be listed: ${messageOf(e)}")
+          entries.now()
 
 object DesktopLibrary:
 
   private val LibraryChangedEvent = "ge:library.changed"
 
-  /** Long enough that a burst of typing is one write, short enough that the
-    * window a crash could lose stays small.
-    */
-  private val WriteDebounceMs = 400.0
+  /** The highest number that "New diagram" tries before it stops. */
+  private val MaxNumber = 1000
 
-  /** Read each diagram that the shell can see.
-    *
-    * When a diagram does not parse, the method REPORTS it and skips it. One
-    * bad file must not take down the whole library and make the app look
-    * empty. `LibraryStore.unreadable()` guards against the same failure on
-    * the JVM.
+  /** Read the library, and the file of each entry. */
+  def load(): Future[DesktopLibrary] =
+    val library = new DesktopLibrary()
+    library.refresh().map(_ => library)
+
+  /** The fields of the metadata that the viewer owns. `None` and `Some(true)`
+    * of the language mode are the same value: the viewer reads `None` as on.
     */
-  def load(): Future[Vector[Diagram]] =
-    if !DesktopIpc.available then Future.successful(Vector.empty)
+  private final case class Owned(hidden: Set[String], collapsed: Set[String], autoDetect: Boolean) derives CanEqual
+
+  private object Owned:
+    def of(m: DiagramMetadata): Owned = Owned(m.hiddenElements, m.collapsedGroups, m.autoDetectFormat.getOrElse(true))
+    val none: Owned                   = Owned(Set.empty, Set.empty, autoDetect = true)
+
+  private[library] def messageOf(error: Throwable): String = error match
+    case IpcFailure(_, message) => message
+    case other                  => Option(other.getMessage).getOrElse(other.toString)
+
+  private def formatOfPath(path: String): DiagramFormat =
+    if path.toLowerCase.endsWith(".mmd") || path.toLowerCase.endsWith(".mermaid") then DiagramFormat.Mermaid
+    else DiagramFormat.DOT
+
+  /** The file name for a rename. A name with no extension keeps the extension
+    * of the file.
+    */
+  private[library] def fileNameFor(typed: String, oldPath: String): Either[String, String] =
+    val name = typed.trim
+    if name.isEmpty then Left("A file name cannot be empty.")
+    else if name.exists(c => c == '/' || c == '\\') then Left("A file name cannot contain / or \\.")
+    else if name == "." || name == ".." then Left(s"$name is not a file name.")
+    else if name.lastIndexOf('.') > 0 then Right(name)
     else
-      DesktopIpc
-        .invoke("library_list", js.Dynamic.literal())
-        .map: raw =>
-          val entries = raw.asInstanceOf[js.Array[js.Dynamic]]
-          entries.toVector.flatMap: entry =>
-            val name = entry.selectDynamic("name").asInstanceOf[String]
-            val json = entry.selectDynamic("json")
-            if js.isUndefined(json) || json == null then
-              dom.console.warn(s"[library] $name could not be read")
-              None
-            else
-              try Some(upickle.default.read[Diagram](json.asInstanceOf[String]))
-              catch
-                case NonFatal(e) =>
-                  dom.console.warn(s"[library] $name is not a readable diagram: ${e.getMessage}")
-                  None
-        .recover:
-          case NonFatal(e) =>
-            dom.console.error(s"[library] could not be listed: ${e.getMessage}")
-            Vector.empty
+      val oldName = oldPath.substring(oldPath.lastIndexWhere(c => c == '/' || c == '\\') + 1)
+      val ext     = oldName.lastIndexOf('.') match
+        case i if i > 0 => oldName.substring(i)
+        case _          => ""
+      Right(name + ext)
+
+  /** A file in the folder of `path`, with the separator of `path`. */
+  private[library] def siblingOf(path: String, fileName: String): String =
+    path.lastIndexWhere(c => c == '/' || c == '\\') match
+      case -1 => fileName
+      case i  => path.substring(0, i + 1) + fileName

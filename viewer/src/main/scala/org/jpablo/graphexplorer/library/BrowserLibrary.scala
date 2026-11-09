@@ -22,8 +22,17 @@ case class DiagramSummary(
   */
 case class LibraryIndex(@upickle.implicits.key("projects") diagrams: List[DiagramSummary] = Nil) derives ReadWriter
 
-/** The facts that a library card shows, from the payload of a diagram. */
-case class DiagramCardInfo(format: DiagramFormat, displayName: String, diagramKind: Option[String])
+/** The facts that a library card shows, from the payload of a diagram.
+  *
+  * `problem` is for the desktop, where a diagram is a file: a file that is
+  * missing or that cannot be read has a card that says so.
+  */
+case class DiagramCardInfo(
+    format:      DiagramFormat,
+    displayName: String,
+    diagramKind: Option[String],
+    problem:     Option[String] = None
+)
 
 /** The browser library: `localStorage`, and the only option on the web.
   *

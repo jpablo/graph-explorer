@@ -1,18 +1,19 @@
 package org.jpablo.graphexplorer.library
 
-import org.jpablo.graphexplorer.gxcore.model.Diagram
-import org.jpablo.graphexplorer.gxcore.store.{DiagramFileName, DiagramSink, LocalStorageMigration, MigrationReport}
+import org.jpablo.graphexplorer.gxcore.store.{LocalStorageMigration, MetadataMigration}
 import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc
-import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.scalajs.dom
 
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.scalajs.js
 import scala.util.control.NonFatal
 
-/** Bringing the browser library onto disk, once (D7.3).
+/** The browser library goes onto the disk, once (D7.3, plan §4).
+  *
+  * Each browser diagram becomes a NEW file in the folder for new diagrams,
+  * and an entry in the library, in the same way as an old record with no file
+  * (`MetadataMigration`). There is no binding: the file is the diagram.
   *
   * Non-destructive by choice: `localStorage` is left exactly as it is, so the
   * browser copy remains a fallback until there is reason to trust the disk one.
@@ -22,79 +23,78 @@ object DesktopMigration:
 
   /** Marks the copy as done.
     *
-    * Needed because "already in the store" is NOT a safe test for whether to
-    * migrate again. Leaving `localStorage` populated means a diagram deleted in
-    * the desktop is still in the browser library, and a second run would
-    * cheerfully resurrect it — deletion would silently not stick. Running once
-    * is what makes the two libraries diverge legitimately from then on.
+    * Needed because "already in the library" is NOT a safe test for whether
+    * to copy again. `localStorage` stays as it is, so a diagram that a person
+    * removed from the desktop library is still in the browser library, and a
+    * second run would bring it back. Running once is what makes the two
+    * libraries diverge legitimately from then on.
     */
   private val DoneKey = "graph-explorer.migrated-to-disk"
 
   def hasRun: Boolean = BrowserLibrary.readFlag(DoneKey).isDefined
 
-  /** @param existing ids already on disk, so a re-run cannot duplicate them */
-  def runOnce(existing: Set[String]): Future[Option[MigrationReport]] =
+  /** Copy the browser library into `library`, one time.
+    *
+    * The metadata store must exist: run [[DesktopMetadataMigration]] first.
+    * An entry that exists is not written again, so a second run after a crash
+    * changes no metadata that a person changed since.
+    *
+    * @return the lines of the report, or `None` when nothing was copied
+    */
+  def runOnce(library: DesktopLibrary, now: () => Long = () => js.Date.now().toLong): Future[Option[Vector[String]]] =
     if hasRun then Future.successful(None)
     else
-      val sink = CollectingSink(existing)
-      LocalStorageMigration.migrate(
-        directoryJson = BrowserLibrary.rawIndexJson,
-        payloadFor = BrowserLibrary.rawPayload,
-        store = sink,
-        now = () => js.Date.now().toLong
-      ) match
+      LocalStorageMigration.read(BrowserLibrary.rawIndexJson, BrowserLibrary.rawPayload, now) match
         case Left(why) =>
-          // A directory we cannot parse is not a reason to start with an empty
-          // library, and it is certainly not a reason to mark the copy done.
+          // An index that does not parse is not a reason to start with an
+          // empty library, and it is certainly not a reason to mark the copy
+          // done.
           dom.console.error(s"[library] the browser library could not be read, so nothing was copied: $why")
           Future.successful(None)
 
-        case Right(report) =>
-          writeAll(sink.collected.toVector).map: failures =>
-            if failures.isEmpty then
-              // Only now. Marking it done after a partial write would strand
-              // whatever failed, with the flag saying there was nothing to do.
-              BrowserLibrary.writeFlag(DoneKey, js.Date.now().toLong.toString)
-              Some(report)
-            else
-              dom.console.error(
-                s"[library] ${failures.size} diagram(s) could not be copied to disk; " +
-                  "the browser library is untouched and the copy will be retried next launch."
+        case Right(old) if old.isEmpty =>
+          markDone()
+          Future.successful(None)
+
+        case Right(old) =>
+          val copied =
+            for
+              folder  <- DesktopIpc.diagramsFolder()
+              inPlace <- MigrationSteps.readEach(MigrationSteps.reusable(folder, old))
+              plan = MetadataMigration.plan(
+                old = old,
+                readFile = path => inPlace.get(path).map(_.text),
+                diagramsFolder = folder.path,
+                existingNames = folder.existing.toSet,
+                now = now()
               )
-              failures.foreach(f => dom.console.error(s"[library]   $f"))
-              None
+              created <- MigrationSteps.createFiles(plan)
+              outcome <- created match
+                case Left(failed) => Future.successful(Left(failed.reason +: failed.report))
+                case Right(_) =>
+                  Future
+                    .traverse(plan.entries)(entry => library.keyOf(entry.path).map(_ -> entry))
+                    .flatMap: keyed =>
+                      // An entry that exists stays as it is: a second run
+                      // after a crash finds the entries of the first run.
+                      Future.traverse(keyed.filterNot((key, _) => library.contains(key)))((key, entry) => library.put(key, entry))
+                    .map(_ => Right(plan.report))
+            yield outcome
 
-  private def writeAll(diagrams: Vector[Diagram]): Future[Vector[String]] =
-    Future
-      .sequence:
-        diagrams.map: d =>
-          DesktopIpc
-            .invoke(
-              "library_write",
-              js.Dynamic.literal(
-                name = s"${DiagramFileName.of(d.id)}.json",
-                json = upickle.default.write(d, indent = 2)
-              )
-            )
-            .map(_ => None)
-            .recover { case NonFatal(e) => Some(s"${d.id.value}: ${e.getMessage}") }
-      .map(_.flatten)
+          copied
+            .recover { case NonFatal(e) => Left(Vector(s"the browser library could not be copied: ${DesktopLibrary.messageOf(e)}")) }
+            .map:
+              case Right(report) =>
+                // Only now. Marking it done after a partial write would strand
+                // whatever failed, with the flag saying there was nothing to do.
+                markDone()
+                Some("The diagrams of the browser library are now files:" +: report)
+              case Left(lines) =>
+                dom.console.error(
+                  "[library] the browser library could not be copied to disk; " +
+                    "the browser library is untouched and the copy will be retried next launch."
+                )
+                lines.foreach(l => dom.console.error(s"[library]   $l"))
+                Some("The browser library could not be copied. The next start tries again:" +: lines)
 
-  /** Collects what the migration decided to write, so the actual disk writes
-    * can be awaited and CHECKED.
-    *
-    * `DiagramSink.write` is synchronous and the desktop's is not. Firing the
-    * invokes from inside it and returning `Right` regardless would produce a
-    * report that says "imported" about writes nobody watched land.
-    */
-  private final class CollectingSink(existing: Set[String]) extends DiagramSink:
-    val collected: mutable.Buffer[Diagram] = mutable.Buffer.empty
-
-    def initialize(): Unit = ()
-
-    def contains(id: DiagramId): Boolean =
-      existing.contains(id.value) || collected.exists(_.id.value == id.value)
-
-    def write(diagram: Diagram): Either[String, Diagram] =
-      collected += diagram
-      Right(diagram)
+  private def markDone(): Unit = BrowserLibrary.writeFlag(DoneKey, js.Date.now().toLong.toString)

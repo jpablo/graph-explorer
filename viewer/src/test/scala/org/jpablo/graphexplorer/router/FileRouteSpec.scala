@@ -9,12 +9,12 @@ import org.scalajs.dom
 import scala.concurrent.Promise
 import scala.scalajs.js
 
-/** Phase 2 item 2: a loose file has a route, so it has a destination.
+/** Phase 2 item 2: a file has a route, so it has a destination.
   *
   * The route holds an opaque session id, and holds no path (§13). A route that
   * held the path would put that path in the URL and in the browser history.
   */
-class LooseFileRouteSpec extends FunSuite with TestHelpers:
+class FileRouteSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
@@ -36,7 +36,7 @@ class LooseFileRouteSpec extends FunSuite with TestHelpers:
       """
     )
 
-  test("a /documents/<id> path parses to a loose-document route") {
+  test("a /documents/<id> path parses to a file route") {
     stubWindow()
     dom.window.history.pushState(null, "", "/documents/doc-abc123")
 
@@ -46,7 +46,7 @@ class LooseFileRouteSpec extends FunSuite with TestHelpers:
     val router = Router()
 
     router.currentRoute.foreach:
-      case Route.LooseFile(sessionId) =>
+      case Route.File(sessionId) =>
         assertEquals(sessionId, "doc-abc123")
         done.trySuccess(())
       case other =>
@@ -55,14 +55,14 @@ class LooseFileRouteSpec extends FunSuite with TestHelpers:
     done.future
   }
 
-  test("navigating to a loose document writes /documents/<id> and no path") {
+  test("navigating to a file writes /documents/<id> and no path") {
     stubWindow()
     dom.window.history.pushState(null, "", "/")
 
     given Owner = unsafeWindowOwner
 
     val router = Router()
-    router.navigateTo(Route.LooseFile("doc-abc123"))
+    router.navigateTo(Route.File("doc-abc123"))
 
     assertEquals(dom.window.location.pathname, "/documents/doc-abc123")
   }

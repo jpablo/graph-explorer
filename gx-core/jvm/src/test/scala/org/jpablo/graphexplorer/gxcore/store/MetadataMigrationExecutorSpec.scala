@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.gxcore.store
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.fs.{FileOrigins, GxHome}
 import org.jpablo.graphexplorer.gxcore.model.*
-import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -30,25 +29,21 @@ class MetadataMigrationExecutorSpec extends FunSuite:
   private def metadataDir(dir: Path) = GxHome.metadataDir(home(dir))
   private def diagramsDir(dir: Path) = GxHome.libraryDir(home(dir)).resolve("diagrams")
 
-  private def oldStore(dir: Path): LibraryStore =
-    val store = LibraryStore(GxHome.libraryDir(home(dir)))
-    store.initialize()
-    store
-
-  private def record(id: String, name: String, text: String, file: Option[Path] = None): Diagram =
-    Diagram(
-      id = DiagramId(id),
+  private def record(id: String, name: String, text: String, file: Option[Path] = None): LegacyRecord =
+    LegacyRecord(
+      id = id,
       format = "DOT",
       text = text,
-      binding = file.map(f => Binding(FileOrigins.originOf(f), SyncMode.Sync, ContentHash.fromHex("00"), 1L)),
+      origin = file.map(f => FileOrigins.originOf(f).value),
       metadata = DiagramMetadata(name = name, hiddenElements = Set("node:a")),
       createdAt = 10L,
       updatedAt = 20L
     )
 
-  private def save(dir: Path, diagrams: Diagram*): Unit =
-    val store = oldStore(dir)
-    diagrams.foreach(d => store.save(d).fold(e => fail(s"$e"), identity))
+  /** Write old records into `diagrams/`, as the old `gx` did. */
+  private def save(dir: Path, records: LegacyRecord*): Unit =
+    Files.createDirectories(diagramsDir(dir))
+    records.foreach(r => Files.writeString(diagramsDir(dir).resolve(s"${r.id}.json"), OldRecordJson.of(r)))
 
   private def run(dir: Path, beforePublish: Path => Unit = _ => ()): MetadataMigrationResult =
     MetadataMigrationExecutor.run(home(dir), docs(dir), now = () => 99L, beforePublish = beforePublish)

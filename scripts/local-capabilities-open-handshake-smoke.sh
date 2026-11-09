@@ -9,26 +9,23 @@
 # that the shell dispatches, a real page mounts the right view, calls back
 # through `complete_open`, and only THEN does the socket answer the caller.
 #
-# What it pins:
+# What it pins. A diagram is a file (ADR 0001), so each open is a FILE open.
+# The `show` request has no `library` target kind any more.
 #
-#   1. `show` with a library target succeeds only after the page acknowledges.
-#      Before the handshake, `show` returned as soon as it had dispatched an
-#      event — so `gx open` reported success for opens the user never saw.
-#   2. A record that does not exist is REFUSED, not reported as shown. The page
-#      cannot route to it, says so, and the refusal reaches the caller instead
-#      of the caller waiting out the timeout.
-#   3. An open issued against a still-starting desktop is not lost (§4.1). The
-#      socket answers from process start, before the webview exists; a request
-#      in that window used to be dispatched into a page with no listener.
-#   0. A loose file opens on a COLD desktop — one that has displayed nothing
-#      yet. Checked FIRST, because opening anything else installs the document
-#      listener and hides the failure.
-#   4. A LOOSE FILE open is acknowledged too, and the acknowledgment names the
-#      document session that displayed it (§15.6, Phase 2 item 7). A file
-#      `show` used to keep only the NO_WINDOW check, so `gx open <path>`
-#      reported success for a file no viewer had. The second open of the same
-#      path is checked as well: registration is idempotent, display is not
-#      (§4.2).
+#   0. A file opens on a COLD desktop — one that has displayed nothing yet.
+#      Checked FIRST, because an earlier open installs the document listener
+#      and hides the failure.
+#   1. An open against a desktop that can still be starting is served (§4.1),
+#      and it succeeds only after the page acknowledges. The socket answers
+#      from process start, before the webview exists. Before the handshake,
+#      `show` returned as soon as it had dispatched an event, so `gx open`
+#      reported success for opens the user never saw.
+#   2. A file that does not exist is REFUSED quickly. The refusal reaches the
+#      caller, and the caller does not wait for the timeout.
+#   3. A second open of the same file, with the window up, is acknowledged
+#      too: registration is idempotent, display is not (§4.2).
+#   4. The acknowledgment names the document session that displayed the file
+#      (§15.6, Phase 2 item 7), and a second open lands on the same session.
 #
 # Local only, like its siblings: it needs a release desktop binary and a real
 # window, neither of which CI's `cargo test --locked` job provides.
@@ -39,16 +36,21 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DESKTOP_BIN="${ROOT_DIR}/desktop/src-tauri/target/release/graph-explorer-desktop"
 
 # A SANDBOX library, not the user's. GX_HOME moves the library, the socket and
-# the audit log together, so this gate can seed records and start a desktop
-# without touching a real one — and without killing a desktop the user is using,
-# since the socket it advertises lives under this root too.
+# the audit log together, so this gate can start a desktop without touching a
+# real one — and without killing a desktop the user is using, since the socket
+# it advertises lives under this root too.
 #
 # Absolute by construction: a relative GX_HOME is refused by both halves,
 # precisely because the two processes need not share a working directory.
 GX_HOME="$(mktemp -d "${TMPDIR:-/tmp}/gx-open-handshake-XXXXXX")"
 export GX_HOME
 RUNTIME_FILE="${GX_HOME}/runtime/control.json"
-LIBRARY_DIR="${GX_HOME}/library/diagrams"
+
+# GX_HOME does not move the folder for new diagrams. The desktop migration
+# writes files into that folder at the first start, so it must be in the
+# sandbox too, and not in the real ~/Documents.
+GX_DIAGRAMS_DIR="${GX_HOME}/diagrams"
+export GX_DIAGRAMS_DIR
 
 # The control helpers read this to find the socket.
 export CONTROL_RUNTIME_FILE="${RUNTIME_FILE}"
@@ -63,14 +65,13 @@ export API_TIMEOUT=60
 source "${ROOT_DIR}/scripts/lib/control-api.sh"
 
 desktop_pid=""
-record_file=""
 
 cleanup() {
   if [[ -n "${desktop_pid}" ]]; then
     kill "${desktop_pid}" >/dev/null 2>&1 || true
     wait "${desktop_pid}" >/dev/null 2>&1 || true
   fi
-  # The whole sandbox, records and socket and audit log together.
+  # The whole sandbox: the library, the diagrams, the socket and the audit log.
   if [[ -n "${GX_HOME}" && "${GX_HOME}" == */gx-open-handshake-* ]]; then
     rm -rf "${GX_HOME}"
   fi
@@ -141,67 +142,28 @@ fail() {
 }
 
 
-# A library record `gx import` would have written. Created directly rather than
-# by shelling out to gx: this gate is about the open path, and depending on the
-# CLI would make a gx bug look like a handshake bug.
-seed_record() {
-  local id="$1"
-  mkdir -p "${LIBRARY_DIR}"
-  record_file="${LIBRARY_DIR}/${id}.json"
-  # The shape upickle actually reads, not a plausible-looking one. `id` is a
-  # single-field case class and serializes as {"value": ...} rather than a bare
-  # string, and metadata carries hiddenElements/tags/autoDetectFormat. A record
-  # that does not parse is SKIPPED rather than fatal — by design — so getting
-  # this wrong presents as "no diagram in this library", which is indeed what it
-  # presented as.
-  jq -n --arg id "${id}" '{
-    id: { value: $id },
-    name: "handshake smoke",
-    folder: { segments: [] },
-    format: "DOT",
-    text: "digraph G {\n  a -> b\n}\n",
-    binding: null,
-    metadata: { hiddenElements: [], tags: [], autoDetectFormat: true },
-    createdAt: 1,
-    updatedAt: 1
-  }' > "${record_file}"
-  echo "seeded library record ${id}"
-}
-
-# No pkill: the desktop started below advertises its socket under this
-# sandbox's runtime directory, so it cannot collide with one the user is
-# running — and killing theirs to run a test would be a poor trade.
-RECORD_ID="handshake-smoke"
-seed_record "${RECORD_ID}"
-
 echo "starting release desktop runtime..."
 "${DESKTOP_BIN}" >/tmp/graph-explorer-open-handshake-smoke.log 2>&1 &
 desktop_pid=$!
 
-# ---------------------------------------------------------------- 3. cold open
-#
-# Issued as early as the socket will take it, which is deliberately BEFORE the
-# webview is up. The handshake is what makes this wait rather than vanish, so
-# this call standing in for "a shell alias that launches the desktop and opens a
-# diagram" is the whole point of §4.1.
-echo "waiting for the control socket (not the window)..."
+echo "waiting for the control socket..."
 if ! control_wait_ready 120; then
   fail "desktop control API did not become ready"
 fi
 
 # ------------------------------------- 0. a FILE opens on a cold desktop
 #
-# BEFORE any library open, on purpose. The document listener used to be
-# installed by the first diagram view that mounted, so a desktop sitting on Home
-# had none: the document event carrying the file's text was dropped, and the
-# open request that followed answered DOCUMENT_NOT_FOUND. Opening a record
-# first installed the listener and hid it.
+# BEFORE any other open, on purpose. The document listener used to be
+# installed by the first diagram view that mounted, so a desktop on Home had
+# none: the document event with the text of the file was dropped, and the open
+# request that came next answered DOCUMENT_NOT_FOUND. An earlier open installed
+# the listener and hid the failure.
 #
-# So the order of these two checks is the check. Do not move this below.
+# So the order of the checks is the check. Do not move this below.
 cold_file="${GX_HOME}/cold-open.dot"
 printf 'digraph G { cold -> start }\n' > "${cold_file}"
 
-echo "opening a loose file on a desktop that has shown nothing yet..."
+echo "opening a file on a desktop that has shown nothing yet..."
 body="$(api_show_file "${cold_file}")"
 if [[ "$(api_last_status)" != "ok" ]]; then
   echo "${body}" >&2
@@ -225,79 +187,83 @@ for attempt in 1 2 3; do
 done
 echo "three immediate reset-view calls succeeded"
 
-echo "opening a library record against a possibly-starting desktop..."
+# ------------------------------- 1. an open on a possibly-starting desktop
+#
+# The cold open above can arrive before the webview is up. The handshake makes
+# it wait, and not vanish (§4.1). This open of a second file measures the
+# time, and it must be acknowledged as a file view.
+started_file="${GX_HOME}/started.dot"
+printf 'digraph G { started -> desktop }\n' > "${started_file}"
+
+echo "opening a file against a possibly-starting desktop..."
 started_at="$(python3 -c 'import time; print(int(time.time()*1000))')"
-body="$(api_show_library "${RECORD_ID}")"
+body="$(api_show_file "${started_file}")"
 elapsed=$(( $(python3 -c 'import time; print(int(time.time()*1000))') - started_at ))
 
 if [[ "$(api_last_status)" != "ok" ]]; then
   echo "${body}" >&2
-  fail "a cold-start open was not served (code: $(api_last_error_code))"
+  fail "a file open was not served (code: $(api_last_error_code))"
 fi
+[[ "$(jq -r '.result.view.kind // ""' <<<"${body}")" == "file" ]] \
+  || fail "the open was not acknowledged as a file view"
+echo "file open acknowledged in ${elapsed}ms"
 
-kind="$(jq -r '.result.kind' <<<"${body}")"
-[[ "${kind}" == "library" ]] || fail "expected a library result, got '${kind}'"
-returned_id="$(jq -r '.result.diagramId' <<<"${body}")"
-[[ "${returned_id}" == "${RECORD_ID}" ]] || fail "expected ${RECORD_ID}, got '${returned_id}'"
-echo "cold-start open acknowledged in ${elapsed}ms"
-
-# ------------------------------------------------------- 1. the page really answers
+# ------------------------------------------------------- 3. the page really answers
 #
-# The window is up by now, so this second open exercises the steady-state path.
-# It has to be acknowledged too: registration being idempotent must not make
-# display idempotent (§4.2).
-echo "opening the same record again, with the window already up..."
-body="$(api_show_library "${RECORD_ID}")"
+# The window is up now, so this second open uses the steady path. It must be
+# acknowledged too: registration is idempotent, and display must not be
+# (§4.2).
+echo "opening the same file again, with the window already up..."
+body="$(api_show_file "${started_file}")"
 [[ "$(api_last_status)" == "ok" ]] || {
   echo "${body}" >&2
   fail "a warm open was refused (code: $(api_last_error_code))"
 }
 echo "warm open acknowledged"
 
-# -------------------------------------------------- 2. an unroutable record is refused
+# -------------------------------------------------- 2. a missing file is refused
 #
-# The page cannot route to a record that is not there. It must SAY so: the
-# alternative is the caller waiting out the full open budget for an answer that
-# was known immediately.
-echo "opening a record that does not exist..."
+# The shell cannot watch a file that is not there. It must SAY so at once. The
+# other answer is a caller that waits for the full open budget.
+echo "opening a file that does not exist..."
 started_at="$(python3 -c 'import time; print(int(time.time()*1000))')"
-body="$(api_show_library "no-such-record-at-all")"
+body="$(api_show_file "${GX_HOME}/no-such-file-at-all.dot")"
 elapsed=$(( $(python3 -c 'import time; print(int(time.time()*1000))') - started_at ))
 
 if [[ "$(api_last_status)" == "ok" ]]; then
   echo "${body}" >&2
-  fail "opening a nonexistent record reported success"
+  fail "opening a file that does not exist reported success"
 fi
 
 code="$(api_last_error_code)"
 case "${code}" in
-  VIEW_REJECTED|DIAGRAM_NOT_FOUND) echo "refused as ${code} in ${elapsed}ms" ;;
+  WATCH_FAILED) echo "refused as ${code} in ${elapsed}ms" ;;
   OPEN_TIMEOUT) fail "the page never answered; a known-immediately refusal cost the full budget" ;;
   *) fail "unexpected refusal code '${code}'" ;;
 esac
 
-# A refusal the page computed, not one the shell waited out. Ten seconds is far
+# A refusal the shell computed, not one it waited out. Ten seconds is far
 # under the 45s open budget and far over any plausible round trip.
 if (( elapsed > 10000 )); then
   fail "the refusal took ${elapsed}ms — that is a timeout wearing a refusal's code"
 fi
 
-# ------------------------------------ 4. a loose file is acknowledged, by session
+# ------------------------------------ 4. a file is acknowledged, by session
 #
-# The defect Phase 2 item 7 repairs. A loose file had no route, so the page
-# could not answer "displayed" for one — and a file `show` therefore did not
-# ask. It reported success as soon as it had a window.
+# The defect Phase 2 item 7 repairs. A file had no route, so the page could
+# not answer "displayed" for one, and a file `show` did not ask. It reported
+# success as soon as it had a window.
 loose_file="${GX_HOME}/loose-smoke.dot"
 printf 'digraph G { smoke -> test }\n' > "${loose_file}"
 
-echo "opening a loose file..."
+echo "opening a file..."
 started_at="$(python3 -c 'import time; print(int(time.time()*1000))')"
 body="$(api_show_file "${loose_file}")"
 elapsed=$(( $(python3 -c 'import time; print(int(time.time()*1000))') - started_at ))
 
 if [[ "$(api_last_status)" != "ok" ]]; then
   echo "${body}" >&2
-  fail "a loose file open was not served (code: $(api_last_error_code))"
+  fail "a file open was not served (code: $(api_last_error_code))"
 fi
 
 # The acknowledgment has to say WHAT was displayed. Without this the check
@@ -320,12 +286,12 @@ esac
 case "${session_id}" in
   */*|*loose-smoke*) fail "the session id leaks the path: '${session_id}'" ;;
 esac
-echo "loose file acknowledged as ${session_id} in ${elapsed}ms"
+echo "file acknowledged as ${session_id} in ${elapsed}ms"
 
 # §4.2: the watch already exists now. Display is a separate operation and must
 # complete the handshake again — and must land on the SAME session, or one file
 # would accumulate routes.
-echo "opening the same loose file again..."
+echo "opening the same file again..."
 body="$(api_show_file "${loose_file}")"
 [[ "$(api_last_status)" == "ok" ]] || {
   echo "${body}" >&2

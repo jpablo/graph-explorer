@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.gxcore.store
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.*
-import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 /** The pure plan of the migration from the old records to the metadata store
   * (plan §4). Each test names the rule that it checks.
@@ -12,38 +11,34 @@ class MetadataMigrationSpec extends FunSuite:
   private val folder = "/home/me/Documents/Graph Explorer"
   private val now    = 1800000000000L
 
-  private def origin(path: String): OriginUri =
-    OriginUri.parse(s"file://$path").fold(e => fail(e), identity)
-
-  private def bound(path: String): Option[Binding] =
-    Some(Binding(origin(path), SyncMode.Sync, ContentHash.fromHex("00"), 1L))
+  private def bound(path: String): Option[String] = Some(s"file://$path")
 
   private def record(
       id:       String,
       name:     String,
       text:     String = "digraph G { a -> b }\n",
-      binding:  Option[Binding] = None,
+      binding:  Option[String] = None,
       format:   String = "DOT",
       metadata: DiagramMetadata => DiagramMetadata = identity
-  ): Diagram =
-    Diagram(
-      id = DiagramId(id),
+  ): LegacyRecord =
+    LegacyRecord(
+      id = id,
       format = format,
       text = text,
-      binding = binding,
+      origin = binding,
       metadata = metadata(DiagramMetadata(name = name)),
       createdAt = 1000L,
       updatedAt = 2000L
     )
 
   private def plan(
-      records:  Vector[Diagram],
+      records:  Vector[LegacyRecord],
       files:    Map[String, String] = Map.empty,
       existing: Set[String] = Set.empty,
       inFolder: String = folder
   ): MetadataMigrationPlan =
     MetadataMigration.plan(
-      records = records,
+      old = OldRecords(records, Vector.empty),
       readFile = files.get,
       diagramsFolder = inFolder,
       existingNames = existing,
@@ -65,8 +60,8 @@ class MetadataMigrationSpec extends FunSuite:
     assert(p.report.exists(_.contains("/work/arch.dot")), p.report)
 
   test("a text that differs only in its line endings is the same text"):
-    // The old model stored the text with the convention of the file
-    // (`Reconciler.storedWith`). Thus an LF copy of a CRLF file is in sync.
+    // The old model stored the text of a bound record with the line endings
+    // of its file. Thus an LF copy of a CRLF file is the same text.
     val r = record("arch", "arch", "digraph G {\n  a\n}\n", bound("/work/arch.dot"))
     val p = plan(Vector(r), files = Map("/work/arch.dot" -> "digraph G {\r\n  a\r\n}\r\n"))
     assertEquals(p.files, Vector.empty)
@@ -120,10 +115,10 @@ class MetadataMigrationSpec extends FunSuite:
     assert(p.report.exists(_.contains("/gone/notes.dot")), p.report)
 
   test("a record bound to an origin that is not a file: a new file in the folder"):
-    val https = OriginUri.parse("https://example.com/a.dot").fold(e => fail(e), identity)
-    val r     = record("w", "Web", binding = Some(Binding(https, SyncMode.Pull, ContentHash.fromHex("00"), 1L)))
-    val p     = plan(Vector(r))
+    val r = record("w", "Web", binding = Some("https://example.com/a.dot"))
+    val p = plan(Vector(r))
     assertEquals(p.files.map(_.path), Vector(s"$folder/Web.dot"))
+    assert(p.report.exists(_.contains("https://example.com/a.dot is not a file")), p.report)
 
   test("the extension comes from the format"):
     val p = plan(
@@ -315,3 +310,22 @@ class MetadataMigrationSpec extends FunSuite:
 
   test("no records give an empty plan"):
     assertEquals(plan(Vector.empty), MetadataMigrationPlan(Vector.empty, Vector.empty, Vector.empty))
+
+  test("the report ends with a line for each old record that does not parse"):
+    val p = MetadataMigration.plan(
+      old = OldRecords(Vector(record("n", "Notes")), Vector("the old record diagrams/bad.json cannot be read (x).")),
+      readFile = _ => None,
+      diagramsFolder = folder,
+      existingNames = Set.empty,
+      now = now
+    )
+    assertEquals(p.entries.size, 1)
+    assertEquals(p.report.last, "the old record diagrams/bad.json cannot be read (x).")
+
+  test("pathIn gives the paths that the plan asks for, with the separator of the folder"):
+    // A host reads the files of the folder before the plan. It must read the
+    // same strings that the plan gives to `readFile`.
+    assertEquals(MetadataMigration.pathIn(folder, "Recovered/Notes.dot"), s"$folder/Recovered/Notes.dot")
+    assertEquals(MetadataMigration.pathIn(folder + "/", "Notes.dot"), s"$folder/Notes.dot")
+    val win = """C:\Users\me\Documents\Graph Explorer"""
+    assertEquals(MetadataMigration.pathIn(win, "Recovered/Notes.dot"), win + """\Recovered\Notes.dot""")

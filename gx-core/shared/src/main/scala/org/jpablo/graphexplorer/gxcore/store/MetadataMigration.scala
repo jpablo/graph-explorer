@@ -19,7 +19,7 @@ final case class MetadataMigrationPlan(
 /** The one-time migration from the old records to the metadata store (plan
   * §4, ADR 0001).
   *
-  * An old record (the old [[Diagram]]) kept a copy of the source. The new
+  * An old record ([[LegacyRecord]]) kept a copy of the source. The new
   * library keeps only metadata, by the path of a file. Thus each old record
   * needs a file:
   *
@@ -34,7 +34,9 @@ final case class MetadataMigrationPlan(
   *
   * This object is pure. It reads files only through `readFile`. A host
   * performs the plan: `MetadataMigrationExecutor` on the JVM, and the desktop
-  * app through its IPC commands in phase 3.
+  * app through its IPC commands (`DesktopMetadataMigration`). The
+  * browser-to-desktop migration makes its records with
+  * `LocalStorageMigration.read`, and it uses the same plan.
   */
 object MetadataMigration:
 
@@ -46,7 +48,17 @@ object MetadataMigration:
     */
   private val DefaultName = "Untitled"
 
-  /** @param records        the old records, in the order of the old library
+  /** The path of a file in the folder for new diagrams. `relative` uses `/`.
+    * The result uses the separator of the folder: `\\` for a Windows folder.
+    * A host that reads the files of the folder before the plan uses this
+    * function, so that it reads the paths that the plan asks for.
+    */
+  def pathIn(diagramsFolder: String, relative: String): String =
+    val separator = if isWindowsPath(diagramsFolder) then '\\' else '/'
+    diagramsFolder.stripSuffix(separator.toString) + separator + relative.replace('/', separator)
+
+  /** @param old            the old records ([[OldRecords.fromFiles]] or
+    *                       `LocalStorageMigration.read`)
     * @param readFile       the text of a file, by its canonical path. `None`
     *                       when the file is missing.
     * @param diagramsFolder the canonical path of the folder for new diagrams
@@ -57,34 +69,44 @@ object MetadataMigration:
     *                       of each entry.
     * @param localPath      the canonical path of a `file:` origin. A host can
     *                       canonicalize the path again on its own file system.
+    * @return the plan. Its report ends with a line for each record that does
+    *         not parse.
     */
   def plan(
-      records:        Vector[Diagram],
+      old:            OldRecords,
       readFile:       String => Option[String],
       diagramsFolder: String,
       existingNames:  Set[String],
       now:            Long,
       localPath:      OriginUri => Option[String] = _.filePath
   ): MetadataMigrationPlan =
+    val p = planRecords(old.records, readFile, diagramsFolder, existingNames, now, localPath)
+    p.copy(report = p.report ++ old.unreadable)
+
+  private[store] def planRecords(
+      records:        Vector[LegacyRecord],
+      readFile:       String => Option[String],
+      diagramsFolder: String,
+      existingNames:  Set[String],
+      now:            Long,
+      localPath:      OriginUri => Option[String]
+  ): MetadataMigrationPlan =
 
     val existing = existingNames.map(_.toLowerCase)
 
-    val separator = if isWindowsPath(diagramsFolder) then '\\' else '/'
+    def join(relative: String): String = pathIn(diagramsFolder, relative)
 
-    def join(relative: String): String =
-      diagramsFolder.stripSuffix(separator.toString) + separator + relative.replace('/', separator)
-
-    def fileOf(record: Diagram): Option[String] =
-      record.binding.map(_.origin).filter(_.scheme == OriginScheme.File).flatMap(localPath)
+    def fileOf(record: LegacyRecord): Option[String] =
+      record.origin.flatMap(raw => OriginUri.parse(raw).toOption).flatMap(localPath)
 
     /** Each record whose file exists, with the path and the text of the file. */
-    val withFile: Vector[(Int, Diagram, String, String)] =
+    val withFile: Vector[(Int, LegacyRecord, String, String)] =
       records.zipWithIndex.flatMap: (record, index) =>
         fileOf(record).flatMap(path => readFile(path).map(text => (index, record, path, text)))
 
     val boundPaths = withFile.map(_._3).distinct
 
-    def entry(state: State, record: Diagram, path: String, sourceText: String, line: String): State =
+    def entry(state: State, record: LegacyRecord, path: String, sourceText: String, line: String): State =
       val meta      = record.metadata
       val name      = meta.name.trim
       val title     = SourceTitle.of(formatOf(record), sourceText)
@@ -115,7 +137,7 @@ object MetadataMigration:
       * text and no entry has it yet. This makes a second run after a crash
       * safe: it finds the files of the first run again.
       */
-    def newFile(state: State, record: Diagram, subfolder: Option[String], why: String): State =
+    def newFile(state: State, record: LegacyRecord, subfolder: Option[String], why: String): State =
       val base = SafeFileName.of(record.metadata.name)
       val ext  = extensionOf(formatOf(record))
       val dir  = subfolder.fold("")(_ + "/")
@@ -140,7 +162,7 @@ object MetadataMigration:
       )
       entry(withFile, record, path, record.text, line)
 
-    def recover(state: State, record: Diagram, why: String): State =
+    def recover(state: State, record: LegacyRecord, why: String): State =
       newFile(state, record, Some(RecoveredFolder), why)
 
     // The bound files go first. Thus a new file cannot take the place of a
@@ -151,7 +173,7 @@ object MetadataMigration:
       // One file has one set of metadata. The first choice is a record whose
       // text is the text of the file. The next choice is the record with the
       // latest change. Each other record gets a file in Recovered/.
-      val ordered = group.map(_._2).sortBy(r => (!sameText(r.text, fileText), -r.updatedAt, r.id.value))
+      val ordered = group.map(_._2).sortBy(r => (!sameText(r.text, fileText), -r.updatedAt, r.id))
       val owner   = ordered.head
       val moved   = entry(state, owner, path, fileText, s"${label(owner)}: the metadata moves to $path.")
       val checked =
@@ -163,10 +185,10 @@ object MetadataMigration:
     val boundIndexes = withFile.map(_._1).toSet
     val result = records.zipWithIndex.filterNot((_, i) => boundIndexes.contains(i)).foldLeft(afterBound):
       case (state, (record, _)) =>
-        val why = record.binding.map(_.origin) match
-          case None                                     => "it had no file"
-          case Some(o) if o.scheme != OriginScheme.File => s"its origin ${o.value} is not a file"
-          case Some(o)                                  => s"its file ${fileOf(record).getOrElse(o.value)} is missing"
+        val why = record.origin match
+          case None                                 => "it had no file"
+          case Some(o) if OriginUri.parse(o).isLeft => s"its origin $o is not a file"
+          case Some(o)                              => s"its file ${fileOf(record).getOrElse(o)} is missing"
         newFile(state, record, None, why)
 
     MetadataMigrationPlan(result.files, result.entries, result.report)
@@ -184,11 +206,10 @@ object MetadataMigration:
       claimed: Set[String] = Set.empty
   )
 
-  private def label(record: Diagram): String = s"\"${record.metadata.name}\" [${record.id.value}]"
+  private def label(record: LegacyRecord): String = s"\"${record.metadata.name}\" [${record.id}]"
 
   /** The old model kept the text of a bound record in the line endings of its
-    * file (`Reconciler.storedWith`). Thus a different line ending is not a
-    * different text.
+    * file. Thus a different line ending is not a different text.
     */
   private def sameText(recordText: String, fileText: String): Boolean =
     recordText == fileText || LineEnding.detect(fileText).applyTo(recordText) == fileText
@@ -196,7 +217,7 @@ object MetadataMigration:
   /** The format of a record. The record keeps it as text, so a format from a
     * later version is possible. Then the text decides.
     */
-  private def formatOf(record: Diagram): DiagramFormat =
+  private def formatOf(record: LegacyRecord): DiagramFormat =
     DiagramFormat.values.find(_.toString == record.format).getOrElse(DiagramFormat.detect(record.text))
 
   private def extensionOf(format: DiagramFormat): String = format match

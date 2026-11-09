@@ -202,58 +202,40 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
   private def openEvent(detail: js.Dynamic): dom.Event =
     js.Dynamic.literal(detail = detail).asInstanceOf[dom.Event]
 
-  private def everyDiagramExists: String => Boolean = _ => true
-  private def noDiagramExists: String => Boolean     = _ => false
-
-  test("a library open request routes to that diagram, by id"):
-    // This is the purpose of the typed target: the id stays the same from the
-    // shell to the page. Before, `gx open` changed each reference to a PATH and
-    // discarded the diagram id. Thus an open request could not identify the
-    // diagram. Also, an unbound diagram has no path, so nobody could open it.
-    val decision = DesktopOpenRequests.decide(
-      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "architecture"))),
-      everyDiagramExists
+  test("an open request for a library record is refused: the desktop opens only files"):
+    // Each diagram on the desktop is a file (ADR 0001), and `gx` no longer
+    // sends the `library` kind. A shell or a `gx` from before must get a
+    // refusal, not a route to a diagram of the browser library.
+    assertEquals(
+      DesktopOpenRequests.decide(
+        openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "architecture")))
+      ),
+      DesktopOpenRequests.Decision.Reject("VIEW_REJECTED", "the page could not route to that target")
     )
-    decision match
-      case DesktopOpenRequests.Decision.Show(route, _) => assertEquals(route, Route.Diagram("architecture"))
-      case other                                       => fail(s"expected a route, got $other")
 
   test("an open request we cannot act on navigates nowhere"):
     // Untrusted input from outside the page. Guessing a route would navigate
     // away from whatever the user is looking at, which is strictly worse than
     // refusing a request that names nothing.
     val unusable = List(
-      js.Dynamic.literal(target = js.Dynamic.literal(kind = "library")),                     // no id
-      js.Dynamic.literal(target = js.Dynamic.literal(kind = "library", diagramId = "   ")),   // blank id
-      js.Dynamic.literal(target = js.Dynamic.literal(kind = "loose-file", diagramId = "x")),  // newer shell
-      js.Dynamic.literal(target = js.Dynamic.literal(diagramId = "architecture")),            // no kind
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "file")),                         // no path
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "   ")),           // blank path
+      js.Dynamic.literal(target = js.Dynamic.literal(kind = "loose-file", path = "/tmp/x")),  // a different shell
+      js.Dynamic.literal(target = js.Dynamic.literal(path = "/tmp/x")),                       // no kind
       js.Dynamic.literal(target = js.Dynamic.literal()),                                      // empty target
       js.Dynamic.literal()                                                                    // no target at all
     )
     for detail <- unusable do
       assertEquals(
-        DesktopOpenRequests.decide(openEvent(detail), everyDiagramExists),
+        DesktopOpenRequests.decide(openEvent(detail)),
         DesktopOpenRequests.Decision.Reject("VIEW_REJECTED", "the page could not route to that target"),
         s"detail: $detail"
       )
 
-  test("an open request for a diagram the library does not hold is refused, with a reason"):
-    // The shell cannot make this check — D2.5 keeps it diagram-ignorant — so
-    // the page has to, and has to SAY so. Navigating anyway would leave the
-    // user on an empty diagram while `gx open` reported success.
-    val decision = DesktopOpenRequests.decide(
-      openEvent(js.Dynamic.literal(requestId = 7, target = js.Dynamic.literal(kind = "library", diagramId = "missing"))),
-      noDiagramExists
-    )
-    assertEquals(
-      decision,
-      DesktopOpenRequests.Decision.Reject("DIAGRAM_NOT_FOUND", "no diagram 'missing' in this library")
-    )
-
   // ------------------------------- Phase 2 item 7: the file open handshake
 
   test("a file open request routes to that file's session, not to its path"):
-    // This test checks the repair of a defect. Before, a loose file had no
+    // This test checks the repair of a defect. Before, a file had no
     // route. Thus `gx open <path>` reached no viewer on Home. When a diagram
     // was open, the file went into the wrong viewer, and `gx open` still
     // reported success.
@@ -261,13 +243,12 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     val open = DesktopDocumentRegistry.record("/tmp/opened.dot", "rev-1", "digraph G { a }")
 
     val decision = DesktopOpenRequests.decide(
-      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/opened.dot"))),
-      noDiagramExists
+      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/opened.dot")))
     )
 
     decision match
       case DesktopOpenRequests.Decision.Show(route, view) =>
-        assertEquals(route, Route.LooseFile(open.id.value))
+        assertEquals(route, Route.File(open.id.value))
         // §13: the acknowledgment names the session, and the route carries no path.
         val reported = view.asInstanceOf[js.Dynamic]
         assertEquals(reported.selectDynamic("kind").asInstanceOf[String], "file")
@@ -284,8 +265,7 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     DesktopDocumentRegistry.reset()
 
     val decision = DesktopOpenRequests.decide(
-      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/never-sent.dot"))),
-      noDiagramExists
+      openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/never-sent.dot")))
     )
 
     assertEquals(
@@ -304,8 +284,7 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
 
     def routeNow() =
       DesktopOpenRequests.decide(
-        openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/twice.dot"))),
-        noDiagramExists
+        openEvent(js.Dynamic.literal(target = js.Dynamic.literal(kind = "file", path = "/tmp/twice.dot")))
       ) match
         case DesktopOpenRequests.Decision.Show(route, _) => route
         case other                                       => fail(s"expected a route, got $other")
@@ -315,12 +294,15 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     val after = routeNow()
 
     assertEquals(before, after)
-    assertEquals(after, Route.LooseFile(first.id.value))
+    assertEquals(after, Route.File(first.id.value))
     DesktopDocumentRegistry.reset()
 
   test("open activation waits for parsing and reports parse failures"):
-    val route  = Route.Diagram("architecture")
-    val target = ViewTarget.diagram("architecture")
+    DesktopDocumentRegistry.reset()
+    val open   = DesktopDocumentRegistry.record("/tmp/activation.dot", "rev-1", "digraph G { a }")
+    val other  = DesktopDocumentRegistry.record("/tmp/other.dot", "rev-1", "digraph G { b }")
+    val route  = Route.File(open.id.value)
+    val target = ViewTarget.File(open.id)
 
     assertEquals(
       DesktopOpenRequests.activation(route, target, DiagramLoadStatus.Loading),
@@ -335,10 +317,24 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
       DesktopOpenRequests.Activation.Rejected("PARSE_FAILED", "bad syntax")
     )
     assertEquals(
-      DesktopOpenRequests.activation(route, ViewTarget.diagram("other"), DiagramLoadStatus.Ready),
+      DesktopOpenRequests.activation(route, ViewTarget.File(other.id), DiagramLoadStatus.Ready),
       DesktopOpenRequests.Activation.Waiting,
       "an old live viewer must not acknowledge the new route"
     )
+    assertEquals(
+      DesktopOpenRequests.activation(route, ViewTarget.diagram("architecture"), DiagramLoadStatus.Ready),
+      DesktopOpenRequests.Activation.Waiting,
+      "a viewer of the browser library must not acknowledge a file"
+    )
+    DesktopDocumentRegistry.reset()
+
+  test("a change to a file opens a document session for it"):
+    // Each diagram on the desktop is a file, so each document event goes to
+    // the registry. No event goes to a library copy.
+    DesktopDocumentRegistry.reset()
+    DesktopBridge.routeDocumentChange(DesktopBridge.DesktopMessage("digraph { x }", Some("/tmp/any.dot"), Some("rev-1")))
+    assertEquals(DesktopDocumentRegistry.find("/tmp/any.dot").map(_.sourceText), Some("digraph { x }"))
+    DesktopDocumentRegistry.reset()
 
   // --------------------------------- the tiers that still have a target
   //

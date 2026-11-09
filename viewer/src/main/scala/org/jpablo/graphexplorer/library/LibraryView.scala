@@ -2,12 +2,12 @@ package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.router.{Route, Router}
+import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.components.{AboutDialog, PreferencesDialog, RouterCommands}
 import org.jpablo.graphexplorer.viewer.state.ViewerSettings
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
-import org.jpablo.graphexplorer.viewer.widgets.{Button, Dropdown, IconButton, MenuEntry, primary, small}
+import org.jpablo.graphexplorer.viewer.widgets.{AlertBox, AlertTone, Button, Dropdown, IconButton, MenuEntry, primary, small}
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
 import org.jpablo.graphexplorer.viewer.widgets.{FilterChips, IconRadioGroup, InputBox, InputVariant, SelectBox, SelectVariant, TooltipPos}
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
@@ -132,6 +132,9 @@ def LibraryView(
       // diagram). Refresh from storage so the selector shows the truth and a
       // write from here cannot clobber other settings with stale values.
       viewerSettings.set(Library.readViewerSettings())
+      // On the desktop, a different tool can change a file at any time. Read
+      // the files again, for the titles and the thumbnails.
+      Library.desktop.foreach(_.readFiles())
       val t0 = Telemetry.nowMs()
       val navDtMs = Telemetry.consumeNavigationStartMs(Router.homePath)
       Telemetry.log(
@@ -184,6 +187,7 @@ def LibraryView(
     ),
     div(
       idAttr := "projects-body",
+      libraryNotice,
       // The library navbar, with a background.
       div(
         cls := "navbar px-6",
@@ -483,8 +487,48 @@ private def diagramThumbnail(graphviz: Graphviz, diagram: DiagramSummary): Signa
 private def logThumbVisible(diagram: DiagramSummary): Unit =
   Telemetry.log("home.thumb.visible", "projectId" -> diagram.id.value, "name" -> diagram.name)
 
-private def diagramCard(graphviz: Graphviz, router: Router, info: Option[DiagramCardInfo], diagram: DiagramSummary) =
+/** The lines of [[Library.notice]], until the person closes them: the report
+  * of a migration, or a failure of an open.
+  */
+private[library] def libraryNotice =
+  div(
+    child.maybe <-- Library.notice.signal.map:
+      _.map: lines =>
+        AlertBox(
+          AlertTone.Info,
+          cls    := "mx-6 mt-4 flex items-start gap-2",
+          idAttr := "library-notice",
+          div(cls := "flex-1 text-sm", lines.map(line => p(line))),
+          Button("Close", onClick --> Library.notice.set(None)).small
+        )
+  )
+
+/** Open a diagram of the list. A failure goes to the notice of the home page. */
+private def openDiagram(router: Router, diagram: DiagramSummary): Unit =
+  LibraryNavigation.open(router, diagram.id, message => Library.showNotice(Vector(message)))
+
+/** The control that takes a diagram out of the library. On the desktop, the
+  * file stays, so the control says "Remove from library".
+  */
+private def removeButton(diagram: DiagramSummary) =
+  IconButton(if Library.isDesktop then "bi-x-circle" else "bi-trash", LibraryNavigation.removeLabel, TooltipPos.left, cls := "danger")(
+    if dom.window.confirm(LibraryNavigation.removeQuestion) then
+      Library.deleteDiagram(diagram.id)
+  )
+
+/** The place of the thumbnail of a diagram whose file is missing or cannot be
+  * read. It says why, and it does not open the diagram.
+  */
+private def problemPlaceholder(problem: String) =
+  div(
+    cls := "w-full h-full p-2 flex items-center justify-center text-center text-warning text-xs",
+    i(cls := "bi bi-exclamation-triangle mr-1"),
+    problem
+  )
+
+private[library] def diagramCard(graphviz: Graphviz, router: Router, info: Option[DiagramCardInfo], diagram: DiagramSummary) =
   val previewEnabled = Var(false)
+  val problem        = info.flatMap(_.problem)
 
   def enablePreview(): Unit =
     if !previewEnabled.now() then
@@ -498,24 +542,29 @@ private def diagramCard(graphviz: Graphviz, router: Router, info: Option[Diagram
       div(
         cls := "w-full h-48 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",
         enableWhenFirstVisible(() => enablePreview()),
-        child <-- previewEnabled.signal.flatMapSwitch:
-          case false =>
-            Signal.fromValue(
-              div(
-                cls := "w-full h-full p-1 flex items-center justify-center text-base-content/40 text-xs",
-                "Loading preview…"
-              )
+        problem match
+          case Some(why) => Seq[Modifier[HtmlElement]](problemPlaceholder(why))
+          case None =>
+            Seq[Modifier[HtmlElement]](
+              child <-- previewEnabled.signal.flatMapSwitch:
+                case false =>
+                  Signal.fromValue(
+                    div(
+                      cls := "w-full h-full p-1 flex items-center justify-center text-base-content/40 text-xs",
+                      "Loading preview…"
+                    )
+                  )
+                case true =>
+                  diagramThumbnail(graphviz, diagram)
+              ,
+              onClick.preventDefault --> openDiagram(router, diagram)
             )
-          case true =>
-            diagramThumbnail(graphviz, diagram)
-        ,
-        onClick.preventDefault --> router.navigateTo(Route.Diagram(diagram.id.value))
       )
     ),
     div(
       cls := "card-body p-3 pt-2",
 
-      // Header with title and delete button
+      // Header with title and remove button
       div(
         cls := "flex items-center justify-between",
         h2(
@@ -524,17 +573,15 @@ private def diagramCard(graphviz: Graphviz, router: Router, info: Option[Diagram
             href := s"#/${diagram.id.value}",
             cls  := "flex items-center gap-2 hover:text-primary transition-colors",
             info.map(_.displayName).getOrElse(diagram.name),
-            onClick.preventDefault --> router.navigateTo(Route.Diagram(diagram.id.value))
+            onClick.preventDefault --> (if problem.isEmpty then openDiagram(router, diagram))
           ),
           info.map(i => formatBadge(i.format)),
-          info.flatMap(kindBadge)
+          info.flatMap(kindBadge),
+          problem.map(_ => span(cls := "badge badge-xs badge-warning shrink-0", "missing"))
         ),
         // Neutral until you reach for it: a wall of cards should not read as a wall of red
-        // buttons, but the hover has to say plainly that this one destroys something.
-        IconButton("bi-trash", "Delete diagram", TooltipPos.left, cls := "danger")(
-          if dom.window.confirm("Delete this diagram?") then
-            Library.deleteDiagram(diagram.id)
-        )
+        // buttons, but the hover has to say plainly what this one does.
+        removeButton(diagram)
       ),
 
       // Last modified and created at dates
@@ -557,10 +604,11 @@ private def diagramCard(graphviz: Graphviz, router: Router, info: Option[Diagram
 /** A diagram in list mode: one compact row that a person can click at any
   * point. The row has a small lazy thumbnail, then the name, the badge, and
   * the dates in columns. It shows the same information as the card, without
-  * the date icons. The delete control works the same as on the card.
+  * the date icons. The remove control works the same as on the card.
   */
-private def diagramRow(graphviz: Graphviz, router: Router, info: Option[DiagramCardInfo], diagram: DiagramSummary) =
+private[library] def diagramRow(graphviz: Graphviz, router: Router, info: Option[DiagramCardInfo], diagram: DiagramSummary) =
   val previewEnabled = Var(false)
+  val problem        = info.flatMap(_.problem)
 
   def enablePreview(): Unit =
     if !previewEnabled.now() then
@@ -569,14 +617,15 @@ private def diagramRow(graphviz: Graphviz, router: Router, info: Option[DiagramC
 
   div(
     cls := "project-row",
-    onClick --> router.navigateTo(Route.Diagram(diagram.id.value)),
+    onClick --> (if problem.isEmpty then openDiagram(router, diagram)),
     div(
       cls := "row-thumb",
       enableWhenFirstVisible(() => enablePreview()),
       // Too small a box for a "Loading preview…" legend; the bg reads as a placeholder.
       child.maybe <-- previewEnabled.signal.flatMapSwitch:
-        case false => Signal.fromValue(None)
-        case true  => diagramThumbnail(graphviz, diagram).map(Some(_))
+        case _ if problem.isDefined => Signal.fromValue(None)
+        case false                  => Signal.fromValue(None)
+        case true                   => diagramThumbnail(graphviz, diagram).map(Some(_))
     ),
     div(
       cls := "flex-1 min-w-0 flex items-center gap-2",
@@ -586,21 +635,19 @@ private def diagramRow(graphviz: Graphviz, router: Router, info: Option[DiagramC
         info.map(_.displayName).getOrElse(diagram.name),
         // The row already navigates; the anchor exists so middle-click and
         // "open in new tab" keep their usual meaning.
-        onClick.preventDefault.stopPropagation --> router.navigateTo(Route.Diagram(diagram.id.value))
+        onClick.preventDefault.stopPropagation --> (if problem.isEmpty then openDiagram(router, diagram))
       ),
       info.map(i => formatBadge(i.format)),
-      info.flatMap(kindBadge)
+      info.flatMap(kindBadge),
+      problem.map(why => span(cls := "badge badge-xs badge-warning shrink-0", title := why, "missing"))
     ),
     span(cls := "row-date hidden sm:block", s"Modified ${formatDate(diagram.lastModified)}"),
     span(cls := "row-date hidden md:block", s"Created ${formatDate(diagram.createdAt)}"),
     span(
-      // A click on the row opens the diagram. Without this fence, a delete also
-      // opens the diagram, or a dead route after the delete.
+      // A click on the row opens the diagram. Without this fence, a remove
+      // also opens the diagram, or a dead route after the remove.
       onClick.stopPropagation --> Observer.empty,
-      IconButton("bi-trash", "Delete diagram", TooltipPos.left, cls := "danger")(
-        if dom.window.confirm("Delete this diagram?") then
-          Library.deleteDiagram(diagram.id)
-      )
+      removeButton(diagram)
     )
   )
 

@@ -26,7 +26,7 @@ class PushTextTargetSpec extends FunSuite with TestHelpers:
   test("a push reaches the session it names") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/pushed.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
       LiveViewCommands.attach(state)
 
       afterMicrotasks {
@@ -42,7 +42,7 @@ class PushTextTargetSpec extends FunSuite with TestHelpers:
     withGraphvizAsync { graphviz =>
       val shown = DesktopDocumentRegistry.record("/tmp/shown.dot", "rev-1", "digraph { shown }")
       val other = DesktopDocumentRegistry.record("/tmp/other.dot", "rev-1", "digraph { other }")
-      val state = ViewerState(ViewTarget.LooseFile(shown.id), graphviz)
+      val state = ViewerState(ViewTarget.File(shown.id), graphviz)
       LiveViewCommands.attach(state)
 
       afterMicrotasks {
@@ -78,7 +78,7 @@ class PushTextTargetSpec extends FunSuite with TestHelpers:
   test("a session id that is not one is a request error, not a view refusal") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/x.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
       LiveViewCommands.attach(state)
 
       afterMicrotasks {

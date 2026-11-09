@@ -16,7 +16,7 @@ import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
-import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
+import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
 
@@ -29,8 +29,8 @@ object ClipboardUnavailable extends Exception("Clipboard is not available")
 case class ViewerState(
     /** What this viewer shows, and thus how it saves (§2). This is one field,
       * not a `DiagramId` and an `exampleName` flag, because the two could
-      * disagree. A loose file also fits neither: it had to use a `DiagramId`
-      * that named no diagram.
+      * disagree. A file also fits neither: it had to use a `DiagramId` that
+      * named no diagram.
       */
     target:                   ViewTarget,
     graphviz:                 Graphviz,
@@ -78,9 +78,9 @@ case class ViewerState(
     */
   lazy val diagramId: DiagramId =
     target match
-      case ViewTarget.Diagram(id)        => id
-      case ViewTarget.Example(slug, _)   => DiagramId(s"example-$slug")
-      case ViewTarget.LooseFile(session) => DiagramId(session.value)
+      case ViewTarget.Diagram(id)      => id
+      case ViewTarget.Example(slug, _) => DiagramId(s"example-$slug")
+      case ViewTarget.File(session)    => DiagramId(session.value)
 
   /** The built-in example this state shows, if it shows one.
     *
@@ -97,8 +97,8 @@ case class ViewerState(
   /** The metadata of this diagram: ONE `Var`, and typed views over it.
     *
     * It starts empty, and `restorePersistedState` sets it from the store. A
-    * loose file and an example have no metadata in the library. Their
-    * metadata stays here, in memory.
+    * file has its metadata in its library entry, if it has one. An example has
+    * no metadata in the library, and its metadata stays here, in memory.
     */
   lazy val metadata: MetadataOps =
     MetadataOps(Var(DiagramMetadata(name = "")))
@@ -190,16 +190,30 @@ case class ViewerState(
       if value == auto then autoDetectFormat.set(true)
       else setDiagramFormat(DiagramFormat.valueOf(value))
 
-  /** The title that the app shows for this diagram. It is the name that the person
-    * gave. While the diagram has no name, it is the title that the diagram declares (the
-    * Mermaid frontmatter or `title` line, or the DOT graph label). This change is only for
-    * the display. The stored name changes only when the person renames the diagram. Thus a
-    * rename always wins, and a change to the source title shows immediately.
+  /** The title that the app shows for this diagram.
+    *
+    * A file (desktop) has no stored name. Its name is the title that its source
+    * declares (the Mermaid frontmatter or `title` line, or the DOT graph label),
+    * or else its file name with no extension (CONTEXT.md). The file name comes
+    * from the session, so a rename shows at once.
+    *
+    * A diagram of the browser library has a stored name. The title is that
+    * name. While the diagram has no name, it is the title that the diagram
+    * declares. This change is only for the display. The stored name changes
+    * only when the person renames the diagram. Thus a rename always wins, and
+    * a change to the source title shows immediately.
     */
   val displayTitle: Signal[String] =
-    metadata.name.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
-      if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
-      else languages.forFormat(format).extractTitle(source).getOrElse(name)
+    target match
+      case ViewTarget.File(_) =>
+        documentSession
+          .map(_.fold("")(session => LibraryEntry.nameOf(session.path)))
+          .combineWithFn(sourceText.signal, formatSelection.signal): (fileName, source, format) =>
+            languages.forFormat(format).extractTitle(source).getOrElse(fileName)
+      case _ =>
+        metadata.name.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
+          if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
+          else languages.forFormat(format).extractTitle(source).getOrElse(name)
 
   /** Presentation metadata for every available format, in display order (drives the selector UI). */
   lazy val availableFormats: List[(DiagramFormat, DiagramLanguageInfo)] =

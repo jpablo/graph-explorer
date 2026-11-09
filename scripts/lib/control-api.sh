@@ -161,18 +161,12 @@ api_watch() {
   _api_call watch "$(_jq -n --arg path "$1" '{path: $path}')"
 }
 
-# `show` carries a TYPED target since the open-targets work: a bare path could
-# not say whether it meant a library record or a loose file, and a record with
-# no origin has no path to send at all.
+# `show` carries a TYPED target. A diagram is a file (ADR 0001), so `file` is
+# the only kind. The desktop refuses the old `library` kind as INVALID_REQUEST.
 api_show_file() {
   _api_call show "$(_jq -n --arg path "$1" '{target: {kind: "file", path: $path}}')"
 }
 
-api_show_library() {
-  _api_call show "$(_jq -n --arg id "$1" '{target: {kind: "library", diagramId: $id}}')"
-}
-
-# The file form, which is what every existing caller meant.
 api_show() { api_show_file "$1"; }
 
 api_unwatch() {

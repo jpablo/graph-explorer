@@ -1,10 +1,8 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
-import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
 import org.scalajs.dom
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
 
 /** Wiring between the desktop shell and the current diagram view.
@@ -86,32 +84,22 @@ object DesktopBridge:
           DesktopIpc.asString(detailValue, "revision").orElse(DesktopIpc.asString(payloadValue, "revision"))
       )
 
-  /** The destination of a document event (§8).
+  /** The destination of a document event.
     *
-    * A document event goes to a DIAGRAM or to a SESSION. It never goes to "the
-    * viewer that happens to be on screen". Before, this module held a
-    * process-global pointer to that viewer and applied each file event to it.
-    * Because of this, the source of a loose file could go into the diagram that
-    * the screen showed last (§1).
+    * A document event goes to a SESSION. It never goes to "the viewer that is
+    * on the screen". Before, this module held a process-global pointer to that
+    * viewer and applied each file event to it. Because of this, the source of
+    * one file could go into the view of a different diagram (§1).
     *
-    * Now the module only writes down the event that arrived. A bound origin
-    * reconciles against its diagram. A loose file goes into the registry, and
-    * the viewer that shows that session gets its changes through an
-    * owner-scoped signal (§10). Thus neither path needs this module to know
-    * what is on the screen.
+    * Now the module only writes down the event that arrived. The file goes
+    * into the registry, and the viewer that shows that session gets its
+    * changes through an owner-scoped signal (§10). Each diagram on the desktop
+    * is a file (ADR 0001), so no event goes to a library copy.
     */
   private[desktop] def routeDocumentChange(message: DesktopMessage): Unit =
-    message.path.filter(Library.diagramsBoundTo(_).nonEmpty) match
-      case Some(path) =>
-        // A BOUND origin. The diagram owns this file (§2). Thus the change
-        // reconciles against the diagram, and it reaches the screen only if
-        // the diagram adopts it.
-        OriginReconciler.reconcile(path, message.text, message.revision.getOrElse(""))
-        ()
-      case None =>
-        // A loose file, or an event naming no document at all. `record` is
-        // idempotent per path, and a message with no path records nothing.
-        recordSession(message)
+    // `record` is idempotent per path, and a message with no path records
+    // nothing.
+    recordSession(message)
 
   /** Record the open file, so a route and a save can find it.
     *

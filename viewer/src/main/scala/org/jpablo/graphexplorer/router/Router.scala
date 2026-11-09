@@ -10,6 +10,7 @@ import Router.{app, diagrams, documents, example}
 
 enum Route derives CanEqual:
   case Home
+  /** A diagram of the browser library. Only the web app has this route. */
   case Diagram(id: String, source: Option[String] = None)
 
   /** A built-in example that opens WITHOUT a copy in the library.
@@ -21,18 +22,19 @@ enum Route derives CanEqual:
     */
   case Example(slug: String)
 
-  /** One open loose file, named by an opaque session id (§5).
+  /** One open file, named by an opaque session id (§5). The desktop app opens
+    * each diagram on this route, because each diagram there is a file.
     *
     * The id, and not the path. §13 gives the rule: an absolute path must not go
     * into a URL. The browser keeps a URL in its history, and a path holds
     * private information.
     *
-    * A loose file needs a route, because a route is a destination. Before
-    * this, a loose file had no route. On Home, `gx open <path>` reached no
-    * viewer. With a diagram open, it put the file text into the viewer of a
-    * different diagram. `DesktopDocumentRegistry` maps the id back to the file.
+    * A file needs a route, because a route is a destination. Before this, a
+    * file had no route. On Home, `gx open <path>` reached no viewer. With a
+    * diagram open, it put the file text into the viewer of a different
+    * diagram. `DesktopDocumentRegistry` maps the id back to the file.
     */
-  case LooseFile(sessionId: String)
+  case File(sessionId: String)
 
 class Router:
   given Owner = unsafeWindowOwner
@@ -67,7 +69,7 @@ class Router:
   /** A view can refuse to be left (§7.4).
     *
     * One guard, registered by the mounted view and cleared when it unmounts.
-    * A loose file with an unsaved edit uses it: leaving would discard the edit,
+    * A file with an unsaved edit uses it: leaving would discard the edit,
     * and §7.4 requires the person to choose first.
     */
   private var leaveGuard: Option[Route => Boolean] = None
@@ -136,15 +138,15 @@ class Router:
       // The id is not checked here. The router does not read the registry, in
       // the same way that it does not read the library for `diagrams`. The view
       // holds that check, because only the view can show the answer.
-      case `documents` :: session :: Nil => Route.LooseFile(session)
+      case `documents` :: session :: Nil => Route.File(session)
       case _                             => Route.Home
 
   private def buildPath(route: Route): String =
     route match
-      case Route.Home                 => Router.homePath
-      case Route.Diagram(id, _)       => s"/$diagrams/$id"
-      case Route.Example(slug)        => s"/$example/$slug"
-      case Route.LooseFile(sessionId) => s"/$documents/$sessionId"
+      case Route.Home            => Router.homePath
+      case Route.Diagram(id, _)  => s"/$diagrams/$id"
+      case Route.Example(slug)   => s"/$example/$slug"
+      case Route.File(sessionId) => s"/$documents/$sessionId"
 
 object Router:
   /** The library. On the web, `/` is the product page, which Netlify serves

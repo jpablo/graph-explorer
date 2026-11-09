@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.gxcore.store
 
 import org.jpablo.graphexplorer.gxcore.fs.{Documents, FileOrigins, GxHome, LineEnding}
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import scala.jdk.CollectionConverters.*
 import scala.util.control.NonFatal
@@ -53,14 +54,10 @@ object MetadataMigrationExecutor:
     val metadataDir = GxHome.metadataDir(gxHome)
     if Files.exists(metadataDir) then MetadataMigrationResult.AlreadyDone
     else
-      val old        = LibraryStore(GxHome.libraryDir(gxHome))
-      val unreadable = old.unreadable().map:
-        case StoreError.Unreadable(id, why) => s"the old record diagrams/${id.value}.json cannot be read ($why). It stays there, unchanged."
-        case other                          => s"an old record cannot be read ($other). It stays in diagrams/, unchanged."
-      val folder     = FileOrigins.canonicalize(diagramsFolder.toAbsolutePath, diagramsFolder.toAbsolutePath)
+      val folder = FileOrigins.canonicalize(diagramsFolder.toAbsolutePath, diagramsFolder.toAbsolutePath)
 
       val plan = MetadataMigration.plan(
-        records = old.list(),
+        old = OldRecords.fromFiles(oldRecordFiles(GxHome.libraryDir(gxHome).resolve("diagrams"))),
         readFile = path => Documents.read(Paths.get(path)).toOption.map(_.text),
         diagramsFolder = folder.toString,
         existingNames = namesIn(folder),
@@ -73,10 +70,27 @@ object MetadataMigrationExecutor:
           if path.isAbsolute then FileOrigins.canonicalize(path, folder).toString else p
       )
 
-      execute(plan, metadataDir, beforePublish) match
-        case MetadataMigrationResult.Done(report)           => MetadataMigrationResult.Done(report ++ unreadable)
-        case MetadataMigrationResult.Failed(reason, report) => MetadataMigrationResult.Failed(reason, report ++ unreadable)
-        case MetadataMigrationResult.AlreadyDone            => MetadataMigrationResult.AlreadyDone
+      execute(plan, metadataDir, beforePublish)
+
+  /** Each `.json` file of the old directory, with its text or the reason that
+    * it cannot be read. A name that starts with a dot is a temporary file of
+    * an atomic write, so the list does not include it. The desktop shell
+    * lists the same files (`library_legacy_list`).
+    */
+  private def oldRecordFiles(dir: Path): Vector[(String, Either[String, String])] =
+    if !Files.isDirectory(dir) then Vector.empty
+    else
+      val stream = Files.list(dir)
+      try
+        stream.iterator.asScala.toVector
+          .filter(p => p.getFileName.toString.endsWith(".json") && !p.getFileName.toString.startsWith("."))
+          .sortBy(_.getFileName.toString)
+          .map: p =>
+            val content =
+              try Right(Files.readString(p, StandardCharsets.UTF_8))
+              catch case NonFatal(e) => Left(e.toString)
+            p.getFileName.toString -> content
+      finally stream.close()
 
   /** Perform a plan. The files first, then the entries in a temporary
     * directory, then the rename to `metadataDir`.

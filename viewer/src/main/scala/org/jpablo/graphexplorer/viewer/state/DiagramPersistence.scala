@@ -2,8 +2,9 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
+import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
 import org.jpablo.graphexplorer.library.Library
-import org.jpablo.graphexplorer.viewer.desktop.LooseFilePersistence
+import org.jpablo.graphexplorer.viewer.desktop.FilePersistence
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -12,9 +13,9 @@ import scala.concurrent.{ExecutionContext, Future}
   *
   * The type of the target selects the store, so a viewer holds a handle to ITS
   * store and cannot reach a different store. Before this, each viewer opened a
-  * library handle with a `DiagramId` as the key. Thus a loose file had to give
-  * an id that named no diagram. That made a library entry for a file that the
-  * person only opened.
+  * library handle with a `DiagramId` as the key. Thus a file had to give an id
+  * that named no diagram. That made a library entry for a file that the person
+  * only opened.
   */
 trait DiagramPersistence:
 
@@ -23,34 +24,30 @@ trait DiagramPersistence:
     */
   def initial: DiagramSnapshot
 
-  /** The state after a change from a DIFFERENT writer (D7.3).
+  /** The metadata after a change from a DIFFERENT writer (D7.3).
     *
-    * `initial` is a snapshot. For a long time, it was the only way back: the
-    * viewer read the diagram once at mount and never again. The library did its
-    * half: `createDiagramPersistence` sets its `Var` when a diagram changes
-    * under an open view. But nothing used that value. Thus a `gx set`, a
-    * `gx run hide`, or a pull from an origin file went into the diagram
-    * correctly, and did not show until the person opened the view again.
+    * `initial` is a snapshot, and for a long time it was the only way back:
+    * the viewer read the store once at mount and never again. Thus a `gx hide`
+    * went into the store correctly, and did not show until the person opened
+    * the view again.
     *
-    * The stream is empty for a store that nothing else can write. An example
-    * has no durable store. A loose file follows its SESSION (§7.3), which has
-    * the conflict rule that a diagram does not need.
+    * Only a file on the desktop has a second writer: `gx` changes the entry of
+    * the file in the library. The browser library and an example have no
+    * second writer, so their streams are empty. The SOURCE of a file does not
+    * come through here: a file follows its SESSION (§7.3), which has the
+    * conflict rule for a dirty editor.
     *
-    * A store must NOT send back the [[update]] calls of this viewer. A
-    * comparison of the text that arrives with the text on the screen looks like a
-    * solution, but it is not. An update holds the snapshot from the time of its
-    * schedule. Thus a write during a transaction comes back with text that is
-    * older than the editor. It looks like a change from a different writer, and
-    * its adoption undoes the last keystroke of the person.
+    * A value that the viewer already shows must cause no write. The viewer
+    * adopts only a value that differs, and the store writes only a change.
     */
-  def external: EventStream[DiagramSnapshot]
+  def external: EventStream[DiagramMetadata]
 
   /** The state while the person edits it.
     *
-    * A diagram saves here, on each change. A loose file does NOT. §7.1 keeps a
-    * file edit in memory until a save, because a write to a file can cause a
-    * conflict and can affect external tools. A diagram does not have these
-    * problems.
+    * A browser diagram saves here, on each change. A file does NOT save its
+    * source here. §7.1 keeps an edit of a file in memory until a save, because
+    * a write to a file can cause a conflict and can affect external tools. The
+    * metadata of a file goes to its library entry at once.
     */
   def update(state: DiagramSnapshot): Unit
 
@@ -79,16 +76,16 @@ object DiagramPersistence:
   /** The one place a target chooses a store.
     *
     * Total over [[ViewTarget]], and that totality is the guarantee §6 asks for:
-    * a loose file cannot reach library persistence, because no branch here
-    * gives it one. A new target must choose a store to compile.
+    * a file cannot reach the browser library, because no branch here gives it
+    * one. A new target must choose a store to compile.
     */
   def forTarget(target: ViewTarget, initialSource: Option[String]): DiagramPersistence =
     target match
-      case ViewTarget.Diagram(id)        => LibraryPersistence(id, initialSource)
-      case ViewTarget.LooseFile(session) => LooseFilePersistence(session)
-      case ViewTarget.Example(_, name)   => EphemeralPersistence.example(initialSource, name)
+      case ViewTarget.Diagram(id)      => LibraryPersistence(id, initialSource)
+      case ViewTarget.File(session)    => FilePersistence(session, Library.desktop)
+      case ViewTarget.Example(_, name) => EphemeralPersistence.example(initialSource, name)
 
-/** The store for a diagram in the library. The app always had this store.
+/** The store for a diagram of the browser library (the web app).
   *
   * `Library.createDiagramPersistence` gives a `Var`, and each change to it goes
   * to storage. Thus `update` is a `set`, and this class opens and closes
@@ -101,26 +98,18 @@ final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) ext
 
   lazy val initial: DiagramSnapshot = state.now()
 
-  /** Writes this view did not make.
-    *
-    * From the library's own stream, NOT from the `Var`. The `Var` carries this
-    * view's writes back as well, and no filter on the value can separate them:
-    * an echo holds the snapshot from when the write was scheduled, so it
-    * arrives carrying text the editor has already moved past — which is exactly
-    * what somebody else's change looks like.
+  /** A browser library has no second writer, so nothing can change a diagram
+    * behind an open tab.
     */
-  def external: EventStream[DiagramSnapshot] = Library.diagramChangedExternally(id)
+  def external: EventStream[DiagramMetadata] = EventStream.empty
 
   def update(next: DiagramSnapshot): Unit = state.set(next)
 
-  /** §11: flush the diagram. A diagram already saves on each change, so ⌘S
-    * must force the write out, and not decide what to write. The binding and
-    * the sync mode of the diagram control a push to an origin file. Phase 3
-    * moves that engine into `gx-core`.
+  /** §11: a browser diagram already saves on each change, so ⌘S has nothing
+    * left to write.
     */
   def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
-    Library.flush()
     Future.successful(SaveResult.Saved)
 
   /** This releases nothing. The storage handle belongs to the library, and it
@@ -131,8 +120,7 @@ final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) ext
 
 /** A diagram with no durable home.
   *
-  * An example uses this. §7.2 also names it as the honest store for the parts
-  * of a loose file that have nowhere to go.
+  * An example uses this.
   */
 final class EphemeralPersistence(val initial: DiagramSnapshot, unsupportedMessage: String)
     extends DiagramPersistence:
@@ -140,7 +128,7 @@ final class EphemeralPersistence(val initial: DiagramSnapshot, unsupportedMessag
   private var current = initial
 
   /** Nothing else can write here, so there is nothing to hear. */
-  def external: EventStream[DiagramSnapshot] = EventStream.empty
+  def external: EventStream[DiagramMetadata] = EventStream.empty
 
   def update(next: DiagramSnapshot): Unit = current = next
 

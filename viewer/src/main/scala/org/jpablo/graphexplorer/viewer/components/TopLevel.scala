@@ -22,11 +22,6 @@ def TopLevel(
     // Under any banner, and above the canvas: §7.3 requires an answer before
     // the edit or the file is lost, so it must not be somewhere to scroll to.
     DocumentConflictBanner(state),
-    // This strip is the diagram version of the strip above. That strip reports
-    // a loose file that changed during an edit. This strip reports a bound
-    // diagram that disagrees with its origin. With both strips, §7.3 and §8
-    // refuse to resolve a disagreement silently.
-    OriginStateBanner(state.target),
     div(
       cls := "flex flex-1 overflow-y-auto relative",
       LeftPanel(state, router, commands),

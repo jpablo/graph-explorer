@@ -67,7 +67,7 @@ class InternalPhases(
       EditorPacing.pace(_),
     /** True when a graph edit must keep the whole text, because a file is
       * behind the document. The setter of [[fullGraphV]] reads it at each
-      * edit, because a diagram can get or lose its binding while it is open.
+      * edit, so that the caller decides at the time of the edit.
       */
     keepTextWhole: () => Boolean = () => false,
     /** Receives one message for each graph edit that [[fullGraphV]] refuses. */

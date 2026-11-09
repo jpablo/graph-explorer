@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 /** Phase 2 item 4: the store follows the target (§6).
   *
-  * The property under test is the one §6 states: a loose file cannot persist
+  * The property under test is the one §6 states: a file cannot persist
   * through a `DiagramId`. It is asserted by measuring the reported behaviour —
   * what reaches `localStorage` — and not by reading which class was built.
   */
@@ -25,11 +25,11 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
       .flatMap(i => Option(dom.window.localStorage.key(i)))
       .filter(_.contains("graph-explorer.project."))
 
-  test("a loose file writes no diagram to localStorage, and a diagram does") {
+  test("a file writes no diagram to localStorage, and a diagram of the browser library does") {
     withGraphvizAsync { graphviz =>
       val open = DesktopDocumentRegistry.record("/tmp/loose.dot", "rev-1", "digraph G { a -> b }")
 
-      val loose = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val loose = ViewerState(ViewTarget.File(open.id), graphviz)
 
       afterMicrotasks {
         loose.metadata.name.set("renamed while looking at a file")
@@ -38,7 +38,7 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
         assertEquals(
           storedDiagramKeys,
           Nil,
-          "a loose file must not stamp a diagram — §6 exists to make this impossible"
+          "a file must not stamp a diagram — §6 exists to make this impossible"
         )
 
         // The same edits through a library target DO reach storage, so the
@@ -52,15 +52,18 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
     }
   }
 
-  test("a loose viewer opens on the file the registry holds") {
+  test("a viewer of a file opens on the file the registry holds") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/opened.dot", "rev-1", "digraph G { x -> y }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
 
+      val title = state.displayTitle.observe(using state.owner)
       afterMicrotasks {
         assertEquals(state.sourceText.now(), "digraph G { x -> y }")
-        // §13: the base name is the title. The path is not.
-        assertEquals(state.metadata.name.now(), "opened.dot")
+        // §13: the file name is the title. The path is not. CONTEXT.md: the
+        // name of a diagram is its file name with no extension, when its
+        // source declares no title.
+        assertEquals(title.now(), "opened")
       }
     }
   }
@@ -79,9 +82,9 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
       assertEquals(storedDiagramKeys, Nil)
   }
 
-  test("a loose save refuses when its session is gone") {
+  test("a save of a file refuses when its session is gone") {
     val open        = DesktopDocumentRegistry.record("/tmp/vanishing.dot", "rev-1", "digraph G { a }")
-    val persistence = LooseFilePersistence(open.id)
+    val persistence = FilePersistence(open.id, None)
     val state       = persistence.initial
 
     DesktopDocumentRegistry.forget(open.id)
@@ -95,11 +98,11 @@ class DiagramPersistenceSpec extends FunSuite with TestHelpers:
       )
   }
 
-  test("a loose file keeps its edits in memory until a save") {
+  test("a file keeps its edits in memory until a save") {
     // §7.1: a keystroke does not write a file. The edit is held, so the save
     // that follows has the current text and not the text the shell sent.
     val open        = DesktopDocumentRegistry.record("/tmp/typing.dot", "rev-1", "digraph G { a }")
-    val persistence = LooseFilePersistence(open.id)
+    val persistence = FilePersistence(open.id, None)
 
     persistence.update(persistence.initial.copy(source = "digraph G { a -> b }"))
 

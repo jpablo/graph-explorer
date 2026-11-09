@@ -2,7 +2,8 @@ package org.jpablo.graphexplorer.gxcore.fs
 
 import munit.FunSuite
 
-import java.nio.file.{Path, Paths}
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
 
 /** `$GX_HOME` has to mean the same directory to `gx` and to the desktop, or it
   * is worse than not existing: a library in one place and the runtime file that
@@ -132,3 +133,33 @@ class GxHomeSpec extends FunSuite:
     assertEquals(GxHome.metadataDir(root), Paths.get("/tmp/scratch/library/metadata"))
     assertEquals(GxHome.metadataDir(root).getParent, GxHome.libraryDir(root))
   }
+
+  /** The shared fixture that the desktop reads too (`diagrams_dir_from` in
+    * main.rs). Neither side can pass by a change to its own code only.
+    */
+  test("the folder of new diagrams agrees with the shared fixture of the desktop") {
+    // The fixture uses POSIX paths. On Windows, `/tmp/x` is not absolute, and
+    // the two sides refuse it in the same way, so the fixture does not apply.
+    assume(java.io.File.separatorChar == '/', "the fixture has POSIX paths")
+    def search(from: Path): Option[Path] =
+      Option(from).flatMap: dir =>
+        val candidate = dir.resolve("local-protocol").resolve("fixtures").resolve("diagrams-dir.json")
+        if Files.isRegularFile(candidate) then Some(candidate) else search(dir.getParent)
+    val file    = search(Paths.get("").toAbsolutePath).getOrElse(fail("could not find local-protocol/fixtures/diagrams-dir.json"))
+    val fixture = ujson.read(Files.readString(file, StandardCharsets.UTF_8))
+    val cases   = fixture("diagramsDir").arr
+    assert(cases.sizeIs >= 13, "the fixture set should not have shrunk")
+    for c <- cases do
+      val name   = c("name").str
+      val value  = c("env").strOpt
+      val result = GxHome.diagramsDir(key => if key == "GX_DIAGRAMS_DIR" then value else None, home(fixture("home").str))
+      (c.obj.get("expect"), c.obj.get("error")) match
+        case (Some(expect), None) =>
+          assertEquals(result, Right(Paths.get(expect.str)), s"[$name]")
+        case (None, Some(parts)) =>
+          result match
+            case Right(path) => fail(s"[$name] should have been refused, got $path")
+            case Left(why)   => for part <- parts.arr do assert(why.contains(part.str), s"[$name] the reason should contain ${part.str}: $why")
+        case _ => fail(s"[$name] a case needs `expect` or `error`")
+  }
+

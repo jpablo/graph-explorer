@@ -2,12 +2,12 @@ package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.library.Library
-import org.jpablo.graphexplorer.router.{Route, Router}
+import org.jpablo.graphexplorer.library.{Library, LibraryNavigation}
+import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
-import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.widgets.IconButton
 
 /** The titles to show for the diagrams in the library. The rule is the same as on the
@@ -24,6 +24,16 @@ private def displayNames(state: ViewerState): Signal[Map[DiagramId, String]] =
     .distinct
     .map: ids =>
       ids.flatMap(id => Library.diagramCardInfo(id, state.languages).map(id -> _.displayName)).toMap
+
+/** The diagram of the library that the view shows. On the desktop, the view
+  * shows a file, and the library knows the file by its path.
+  */
+private def openId(state: ViewerState): Signal[Option[DiagramId]] =
+  state.target match
+    case ViewTarget.File(_) =>
+      state.documentSession.combineWith(Library.index).map: (session, _) =>
+        session.flatMap(s => Library.desktop.flatMap(_.idOfPath(s.path)))
+    case _ => Signal.fromValue(Some(state.diagramId))
 
 def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
   div(
@@ -62,10 +72,10 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           cls := "grow overflow-y-auto",
           ul(
             cls := "menu menu-sm w-full",
-            children <-- Library.index.combineWithFn(displayNames(state), state.displayTitle):
-              (index, names, openTitle) =>
+            children <-- Library.index.combineWithFn(displayNames(state), state.displayTitle, openId(state)):
+              (index, names, openTitle, open) =>
                 index.diagrams.sortBy(-_.createdAt).map { diagram =>
-                  val isOpen = diagram.id == state.diagramId
+                  val isOpen = open.contains(diagram.id)
                   // The title of the open diagram can change while a person types, so
                   // the list reads it live. The other titles come from the snapshot of
                   // the last library change.
@@ -79,7 +89,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
                       // shouts where the rest of the chrome marks "current" with a quiet tint.
                       cls("gx-row-active") := isOpen,
                       div(cls := "truncate", shown),
-                      onClick --> router.navigateTo(Route.Diagram(diagram.id.value))
+                      onClick --> LibraryNavigation.open(router, diagram.id, state.errorBus.emit)
                     )
                   )
                 }

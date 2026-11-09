@@ -1,21 +1,18 @@
 package org.jpablo.graphexplorer.gxcore.store
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.gxcore.model.*
 
-import java.nio.file.{Files, Path}
-
-/** Migration runs once, against a user's entire accumulated library, and the
-  * failure mode of getting it wrong is not "a bad import" but "their work is
-  * gone". These tests are mostly about what it must NOT do.
+/** The migration runs once, on all of the library of a user, and when it goes
+  * wrong the result is not "a bad import" but "their work is gone". These tests
+  * are mostly about what it must NOT do.
+  *
+  * The browser migration only reads: each browser diagram becomes an old
+  * record with no origin, and the shared plan of [[MetadataMigration]] gives it
+  * a file and an entry. The tests check the records, and then the plan.
   */
 class LocalStorageMigrationSpec extends FunSuite:
 
-  private val tmp = FunFixture[Path](
-    setup = _ => Files.createTempDirectory("gx-core-migration").toRealPath(),
-    teardown = dir =>
-      Files.walk(dir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.deleteIfExists(_))
-  )
+  private val folder = "/home/me/Documents/Graph Explorer"
 
   private def directory(entries: (String, String)*): String =
     val diagrams = entries
@@ -33,182 +30,120 @@ class LocalStorageMigrationSpec extends FunSuite:
        |  "format": "DOT"
        |}""".stripMargin
 
-  private def store(dir: Path) =
-    val s = LibraryStore(dir)
-    s.initialize()
-    s
+  private def read(directoryJson: String, payloadFor: String => Option[String]): OldRecords =
+    LocalStorageMigration.read(directoryJson, payloadFor, now = () => 999L).fold(e => fail(e), identity)
 
-  // ------------------------------------------------------------- basics
+  private def plan(old: OldRecords, existing: Map[String, String] = Map.empty): MetadataMigrationPlan =
+    MetadataMigration.plan(
+      old = old,
+      readFile = existing.map((name, text) => MetadataMigration.pathIn(folder, name) -> text).get,
+      diagramsFolder = folder,
+      existingNames = existing.keySet,
+      now = 5000L
+    )
 
-  tmp.test("a browser diagram becomes a diagram on disk, with its text under the new name") { dir =>
-    val s      = store(dir)
-    val report = LocalStorageMigration
-      .migrate(directory("p1" -> "Architecture"), _ => Some(payload("digraph G { a }")), s)
-      .fold(e => fail(e), identity)
+  // ------------------------------------------------------------- records
 
-    assertEquals(report.imported.size, 1)
-    val d = s.get(LocalStorageMigration.idFor("p1")).fold(e => fail(s"$e"), identity)
-    assertEquals(d.metadata.name, "Architecture")
-    // The old `source` field held the TEXT; the new model calls that `text` and
-    // reserves origin/source for where it came from — the opposite meaning.
-    assertEquals(d.text, "digraph G { a }")
-    assertEquals(d.format, "DOT")
-    assertEquals(d.createdAt, 100L)
-    assertEquals(d.updatedAt, 111L)
-  }
+  test("a browser diagram becomes an old record with its text, its name, its format and its dates"):
+    val r = read(directory("p1" -> "Architecture"), _ => Some(payload("digraph G { a }"))).records.head
+    assertEquals(r.metadata.name, "Architecture")
+    // The old `source` field held the TEXT. The new model calls that `text`,
+    // and "source" or "origin" names the place that it came from.
+    assertEquals(r.text, "digraph G { a }")
+    assertEquals(r.format, "DOT")
+    assertEquals(r.createdAt, 100L)
+    assertEquals(r.updatedAt, 111L)
+    assertEquals(r.id, LocalStorageMigration.idFor("p1").value)
 
-  tmp.test("a migrated diagram has no binding, because it never came from a file") { dir =>
-    val s = store(dir)
-    LocalStorageMigration.migrate(directory("p1" -> "A"), _ => Some(payload("x")), s).fold(e => fail(e), identity)
-    assertEquals(s.list().head.binding, None)
-  }
+  test("a browser diagram has no origin, because it never came from a file"):
+    assertEquals(read(directory("p1" -> "A"), _ => Some(payload("x"))).records.head.origin, None)
 
-  /** View state is recovered from JSON written by an older version whose types
-    * have since changed, so parsing is lenient — and `$type` discriminators must
-    * not arrive as element ids.
-    */
   /** The migration READS the type tag. It does not skip it.
     *
     * Before, the migration discarded the tag. The result was a bare `n1`, and
     * it could not tell if the user hid a node or a group. Thus two different
     * elements with the same id became one entry, and when the user hid one of
-    * them, the user hid both. The metadata commands `hide`/`unhide` use these
-    * strings, so the code had to remove the ambiguity before it got them.
+    * them, the user hid both.
     */
-  tmp.test("view state keeps the element KIND, so a node and a group cannot collide") { dir =>
-    val s = store(dir)
-    LocalStorageMigration.migrate(directory("p1" -> "A"), _ => Some(payload("x")), s).fold(e => fail(e), identity)
-    val meta = s.list().head.metadata
+  test("view state keeps the element KIND, so a node and a group cannot collide"):
+    val meta = read(directory("p1" -> "A"), _ => Some(payload("x"))).records.head.metadata
     assertEquals(meta.hiddenElements, Set("node:n1"))
     assertEquals(meta.collapsedGroups, Set("group:g1"))
-  }
 
   /** `collapsedGroups` are groups by construction, so the kind is known even
     * when the old payload carried no tag at all.
     */
-  tmp.test("an untagged collapsed group still gets its kind") { dir =>
-    val s = store(dir)
+  test("an untagged collapsed group still gets its kind"):
     val untagged = """{"source":"digraph G {}","collapsedGroups":["g7"]}"""
-    LocalStorageMigration.migrate(directory("p1" -> "A"), _ => Some(untagged), s).fold(e => fail(e), identity)
-    assertEquals(s.list().head.metadata.collapsedGroups, Set("group:g7"))
-  }
+    assertEquals(read(directory("p1" -> "A"), _ => Some(untagged)).records.head.metadata.collapsedGroups, Set("group:g7"))
 
-  tmp.test("a payload in an unrecognised shape still yields the diagram, minus view state") { dir =>
-    val s = store(dir)
+  test("a payload in an unrecognised shape still yields the diagram, minus view state"):
     val odd = """{"source":"digraph G {}","hiddenElements":"who knows"}"""
-    LocalStorageMigration.migrate(directory("p1" -> "A"), _ => Some(odd), s).fold(e => fail(e), identity)
-    val d = s.list().head
-    assertEquals(d.text, "digraph G {}")
-    assertEquals(d.metadata.hiddenElements, Set("who knows")) // best effort, never fatal
-  }
+    val r   = read(directory("p1" -> "A"), _ => Some(odd)).records.head
+    assertEquals(r.text, "digraph G {}")
+    assertEquals(r.metadata.hiddenElements, Set("who knows")) // best effort, never fatal
 
-  // -------------------------------------------------------- idempotence
-
-  /** Idempotence by derived key rather than a "have I run?" flag, because a flag
-    * can be lost, or written before the work finishes.
-    */
-  tmp.test("running twice imports nothing the second time") { dir =>
-    val s   = store(dir)
-    val dj  = directory("p1" -> "A", "p2" -> "B")
-    val pay = (_: String) => Some(payload("digraph G {}"))
-
-    val first = LocalStorageMigration.migrate(dj, pay, s).fold(e => fail(e), identity)
-    assertEquals(first.imported.size, 2)
-
-    val second = LocalStorageMigration.migrate(dj, pay, s).fold(e => fail(e), identity)
-    assertEquals(second.imported, Vector.empty)
-    assertEquals(second.skipped.size, 2)
-    assertEquals(s.list().size, 2, "a second run duplicated diagrams")
-  }
-
-  /** The rule the whole design hangs on. Re-running migration must never revert
-    * work done since the first run.
-    */
-  tmp.test("re-running does NOT overwrite edits made since the first run") { dir =>
-    val s   = store(dir)
-    val dj  = directory("p1" -> "A")
-    val pay = (_: String) => Some(payload("original"))
-    LocalStorageMigration.migrate(dj, pay, s).fold(e => fail(e), identity)
-
-    val id      = LocalStorageMigration.idFor("p1")
-    val edited  = s.get(id).fold(e => fail(s"$e"), identity).copy(text = "edited since")
-    s.save(edited).fold(e => fail(s"$e"), identity)
-
-    LocalStorageMigration.migrate(dj, pay, s).fold(e => fail(e), identity)
-    assertEquals(s.get(id).fold(e => fail(s"$e"), _.text), "edited since")
-  }
+  test("a never-renamed browser diagram keeps the default name rather than an empty one"):
+    assertEquals(read(directory("p1" -> ""), _ => Some(payload("x", name = "Untitled"))).records.head.metadata.name, "Untitled")
 
   // ------------------------------------------------------ never destroy
 
-  /** `BrowserLibrary` had this bug before: an empty index got into the
-    * storage and overwrote real data.
+  test("an EMPTY directory gives no records"):
+    assert(read("""{"projects":[]}""", _ => None).isEmpty)
+
+  test("a directory that does not parse fails, so nothing is copied"):
+    assert(LocalStorageMigration.read("{ not json", _ => None).isLeft)
+
+  /** v1 could leave a directory entry whose payload was already gone. It is a
+    * line of the report, not an empty diagram that looks like the work of the
+    * user is gone.
     */
-  tmp.test("an EMPTY directory imports nothing and leaves a populated library alone") { dir =>
-    val s = store(dir)
-    LocalStorageMigration
-      .migrate(directory("p1" -> "A"), _ => Some(payload("keep me")), s)
-      .fold(e => fail(e), identity)
+  test("a directory entry with no payload is reported, not invented"):
+    val old = read(directory("p1" -> "A", "p2" -> "B"), id => Option.when(id == "p1")(payload("x")))
+    assertEquals(old.records.map(_.metadata.name), Vector("A"))
+    assertEquals(old.unreadable.size, 1)
+    assert(old.unreadable.head.contains("[p2]"), old.unreadable)
 
-    val report = LocalStorageMigration.migrate("""{"projects":[]}""", _ => None, s).fold(e => fail(e), identity)
-    assert(report.isEmpty)
-    assertEquals(s.list().size, 1, "an empty directory emptied the library")
-    assertEquals(s.list().head.text, "keep me")
-  }
+  test("one bad payload does not stop the rest of the library"):
+    val old = read(
+      directory("p1" -> "A", "bad" -> "B", "p3" -> "C"),
+      id => Some(if id == "bad" then "{{{" else payload("ok"))
+    )
+    assertEquals(old.records.map(_.metadata.name), Vector("A", "C"))
+    assertEquals(old.unreadable.size, 1)
+    assert(old.unreadable.head.contains("[bad]"), old.unreadable)
 
-  tmp.test("unparseable directory JSON fails without touching the library") { dir =>
-    val s = store(dir)
-    LocalStorageMigration
-      .migrate(directory("p1" -> "A"), _ => Some(payload("keep me")), s)
-      .fold(e => fail(e), identity)
+  // ------------------------------------------------------------- the plan
 
-    assert(LocalStorageMigration.migrate("{ not json", _ => None, s).isLeft)
-    assertEquals(s.list().size, 1)
-    assertEquals(s.list().head.text, "keep me")
-  }
-
-  /** v1 could leave a directory entry whose payload was already gone. Recorded
-    * as a failure rather than papered over with an empty diagram that would look
-    * like the user's work vanished.
-    */
-  tmp.test("a directory entry with no payload is reported, not invented") { dir =>
-    val s      = store(dir)
-    val report = LocalStorageMigration
-      .migrate(directory("p1" -> "A", "p2" -> "B"), id => Option.when(id == "p1")(payload("x")), s)
-      .fold(e => fail(e), identity)
-
-    assertEquals(report.imported.size, 1)
-    assertEquals(report.failed.map(_._1), Vector("p2"))
-    assertEquals(s.list().size, 1)
-  }
-
-  tmp.test("one bad payload does not stop the rest of the library importing") { dir =>
-    val s      = store(dir)
-    val report = LocalStorageMigration
-      .migrate(
-        directory("p1" -> "A", "bad" -> "B", "p3" -> "C"),
-        id => Some(if id == "bad" then "{{{" else payload("ok")),
-        s
+  test("each browser diagram becomes a new file in the folder for new diagrams, with an entry"):
+    val old = read(directory("p1" -> "Architecture", "p2" -> "Notes"), id => Some(payload(s"digraph G { $id }")))
+    val p   = plan(old)
+    assertEquals(
+      p.files,
+      Vector(
+        PlannedFile(s"$folder/Architecture.dot", "digraph G { p1 }"),
+        PlannedFile(s"$folder/Notes.dot", "digraph G { p2 }")
       )
-      .fold(e => fail(e), identity)
+    )
+    assertEquals(p.entries.map(_.path), Vector(s"$folder/Architecture.dot", s"$folder/Notes.dot"))
+    assertEquals(p.entries.head.metadata.hiddenElements, Set("node:n1"))
 
-    assertEquals(report.imported.size, 2)
-    assertEquals(report.failed.size, 1)
-    assertEquals(s.list().size, 2)
-  }
+  test("a second run uses the files of the first run, and makes no copies"):
+    val old = read(directory("p1" -> "Architecture"), _ => Some(payload("digraph G { a }")))
+    val p   = plan(old, existing = Map("Architecture.dot" -> "digraph G { a }"))
+    assertEquals(p.files, Vector.empty)
+    assertEquals(p.entries.map(_.path), Vector(s"$folder/Architecture.dot"))
 
-  tmp.test("a browser diagram id that is not filename-safe still lands in the diagrams directory") { dir =>
-    val s = store(dir)
-    LocalStorageMigration
-      .migrate(directory("../../escape" -> "A"), _ => Some(payload("x")), s)
-      .fold(e => fail(e), identity)
-    assertEquals(s.list().size, 1)
-    assertEquals(s.pathOf(s.list().head.id).getParent, dir.resolve("diagrams"))
-  }
+  test("the plan never overwrites a file that exists, also a file that the person changed"):
+    val old = read(directory("p1" -> "A"), _ => Some(payload("original")))
+    val p   = plan(old, existing = Map("A.dot" -> "edited since"))
+    assertEquals(p.files, Vector(PlannedFile(s"$folder/A 2.dot", "original")))
 
-  tmp.test("a never-renamed browser diagram keeps the default name rather than an empty one") { dir =>
-    val s = store(dir)
-    LocalStorageMigration
-      .migrate(directory("p1" -> ""), _ => Some(payload("x", name = "Untitled")), s)
-      .fold(e => fail(e), identity)
-    assertEquals(s.list().head.metadata.name, "Untitled")
-  }
+  test("a browser diagram whose name is not safe for a file system gets a file in the folder"):
+    val p = plan(read(directory("p1" -> "../../escape"), _ => Some(payload("x"))))
+    assert(p.files.forall(f => f.path.startsWith(s"$folder/") && !f.path.stripPrefix(s"$folder/").contains("/")), p.files)
+
+  test("the default name gives Untitled.dot and no tag"):
+    val p = plan(read(directory("p1" -> ""), _ => Some(payload("x", name = "Untitled"))))
+    assertEquals(p.files.map(_.path), Vector(s"$folder/Untitled.dot"))
+    assertEquals(p.entries.head.metadata.tags, Nil)

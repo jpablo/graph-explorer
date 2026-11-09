@@ -4,8 +4,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.fs.{AccessPolicy, Audit, Documents, FileOrigins, GxHome}
 import org.jpablo.graphexplorer.gxcore.model.*
 import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
-import org.jpablo.graphexplorer.gxcore.store.{LibraryStore, MetadataStore}
-import org.jpablo.graphexplorer.viewer.models.DiagramId
+import org.jpablo.graphexplorer.gxcore.store.MetadataStore
 
 import java.nio.file.{Files, Path, Paths}
 import scala.collection.mutable.ArrayBuffer
@@ -826,21 +825,25 @@ class CliSpec extends FunSuite:
 
   // ---------------------------------------------------------- migration
 
-  private def oldRecord(dir: Path, id: String, text: String, binding: Option[Binding] = None,
+  /** Write an old record into `diagrams/`, in the shape of the old writer
+    * (gx-core `LegacyRecordSpec` pins it). `origin` is a `file:` URI.
+    */
+  private def oldRecord(dir: Path, id: String, text: String, origin: Option[String] = None,
                         hidden: Set[String] = Set.empty): Unit =
-    val store = LibraryStore(GxHome.libraryDir(dir.resolve("gx-home")))
-    store.initialize()
-    store.save(
-      Diagram(
-        id = DiagramId(id),
-        format = "DOT",
-        text = text,
-        binding = binding,
-        metadata = DiagramMetadata(name = id, hiddenElements = hidden),
-        createdAt = 1,
-        updatedAt = 1
-      )
-    ).fold(e => fail(s"$e"), _ => ())
+    val diagrams = GxHome.libraryDir(dir.resolve("gx-home")).resolve("diagrams")
+    Files.createDirectories(diagrams)
+    val json = ujson.Obj(
+      "id"     -> ujson.Obj("value" -> id),
+      "name"   -> id,
+      "folder" -> ujson.Obj("segments" -> ujson.Arr()),
+      "format" -> "DOT",
+      "text"   -> text,
+      "binding" -> origin.fold(ujson.Null)(o => ujson.Obj("origin" -> o, "mode" -> "Pull", "baseHash" -> "00", "lastSyncAt" -> 1)),
+      "metadata"  -> (if hidden.isEmpty then ujson.Obj() else ujson.Obj("hiddenElements" -> ujson.Arr.from(hidden.toSeq.sorted))),
+      "createdAt" -> 1,
+      "updatedAt" -> 1
+    )
+    Files.writeString(diagrams.resolve(s"$id.json"), ujson.write(json, indent = 2))
 
   tmp.test("the migration runs once, before the first library command, and reports to stderr") { dir =>
     oldRecord(dir, "Notes", "digraph Notes { x }")
@@ -863,7 +866,7 @@ class CliSpec extends FunSuite:
       dir,
       "arch",
       Arch,
-      binding = Some(Binding(FileOrigins.originOf(f, dir), SyncMode.Pull, ContentHash.fromHex("00"), 1)),
+      origin = Some(FileOrigins.originOf(f, dir).value),
       hidden = Set("node:api")
     )
     val r = Run(dir)

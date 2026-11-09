@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer
 import buildinfo.BuildInfo
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.library.{DesktopLibrary, DesktopMigration, Library, LibraryView}
+import org.jpablo.graphexplorer.library.{DesktopStartup, Library, LibraryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
@@ -25,7 +25,7 @@ import org.jpablo.graphexplorer.viewer.state.{
   ViewTarget
 }
 import org.scalajs.dom.{document, window, URLSearchParams}
-import org.jpablo.graphexplorer.viewer.models.{ClientSize, DiagramId}
+import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.utils.ShareUrl
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small, tiny}
 
@@ -40,7 +40,14 @@ object Viewer:
     val errors     = setupErrorHandling()
     val infos      = EventBus[String]()
     val router     = Router()
-    val routerCmds = RouterCommands(router)
+    // A failure of an async desktop command (a new file, an open) goes to the
+    // alert of the view and to the notice of the home page.
+    val routerCmds = RouterCommands(
+      router,
+      message =>
+        errors.emit(message)
+        Library.showNotice(Vector(message))
+    )
 
 
     var lastRightPanelSection = RightPanelSection.none
@@ -88,36 +95,22 @@ object Viewer:
       .map(Level.fromString)
       .getOrElse(Level.None)
 
-    // D7.3: on the desktop the library IS the store on disk, so it has to be
-    // in place BEFORE anything reads it — the share-URL branch below asks
-    // `diagramExists` before a single route renders, and answering that from
-    // the browser library and then swapping backends would open the wrong
-    // diagram. On the web there is nothing to wait for.
+    // On the desktop, the library is the metadata store on disk (ADR 0001),
+    // so it has to be in place BEFORE anything reads it. The start runs the
+    // one-time migrations first (`DesktopStartup`). On the web there is
+    // nothing to wait for.
     val libraryReady: scala.concurrent.Future[Unit] =
       if !DesktopIpc.available then scala.concurrent.Future.successful(())
-      else
-        for
-          onDisk   <- DesktopLibrary.load()
-          _        <- DesktopMigration.runOnce(onDisk.map(_.id.value).toSet)
-          // Read the library again, and do not use `onDisk`. The migration can
-          // add diagrams. A mirror without them shows an empty library until
-          // the first external change.
-          diagrams <- DesktopLibrary.load()
-        yield
-          Library.install(DesktopLibrary(diagrams))
-          // Writes are debounced, so edits can exist only in memory. A closing
-          // window must not take them with it — `localStorage` never needed
-          // this because it wrote on the spot.
-          val flush: js.Function1[dom.Event, Unit] = _ => Library.flush()
-          dom.window.addEventListener("pagehide", flush)
-          dom.window.addEventListener("blur", flush)
+      else DesktopStartup.run().map(Library.install)
 
     libraryReady.foreach: _ =>
       startApp()
 
     def startApp(): Unit =
-      // If a share URL (?dot=...) is present, resolve it immediately:
-      val sharedDot = ShareUrl.readDotParam()
+      // If a share URL (?dot=...) is present, resolve it immediately. Only
+      // the web app gets a share URL, and only the browser library keeps the
+      // source of a diagram.
+      val sharedDot = ShareUrl.readDotParam().filter(_ => !Library.isDesktop)
       sharedDot.foreach: dot =>
         // The path of the link holds the diagram id (/diagrams/<id>?dot=...). When that
         // diagram is in the local library, open IT. A match by exact source alone made a
@@ -155,7 +148,7 @@ object Viewer:
       // delivering an open. Announcing it before `Library.install` had run
       // would let an early open be answered "no such diagram" by a library that
       // had simply not loaded yet.
-      DesktopOpenRequests.install(router.tryNavigateTo, id => Library.diagramExists(DiagramId(id)))
+      DesktopOpenRequests.install(router.tryNavigateTo)
 
       Graphviz.build().foreach: (graphviz: Graphviz) =>
         dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)
@@ -197,7 +190,7 @@ object Viewer:
           state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)(using viewOwner)
           // Similarly track the left panel visibility state between diagrams
           state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
-          // §7.4: a loose file with an unsaved edit asks before it is left.
+          // §7.4: a file with an unsaved edit asks before it is left.
           // Registered per view and cleared on unmount below, so exactly one
           // guard exists and it belongs to what is on screen.
           val leaveGuard: Route => Boolean = route =>
@@ -247,21 +240,22 @@ object Viewer:
               viewOwner.killSubscriptions()
             })
 
-        /** A loose file: the same viewer, and a different store (§5, §6).
+        /** A file: the same viewer, and a different store (§5, §6).
           *
-          * The SAME `diagramView`, on purpose. A loose file is not a weaker
-          * diagram, and a second, thinner viewer would drift from this one.
-          * Only the target differs, and the target is what chooses the store.
+          * The SAME `diagramView`, on purpose. A file is not a weaker diagram,
+          * and a second, thinner viewer would drift from this one. Only the
+          * target differs, and the target is what chooses the store. Each
+          * diagram of the desktop opens here (ADR 0001).
           *
           * The text is not passed as `source`. It comes from
-          * `LooseFilePersistence.initial`, which reads the registry — so one
-          * place holds what the shell sent, and a reload of this route shows
-          * the file again rather than an empty diagram.
+          * `FilePersistence.initial`, which reads the registry — so one place
+          * holds what the shell sent, and a reload of this route shows the
+          * file again rather than an empty diagram.
           */
-        def looseFileView(sessionId: String) =
+        def fileView(sessionId: String) =
           DocumentSessionId.parse(sessionId).filter(DesktopDocumentRegistry.get(_).isDefined) match
             case Some(session) =>
-              diagramView(ViewTarget.LooseFile(session), source = None)
+              diagramView(ViewTarget.File(session), source = None)
             case None =>
               // A bookmark can outlive the session it names, and a person can
               // type this URL. Say so, and offer the way back. Opening an empty
@@ -296,8 +290,8 @@ object Viewer:
                     // that just looks broken.
                     unknownExample(slug, routerCmds)
 
-              case Route.LooseFile(sessionId) =>
-                looseFileView(sessionId)
+              case Route.File(sessionId) =>
+                fileView(sessionId)
           )
 
         render(document.querySelector("#app"), app)

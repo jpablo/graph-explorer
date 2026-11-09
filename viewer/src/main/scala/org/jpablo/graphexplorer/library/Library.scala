@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.gxcore.model.ContentHash
 import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ViewerSettings}
@@ -9,62 +8,76 @@ import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ViewerSettings}
 /** The library the app talks to, whichever one it is (D7.3).
   *
   * Call sites name this rather than a backend, so "where does the library
-  * live" is answered once, at startup, instead of nineteen times.
+  * live" is answered once, at startup, instead of at each call site.
   *
-  * Defaults to `localStorage`: the web has nothing else, and a desktop that
-  * fails to hand over its own library keeps working on the browser one rather
-  * than presenting an empty shelf.
+  * The list (what the home page and the library panel show) comes from the
+  * desktop library when one is installed, and else from `localStorage`. A
+  * desktop that fails to give its own library keeps working on the browser one
+  * rather than presenting an empty shelf.
+  *
+  * The operations on a stored source (`createDiagram`, `createDiagramPersistence`,
+  * ...) are for the web app, so they always go to the browser library. On the
+  * desktop, a diagram is a file, and [[desktop]] has the operations on files.
   */
 object Library:
 
-  private var backend: DiagramLibrary = BrowserLibrary
+  private var desktopLibrary: Option[DesktopLibrary] = None
 
-  /** Swap in the desktop's on-disk library. Called once, before the first
-    * route renders, so nothing observes the browser library and then finds
-    * itself pointed at a different one.
+  /** Put in the desktop library. Called once, before the first route renders,
+    * so nothing observes the browser library and then finds itself pointed at
+    * a different one.
     */
-  def install(library: DiagramLibrary): Unit = backend = library
+  def install(library: DesktopLibrary): Unit = desktopLibrary = Some(library)
 
   /** Put the browser library back. For tests: `install` is process-global, so
-    * one test that swaps the backend would otherwise swap it for every test
-    * that runs after it.
+    * one test that installs a library would otherwise install it for every
+    * test that runs after it.
     */
-  private[graphexplorer] def restoreDefault(): Unit = backend = BrowserLibrary
+  private[graphexplorer] def restoreDefault(): Unit =
+    desktopLibrary.foreach(_.close())
+    desktopLibrary = None
+    notice.set(None)
 
-  def isDesktop: Boolean = backend ne BrowserLibrary
+  /** The desktop library, when the app runs in the desktop shell. */
+  def desktop: Option[DesktopLibrary] = desktopLibrary
 
-  def index: Signal[LibraryIndex] = backend.index
-  def indexNow(): LibraryIndex    = backend.indexNow()
+  def isDesktop: Boolean = desktopLibrary.isDefined
 
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
-    backend.createDiagramPersistence(id, initialSource)
+  private def listing: LibraryListing = desktopLibrary.getOrElse(BrowserLibrary)
 
-  def createEmptyDiagram(name: String): DiagramId = backend.createEmptyDiagram(name)
-  def createDiagram(name: String, source: String): DiagramId = backend.createDiagram(name, source)
-  def deleteDiagram(id: DiagramId): Unit = backend.deleteDiagram(id)
-  def diagramSource(id: DiagramId): Signal[String] = backend.diagramSource(id)
-  def diagramExists(id: DiagramId): Boolean = backend.diagramExists(id)
+  def index: Signal[LibraryIndex] = listing.index
+  def indexNow(): LibraryIndex    = listing.indexNow()
 
-  /** The diagrams that have a binding to a file path (§8). Empty on the browser backend. */
-  def diagramsBoundTo(path: String): List[BoundDiagram] = backend.diagramsBoundTo(path)
+  def diagramSource(id: DiagramId): Signal[String] = listing.diagramSource(id)
+  def diagramExists(id: DiagramId): Boolean        = listing.diagramExists(id)
 
-  /** The writes to a diagram from outside this view (D7.3). Empty on the browser backend. */
-  def diagramChangedExternally(id: DiagramId): com.raquo.airstream.core.EventStream[DiagramSnapshot] =
-    backend.diagramChangedExternally(id)
-
-  /** The file that is the origin of a diagram (§8). None on the browser backend. */
-  def originPathOf(id: DiagramId): Option[String] = backend.originPathOf(id)
-
-  def storeReconciliation(id: DiagramId, text: Option[String], base: ContentHash): Unit =
-    backend.storeReconciliation(id, text, base)
-  def findDiagramBySource(dot: String): Option[DiagramId] = backend.findDiagramBySource(dot)
+  /** Take the diagram out of the library. On the desktop, the file stays. */
+  def deleteDiagram(id: DiagramId): Unit = listing.deleteDiagram(id)
 
   def diagramCardInfo(id: DiagramId, languages: DiagramLanguages): Option[DiagramCardInfo] =
-    backend.diagramCardInfo(id, languages)
+    listing.diagramCardInfo(id, languages)
 
-  def flush(): Unit = backend.flush()
+  // ------------------------------------------- the browser library (web app)
 
-  /** Viewer settings stay in `localStorage` on BOTH backends.
+  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
+    BrowserLibrary.createDiagramPersistence(id, initialSource)
+
+  def createEmptyDiagram(name: String): DiagramId            = BrowserLibrary.createEmptyDiagram(name)
+  def createDiagram(name: String, source: String): DiagramId = BrowserLibrary.createDiagram(name, source)
+  def findDiagramBySource(dot: String): Option[DiagramId]    = BrowserLibrary.findDiagramBySource(dot)
+
+  // ------------------------------------------------------------- notices
+
+  /** Lines that the home page shows to the person until the person closes
+    * them: the report of a migration, or a failure of a library operation.
+    */
+  val notice: Var[Option[Vector[String]]] = Var(None)
+
+  /** Show `lines` on the home page. A second notice goes below the first. */
+  def showNotice(lines: Vector[String]): Unit =
+    if lines.nonEmpty then notice.update(current => Some(current.getOrElse(Vector.empty) ++ lines))
+
+  /** Viewer settings stay in `localStorage` on BOTH platforms.
     *
     * They are this window's preferences — theme, panel widths, sort order —
     * not library content, so there is nothing for `gx` to read or write and no

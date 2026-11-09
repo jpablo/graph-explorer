@@ -159,7 +159,7 @@ object LiveViewCommands:
         Left(Refusal("INVALID_REQUEST", s"'$sessionId' is not a document session id"))
       case Some(id) =>
         state.target match
-          case ViewTarget.LooseFile(shown) if shown == id =>
+          case ViewTarget.File(shown) if shown == id =>
             state.replaceSourceDetectingFormat(text)
             Right(ujson.Null)
           case _ =>

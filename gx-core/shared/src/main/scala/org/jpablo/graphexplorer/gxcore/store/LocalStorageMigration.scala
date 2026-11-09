@@ -5,38 +5,28 @@ import org.jpablo.graphexplorer.viewer.models.DiagramId
 
 import scala.util.control.NonFatal
 
-final case class MigrationReport(
-    imported: Vector[DiagramId] = Vector.empty,
-    /** Already in the store: the store has a diagram for this browser diagram,
-      * and the migration did not change it. Thus the migration is safe when it
-      * runs again.
-      */
-    skipped:  Vector[DiagramId] = Vector.empty,
-    failed:   Vector[(String, String)] = Vector.empty
-):
-  def total: Int      = imported.size + skipped.size + failed.size
-  def isEmpty: Boolean = total == 0
-
-/** The migration moves the browser library to the disk (§9).
+/** The migration moves the browser library to the disk (§9, plan §4).
   *
   * The web app keeps its own library in `localStorage`. That library does not
   * sync, and the migration does not change it. The web app has no file system,
   * and that is the reason for the browser library. The desktop offers this
-  * import one time, at the first start of v2.
+  * copy one time, at its first start.
+  *
+  * A browser diagram becomes a file in the folder for new diagrams, and an
+  * entry in the library, in the same way as an old record with no file
+  * ([[MetadataMigration]]). Thus this object only reads: it changes each
+  * browser diagram into an old record with no origin, and the shared plan
+  * decides the file names and the entries.
   *
   * Two rules apply. Both come from bugs, not from assumptions:
   *
   *   1. **The migration never destroys data.** No code here deletes or
-  *      overwrites. The migration runs on all of the library of a user. If it
-  *      goes wrong, the result is not "a bad import" but "their work is gone".
-  *      `BrowserLibrary` had bugs of this type before. The empty-index guard
-  *      in `updateIndex` and `guardedDiagramName` exist because a blank value
-  *      once got into the storage and overwrote real data.
-  *   2. **The migration is idempotent because of its design.** Each id comes
-  *      from the id of the browser diagram. Thus a second run finds the same
-  *      diagrams in the store and skips them. A derived key gives the
-  *      idempotence, not a "have I run yet?" flag. A flag can be lost, or the
-  *      code can write it before the work is complete.
+  *      overwrites, and the plan never writes over a file that exists. The
+  *      migration runs on all of the library of a user. If it goes wrong, the
+  *      result is not "a bad import" but "their work is gone".
+  *   2. **A second run makes no copies.** The plan uses again a file that has
+  *      the same text and no entry. The desktop also marks the copy as done
+  *      (`DesktopMigration`), and it writes no entry over an entry that exists.
   *
   * The parse is lenient on purpose. An older version wrote the payloads, and
   * its internal types changed after that. For example, `ElementIds` wraps a set
@@ -48,42 +38,41 @@ final case class MigrationReport(
 object LocalStorageMigration:
 
   /** The namespace for derived ids. With it, you can identify a migrated
-    * diagram, and its id cannot be equal to an id from `DiagramId.random`.
+    * diagram in the report, and its id cannot be equal to an id from
+    * `DiagramId.random`.
     */
   private val Namespace = "ls"
 
   def idFor(browserDiagramId: String): DiagramId = DiagramId.derivedFrom(Namespace, browserDiagramId)
 
-  /** @param directoryJson the value of the `graph-explorer.projects` key
+  /** Read the browser library as old records with no origin.
+    *
+    * @param directoryJson the value of the `graph-explorer.projects` key
     * @param payloadFor    the id of a browser diagram -> its payload JSON, which
     *                      is the stored form of `DiagramSnapshot` in the viewer
+    * @return the records, in the order of the browser library, and a line for
+    *         each browser diagram that the migration cannot read. `Left` when
+    *         the library index does not parse: then nothing is copied.
     */
-  def migrate(
+  def read(
       directoryJson: String,
       payloadFor:    String => Option[String],
-      store:         DiagramSink,
       now:           () => Long = () => System.currentTimeMillis()
-  ): Either[String, MigrationReport] =
+  ): Either[String, OldRecords] =
     parseDirectory(directoryJson).map: browserDiagrams =>
-      store.initialize()
-      browserDiagrams.foldLeft(MigrationReport()): (report, browserDiagram) =>
-        val id = idFor(browserDiagram.id)
-        if store.contains(id) then report.copy(skipped = report.skipped :+ id)
-        else
-          payloadFor(browserDiagram.id) match
-            case None =>
-              // An entry of the library index that has no payload. v1 could
-              // make these: a deleted browser diagram whose payload is gone but
-              // whose entry stayed, or the opposite. The migration records a
-              // failure. It does not make an empty diagram in its place.
-              report.copy(failed = report.failed :+ (browserDiagram.id, "no stored payload"))
-            case Some(payload) =>
-              toDiagram(id, browserDiagram, payload, now()) match
-                case Left(why) => report.copy(failed = report.failed :+ (browserDiagram.id, why))
-                case Right(diagram) =>
-                  store.write(diagram) match
-                    case Left(err) => report.copy(failed = report.failed :+ (browserDiagram.id, err))
-                    case Right(_)  => report.copy(imported = report.imported :+ id)
+      val read = browserDiagrams.map: browserDiagram =>
+        val label = s"the browser diagram \"${browserDiagram.name}\" [${browserDiagram.id}]"
+        payloadFor(browserDiagram.id) match
+          case None =>
+            // An entry of the library index that has no payload. v1 could
+            // make these: a deleted browser diagram whose payload is gone but
+            // whose entry stayed, or the opposite. The migration reports it.
+            // It does not make an empty diagram in its place.
+            Left(s"$label has no stored payload. Nothing was copied for it.")
+          case Some(payload) =>
+            toRecord(idFor(browserDiagram.id), browserDiagram, payload, now()).left.map: why =>
+              s"$label cannot be read ($why). It stays in the browser library, unchanged."
+      OldRecords(read.flatMap(_.toOption), read.flatMap(_.left.toOption))
 
   private final case class LegacyProject(id: String, name: String, lastModified: Long, createdAt: Long)
 
@@ -108,12 +97,12 @@ object LocalStorageMigration:
             )
     catch case NonFatal(e) => Left(s"could not parse the library index: $e")
 
-  private def toDiagram(
+  private def toRecord(
       id:             DiagramId,
       browserDiagram: LegacyProject,
       payload:        String,
       nowMs:          Long
-  ): Either[String, Diagram] =
+  ): Either[String, LegacyRecord] =
     try
       val o = ujson.read(payload).obj
 
@@ -130,13 +119,13 @@ object LocalStorageMigration:
       val format = o.get("format").flatMap(_.strOpt).filter(_.nonEmpty).getOrElse("DOT")
 
       Right(
-        Diagram(
-          id = id,
+        LegacyRecord(
+          id = id.value,
           format = format,
           text = text,
-          // Migrated diagrams have no origin: they never came from a file, and
-          // inventing one would bind them to a path that does not exist.
-          binding = None,
+          // A browser diagram has no origin: it never came from a file, and
+          // an invented one would name a path that does not exist.
+          origin = None,
           metadata = DiagramMetadata(
             name = name,
             folder = FolderPath.root,

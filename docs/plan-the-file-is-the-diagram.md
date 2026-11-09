@@ -93,11 +93,14 @@ Each phase ends with `sbt --client testFull` and `cargo test` green. The desktop
 
 1. **gx-core.** Add the metadata store by path, the migration plan with its JVM executor, and the element-name parser. Keep the old record types (`Diagram`, `Binding`, `SyncMode`, `SyncState`, `Reconciler`), because the desktop app still uses them until phase 3. `DiagramMetadata` keeps `name` and `folder` until phase 3, but the new store does not save them.
 2. **gx.** The commands in §2, `--reformat` (through `RoundTripLoss.scan`), the help text, and the skill files. Remove the old commands.
-3. **The desktop app.** Run the migration through IPC. Each diagram opens through the file path that loose files use today, with an explicit Save. The home page lists the metadata store. "New diagram" creates a file in `~/Documents/Graph Explorer/`. A desktop command names its diagram and is refused for a different one. `gx selection` answers with the diagram. Delete `OriginReconciler`, `OriginStateBanner`, and the library copy. Then delete the old record types in gx-core, and `name` and `folder` from `DiagramMetadata`. The web app keeps a stored name for each browser diagram, because a browser diagram has no file name. The UI says "arrow" where it says "edge".
+3. **The desktop app**, in two parts.
+   - **3a. The library on the metadata store.** The desktop runs the migration through IPC. The home page lists the metadata store, and each diagram opens through the file path that loose files use today, with an explicit Save. The metadata of the diagram on the screen is read from and written to its entry, and an outside change to the entry shows. "New diagram" creates a file in the folder for new diagrams. "Rename" renames the file, and its metadata moves with it. "Delete" becomes "Remove from library": the metadata goes, the file stays. The browser-to-desktop migration writes files. Delete `OriginReconciler`, `OriginStateBanner`, the library copy, and the old record types (the migration keeps a reader for old records).
+   - **3b. The live view and the last names.** A desktop command names its diagram and is refused for a different one, and `gx selection` answers with the diagram. A save from the desktop keeps the line endings and the final newline (V-04). The UI says "arrow" where it says "edge". `DiagramMetadata` loses `name` and `folder`; the web app keeps a stored name for each browser diagram.
 4. **Docs.** `HANDOFF.md`, `local-protocol/README.md`, and a note that `docs/sources-and-library-architecture.md` is superseded.
 
 ## 6. Decisions after the first draft
 
 - Most users of `gx` are agents. Thus the arrow form `api..db` (safe in a shell) is better than the DOT spelling, and each command has `--json`.
 - The command names in §2 are accepted.
+- In the desktop app, "Rename" renames the file, and "Delete" becomes "Remove from library" (the file stays).
 - `unset` is gone: `gx set f.dot api color=` removes `color`. With `unset`, gx could not tell an element name from an attribute name.

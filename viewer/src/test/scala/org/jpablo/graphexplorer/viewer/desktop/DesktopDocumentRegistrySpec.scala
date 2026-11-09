@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.desktop
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
 
-/** Phase 2 items 1 and 3: the destination a loose file needs.
+/** Phase 2 items 1 and 3: the destination a file needs.
   *
   * The route holds an id, so the registry must map that id back to the file,
   * and must return the SAME id for the same file. §4.2 is the reason: a second

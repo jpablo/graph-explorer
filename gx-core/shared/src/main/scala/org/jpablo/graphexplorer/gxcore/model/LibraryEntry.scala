@@ -38,10 +38,10 @@ object LibraryEntry:
     * they give the same URI.
     *
     * The JVM hashes the UTF-8 bytes of this text with `Hashing.ofBytes`. The
-    * desktop app can do the same in phase 3: its shell gives the canonical
-    * path (V-13, `local-protocol/fixtures/canonicalization.json`), this shared
-    * function gives the URI, and the shell command `hash_text` gives the
-    * SHA-256 (`content-hashes.json`).
+    * desktop app does the same (`DesktopIpc.entryNameOf`): its shell gives the
+    * canonical path (V-13, `local-protocol/fixtures/canonicalization.json`),
+    * this shared function gives the URI, and the shell command `hash_text`
+    * gives the SHA-256 (`content-hashes.json`).
     */
   def keySource(canonicalPath: String): String =
     OriginUri.fromCanonicalPath(canonicalPath).value
@@ -53,7 +53,7 @@ object LibraryEntry:
     * The sets are sorted vectors, so that one entry always gives the same
     * bytes.
     *
-    * The stored form has no `name` and no `folder`. Phase 3 removes the two
+    * The stored form has no `name` and no `folder`. Phase 3b removes the two
     * fields from `DiagramMetadata`. Until then, a read sets `name` to the base
     * name of the file and `folder` to the root.
     */
@@ -87,7 +87,7 @@ object LibraryEntry:
     LibraryEntry(
       path = s.path,
       metadata = DiagramMetadata(
-        // Phase 3 removes `name` and `folder` from `DiagramMetadata`.
+        // Phase 3b removes `name` and `folder` from `DiagramMetadata`.
         name = nameOf(s.path),
         folder = FolderPath.root,
         hiddenElements = s.hiddenElements.toSet,

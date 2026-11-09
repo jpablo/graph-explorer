@@ -16,9 +16,8 @@ package org.jpablo.graphexplorer.gxcore.model
   *     is correct: if what I based my edit on is what is there now, my edit is
   *     safe.
   *   - a generator that rewrites a file to byte-identical content produces no
-  *     change at all, which is the `Converged` row of [[SyncState]] and the
-  *     difference between a live-updating diagram and a stream of false
-  *     conflicts.
+  *     change at all. Thus a watch sends no event, and an open editor sees no
+  *     false conflict.
   *
   * The value is carried as lowercase hex so it can cross a wire, a JSON record
   * and a process boundary without an encoding decision at each hop.

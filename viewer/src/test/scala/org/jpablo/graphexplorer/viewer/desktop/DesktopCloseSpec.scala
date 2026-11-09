@@ -50,7 +50,7 @@ class DesktopCloseSpec extends FunSuite with TestHelpers:
   test("the page tells the shell when an edit is not on disk, and when it is again") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/close.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
       DesktopClose.install(state)
 
       afterMicrotasks {
@@ -70,7 +70,7 @@ class DesktopCloseSpec extends FunSuite with TestHelpers:
   test("a close request with an unsaved edit raises the dialog, and confirms nothing yet") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/close-dirty.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
       DesktopClose.install(state)
 
       afterMicrotasks {
@@ -94,7 +94,7 @@ class DesktopCloseSpec extends FunSuite with TestHelpers:
   test("a close request with nothing unsaved is confirmed at once") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/close-clean.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
       DesktopClose.install(state)
 
       afterMicrotasks {
@@ -111,7 +111,7 @@ class DesktopCloseSpec extends FunSuite with TestHelpers:
     // refusing every close for an edit that no longer exists.
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/close-detach.dot", "rev-1", "digraph { a }")
-      val state = ViewerState(ViewTarget.LooseFile(open.id), graphviz)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
       DesktopClose.install(state)
 
       afterMicrotasks {

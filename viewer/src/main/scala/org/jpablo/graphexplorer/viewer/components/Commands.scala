@@ -4,7 +4,9 @@ import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, NavDirection, RightPanelSection, SaveResult, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
 import org.scalajs.dom.KeyValue
 import org.scalajs.dom
 
@@ -86,12 +88,37 @@ case class Command[-A](
         gtag("event", "command_executed", p)
     action.execute(arg)
 
-class RouterCommands(router: Router):
+/** The commands that change the route.
+  *
+  * @param reportError where a failure of an async desktop command goes: a new
+  *                    file or an open can fail after the click
+  */
+class RouterCommands(router: Router, reportError: String => Unit = message => Library.showNotice(Vector(message))):
   import Command.always
 
+  /** On the desktop, a new diagram is a new FILE in the folder for new
+    * diagrams, with an entry in the library (ADR 0001). In the web app, it is
+    * a diagram of the browser library.
+    */
   private def createDiagramAndNavigate(source: Option[String] = None) =
-    val id = Library.createEmptyDiagram(DiagramSnapshot.defaultDiagramName)
-    router.navigateTo(Route.Diagram(id.value, source))
+    Library.desktop match
+      case Some(desktop) =>
+        val text = source.getOrElse(minimalGraphText)
+        navigateWhenReady(desktop.newDiagram(DiagramSnapshot.defaultDiagramName, text, extensionOf(text)))
+      case None =>
+        val id = Library.createEmptyDiagram(DiagramSnapshot.defaultDiagramName)
+        router.navigateTo(Route.Diagram(id.value, source))
+
+  /** The extension of a new file: the language of its text decides. */
+  private def extensionOf(text: String): String =
+    DiagramFormat.detect(text) match
+      case DiagramFormat.DOT     => ".dot"
+      case DiagramFormat.Mermaid => ".mmd"
+
+  private def navigateWhenReady(result: scala.concurrent.Future[Either[String, Route]]): Unit =
+    result.foreach:
+      case Right(route)  => router.navigateTo(route)
+      case Left(message) => reportError(message)
 
   val createDiagram =
     Command(
@@ -104,17 +131,22 @@ class RouterCommands(router: Router):
   /** Copy the example that the person views into the library, with the name
     * that the gallery gives it. The `createDiagram` command above can only make
     * an "Untitled" diagram. The copy of "Finite State Machine" must show that
-    * name in the library.
+    * name in the library. On the desktop, the copy is a new file with that
+    * name.
     */
   val copyExampleToLibrary =
     Command(
       "Copy example to library",
       (nameAndSource: (String, String)) =>
         val (name, source) = nameAndSource
-        val id             = Library.createDiagram(name, source)
-        // No source through the route: the payload is already written, so the
-        // detail page restores the named diagram rather than seeding a fresh one.
-        router.navigateTo(Route.Diagram(id.value))
+        Library.desktop match
+          case Some(desktop) =>
+            navigateWhenReady(desktop.newDiagram(name, source, extensionOf(source)))
+          case None =>
+            val id = Library.createDiagram(name, source)
+            // No source through the route: the payload is already written, so the
+            // detail page restores the named diagram rather than seeding a fresh one.
+            router.navigateTo(Route.Diagram(id.value))
       ,
       always,
       description = Some("Add a copy of this example to your library")

@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
-import org.jpablo.graphexplorer.library.Library
+import org.jpablo.graphexplorer.library.{FileRename, Library}
 import org.jpablo.graphexplorer.router.Route
 
 /** Why a view is being left, and therefore what happens once the person
@@ -16,7 +16,7 @@ enum LeaveIntent derives CanEqual:
   case CloseWindow
 import org.jpablo.graphexplorer.gxcore.command.ElementRef
 import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
-import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopIpc}
+import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
 import org.scalajs.dom
@@ -33,13 +33,13 @@ trait Persistence:
     * The choice is made once, in `DiagramPersistence.forTarget`, and that
     * function is total over `ViewTarget`. Before this, every viewer opened a
     * library handle keyed by a `DiagramId`, and the only way to keep an example
-    * out of the library was to remember not to call for one. A loose file could
-    * not be kept out at all.
+    * out of the library was to remember not to call for one. A file could not
+    * be kept out at all.
     */
   protected val persistence: DiagramPersistence =
     DiagramPersistence.forTarget(target, initialSource)
 
-  /** This viewer's session, while it shows a loose file (§7.3).
+  /** This viewer's session, while it shows a file (§7.3).
     *
     * A Signal rather than a lookup, so a dirty marker and a conflict banner
     * follow the file instead of waiting for the next render. §10 asks for
@@ -50,18 +50,23 @@ trait Persistence:
   // does. Forcing them at first read is what keeps this off a null.
   lazy val documentSession: Signal[Option[DesktopDocumentRegistry.Session]] =
     target match
-      case ViewTarget.LooseFile(session) => DesktopDocumentRegistry.signal(session)
-      case _                             => Signal.fromValue(None)
+      case ViewTarget.File(session) => DesktopDocumentRegistry.signal(session)
+      case _                        => Signal.fromValue(None)
+
+  /** This viewer's session now, while it shows a file. */
+  def documentSessionNow: Option[DesktopDocumentRegistry.Session] =
+    target match
+      case ViewTarget.File(session) => DesktopDocumentRegistry.get(session)
+      case _                        => None
 
   /** The editor holds an edit that the file does not have (§7.3, `local` vs `base`).
     *
-    * It is false for a diagram, but a diagram can change. A diagram saves on
-    * each keystroke, so it is never behind. Only a file can be in the
-    * "unsaved" state.
+    * It is false for a browser diagram, which saves on each keystroke, so it
+    * is never behind. Only a file can be in the "unsaved" state.
     */
   lazy val documentDirty: Signal[Boolean] =
     target match
-      case ViewTarget.LooseFile(_) =>
+      case ViewTarget.File(_) =>
         documentSession
           .combineWith(sourceText.signal)
           .map((session, text) => session.exists(_.sourceText != text))
@@ -102,7 +107,7 @@ trait Persistence:
     */
   private def followDocumentSession(): Unit =
     target match
-      case ViewTarget.LooseFile(session) =>
+      case ViewTarget.File(session) =>
         lastAdopted = persistence.initial.source
         documentSession.changes.foreach:
           case None => ()
@@ -116,83 +121,58 @@ trait Persistence:
               DesktopDocumentRegistry.markConflict(session, current.revision, current.sourceText)
       case _ => ()
 
-  /** Follow the diagram when a different writer changes it (D7.3).
+  /** Follow the metadata when a different writer changes it (D7.3).
     *
-    * Before, this return path did not exist. `restorePersistedState` reads
-    * `persistence.initial` ONCE. For a long time, that was the only read. The
-    * library set its `Var` when a diagram changed under an open view, and
-    * nothing used the value. A `gx set`, or a pull from an origin file, went
-    * into the diagram correctly. It did not show until the view opened again.
-    *
-    * That also broke the two resolution buttons of §8. "Take the file's
-    * version" wrote the diagram, and the strip went away because the state
-    * was resolved. But the person still saw the old text.
-    *
-    * This method adopts the whole snapshot: the source and the metadata.
-    * Before, it adopted only the source. Thus a `gx run hide` did not show,
-    * and the viewer kept its old hidden set. The next edit in the viewer then
-    * wrote that old set back, and the change from `gx` was lost with no
+    * A file on the desktop has its metadata in its library entry, and `gx` can
+    * change that entry while the file is on the screen: `gx hide`, `gx tag`.
+    * Before, the viewer read the metadata ONCE at mount. The change did not
+    * show, and the viewer kept its old hidden set. The next edit in the viewer
+    * then wrote that old set back, and the change from `gx` was lost with no
     * message (`FollowMetadataSpec`).
     *
-    * Two gates are before this method, and neither gate is in it.
-    * `DiagramPersistence.external` removes the writes of this viewer.
-    * `createDiagramPersistence` does not set its `Var` while this view has a
-    * write that waits, and it warns. Thus an event here comes from a different
-    * writer, at a time when the person did not edit.
-    *
-    * The adoption writes nothing. After it, the snapshot of this viewer is the
-    * snapshot that the store holds, and the "a visit is not an edit" guard of
-    * the store skips it. The adoption does not touch the selection or the
-    * viewport, because neither is in the snapshot.
+    * The adoption writes nothing. After it, the metadata of this viewer is the
+    * metadata of the entry, and the store writes only a change
+    * (`DesktopLibrary.writeMetadata`). The adoption does not touch the source,
+    * the selection or the viewport. The source follows the session
+    * ([[followDocumentSession]]), and the other two are not metadata.
     */
-  private def followDiagram(): Unit =
-    target match
-      case ViewTarget.Diagram(_) =>
-        persistence.external.foreach: next =>
-          if metadata.now() != next.metadata then metadata.set(next.metadata)
-          if sourceText.now() != next.source then
-            replaceSourceDetectingFormat(next.source)
-      case _ => ()
+  private def followMetadata(): Unit =
+    persistence.external.foreach: next =>
+      if metadata.now() != next then metadata.set(next)
 
-  /** Listen to the origin of this diagram, from the moment that it opens (§8).
-    *
-    * This is the other half of [[followDocumentSession]]. A loose file comes
-    * with its text and a session. A diagram comes with a BINDING, and nothing
-    * listens to the file behind it. Phase 3 decided what to do with an origin
-    * change, but never asked for one. Thus the divergence strip showed only
-    * after `gx open` watched the file.
-    *
-    * The call does not wait for a result. The reply holds the bytes, and the
-    * method discards them. The watch sends a document event. That event is
-    * the one route that reconciles against the diagram, and does not
-    * overwrite it.
-    *
-    * The watch stays after this view closes, and that is intentional (see
-    * `DesktopIpc.openDocument`). A watch has the path as its key, and
-    * `gx watch` shares it. A release on unmount can stop a watch that this
-    * page did not start. The cost is one watch for each bound diagram that
-    * the person opens in a session.
-    */
-  private def watchOrigin(): Unit =
-    target match
-      case ViewTarget.Diagram(id) =>
-        import scala.concurrent.ExecutionContext.Implicits.global
-        Library.originPathOf(id).foreach(DesktopIpc.openDocument)
-      case _ => ()
-
-  /** True when a file is behind this document: a loose file, or a diagram
-    * with a binding to a file (§8).
+  /** True when a file is behind this view (§8).
     *
     * A canvas edit writes the whole graph again, and the file then takes that
-    * text. Thus `InternalPhases` refuses a canvas edit that removes content
-    * that the graph does not model. This is a `def`, because a diagram can get
-    * or lose its binding while it is open.
+    * text on the next save. Thus `InternalPhases` refuses a canvas edit that
+    * removes content that the graph does not model. Each diagram on the desktop
+    * is a file. A diagram of the browser library and an example have no file.
     */
   def isFileBacked: Boolean =
     target match
-      case ViewTarget.LooseFile(_)       => true
-      case ViewTarget.Diagram(id)        => Library.originPathOf(id).isDefined
-      case ViewTarget.Example(_, _)      => false
+      case ViewTarget.File(_)       => true
+      case ViewTarget.Diagram(_)    => false
+      case ViewTarget.Example(_, _) => false
+
+  /** Rename the file of this view (desktop).
+    *
+    * `newName` is a file name, with no folder. A name with no extension keeps
+    * the extension of the file. The library renames the file first, and then
+    * moves its entry. A refusal, or a file that moved while its metadata did
+    * not, goes to the person on `errorBus`.
+    *
+    * With no desktop library (a browser, or a test), the name is only the name
+    * on the screen, as before.
+    */
+  def renameFile(newName: String)(using ExecutionContext): Future[Unit] =
+    (target, Library.desktop) match
+      case (ViewTarget.File(session), Some(library)) =>
+        library.renameFile(session, newName).map:
+          case FileRename.Done(_)                      => ()
+          case FileRename.Refused(message)             => errorBus.emit(message)
+          case FileRename.MetadataNotMoved(_, message) => errorBus.emit(message)
+      case _ =>
+        metadata.name.set(newName)
+        Future.unit
 
   /** The same question as [[documentDirty]], answered now rather than observed.
     *
@@ -202,7 +182,7 @@ trait Persistence:
     */
   def documentIsDirty: Boolean =
     target match
-      case ViewTarget.LooseFile(session) =>
+      case ViewTarget.File(session) =>
         DesktopDocumentRegistry.get(session).exists(_.sourceText != sourceText.now())
       case _ => false
 
@@ -210,7 +190,7 @@ trait Persistence:
   lazy val documentConflict: Signal[Option[DesktopDocumentRegistry.Conflict]] =
     documentSession.map(_.flatMap(_.conflict)).distinct
 
-  /** Resolve this viewer's loose-file conflict.
+  /** Resolve this viewer's file conflict.
     *
     * Both answers accept the file's revision as the new save base. The viewer
     * must also advance `lastAdopted` before the registry emits that new base.
@@ -223,7 +203,7 @@ trait Persistence:
     */
   def resolveDocumentConflict(adoptRemoteText: Boolean): Unit =
     target match
-      case ViewTarget.LooseFile(session) =>
+      case ViewTarget.File(session) =>
         DesktopDocumentRegistry.get(session).flatMap(_.conflict).foreach: remote =>
           lastAdopted = remote.text
           DesktopDocumentRegistry.acceptRemote(session)
@@ -254,10 +234,10 @@ trait Persistence:
     // overrules a stored format, and that diagram had the wrong format before.
     //
     // The restore writes `Some(true)` in place of `None`, as the code did
-    // before the metadata had one `Var`. Thus the first edit saves the flag
-    // one time (see `DesktopLibrary.writeNow`). The view of the flag is
-    // distinct, so the restore does not always change it. Thus the restore
-    // applies auto-detect itself.
+    // before the metadata had one `Var`. A store reads the two values as the
+    // same (`DesktopLibrary.writeMetadata`), so this alone writes nothing. The
+    // view of the flag is distinct, so the restore does not always change it.
+    // Thus the restore applies auto-detect itself.
     val restoredMetadata = restoredDiagram.metadata
     metadata.set(restoredMetadata.copy(autoDetectFormat = Some(restoredMetadata.autoDetectFormat.getOrElse(true))))
     phases.applyAutoDetectNow()
@@ -383,8 +363,7 @@ trait Persistence:
     restorePersistedState()
     setupStateSynchronization()
     followDocumentSession()
-    followDiagram()
-    watchOrigin()
+    followMetadata()
 
   /** Release the store when the view goes away (§10).
     *
@@ -409,7 +388,8 @@ object DiagramSnapshot:
   /** The name of a diagram that the person did not rename. The display uses the title
     * that the diagram declares in place of this name (ViewerState.displayTitle,
     * Library.diagramCardInfo). The stored name changes only when the person renames the
-    * diagram, so a rename always wins.
+    * diagram, so a rename always wins. A file has no stored name: its name is the title
+    * in its source, or else its file name.
     */
   val defaultDiagramName = "Untitled"
 
