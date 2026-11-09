@@ -494,9 +494,10 @@ object Cli:
       case AttributeArg(name, value) => Left(name -> value)
       case other                     => Right(other)
     val repeated = attributes.groupBy(_._1).collect { case (name, all) if all.size > 1 => name }.toVector.sorted
-    // The DOT writer leaves these out of the file, so a set of them would
-    // change nothing and still exit 0.
-    val dropped = attributes.map(_._1).filter(n => n.startsWith("_") || n == "id").distinct
+    // gx refuses the names that start with `_`. The DOT writer leaves `_gvid`
+    // out of the file, so a set of it would change nothing and still exit 0.
+    // The writer keeps `id`, so gx accepts it.
+    val dropped = attributes.map(_._1).filter(_.startsWith("_")).distinct
 
     def usage(why: String): Int =
       env.err(s"gx: $why; usage: ${command.synopsis}")

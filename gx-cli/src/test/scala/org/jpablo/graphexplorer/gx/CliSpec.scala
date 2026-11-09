@@ -518,6 +518,20 @@ class CliSpec extends FunSuite:
     assertEquals(s("set", "b.dot", "clusterB", "label=B"), ExitCode.Ok, s.stderr)
   }
 
+  tmp.test("a write keeps an id attribute, and gx set can write one") { dir =>
+    // The DOT writer left out each `id`. Thus a change to one node removed the
+    // `id` of the others, and gx refused `set … id=…`.
+    val f = write(dir, "i.dot", "digraph G {\n  a [id=\"keep\"]\n  a -> b\n}\n")
+    val r = Run(dir)
+    assertEquals(r("set", "i.dot", "b", "color=red"), ExitCode.Ok, r.stderr)
+    assert(Files.readString(f).contains("id=\"keep\""), s"the write dropped the id of a:\n${Files.readString(f)}")
+    val s = Run(dir)
+    assertEquals(s("set", "i.dot", "b", "id=new"), ExitCode.Ok, s.stderr)
+    val text = Files.readString(f)
+    assert(text.contains("id=\"new\""), s"gx set did not write the id of b:\n$text")
+    assert(text.contains("id=\"keep\""), s"gx set dropped the id of a:\n$text")
+  }
+
   tmp.test("a write is audited with the injected clock") { dir =>
     arch(dir)
     val r = Run(dir)

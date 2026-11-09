@@ -1183,6 +1183,30 @@ class ViewerGraphToTextSpec extends FunSuite:
     assert(text.contains("""subgraph "B" {"""), text)
   }
 
+  /** The text for the layout puts its own `id` on each element, because a
+    * click finds the element by it. An `id` of the source must not replace it
+    * there. The text for a file keeps the `id` of the source.
+    */
+  test("an id of the source goes to the file text, and the layout text keeps its own id") {
+    val a = NodeId("a")
+    val g = GroupId("g")
+    val elements = ViewerGraphElements(
+      nodes = scala.collection.immutable.VectorMap(
+        a -> ViewerNode.nodeNoDefaults(a, Attributes.of(org.jpablo.graphexplorer.viewer.formats.dot.attributes.Id -> "mine"))
+      ),
+      memberships = Map(a -> g),
+      groups = Map(g -> ViewerGroup.group(g, Attributes.of(org.jpablo.graphexplorer.viewer.formats.dot.attributes.Id -> "ours")))
+    )
+    val layout = viewerGraphElementsToText(elements)
+    assert(layout.contains("id=\"node:a\""), s"the layout text lost the id that a click needs:\n$layout")
+    assert(layout.contains("id=\"group:g\""), s"the layout text lost the id that a click needs:\n$layout")
+    assert(!layout.contains("mine") && !layout.contains("ours"), s"an id of the source replaced the id of the layout:\n$layout")
+    val file = viewerGraphElementsToText(elements, omitInternal = true)
+    assert(file.contains("id=\"mine\""), s"the file text dropped the id of the node:\n$file")
+    assert(file.contains("id=\"ours\""), s"the file text dropped the id of the group:\n$file")
+    assert(!file.contains("node:a") && !file.contains("group:g"), s"an id of the layout leaked into the file text:\n$file")
+  }
+
   /** The reader gives each arrow `label=""` when one arrow has a label, and the
     * root graph `label=""` when one cluster has a label. Graphviz gives an
     * arrow and the root graph an empty label by default, so the text for a

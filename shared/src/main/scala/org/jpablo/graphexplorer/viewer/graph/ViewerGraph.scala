@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, GraphType, GvId, Name}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, GraphType, GvId, Id, Name}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
@@ -439,9 +439,9 @@ case class ViewerGraph(
       groupIdMap: Map[GroupId, GroupId] // Needed to find the *new* parent
   ): (ViewerGraph, GroupId) =
     val newGroupId = graph.nextGroupId()
-    // Filter out layout-specific attributes that shouldn't be copied
+    // Filter out the attributes that a copy must not get
     val filteredAttributes = group.attributes.filterKeys(attrId =>
-      !ViewerGraph.groupLayoutOnlyAttrs.contains(attrId.value)
+      !ViewerGraph.groupAttrsNotCopied.contains(attrId.value)
     )
     val newGroup        = ViewerGroup.group(newGroupId, filteredAttributes)
     val ogParentGroupId = graph.membership(group.id)
@@ -463,9 +463,9 @@ case class ViewerGraph(
     // Use the map to find the NEW parent ID if the original parent group was also duplicated
     val targetGroupId         = ogParentGroupId.flatMap(groupIdMap.get).orElse(ogParentGroupId)
     val (newGraph, newNodeId) = graph.addNode(targetGroupId)
-    // Filter out layout-specific attributes that shouldn't be copied
+    // Filter out the attributes that a copy must not get
     val filteredAttributes = node.attributes.filterKeys(attrId =>
-      !ViewerGraph.nodeLayoutOnlyAttrs.contains(attrId.value)
+      !ViewerGraph.nodeAttrsNotCopied.contains(attrId.value)
     )
     val finalGraphForNode = newGraph.updateAttributes(ElementIds.from(newNodeId), filteredAttributes.toUpdates)
     (finalGraphForNode, newNodeId)
@@ -482,7 +482,8 @@ case class ViewerGraph(
     // Check if the target nodes for the new arrow actually exist in the graph
     if (newSourceId in graph.elements.nodes) && (newTargetId in graph.elements.nodes) then
       val (newGraph, newArrow) = graph.addArrow(newSourceId, newTargetId)
-      val graphWithAttrs       = newGraph.updateAttributes(ElementIds.from(newArrow.id), arrow.attributes.toUpdates)
+      val copiedAttributes     = arrow.attributes.filterKeys(attrId => !ViewerGraph.arrowAttrsNotCopied.contains(attrId.value))
+      val graphWithAttrs       = newGraph.updateAttributes(ElementIds.from(newArrow.id), copiedAttributes.toUpdates)
       Some((graphWithAttrs, newArrow.id))
     else
       None
@@ -497,12 +498,19 @@ end ViewerGraph
 
 object ViewerGraph:
 
-  // Engine-produced layout attributes that must not be copied when duplicating an
-  // element (groups additionally carry label-placement output: lp/lwidth/lheight).
-  private val nodeLayoutOnlyAttrs  = Set(GvId.attrId.value, "width", "pos", "height")
-  // A copy of a group also drops `name`, the source name of the subgraph: the
-  // copy gets a new id, so the old name belongs to a different group.
-  private val groupLayoutOnlyAttrs = nodeLayoutOnlyAttrs ++ Set("lp", "lwidth", "lheight", Name.attrId.value)
+  // The attributes that `duplicateSelection` does not give to a copy.
+  //
+  // The layout engine writes `_gvid`, `width`, `pos` and `height`, and for a
+  // group also the label position: `lp`, `lwidth` and `lheight`.
+  //
+  // A copy is a new element. Thus it does not get the `id` of the source:
+  // the DOT writer keeps `id` in the file, and two elements with one `id`
+  // would be the result. For the same reason, a copy of a group does not
+  // get `name`, the source name of the subgraph: the copy gets a new id, so
+  // the old name belongs to a different group.
+  private val nodeAttrsNotCopied  = Set(GvId.attrId.value, "width", "pos", "height", Id.attrId.value)
+  private val groupAttrsNotCopied = nodeAttrsNotCopied ++ Set("lp", "lwidth", "lheight", Name.attrId.value)
+  private val arrowAttrsNotCopied = Set(Id.attrId.value)
 
   /** omitInternal = true is useful when showing the text to the user. omitInternal = false is needed when suing the DOT text to render the
     * graph.

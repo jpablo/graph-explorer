@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, GraphType, GvId, HeadPort, Label, Name, TailPort}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, GraphType, GvId, HeadPort, Id, Label, Name, TailPort}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.{Arrow, GroupId, NodeId, ViewerGroup, ViewerNode, Attributes as ViewerAttributes}
 
@@ -62,24 +62,32 @@ def viewerGraphElementsToText(
   def gvidOrder(attrs: ViewerAttributes): Double =
     attrs.values.get(GvId.attrId).map(_.toString.toDouble).getOrElse(Double.MaxValue)
 
+  // The text for the layout gives each element an `id` of its own: `node:a`,
+  // `group:g`, or `arrow.toSvg`. The SVG element gets this id, and a click
+  // finds the element by it. Thus the layout text does not write the `id`
+  // attribute of the source, because that attribute would replace this id.
+  // The text for a file (omitInternal) does not write the layout id. It
+  // writes the `id` attribute of the source, as each other attribute.
+  def layoutId(id: => String): Option[(String, String)] =
+    Option.when(!omitInternal)(Id.attrId.value -> id)
+  def isReplacedByLayoutId(key: String): Boolean =
+    !omitInternal && key == Id.attrId.value
+
   // Helper to collect attributes from ViewerNode directly
   def collectNodeAttributes(
       node:        ViewerNode,
       excludeKeys: Set[String] = Set.empty
   ): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
-    val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
+    val allExcludeKeys = excludeKeys + GvId.attrId.value // Always exclude _gvid from output
 
-    // Add id attribute unless excluded by omitInternal setting
-    if (!allExcludeKeys.contains("id"))
-      attrs += "id" -> s"node:${node.id.value}"
+    attrs ++= layoutId(s"node:${node.id.value}")
 
     // Process attributes directly from ViewerNode
     node.attributes.values.foreach { case (attrId, attrValue) =>
       val key   = attrId.value
       val value = attrValue.toString
-      if (!allExcludeKeys.contains(key) && key != "id") {
+      if (!allExcludeKeys.contains(key) && !isReplacedByLayoutId(key)) {
         attrs += key -> value
       }
     }
@@ -90,14 +98,11 @@ def viewerGraphElementsToText(
   // Helper to collect attributes from ViewerGroup directly
   def collectClusterAttributes(group: ViewerGroup, excludeKeys: Set[String] = Set.empty): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
-    val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
     // `name` is the source name of the subgraph. It goes after the
     // `subgraph` keyword, and it is not an attribute of the subgraph.
-    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value + Name.attrId.value
+    val allExcludeKeys = excludeKeys + GvId.attrId.value + Name.attrId.value
 
-    // Add id attribute unless excluded by omitInternal setting
-    if (!allExcludeKeys.contains("id"))
-      attrs += "id" -> s"group:${group.id.value}"
+    attrs ++= layoutId(s"group:${group.id.value}")
 
     // Function to check if an attribute is a default value that shouldn't be included
     def isDefaultValue(key: String, value: String): Boolean = {
@@ -109,7 +114,7 @@ def viewerGraphElementsToText(
     group.attributes.values.foreach { case (attrId, attrValue) =>
       val key   = attrId.value
       val value = attrValue.toString
-      if (!allExcludeKeys.contains(key) && key != "id") {
+      if (!allExcludeKeys.contains(key) && !isReplacedByLayoutId(key)) {
         // Special handling for label attribute to prevent inheritance
         if (key == "label" && !excludeKeys.contains("label")) {
           attrs += key -> value
@@ -154,10 +159,9 @@ def viewerGraphElementsToText(
   // Helper to collect attributes from Arrow directly
   def collectEdgeAttributes(arrow: Arrow, excludeKeys: Set[String] = Set.empty): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
-    val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
+    val allExcludeKeys = excludeKeys + GvId.attrId.value // Always exclude _gvid from output
 
-    // Add id attribute for arrows.
+    // Add the layout id for arrows.
     //
     // From `arrow.toSvg`, NOT rebuilt from the parts. This id becomes the SVG element's id
     // and so the id a click hands back, which is then looked up in the `arrows` map — where
@@ -166,14 +170,13 @@ def viewerGraphElementsToText(
     // `A:se->B/0` and advertised itself as `A->B/0`. Selecting it found nothing, so every
     // control in the toolbar read its default, and edits were dropped on the floor —
     // `updateAttributes` filters by the same key. One derivation, one id.
-    if (!allExcludeKeys.contains("id"))
-      attrs += "id" -> arrow.toSvg
+    attrs ++= layoutId(arrow.toSvg)
 
     // Process arrow attributes directly
     arrow.attributes.values.foreach { case (attrId, attrValue) =>
       val key   = attrId.value
       val value = attrValue.toString
-      if (!allExcludeKeys.contains(key) && key != "id" && !isDefaultEmptyLabel(key, value, edgeDefaultLabel)) {
+      if (!allExcludeKeys.contains(key) && !isReplacedByLayoutId(key) && !isDefaultEmptyLabel(key, value, edgeDefaultLabel)) {
         attrs += key -> value
       }
     }

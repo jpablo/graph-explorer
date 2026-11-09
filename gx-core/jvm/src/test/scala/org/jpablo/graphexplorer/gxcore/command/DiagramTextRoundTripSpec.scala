@@ -125,3 +125,19 @@ class DiagramTextRoundTripSpec extends FunSuite:
     val (id, name) = again.names.groups.headOption.getOrElse(fail(s"no group in\n$text"))
     assertEquals(name, s"cluster_${id.value}")
     assertEquals(again.names.resolve(name), Right(Vector(id)))
+
+  // ------------------------------------------------- the id attribute
+
+  /** The DOT writer left out each `id` attribute of the source. Thus a write
+    * of a different change removed `id` from the file, with no message, and
+    * `RoundTripLoss` did not find the loss. The text for the layout puts its
+    * own `id` on each element, because a click finds the element by it. The
+    * text for a file must keep the `id` of the source.
+    */
+  test("a write keeps the id attribute of the graph, a node, an arrow, and a group"):
+    val source = """digraph G { id="rid"; subgraph cluster_x { id="gid"; a [id="nid"] } a -> b [id="eid"] }"""
+    val text   = DiagramText.parse(source).map(DiagramText.render).fold(fail(_), identity)
+    for id <- Vector("rid", "nid", "eid", "gid") do
+      assert(text.contains(s"id=\"$id\""), s"the write dropped id=\"$id\":\n$text")
+    val twice = DiagramText.parse(text).map(DiagramText.render).fold(fail(_), identity)
+    assertEquals(twice, text, "the second write disagreed with the first")
