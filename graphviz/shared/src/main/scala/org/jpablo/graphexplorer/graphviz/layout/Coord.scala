@@ -202,8 +202,8 @@ object Coord:
     // `abomination` (flat.c:184, and gv really does call it that): a LABELLED
     // NON-ADJACENT flat edge hangs its label vnode one rank ABOVE its own, so
     // an edge on the top rank needs a rank that does not exist yet. gv
-    // prepends one and decrements GD_minrank; the new rank starts at
-    // ht1 = ht2 = 1 and holds nothing but the label.
+    // prepends one and decrements GD_minrank of the root only; the new rank
+    // starts at ht1 = ht2 = pht1 = pht2 = 1 and holds nothing but the label.
     //
     // `Order` already emits those label vnodes at their true rank (rank −1 for
     // a top-rank flat edge), so the span comes from there rather than from a
@@ -216,217 +216,248 @@ object Coord:
     val minR     = math.min(realMinR, ord.order.keys.minOption.getOrElse(Int.MaxValue))
     val maxR     = ranks.values.max
 
-    val cls     = Cluster.clusters(g)
-    val clustOf = if cls.isEmpty then Map.empty[String, Int] else Cluster.clustOf(g)
+    val cls      = Cluster.clusters(g)
+    val clustOf  = if cls.isEmpty then Map.empty[String, Int] else Cluster.clustOf(g)
     val ClOffset = 8.0 // const.h CL_OFFSET (cluster margin)
+    val flip     = Rank.flip(g)
+
+    // ── the state that the two passes share ──────────────────────────────
+    // dot_position (position.c:125) runs set_ycoords, then flat_edges, and
+    // set_ycoords again when flat_edges makes a label vnode. Nothing resets
+    // this state between the passes, so the second pass starts from the
+    // values of the first pass. `pht` is rank[r].pht1 = pht2 (only the node
+    // scan writes them, with the same value, so they are always equal).
+    val pht     = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
+    val ht1     = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
+    val ht2     = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
     val clHt1   = Array.fill(cls.length)(0.0)
     val clHt2   = Array.fill(cls.length)(0.0)
     var rootHt1 = 0.0
     var rootHt2 = 0.0
 
-    // ── node scan (set_ycoords:741) ──────────────────────────────────────
-    // pht = primitive per-rank half-height; the same scan seeds each node's
-    // innermost cluster ht1/ht2 (± CL_OFFSET) or, for cluster-less nodes at
-    // the graph extremes, the root's GD_ht1/GD_ht2 (yoff = 0).
-    val pht = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
-    def scanNode(name: String, r: Int, h: Double): Unit =
-      if h > pht(r) then pht(r) = h
-      clustOf.get(name) match
-        case Some(ci) =>
-          if r == cls(ci).minRank && h + ClOffset > clHt2(ci) then clHt2(ci) = h + ClOffset
-          if r == cls(ci).maxRank && h + ClOffset > clHt1(ci) then clHt1(ci) = h + ClOffset
-        case None =>
-          // `realMinR` too: set_ycoords runs TWICE (before and after
-          // flat_edges), and the second pass STARTS from the first pass's
-          // GD_ht1/GD_ht2 (position.c:642) — so when `abomination` prepends a
-          // rank, the OLD top rank's half-height stays in the root's ht2.
-          // Only the bb reads it (GraphBB: y(minrank) + GD_ht2), so it tops
-          // the drawing above the label band. It does not go into ht2(minR).
-          if (r == minR || r == realMinR) && h > rootHt2 then rootHt2 = h
-          if r == maxR && h > rootHt1 then rootHt1 = h
-    g.nodes.foreach { n =>
-      NodeSize.layoutSize(n, g).foreach(sz => scanNode(n.id, ranks(n.id), sz.halfHeightPt.value))
+    // The scan inputs are the same in each pass, so compute them one time.
+    // Real nodes: (rank, half-height, innermost cluster or −1 for the root).
+    val nodeHts: Vector[(Int, Double, Int)] = g.nodes.flatMap { n =>
+      NodeSize.layoutSize(n, g).map(sz =>
+        (ranks(n.id), sz.halfHeightPt.value, clustOf.getOrElse(n.id, -1)))
     }
-
-    // Flat-edge LABEL vnodes (`flat_node`): each sits in the rank ABOVE its
-    // edge with ND_ht = the label height, and the second set_ycoords scans it
-    // like any node — the rank it occupies (possibly the `abomination` rank
-    // below realMinR) gets its half-height. Which flat edges actually got a
-    // label vnode is mincross's call (adjacency), so it comes from Order.
-    val dedges = g.edges.filter(e => e.tail != e.head)
-    ord.flatLabels.foreach { d =>
-      val fe = dedges(d)
-      for r <- ranks.get(fe.tail) do
-        val (_, lht) = flatLabelDim(fe, g)
-        scanNode(LayoutNode.FlatLabel(d).name, r - 1, lht / 2.0)
-    }
-
-    // Edge label_vnode (make_chain): a labelled edge seats a label-sized
-    // virtual node at the mid rank `(rank(tail)+rank(head))/2`; its
-    // half-height drives that (odd, doubled) rank's Y spacing. Plain chain
-    // vnodes (ND_ht=1 ⇒ half 0.5) fill the intermediate ranks. A vnode's
-    // rank is strictly inside its endpoints' band, so it can never sit at a
-    // cluster/root extreme — only `pht` is affected.
-    g.edges.iterator.filter(e => e.tail != e.head).zipWithIndex.foreach { (e, dIdx) =>
+    // Edge vnodes (make_chain): plain chain vnodes have ND_ht = 1 (half 0.5).
+    // A labelled edge seats a label-sized vnode at the mid rank
+    // `(rank(tail)+rank(head))/2`. Its rank-axis extent (ND_ht) is dimen.y
+    // (label height) for TB, but dimen.x (label width) for a flipped graph
+    // (class2.c label_vnode). A FLAT labelled edge (rt == rh) has no chain
+    // vnode: its label vnode comes from `flat_node` (see `flatHts`).
+    val vnodeHts = mutable.ArrayBuffer.empty[(Int, Double)]
+    g.edges.iterator.filter(e => e.tail != e.head).foreach { e =>
       for rt <- ranks.get(e.tail); rh <- ranks.get(e.head) do
         var r = math.min(rt, rh) + 1
         while r < math.max(rt, rh) do
-          scanNode(LayoutNode.Virtual(dIdx, r).name, r, 0.5)
+          vnodeHts += ((r, 0.5))
           r += 1
-        // labelled edge ⇒ the mid rank's virtual is the label box. Its
-        // rank-axis extent (ND_ht) is dimen.y (label height) for TB, but
-        // dimen.x (label width) for a flipped graph (class2.c label_vnode).
-        // A FLAT labelled edge (rt == rh) places its label above the edge
-        // (makeSimpleFlatLabels), NOT as a rank vnode — it must not inflate
-        // its rank's height.
         if rt != rh then
           e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
-            val mid    = (rt + rh) / 2
             val (w, h) = edgeLabelDim(e, g)
-            val ht     = if Rank.flip(g) then w else h // rank-axis extent (flip ⇒ width)
-            scanNode(LayoutNode.Virtual(dIdx, mid).name, mid, ht / 2.0)
+            vnodeHts += (((rt + rh) / 2, (if flip then w else h) / 2.0))
           }
     }
-
-    // ── clust_ht (position.c:680): postorder cluster-ht accumulation ─────
-    // Children inflate parents (+margin at shared extremes); a label adds
-    // its padded border to the cluster's top; each cluster then pushes its
-    // ht into the global per-rank ht1/ht2.
-    val ht1 = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
-    val ht2 = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
-    pht.foreach { (r, h) => ht1(r) = h; ht2(r) = h }
-    if cls.nonEmpty then
-      val depth = cls.zipWithIndex.map { (c, i) =>
-        var d = 0; var p = c.parent
+    // Flat-edge LABEL vnodes (`flat_node`): each sits in the rank ABOVE its
+    // edge with ND_ht = the label height. Which flat edges get a label vnode
+    // is the decision of mincross (adjacency), so it comes from Order.
+    val dedges = g.edges.filter(e => e.tail != e.head)
+    val flatHts: Vector[(Int, Double)] = ord.flatLabels.flatMap { d =>
+      val fe = dedges(d)
+      ranks.get(fe.tail).map(r => (r - 1, flatLabelDim(fe, g)._2 / 2.0))
+    }
+    // clust_ht recursion order: each cluster after all of its descendants.
+    val postorder: Vector[Int] =
+      val depth = cls.indices.map { i =>
+        var d = 0; var p = cls(i).parent
         while p >= 0 do { d += 1; p = cls(p).parent }
-        i -> d
-      }.toMap
-      cls.indices.sortBy(i => -depth(i)).foreach { ci =>
-        val c = cls(ci)
-        Cluster.childrenOf(g, ci).foreach { cc =>
-          if cls(cc).maxRank == c.maxRank && clHt1(cc) + ClOffset > clHt1(ci) then
-            clHt1(ci) = clHt1(cc) + ClOffset
-          if cls(cc).minRank == c.minRank && clHt2(cc) + ClOffset > clHt2(ci) then
-            clHt2(ci) = clHt2(cc) + ClOffset
-        }
-        // clust_ht (position.c:711): only the UNFLIPPED root puts the label
-        // band on the rank axis — a flipped one reserves it on X instead
-        // (contain_nodes' side borders), so this whole branch is skipped.
-        if c.hasLabel && !Rank.flip(g) then
-          clHt1(ci) += c.borderBottomY // labelloc=b
-          clHt2(ci) += c.borderTopY    // labelloc=t (the cluster default)
-        if clHt2(ci) > ht2(c.minRank) then ht2(c.minRank) = clHt2(ci)
-        if clHt1(ci) > ht1(c.maxRank) then ht1(c.maxRank) = clHt1(ci)
+        d
       }
-      // root level (clust_ht(root)): top-level clusters at the graph
-      // extremes push GD_ht1/GD_ht2 of the root (margin = CL_OFFSET).
-      // `realMinR` too, for the same reason as in `scanNode`: the first
-      // pass ran before `abomination`, when a cluster on the old top rank
-      // was at the root's minrank. Its ht2 + CL_OFFSET stays in the root's
-      // ht2 and tops the bb above the label band (206).
-      Cluster.childrenOf(g, -1).foreach { cc =>
-        val atTop = cls(cc).minRank == minR || cls(cc).minRank == realMinR
-        if cls(cc).maxRank == maxR && clHt1(cc) + ClOffset > rootHt1 then rootHt1 = clHt1(cc) + ClOffset
-        if atTop && clHt2(cc) + ClOffset > rootHt2 then rootHt2 = clHt2(cc) + ClOffset
-      }
-
-    // The root's GD_ht1/GD_ht2 stay out of the per-rank ht1/ht2: clust_ht
-    // updates the global ranks only `if (g != dot_root(g))`. So ht2(minR)
-    // and ht1(maxR) hold only node and cluster values. The spline boxes of
-    // the top and bottom ranks read them (maximal_bbox, rank_box, the flat
-    // edge boxes). Only dot_compute_bb (GraphBB) and translate_drawing
-    // (`shiftY` below) read the root's values. 204: the flat arch over a
-    // rank-0 cluster needs ht2 = 26 (cluster), not 34 (root). 205: the
-    // same for ht1 on the bottom rank (make_flat_labeled_edge's ydelta).
+      cls.indices.sortBy(i => -depth(i)).toVector
 
     val gLabelPad = graphLabelPad(g)
     val labelTop  = graphLabelTop(g)
+    val rs        = rankSep(g)
 
-    // A bottom-anchored root label shifts the whole drawing up by its
-    // reserved space; a top-anchored one only extends the bbox upward and
-    // leaves node Y unchanged (bbox is the writers' concern, not gated here).
-    // set_ycoords:783: rank spacing = max(primitive-node sep, cluster sep).
-    val rs  = rankSep(g)
-    val yOf = mutable.Map.empty[Int, Double]
-    yOf(maxR) = ht1(maxR) + (if labelTop then 0.0 else gLabelPad)
-    var maxht = 0.0
-    var r = maxR - 1
-    while r >= minR do
-      val d0 = pht(r + 1) + pht(r) + rs           // prim node sep
-      val d1 = ht2(r + 1) + ht1(r) + ClOffset      // cluster sep
-      val delta = math.max(d0, d1)
-      if delta > maxht then maxht = delta
-      yOf(r) = yOf(r + 1) + delta
-      r -= 1
-    // ── adjustRanks (position.c:628), set_ycoords:797 ────────────────────
-    // A cluster label on a FLIPPED drawing occupies RANK space, because the
-    // label box rotates with the graph: its (padded) WIDTH has to fit between
-    // the cluster's top and bottom ranks. clust_ht deliberately skips the
-    // label band under flip, so nothing above reserved it — this pass walks
-    // the cluster tree, finds each shortfall, and spreads it across the ranks
-    // (half below, half above), pushing the ranks outside the cluster along.
-    // gv runs it here, between the initial y assignment and `ranksep=equally`.
-    if cls.exists(_.hasLabel) && Rank.flip(g) then
-      // adjustSimple: `delta` extra rank-axis room for cluster `ci`, split
-      // bottom/top; ranks inside the cluster shift up by `delbottom`, ranks
-      // ABOVE it (lower index) by `deltop` on top of that.
-      def adjustSimple(ci: Int, delta: Double, marginTotal: Double): Unit =
-        val mnR2 = cls(ci).minRank
-        val mxR2 = cls(ci).maxRank
-        val bottom    = (delta + 1) / 2 // C doubles — not integer division
-        val delbottom = clHt1(ci) + bottom - (ht1(mxR2) - marginTotal)
-        var rr = mxR2
-        if delbottom > 0 then
-          while rr >= mnR2 do { yOf.get(rr).foreach(y => yOf(rr) = y + delbottom); rr -= 1 }
-        val deltop =
-          clHt2(ci) + (delta - bottom) + (if delbottom > 0 then delbottom else 0.0) -
-            (ht2(mnR2) - marginTotal)
-        if deltop > 0 then
-          rr = mnR2 - 1
-          while rr >= minR do { yOf.get(rr).foreach(y => yOf(rr) = y + deltop); rr -= 1 }
-        clHt2(ci) += delta - bottom
-        clHt1(ci) += bottom
-      // adjustRanks: children first (their growth feeds the parent), then the
-      // parent's own label check. Note the root's margin is 0 here, unlike
-      // clust_ht's CL_OFFSET.
-      def adjustRanks(ci: Int, marginTotal: Double): Unit =
-        val margin     = if ci < 0 then 0.0 else ClOffset
-        val (mnR2, mxR2) = if ci < 0 then (minR, maxR) else (cls(ci).minRank, cls(ci).maxRank)
-        var a1 = if ci < 0 then rootHt1 else clHt1(ci)
-        var a2 = if ci < 0 then rootHt2 else clHt2(ci)
-        Cluster.childrenOf(g, ci).foreach { cc =>
-          adjustRanks(cc, margin + marginTotal)
-          if cls(cc).maxRank == mxR2 && clHt1(cc) + margin > a1 then a1 = clHt1(cc) + margin
-          if cls(cc).minRank == mnR2 && clHt2(cc) + margin > a2 then a2 = clHt2(cc) + margin
-        }
-        if ci < 0 then { rootHt1 = a1; rootHt2 = a2 } else { clHt1(ci) = a1; clHt2(ci) = a2 }
-        if ci >= 0 && cls(ci).hasLabel then
-          // lht = the rotated label's rank-axis extent = its PADDED WIDTH
-          // (GD_border[LEFT/RIGHT].y under flip — the x/y swap again).
-          val lht   = math.max(cls(ci).borderLeftY(true), cls(ci).borderRightY(true))
-          val rht   = yOf(mnR2) - yOf(mxR2)
-          val delta = lht - (rht + a1 + a2)
-          if delta > 0 then adjustSimple(ci, delta, marginTotal)
+    // The node-scan rule for the rank heights (set_ycoords:760): when a node
+    // makes pht grow, ht1/ht2 go back to the node value. In the second pass
+    // this can remove a cluster value from the first pass; clust_ht then
+    // pushes the cluster values again.
+    def rankHt(r: Int, h: Double): Unit =
+      if pht(r) < h then
+        pht(r) = h; ht1(r) = h; ht2(r) = h
+
+    /** One `set_ycoords` pass (position.c:728) on the shared state. `rootMin`
+      * is GD_minrank of the root in this pass. The function returns the rank
+      * y values of this pass, before translate_drawing. */
+    def setYcoords(rootMin: Int, withFlatLabels: Boolean): mutable.Map[Int, Double] =
+      // ── node scan (set_ycoords:741) ────────────────────────────────────
+      // Each real node updates its rank, and the GD_ht1/GD_ht2 of its
+      // innermost cluster (+ CL_OFFSET) or of the root (yoff = 0) when it
+      // is on an extreme rank of that graph. An edge vnode is strictly
+      // inside the rank span of its edge, so it is never on such a rank.
+      // A flat label vnode has ND_clust == NULL (make_vn_slot makes it after
+      // mark_lowclusters). Thus both vnode kinds update only their rank.
+      nodeHts.foreach { (r, h, ci) =>
+        rankHt(r, h)
         if ci >= 0 then
-          if clHt2(ci) > ht2(mnR2) then ht2(mnR2) = clHt2(ci)
-          if clHt1(ci) > ht1(mxR2) then ht1(mxR2) = clHt1(ci)
-      adjustRanks(-1, 0.0)
-      // the shifts above invalidate maxht; only `ranksep=equally` reads it.
-      if exactRanksep(g) then
-        maxht = 0.0
-        var prev = yOf(maxR)
-        r = maxR - 1
-        while r >= minR do
-          val cur = yOf(r)
-          if cur - prev > maxht then maxht = cur - prev
-          prev = cur
-          r -= 1
+          if r == cls(ci).minRank && h + ClOffset > clHt2(ci) then clHt2(ci) = h + ClOffset
+          if r == cls(ci).maxRank && h + ClOffset > clHt1(ci) then clHt1(ci) = h + ClOffset
+        else
+          if r == rootMin && h > rootHt2 then rootHt2 = h
+          if r == maxR && h > rootHt1 then rootHt1 = h
+      }
+      if withFlatLabels then flatHts.foreach((r, h) => rankHt(r, h))
+      vnodeHts.foreach((r, h) => rankHt(r, h))
 
-    // ranksep="… equally" (GD_exact_ranksep): re-space every rank uniformly
-    // to the largest gap (set_ycoords:817). No effect when all gaps equal.
-    if exactRanksep(g) then
-      r = maxR - 1
-      while r >= minR do { yOf(r) = yOf(r + 1) + maxht; r -= 1 }
+      // ── clust_ht (position.c:680): postorder cluster-ht accumulation ───
+      // Each cluster starts from its GD_ht1/GD_ht2 (from the node scan, and
+      // in the second pass also all of the first pass). Children inflate
+      // parents (+margin at shared extremes). A label then ADDS its padded
+      // border again, so the second pass counts each label band two times.
+      // Each cluster pushes its ht into the global per-rank ht1/ht2.
+      if cls.nonEmpty then
+        postorder.foreach { ci =>
+          val c = cls(ci)
+          Cluster.childrenOf(g, ci).foreach { cc =>
+            if cls(cc).maxRank == c.maxRank && clHt1(cc) + ClOffset > clHt1(ci) then
+              clHt1(ci) = clHt1(cc) + ClOffset
+            if cls(cc).minRank == c.minRank && clHt2(cc) + ClOffset > clHt2(ci) then
+              clHt2(ci) = clHt2(cc) + ClOffset
+          }
+          // clust_ht (position.c:711): only an UNFLIPPED graph puts the label
+          // band on the rank axis — a flipped one reserves it on X instead
+          // (contain_nodes' side borders), so this whole branch is skipped.
+          if c.hasLabel && !flip then
+            clHt1(ci) += c.borderBottomY // labelloc=b
+            clHt2(ci) += c.borderTopY    // labelloc=t (the cluster default)
+          if clHt2(ci) > ht2(c.minRank) then ht2(c.minRank) = clHt2(ci)
+          if clHt1(ci) > ht1(c.maxRank) then ht1(c.maxRank) = clHt1(ci)
+        }
+        // root level (clust_ht(root)): top-level clusters at the extreme
+        // ranks of the root push its GD_ht1/GD_ht2 (margin = CL_OFFSET).
+        Cluster.childrenOf(g, -1).foreach { cc =>
+          if cls(cc).maxRank == maxR && clHt1(cc) + ClOffset > rootHt1 then rootHt1 = clHt1(cc) + ClOffset
+          if cls(cc).minRank == rootMin && clHt2(cc) + ClOffset > rootHt2 then rootHt2 = clHt2(cc) + ClOffset
+        }
+
+      // The root's GD_ht1/GD_ht2 stay out of the per-rank ht1/ht2: clust_ht
+      // updates the global ranks only `if (g != dot_root(g))`. So ht2(minR)
+      // and ht1(maxR) hold only node and cluster values. The spline boxes of
+      // the top and bottom ranks read them (maximal_bbox, rank_box, the flat
+      // edge boxes). Only dot_compute_bb (GraphBB) and translate_drawing
+      // (`shiftY` below) read the root's values. 204: the flat arch over a
+      // rank-0 cluster needs ht2 = 26 (cluster), not 34 (root). 205: the
+      // same for ht1 on the bottom rank (make_flat_labeled_edge's ydelta).
+
+      // A bottom-anchored root label shifts the whole drawing up by its
+      // reserved space; a top-anchored one only extends the bbox upward and
+      // leaves node Y unchanged (bbox is the writers' concern, not gated here).
+      // set_ycoords:783: rank spacing = max(primitive-node sep, cluster sep).
+      val yOf = mutable.Map.empty[Int, Double]
+      yOf(maxR) = ht1(maxR) + (if labelTop then 0.0 else gLabelPad)
+      var maxht = 0.0
+      var r = maxR - 1
+      while r >= rootMin do
+        val d0 = pht(r + 1) + pht(r) + rs           // prim node sep
+        val d1 = ht2(r + 1) + ht1(r) + ClOffset      // cluster sep
+        val delta = math.max(d0, d1)
+        if delta > maxht then maxht = delta
+        yOf(r) = yOf(r + 1) + delta
+        r -= 1
+      // ── adjustRanks (position.c:628), set_ycoords:797 ──────────────────
+      // A cluster label on a FLIPPED drawing occupies RANK space, because the
+      // label box rotates with the graph: its (padded) WIDTH has to fit between
+      // the cluster's top and bottom ranks. clust_ht deliberately skips the
+      // label band under flip, so nothing above reserved it — this pass walks
+      // the cluster tree, finds each shortfall, and spreads it across the ranks
+      // (half below, half above), pushing the ranks outside the cluster along.
+      // gv runs it here, between the initial y assignment and `ranksep=equally`.
+      // The growth of GD_ht1/GD_ht2 stays for the second pass.
+      if cls.exists(_.hasLabel) && flip then
+        // adjustSimple: `delta` extra rank-axis room for cluster `ci`, split
+        // bottom/top; ranks inside the cluster shift up by `delbottom`, ranks
+        // ABOVE it (lower index) by `deltop` on top of that.
+        def adjustSimple(ci: Int, delta: Double, marginTotal: Double): Unit =
+          val mnR2 = cls(ci).minRank
+          val mxR2 = cls(ci).maxRank
+          val bottom    = (delta + 1) / 2 // C doubles — not integer division
+          val delbottom = clHt1(ci) + bottom - (ht1(mxR2) - marginTotal)
+          var rr = mxR2
+          if delbottom > 0 then
+            while rr >= mnR2 do { yOf.get(rr).foreach(y => yOf(rr) = y + delbottom); rr -= 1 }
+          val deltop =
+            clHt2(ci) + (delta - bottom) + (if delbottom > 0 then delbottom else 0.0) -
+              (ht2(mnR2) - marginTotal)
+          if deltop > 0 then
+            rr = mnR2 - 1
+            while rr >= rootMin do { yOf.get(rr).foreach(y => yOf(rr) = y + deltop); rr -= 1 }
+          clHt2(ci) += delta - bottom
+          clHt1(ci) += bottom
+        // adjustRanks: children first (their growth feeds the parent), then the
+        // parent's own label check. Note the root's margin is 0 here, unlike
+        // clust_ht's CL_OFFSET.
+        def adjustRanks(ci: Int, marginTotal: Double): Unit =
+          val margin     = if ci < 0 then 0.0 else ClOffset
+          val (mnR2, mxR2) = if ci < 0 then (rootMin, maxR) else (cls(ci).minRank, cls(ci).maxRank)
+          var a1 = if ci < 0 then rootHt1 else clHt1(ci)
+          var a2 = if ci < 0 then rootHt2 else clHt2(ci)
+          Cluster.childrenOf(g, ci).foreach { cc =>
+            adjustRanks(cc, margin + marginTotal)
+            if cls(cc).maxRank == mxR2 && clHt1(cc) + margin > a1 then a1 = clHt1(cc) + margin
+            if cls(cc).minRank == mnR2 && clHt2(cc) + margin > a2 then a2 = clHt2(cc) + margin
+          }
+          if ci < 0 then { rootHt1 = a1; rootHt2 = a2 } else { clHt1(ci) = a1; clHt2(ci) = a2 }
+          if ci >= 0 && cls(ci).hasLabel then
+            // lht = the rotated label's rank-axis extent = its PADDED WIDTH
+            // (GD_border[LEFT/RIGHT].y under flip — the x/y swap again).
+            val lht   = math.max(cls(ci).borderLeftY(true), cls(ci).borderRightY(true))
+            val rht   = yOf(mnR2) - yOf(mxR2)
+            val delta = lht - (rht + a1 + a2)
+            if delta > 0 then adjustSimple(ci, delta, marginTotal)
+          if ci >= 0 then
+            if clHt2(ci) > ht2(mnR2) then ht2(mnR2) = clHt2(ci)
+            if clHt1(ci) > ht1(mxR2) then ht1(mxR2) = clHt1(ci)
+        adjustRanks(-1, 0.0)
+        // the shifts above invalidate maxht; only `ranksep=equally` reads it.
+        if exactRanksep(g) then
+          maxht = 0.0
+          var prev = yOf(maxR)
+          r = maxR - 1
+          while r >= rootMin do
+            val cur = yOf(r)
+            if cur - prev > maxht then maxht = cur - prev
+            prev = cur
+            r -= 1
+
+      // ranksep="… equally" (GD_exact_ranksep): re-space every rank uniformly
+      // to the largest gap (set_ycoords:817). No effect when all gaps equal.
+      if exactRanksep(g) then
+        r = maxR - 1
+        while r >= rootMin do { yOf(r) = yOf(r + 1) + maxht; r -= 1 }
+      yOf
+    end setYcoords
+
+    // ── dot_position: the first pass, then flat_edges, then the second ───
+    // The first pass has no flat label vnodes and no `abomination` rank: its
+    // rank span is [realMinR, maxR]. Only its ht state is kept; the second
+    // pass computes all y values again.
+    val firstY = setYcoords(realMinR, withFlatLabels = false)
+    val yOf =
+      if ord.flatLabels.isEmpty then firstY
+      else
+        // abomination: the new rank starts at 1 in all four heights.
+        if minR < realMinR then
+          pht(minR) = 1.0; ht1(minR) = 1.0; ht2(minR) = 1.0
+        // flat_node: rank r−1 gets ht1/ht2 of at least the label half-height.
+        flatHts.foreach { (r, h) =>
+          if ht1(r) < h then ht1(r) = h
+          if ht2(r) < h then ht2(r) = h
+        }
+        // The second pass: the root minrank is minR now (abomination).
+        setYcoords(minR, withFlatLabels = true)
 
     // translate_drawing (postproc.c): the drawing shifts by −bb.LL, where
     // bb.LL.y = y(maxR) − GD_ht1(root). Bake the shift in. It is 0 without

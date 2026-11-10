@@ -1,0 +1,120 @@
+{
+  "name": "EquallyClusterLabel",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 308 553",
+  "label": "",
+  "ranksep": "0.5 equally",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_p",
+      "label": "p",
+      "ranksep": "0.5 equally",
+      "_gvid": 0,
+      "nodes": [
+        2,3,4,5
+      ],
+      "edges": [
+        0,3
+      ]
+    },
+    {
+      "name": "cluster_q",
+      "label": "",
+      "ranksep": "0.5 equally",
+      "_gvid": 1,
+      "nodes": [
+        6,7,8
+      ],
+      "edges": [
+        6
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "a2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "a4",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "a3",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "b1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "b2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "b3",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "label": ""
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 4,
+      "label": ""
+    },
+    {
+      "_gvid": 6,
+      "tail": 6,
+      "head": 7,
+      "label": ""
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 7,
+      "label": ""
+    },
+    {
+      "_gvid": 5,
+      "tail": 6,
+      "head": 3,
+      "label": ""
+    },
+    {
+      "_gvid": 4,
+      "tail": 5,
+      "head": 7,
+      "label": ""
+    },
+    {
+      "_gvid": 7,
+      "tail": 8,
+      "head": 3,
+      "label": ""
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 8,
+      "label": "x"
+    }
+  ]
+}

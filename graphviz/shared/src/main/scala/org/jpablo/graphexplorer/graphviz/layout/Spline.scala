@@ -1353,7 +1353,16 @@ object Spline:
             val b0 = Box(tLast.llx, tLast.ury, lbLLx, lbLLy)
             val b1 = Box(tLast.llx, lbLLy,     hLast.urx, lbURy)
             val b2 = Box(lbURx,     hLast.ury, hLast.urx, lbLLy)
-            val boxes = mutable.ArrayBuffer.from(tBoxes) ++= Vector(b0, b1, b2) ++= hBoxes.reverse
+            // add_box (splines.c) adds a box only when LL < UR on both axes.
+            // A tall label band on the rank (two cluster label bands, 270)
+            // can put the label box's floor `lbLLy` below the top of the end
+            // boxes. Then gv drops the inverted b0/b2, and checkpath joins
+            // the end boxes to b1. Without this filter, checkpath sees the
+            // inverted box and the edge becomes a straight line.
+            val boxes = mutable.ArrayBuffer.empty[Box]
+            (tBoxes ++ Vector(b0, b1, b2) ++ hBoxes.reverse).foreach { b =>
+              if b.llx < b.urx && b.lly < b.ury then boxes += b
+            }
             val st = Array(tStart.x, tStart.y)
             val en = Array(hEnd.x, hEnd.y)
             // `P->start.theta`/`constrained` are set from the port BEFORE

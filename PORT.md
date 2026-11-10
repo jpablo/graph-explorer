@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 247/255
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 256/264
 > (2026-11-09).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 239/247 + shipped examples 8/8 = 247/255** — the ONLY
+> **corpus 248/256 + shipped examples 8/8 = 256/264** — the ONLY
 > remaining diffs anywhere are 03-subgraph-cluster and 261–267, intentional
 > deferrals (their goldens are gv's own default-mode cluster corruption;
 > each file is gated byte-exact against its `newrank` twin, 03b and
@@ -659,12 +659,8 @@ enforce the deferral halves of it):
      (`make_flat_bottom_edges`). The port has no svg path for it, and its bb
      is 20pt too low. Spline.scala says "unlabelled ported flat edges stay
      deferred".
-  3. **A cluster label band counts two times in the second
-     `set_ycoords`.** When a labelled flat edge is not adjacent, gv runs
-     set_ycoords two times. The second `clust_ht` starts from the carried-over
-     `GD_ht2` of the cluster and adds `GD_border[TOP].y` again. Thus, with
-     206's graph and `label="p"` on cluster_p, gv's cluster top is
-     107 + 26 + 2 × 24.8 = 182.6, and the port gives one band (157.8).
+  3. ~~**A cluster label band counts two times in the second
+     `set_ycoords`.**~~ CLOSED: see the §7 entry "270–275".
   4. ~~**A flat edge in a cluster can give a mirror order.**~~ CLOSED: see
      the §7 entry "245–260".
   5. ~~**Two flat edges between one pair are straight.**~~ CLOSED: see the
@@ -3328,4 +3324,41 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
     plain subgraph inside a set, and nothing for 269's clusters.
   No earlier corpus case changed. The probes found two newrank gaps (§0,
   items 17–18). graphvizJVM 1070/1070.
+- **2026-11-09 (270–278)** — **The second `set_ycoords` pass starts from
+  the first one; corpus 248/256, total gate 256/264 (with 261–269).** gv's `dot_position`
+  runs `set_ycoords`, then `flat_edges`, and runs `set_ycoords` again when
+  `flat_edges` makes a label vnode for a labelled flat edge that is not
+  adjacent (§0 item 3). Nothing resets the height state between the two
+  passes. The port ran one pass, and copied the carry-over only for the
+  root, with two `realMinR` special cases. Now `Coord.yInfoImpl` has a local
+  function, `setYcoords`, for one pass. It runs one time, or two times when
+  `Order` gives flat label vnodes, on one shared state:
+  - **The carried state**: the rank heights `pht`/`ht1`/`ht2`, the
+    `GD_ht1`/`GD_ht2` of each cluster and of the root, and the growth that
+    `adjustRanks` gave in the first pass. The node scan uses gv's rule: when
+    `pht` grows, `ht1`/`ht2` go back to the node value (`rankHt`).
+  - **A label band counts two times.** `clust_ht` starts from the carried
+    `GD_ht2` and adds `GD_border[TOP].y` again (270: the top of cluster_p is
+    107 + 26 + 2 × 24.8 = 182.6, not 157.8). The same occurs at the bottom
+    with `labelloc=b` (271), in nested clusters (272), for clusters below
+    the top rank (274), for a flat edge in a labelled cluster (275), with
+    `rankdir=BT` (276), and with `ranksep=equally` (277).
+  - **Under flip**, `clust_ht` adds no band. But the `adjustSimple` growth of
+    the first pass stays in `GD_ht1`/`GD_ht2` and in the rank heights, and
+    the second pass spaces the ranks from these values (278: the old code
+    made the LR drawing 48pt too narrow). 273 was green before, and guards
+    this path.
+  - **The flat label vnode** has `ND_clust == NULL`, because `make_vn_slot`
+    makes it after `mark_lowclusters`. So it changes only the heights of its
+    rank, and never the `GD_ht2` of the root. The `abomination` rank starts
+    at 1 in all four heights. `flat_node` gives rank r−1 at least the label
+    half-height before the second pass.
+  - **`add_box`** (splines.c:346) adds a box only when LL < UR on both axes.
+    With two bands, the floor of the label box in `make_flat_labeled_edge`
+    is below the top of the end boxes. gv drops the inverted boxes. The port
+    kept them, `checkpath` failed, and the edge became a straight line. The
+    flat-label branch now has the same filter as the regular edges.
+  The C came from the 13.0.1 tag on GitLab. Two more probes (nested labels
+  in LR, a tall flat label without clusters) agree with gv on the old and on
+  the new code. graphvizJVM 1097/1097 (with 261–269).
 - _(append dated entries as milestones land)_

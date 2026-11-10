@@ -135,11 +135,12 @@ object GraphBB:
     // The root band GD_ht1/GD_ht2 bounds Y unconditionally (dot_compute_bb),
     // not just when clusters exist — for a plain graph it is an identity with
     // the node scan above, since rootHt1/rootHt2 come from the same extremes.
-    // The span is the one yInfo actually LAID OUT: an `abomination` rank sits
-    // below ranks.values.min, and its carried-over headroom (the old top
-    // rank's ht2, which stays in the root's GD_ht2 from the first
-    // set_ycoords pass) is exactly what tops gv's bb there. Only the bb
-    // reads it: it never goes into the rank heights (Coord.yInfo).
+    // The span is the one yInfo actually LAID OUT, from GD_minrank to
+    // GD_maxrank of the root after the last set_ycoords pass. An
+    // `abomination` rank sits below ranks.values.min. The root's GD_ht2 keeps
+    // the value of the first pass (the old top rank and its clusters), and
+    // that value tops gv's bb above the label rank. Only the bb reads it: it
+    // never goes into the rank heights (Coord.yInfo).
     if ranks.nonEmpty then
       val yi      = Coord.yInfo(g)
       val spanMin = yi.yOf.keys.min
