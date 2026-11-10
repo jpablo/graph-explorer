@@ -1,0 +1,3 @@
+digraph "SubgraphEdgeFromInnerCluster" {
+    subgraph cluster_s { subgraph cluster_t { a } b } -> x
+}

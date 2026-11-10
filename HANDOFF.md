@@ -6,7 +6,7 @@ Read these first: `CONTEXT.md` (the terms), `docs/adr/0001-the-file-is-the-only-
 
 ## 1. State
 
-Each phase of the plan is done. The commits of the branch, oldest first:
+Each phase of the plan is done. The commits of the branch `gx-simplification`, oldest first, are below. PR #53 merged them into `viewer` as one commit, `3f78a5a5`. The fixes after the merge are at the end.
 
 | Commit | What it did |
 |---|---|
@@ -22,7 +22,9 @@ Each phase of the plan is done. The commits of the branch, oldest first:
 | `762147ff` | Fix: a write keeps each `id` attribute, and a copy does not take it. |
 | `61b2d7e9` | Fix: each subgraph is a different group. |
 | `d838a4dc` | Fix: two sibling subgraphs with one name are one subgraph, as in Graphviz. |
-| this change | The documents for the three fixes above. |
+| `1cecd45d` | The documents for the three fixes above. |
+| `1a752b5b` | CI: Playwright 1.64.0, because the `ubuntu-latest` runner is Ubuntu 26.04 now. |
+| this change | Fix (after the merge): an arrow to a subgraph also goes to the nodes of its inner subgraphs. Before, `gx` and the viewer lost `x -> a` in `x -> subgraph s { subgraph t { a } b }`, and a write removed it from the file. |
 
 Each commit message tells the details of its phase.
 
@@ -30,7 +32,7 @@ Tests:
 
 | Suite | Count | Command |
 |---|---|---|
-| Scala, all modules | 2610 | `sbt --client testFull` |
+| Scala, all modules | 2630 | `sbt --client testFull` |
 | Rust, desktop | 77 | `cd desktop/src-tauri && cargo test` |
 | Helper self-test | 33 checks | `scripts/lib/control-api-selftest.sh` |
 
@@ -96,8 +98,7 @@ Each item below is checked against the code of this branch.
 6. **`gx selection` exits 0 with refs** when the window shows an example or a browser diagram. The JSON has `"path": null`, and stderr says that the window shows no file.
 7. **The version string of a local build comes from the start of the sbt server.** `sbt-dynver` calculates it one time, when the project loads. Now the server reports `0.9.5+14-fd5b0897`, four commits before the tip. Run `sbt --client reload` after a tag.
 8. **A quit Apple event discards an unsaved edit** (older than this branch). macOS sends one at logout and at restart. It does not go through the Quit item of the menu, and Tauri gives no hook. Cmd+Q and the close button of the window ask first.
-9. **An arrow to a subgraph does not reach the nodes of its inner subgraphs** (older than this branch). For `x -> subgraph s { subgraph t { a } b }`, Graphviz makes `x -> a` and `x -> b`, but the Graphviz port of `gx` makes only `x -> b` (`AttrResolver` in `graphviz/shared/.../model/Resolved.scala`). Thus a `gx` write drops `x -> a`, with no message. The browser viewer uses the real Graphviz and is correct.
-10. **The id of a group can move to a different subgraph.** When the names of two subgraphs give one id (`clusterB` and `cluster_B` give `B`), the first gets `B` and the second gets `B_2`. If a person deletes the first subgraph, the second gets `B` on the next read, and the metadata of `group:B` (a collapsed group, for example) then applies to it.
+9. **The id of a group can move to a different subgraph.** When the names of two subgraphs give one id (`clusterB` and `cluster_B` give `B`), the first gets `B` and the second gets `B_2`. If a person deletes the first subgraph, the second gets `B` on the next read, and the metadata of `group:B` (a collapsed group, for example) then applies to it.
 
 Small cleanups, not defects:
 
@@ -107,6 +108,7 @@ Small cleanups, not defects:
 - A desktop that is starting answers `STARTING`, and `gx` gives exit 4 for it, not exit 2.
 - A write gives each subgraph `label=""` and `cluster="true"` when the source has neither. Graphviz draws the same diagram, but the diff is larger.
 - The Graphviz port does not print the warning "Duplicate cluster name" for two clusters with one name under different parents.
+- In `dot_json`, the Graphviz port does not list the edges of an inner subgraph in a plain outer subgraph. Graphviz lists them. The reader takes the innermost subgraph of each edge, so the viewer and `gx` get the same result.
 
 ## 5. Cautions
 
