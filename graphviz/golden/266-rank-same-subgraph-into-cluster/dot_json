@@ -1,0 +1,72 @@
+{
+  "name": "SetSubgraphIntoCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 142 180",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "cluster_x",
+      "_gvid": 0,
+      "nodes": [
+        3
+      ]
+    },
+    {
+      "name": "%3",
+      "rank": "same",
+      "_gvid": 1,
+      "subgraphs": [
+        2
+      ],
+      "nodes": [
+        4,5
+      ]
+    },
+    {
+      "name": "%5",
+      "rank": "same",
+      "_gvid": 2,
+      "nodes": [
+        4
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "x1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "x2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "s",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 3,
+      "head": 4
+    },
+    {
+      "_gvid": 2,
+      "tail": 6,
+      "head": 5
+    },
+    {
+      "_gvid": 1,
+      "tail": 6,
+      "head": 3
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+digraph SetSubgraphIntoCluster {
+	graph [bb="0,0,142,196",
+		newrank=true
+	];
+	node [label="\N"];
+	subgraph cluster_x {
+		graph [bb="8,8,78,132"];
+		x1	[height=0.5,
+			pos="43,106",
+			width=0.75];
+		x2	[height=0.5,
+			pos="43,34",
+			width=0.75];
+		x1 -> x2	[pos="e,43,52.104 43,87.697 43,80.407 43,71.726 43,63.536"];
+	}
+	{
+		graph [rank=same];
+		x2;
+		a	[height=0.5,
+			pos="115,34",
+			width=0.75];
+	}
+	s	[height=0.5,
+		pos="79,178",
+		width=0.75];
+	s -> x1	[pos="e,51.304,123.15 70.65,160.76 66.425,152.55 61.192,142.37 56.419,133.09"];
+	s -> a	[pos="e,110.64,52.189 83.342,159.87 89.424,135.88 100.55,91.993 107.86,63.158"];
+}

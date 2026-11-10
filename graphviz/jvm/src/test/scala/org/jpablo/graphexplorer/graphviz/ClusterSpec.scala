@@ -49,6 +49,17 @@ class ClusterSpec extends FunSuite:
     assertEquals(Output.dotJson(g),
       stripNewrank(OracleHarness.golden("03b-subgraph-cluster-newrank", "dot_json")))
 
+  // The same gate for the newer 03 cases (261–267): each verbatim file must
+  // give the drawing of its newrank twin.
+  OracleHarness.newrankTwins.toVector.sortBy(_._1).foreach { (verbatim, twin) =>
+    test(s"$verbatim verbatim: svg is byte-identical to the newrank oracle ($twin)"):
+      assertEquals(Svg.svg(graph(verbatim)), OracleHarness.golden(twin, "svg"))
+    test(s"$verbatim verbatim: json0 equals the newrank oracle modulo the attribute echo"):
+      assertEquals(Output.json0(graph(verbatim)), stripNewrank(OracleHarness.golden(twin, "json0")))
+    test(s"$verbatim verbatim: dot_json equals the newrank oracle modulo the attribute echo"):
+      assertEquals(Output.dotJson(graph(verbatim)), stripNewrank(OracleHarness.golden(twin, "dot_json")))
+  }
+
   test("03: subgraph-tree model captures names, cluster-ness, rank & the %7 anon id"):
     val g   = graph("03-subgraph-cluster")
     val sgs = g.subgraphs

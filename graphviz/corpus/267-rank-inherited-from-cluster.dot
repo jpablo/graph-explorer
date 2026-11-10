@@ -1,0 +1,10 @@
+digraph RankFromCluster {
+    subgraph cluster_p {
+        rank=same
+        subgraph cluster_a { a1 -> a2 }
+        subgraph cluster_b { b1 -> b2 }
+        subgraph { a2; b1 }
+    }
+    s -> a1
+    s -> b1
+}

@@ -1,0 +1,77 @@
+{
+  "name": "RootSetOverCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,158,196",
+  "newrank": "true",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_k",
+      "bb": "8,8,150,132",
+      "newrank": "true",
+      "_gvid": 0,
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "name": "%3",
+      "newrank": "true",
+      "rank": "same",
+      "_gvid": 1,
+      "nodes": [
+        3,4
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "p",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,106",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "q",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "r",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "115,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "s",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,178",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "pos": "e,43,52.104 43,87.697 43,80.407 43,71.726 43,63.536"
+    },
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 2,
+      "pos": "e,43,124.1 43,159.7 43,152.41 43,143.73 43,135.54"
+    }
+  ]
+}
