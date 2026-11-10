@@ -919,9 +919,10 @@ object Cli:
       env.err(s"gx: ls takes no file; usage: ${command.synopsis}")
       ExitCode.Usage
     else
-      for bad <- env.library.unreadable() do
+      val (entries, unreadable) = env.library.listing()
+      for bad <- unreadable do
         env.err(s"gx: warning: the library entry ${bad.file} cannot be read (${bad.message}). It is not in the list.")
-      val rows = env.library.list()
+      val rows = entries
         .filter(e => args.value("tag").forall(e.metadata.tags.contains))
         .map(e => e -> !Files.exists(Paths.get(e.path)))
       if args.json then

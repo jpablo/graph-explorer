@@ -4,6 +4,7 @@ import org.jpablo.graphexplorer.gxcore.model.ContentHash
 
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.util.HexFormat
 
 /** Computing a [[ContentHash]]. Comparing them is pure and lives in the model;
   * producing one needs a platform, which is why this is on the JVM side.
@@ -17,15 +18,14 @@ import java.security.MessageDigest
   */
 object Hashing:
 
+  private val Hex = HexFormat.of() // lower case, no delimiter
+
   /** Hash raw bytes. Documents hash their bytes ON DISK, not their decoded text:
     * the bytes are what two processes can agree on without first agreeing on an
     * encoding and a line-ending convention.
     */
   def ofBytes(bytes: Array[Byte]): ContentHash =
-    val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
-    val hex    = StringBuilder(digest.length * 2)
-    for b <- digest do hex.append(f"${b & 0xff}%02x")
-    ContentHash.fromHex(hex.toString)
+    ContentHash.fromHex(Hex.formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)))
 
   /** Hash text as it would be stored: UTF-8, with the given line ending.
     *

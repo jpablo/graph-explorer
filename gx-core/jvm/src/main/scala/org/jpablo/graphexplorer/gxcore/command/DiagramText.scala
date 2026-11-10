@@ -11,21 +11,14 @@ import scala.util.control.NonFatal
 
 /** Diagram text ↔ `ViewerGraph`, for headless callers.
   *
-  * ## D2.3 is not met here, deliberately
+  * ## D2.3 is met (P8)
   *
   * D2.3 says command and query implementations use the parser directly, because
   * `renderFormats(text, Seq("dot_json"))` runs a full `dot` layout — 91ms on a
   * 500-edge graph against 8.5ms for parsing alone — and layout is needed to
   * *render*, never to answer "what nodes exist".
   *
-  * There is no parser-only path to take. `DotParser.parse` yields graphviz's own
-  * AST, and the only DOT→`ViewerGraph` converter in the tree is the one below,
-  * which consumes `dot_json` — a layout product. The viewer never noticed
-  * because it lays out anyway.
-  *
-  * ## D2.3 is met (P8)
-  *
-  * It turned out not to need a second DOT reader at all. `dot_json` is
+  * This does not need a second DOT reader. `dot_json` is
   * *structure only* apart from one field: `bb`, the bounding box, which is the
   * sole reason a query was paying for a full layout. `Graphviz.structureJson`
   * emits the same document with a degenerate box, and `SimpleGraph` has no
@@ -42,19 +35,12 @@ import scala.util.control.NonFatal
   */
 object DiagramText:
 
-  case class Parsed(graph: ViewerGraph, format: DiagramFormat)
+  /** A parsed diagram, with the names of its elements (plan §2.1). */
+  final case class Named(graph: ViewerGraph, format: DiagramFormat, names: ElementNames)
 
   /** Parse without layout or a browser. DOT uses the shared Graphviz structure reader. Mermaid
     * flowcharts use the platform-independent declaration reader; other Mermaid kinds are
     * render-only and return an explicit error.
-    */
-  def parseDocument(text: String): Either[String, Parsed] =
-    parseNamed(text).map(named => Parsed(named.graph, named.format))
-
-  /** A parsed diagram, with the names of its elements (plan §2.1). */
-  final case class Named(graph: ViewerGraph, format: DiagramFormat, names: ElementNames)
-
-  /** As [[parseDocument]], and the names of the elements too.
     *
     * The names of the DOT groups come from the structure that the reader
     * gives, before `toViewerGraph`. `ViewerGraph` keeps only the id of a
@@ -81,7 +67,7 @@ object DiagramText:
             case Left(err) => Left(s"could not parse the diagram: $err")
         catch case NonFatal(e) => Left(s"could not parse the diagram: ${e.getMessage}")
 
-  def parse(text: String): Either[String, ViewerGraph] = parseDocument(text).map(_.graph)
+  def parse(text: String): Either[String, ViewerGraph] = parseNamed(text).map(_.graph)
 
   /** Print a graph back to DOT.
     *

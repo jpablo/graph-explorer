@@ -27,8 +27,8 @@ enum AuditEvent derives CanEqual:
   *
   * Writes are best-effort by construction. Failing to record an action must
   * never fail the action: a full disk should not make the editor read-only.
-  */
-/** @param now the clock, injected for the same reason every other timestamp in
+  *
+  * @param now the clock, injected for the same reason every other timestamp in
   *            the CLI is: an event stamped from a hidden `currentTimeMillis`
   *            cannot be pinned by a test, and this was the one hole left in an
   *            otherwise complete seam.

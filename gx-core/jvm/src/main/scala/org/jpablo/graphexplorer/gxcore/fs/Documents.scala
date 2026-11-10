@@ -67,7 +67,8 @@ object Documents:
         // The EXISTING file's convention, not the incoming text's: preserving it
         // is what keeps a save from changing the document's identity (V-04).
         // The same rule keeps the end of the file: a final newline, or none.
-        writeBytes(path, LineEnding.withEndOf(current.text, text), current.lineEnding)
+        val (doc, bytes) = encode(path, LineEnding.savedOver(current.text, text), current.lineEnding)
+        attempt(path)(AtomicFiles.write(path, bytes)).map(_ => doc)
 
   /** Create a file that does not exist yet. Separate from [[write]] because
     * "I expect nothing here" and "I expect exactly these bytes" are different
@@ -84,20 +85,17 @@ object Documents:
     // the check that closes the race.
     if Files.exists(path) then Left(DocumentError.AlreadyExists(path.toString))
     else
-      val (doc, bytes) = encode(path, text, lineEnding)
+      val (doc, bytes) = encode(path, lineEnding.applyTo(text), lineEnding)
       attempt(path)(AtomicFiles.create(path, bytes)).flatMap: created =>
         Either.cond(created, doc, DocumentError.AlreadyExists(path.toString))
 
-  private def writeBytes(path: Path, text: String, lineEnding: LineEnding)
-      : Either[DocumentError, Document] =
-    val (doc, bytes) = encode(path, text, lineEnding)
-    attempt(path)(AtomicFiles.write(path, bytes)).map(_ => doc)
-
-  /** The document that the bytes give, and the bytes. */
+  /** The document of `text`, and its bytes. `text` must already use
+    * `lineEnding`. A second `applyTo` can change it: `Lf.applyTo` makes
+    * `"\r\r\n"` into `"\r\n"`, and again into `"\n"`.
+    */
   private def encode(path: Path, text: String, lineEnding: LineEnding): (Document, Array[Byte]) =
-    val encoded = lineEnding.applyTo(text)
-    val bytes   = encoded.getBytes(StandardCharsets.UTF_8) // V-16
-    (Document(path, encoded, Hashing.ofBytes(bytes), lineEnding), bytes)
+    val bytes = text.getBytes(StandardCharsets.UTF_8) // V-16
+    (Document(path, text, Hashing.ofBytes(bytes), lineEnding), bytes)
 
   private def attempt[A](path: Path)(body: => A): Either[DocumentError, A] =
     try Right(body)

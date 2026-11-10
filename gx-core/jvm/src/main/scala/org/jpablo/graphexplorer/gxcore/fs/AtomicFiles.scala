@@ -39,13 +39,13 @@ object AtomicFiles:
     * A new target gets the permissions that the umask gives. An existing
     * target keeps its permissions (V-03).
     */
-  def write(path: Path, bytes: Array[Byte], preservePermissions: Boolean = true): Unit =
+  def write(path: Path, bytes: Array[Byte]): Unit =
     val dir  = directoryOf(path)
     Files.createDirectories(dir)
     // V-03: keep the target's bits. v1 chmod'ed every file it wrote to 0600
     // (main.rs:1076), so one save silently made a group-readable diagram
     // owner-only — a change nobody asked for and nobody would look for.
-    val kept = if preservePermissions then permissionsOf(path) else None
+    val kept = permissionsOf(path)
     val temp = writeTemp(dir, path, bytes, kept)
     try
       kept.foreach: perms =>

@@ -51,10 +51,9 @@ object LineEnding:
     * file saw a change that nobody made.
     */
   def withEndOf(file: String, text: String): String =
-    val bare = text.reverse.dropWhile(c => c == '\n' || c == '\r').reverse
-    if !file.endsWith("\n") then bare
-    else if text.endsWith("\n") then text
-    else text + "\n"
+    if file.endsWith("\n") then
+      if text.endsWith("\n") then text else text + "\n"
+    else text.substring(0, text.lastIndexWhere(c => c != '\n' && c != '\r') + 1)
 
   /** The text that a save of `text` writes over `file` (V-04): the line
     * endings of `file`, and the end of `file`.

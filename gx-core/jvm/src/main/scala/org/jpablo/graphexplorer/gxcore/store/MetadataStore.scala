@@ -1,11 +1,10 @@
 package org.jpablo.graphexplorer.gxcore.store
 
-import org.jpablo.graphexplorer.gxcore.fs.{AtomicFiles, GxHome, Hashing}
+import org.jpablo.graphexplorer.gxcore.fs.{AtomicFiles, Dirs, Hashing}
 import org.jpablo.graphexplorer.gxcore.model.LibraryEntry
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
-import scala.jdk.CollectionConverters.*
 import scala.util.control.NonFatal
 
 enum MetadataError derives CanEqual:
@@ -37,7 +36,7 @@ enum MetadataError derives CanEqual:
 final class MetadataStore(val root: Path):
   import MetadataStore.*
 
-  def fileOf(path: String): Path = root.resolve(fileNameOf(path))
+  private def fileOf(path: String): Path = root.resolve(fileNameOf(path))
 
   /** The entry of a diagram file. `path` must be canonical. */
   def get(path: String): Either[MetadataError, LibraryEntry] =
@@ -77,21 +76,17 @@ final class MetadataStore(val root: Path):
     * fail. One bad file must not hide the whole library. [[unreadable]]
     * reports the bad files.
     */
-  def list(): Vector[LibraryEntry] = scan().flatMap(_.toOption).sortBy(_.path)
+  def list(): Vector[LibraryEntry] = listing()._1
 
-  def unreadable(): Vector[MetadataError.Unreadable] =
-    scan().flatMap(_.left.toOption).collect { case u: MetadataError.Unreadable => u }
+  /** [[list]], and the bad files, from one scan of the store. */
+  def listing(): (Vector[LibraryEntry], Vector[MetadataError.Unreadable]) =
+    val all = scan()
+    (all.flatMap(_.toOption).sortBy(_.path), all.collect { case Left(u: MetadataError.Unreadable) => u })
 
   private def scan(): Vector[Either[MetadataError, LibraryEntry]] =
-    if !Files.isDirectory(root) then Vector.empty
-    else
-      val stream = Files.list(root)
-      try
-        stream.iterator.asScala.toVector
-          .filter(p => p.getFileName.toString.endsWith(".json") && Files.isRegularFile(p))
-          .sortBy(_.getFileName.toString)
-          .map(read)
-      finally stream.close()
+    Dirs.entries(root)
+      .filter(p => p.getFileName.toString.endsWith(".json") && Files.isRegularFile(p))
+      .map(read)
 
   /** Read an entry file, and check that its name is the key of its path. A
     * file with a different name is a copy that a person made by hand. The
@@ -106,10 +101,6 @@ final class MetadataStore(val root: Path):
     catch case NonFatal(e) => Left(MetadataError.Unreadable(name, e.toString))
 
 object MetadataStore:
-
-  /** The store of `$GX_HOME`. */
-  def default(gxHome: Path = GxHome.resolveOrThrow()): MetadataStore =
-    MetadataStore(GxHome.metadataDir(gxHome))
 
   /** The key of a diagram file: the hex SHA-256 of the UTF-8 bytes of its
     * canonical `file:` URI. `canonicalPath` must be canonical

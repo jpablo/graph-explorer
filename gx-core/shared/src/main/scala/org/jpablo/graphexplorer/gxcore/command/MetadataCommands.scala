@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.gxcore.command
 
 import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
-import org.jpablo.graphexplorer.viewer.models.{ElementId, GroupId}
+import org.jpablo.graphexplorer.viewer.models.ElementId
 
 /** The metadata tier, interpreted over `DiagramMetadata`.
   *
@@ -35,10 +35,10 @@ object MetadataCommands:
         meta.copy(hiddenElements = Set.empty)
 
       case MetadataCommand.Collapse(groups) =>
-        meta.copy(collapsedGroups = meta.collapsedGroups ++ groupRefs(groups))
+        meta.copy(collapsedGroups = meta.collapsedGroups ++ refs(groups))
 
       case MetadataCommand.Expand(groups) =>
-        meta.copy(collapsedGroups = meta.collapsedGroups -- groupRefs(groups))
+        meta.copy(collapsedGroups = meta.collapsedGroups -- refs(groups))
 
       case MetadataCommand.ExpandAll =>
         meta.copy(collapsedGroups = Set.empty)
@@ -55,5 +55,5 @@ object MetadataCommands:
       case MetadataCommand.SetNotes(notes) =>
         meta.copy(notes = notes)
 
-  private def refs(ids: Set[ElementId]): Set[String]    = ids.map(ElementRef.render)
-  private def groupRefs(ids: Set[GroupId]): Set[String] = ids.map(ElementRef.render)
+  // Iterable, not Set: Set is invariant, so a Set[GroupId] is not a Set[ElementId].
+  private def refs(ids: Iterable[ElementId]): Set[String] = ids.iterator.map(ElementRef.render).toSet

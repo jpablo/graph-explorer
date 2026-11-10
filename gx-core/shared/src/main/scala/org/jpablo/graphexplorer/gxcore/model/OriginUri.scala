@@ -22,6 +22,12 @@ import java.nio.charset.StandardCharsets
 opaque type OriginUri = String
 
 object OriginUri:
+  private val HexDigits = "0123456789ABCDEF"
+
+  /** A Windows drive at the start of a path: encoded (`/C%3A`) and decoded (`/C:`). */
+  private val EncodedDrive = "^/([A-Za-z])%3A".r
+  private val DecodedDrive = "^/[A-Za-z]:".r
+
   /** Characters RFC 3986 calls unreserved, which never need escaping. */
   private def isUnreserved(c: Char): Boolean =
     (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
@@ -38,7 +44,7 @@ object OriginUri:
     for byte <- segment.getBytes(StandardCharsets.UTF_8) do
       val c = (byte & 0xff).toChar
       if isUnreserved(c) then out.append(c)
-      else out.append("%%%02X".format(byte & 0xff))
+      else out.append('%').append(HexDigits.charAt((byte >> 4) & 0xf)).append(HexDigits.charAt(byte & 0xf))
     out.toString
 
   /** The value of the ASCII hex digit `c`, or -1 for a different character.
@@ -110,7 +116,7 @@ object OriginUri:
     val encoded   = rooted.split("/", -1).map(encodeSegment).mkString("/")
     // The drive-letter colon is conventionally left bare in file URIs; encoding
     // it produces a URI no other tool will recognise.
-    val restored  = "^/([A-Za-z])%3A".r.replaceAllIn(encoded, m => s"/${m.group(1)}:")
+    val restored  = EncodedDrive.replaceAllIn(encoded, m => s"/${m.group(1)}:")
     s"file://$restored"
 
   /** Parse a `file:` URI that is already canonical: one that this encoder
@@ -150,7 +156,7 @@ object OriginUri:
         val encoded = u.stripPrefix("file://")
         val decoded = String(decodeToBytes(encoded), StandardCharsets.UTF_8)
         // `/C:/Users/x` is a Windows path wearing a URI's leading slash.
-        if "^/[A-Za-z]:".r.findPrefixOf(decoded).isDefined then decoded.substring(1)
+        if DecodedDrive.findPrefixOf(decoded).isDefined then decoded.substring(1)
         else decoded
 
   given CanEqual[OriginUri, OriginUri] = CanEqual.derived

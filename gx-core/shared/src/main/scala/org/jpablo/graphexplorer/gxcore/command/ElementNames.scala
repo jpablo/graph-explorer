@@ -34,8 +34,6 @@ enum ElementName derives CanEqual:
 
 object ElementName:
 
-  private val Kinds = Set("node", "arrow", "group")
-
   private val Indexed = "(.+)#([0-9]+)".r
 
   /** A text with a known prefix is an [[ElementRef]]. A text with an
@@ -43,7 +41,7 @@ object ElementName:
     */
   def parse(text: String): Either[String, ElementName] =
     text.split(":", 2) match
-      case Array(kind, _) if Kinds.contains(kind) => ElementRef.parse(text).map(Prefixed(_))
+      case Array(kind, _) if ElementRef.Kinds.contains(kind) => ElementRef.parse(text).map(Prefixed(_))
       case _                                      => Right(Bare(text, arrowReadings(text)))
 
   /** Each reading of `src..dst` and `src..dst#n` in the text. Each `..` can be

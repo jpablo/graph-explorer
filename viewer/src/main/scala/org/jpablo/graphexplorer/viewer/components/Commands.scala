@@ -104,16 +104,10 @@ class RouterCommands(router: Router, reportError: String => Unit = message => Li
     Library.desktop match
       case Some(desktop) =>
         val text = source.getOrElse(minimalGraphText)
-        navigateWhenReady(desktop.newDiagram(DiagramSnapshot.defaultDiagramName, text, extensionOf(text)))
+        navigateWhenReady(desktop.newDiagram(DiagramSnapshot.defaultDiagramName, text, DiagramFormat.detect(text).fileExtension))
       case None =>
         val id = Library.createEmptyDiagram(DiagramSnapshot.defaultDiagramName)
         router.navigateTo(Route.Diagram(id.value, source))
-
-  /** The extension of a new file: the language of its text decides. */
-  private def extensionOf(text: String): String =
-    DiagramFormat.detect(text) match
-      case DiagramFormat.DOT     => ".dot"
-      case DiagramFormat.Mermaid => ".mmd"
 
   private def navigateWhenReady(result: scala.concurrent.Future[Either[String, Route]]): Unit =
     result.foreach:
@@ -141,7 +135,7 @@ class RouterCommands(router: Router, reportError: String => Unit = message => Li
         val (name, source) = nameAndSource
         Library.desktop match
           case Some(desktop) =>
-            navigateWhenReady(desktop.newDiagram(name, source, extensionOf(source)))
+            navigateWhenReady(desktop.newDiagram(name, source, DiagramFormat.detect(source).fileExtension))
           case None =>
             val id = Library.createDiagram(name, source)
             // No source through the route: the payload is already written, so the

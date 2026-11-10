@@ -138,8 +138,6 @@ final class OldRecords private[store] (
 
 object OldRecords:
 
-  val empty: OldRecords = OldRecords(Vector.empty, Vector.empty)
-
   /** Read the files of `diagrams/`.
     *
     * @param files the name of each file, and its text, or the reason that the

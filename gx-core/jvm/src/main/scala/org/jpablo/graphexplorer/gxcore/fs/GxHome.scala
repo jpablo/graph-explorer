@@ -29,6 +29,9 @@ object GxHome:
 
   private val DefaultDirName = ".graph-explorer"
 
+  private val SysEnv: String => Option[String] = k => sys.env.get(k)
+  private val SysHome: () => Path              = () => Paths.get(sys.props.getOrElse("user.home", "."))
+
   /** Resolved once, at the edge of the process, and threaded from there.
     *
     * Both parameters are injected rather than read here so this is a pure
@@ -36,43 +39,10 @@ object GxHome:
     * the two things a test cannot set without affecting the whole process.
     */
   def resolve(
-      env:      String => Option[String] = k => sys.env.get(k),
-      userHome: () => Path               = () => Paths.get(sys.props.getOrElse("user.home", "."))
+      env:      String => Option[String] = SysEnv,
+      userHome: () => Path               = SysHome
   ): Either[String, Path] =
-    env(EnvVar).map(_.trim).filter(_.nonEmpty) match
-      case None => Right(userHome().resolve(DefaultDirName))
-
-      // A RELATIVE value is refused rather than absolutised, and that is the
-      // whole point of the variable rather than a technicality.
-      //
-      // Absolutising resolves against the reading process's working directory,
-      // and the two halves do not share one: `gx` runs from the user's shell, a
-      // GUI-launched desktop from wherever the launcher put it (often `/`). So
-      // `GX_HOME=./scratch` would name two different directories and each half
-      // would be internally consistent about the wrong one — silently, which is
-      // exactly the failure this variable exists to prevent (see the note above
-      // about v0.9.4).
-      //
-      // There is no value in guessing which cwd was meant, so it is refused
-      // before either process advertises a socket or scans a library.
-      case Some(dir) =>
-        val path = Paths.get(dir)
-        if path.isAbsolute then Right(path.normalize())
-        else
-          Left(
-            s"$EnvVar must be an absolute path, but is '$dir'. " +
-              "A relative value resolves against each process's working directory, and gx and " +
-              "the desktop do not share one — they would use different libraries without saying so."
-          )
-
-  /** The resolved root, or the reason it could not be used, as a `Path` for
-    * callers that have already validated it.
-    */
-  def resolveOrThrow(
-      env:      String => Option[String] = k => sys.env.get(k),
-      userHome: () => Path               = () => Paths.get(sys.props.getOrElse("user.home", "."))
-  ): Path =
-    resolve(env, userHome).fold(message => throw IllegalArgumentException(message), identity)
+    absoluteDir(env, EnvVar, userHome().resolve(DefaultDirName), "they would use different libraries")
 
   /** `$GX_HOME/library`, the directory `gx` and the desktop agree on. */
   def libraryDir(gxHome: Path): Path = gxHome.resolve("library")
@@ -101,17 +71,48 @@ object GxHome:
     * refused: gx and the desktop do not share a working directory.
     */
   def diagramsDir(
-      env:      String => Option[String] = k => sys.env.get(k),
-      userHome: () => Path               = () => Paths.get(sys.props.getOrElse("user.home", "."))
+      env:      String => Option[String] = SysEnv,
+      userHome: () => Path               = SysHome
   ): Either[String, Path] =
-    env(DiagramsDirEnvVar).map(_.trim).filter(_.nonEmpty) match
-      case None => Right(userHome().resolve("Documents").resolve("Graph Explorer"))
+    absoluteDir(
+      env,
+      DiagramsDirEnvVar,
+      userHome().resolve("Documents").resolve("Graph Explorer"),
+      "they would put new diagrams in different folders"
+    )
+
+  /** The value of `key`, or else `default`. An empty value counts as no value.
+    *
+    * A RELATIVE value is refused rather than absolutised, and that is the
+    * whole point of the variable rather than a technicality.
+    *
+    * Absolutising resolves against the reading process's working directory,
+    * and the two halves do not share one: `gx` runs from the user's shell, a
+    * GUI-launched desktop from wherever the launcher put it (often `/`). So
+    * `GX_HOME=./scratch` would name two different directories and each half
+    * would be internally consistent about the wrong one — silently, which is
+    * exactly the failure this variable exists to prevent (see the note above
+    * about v0.9.4).
+    *
+    * There is no value in guessing which cwd was meant, so it is refused
+    * before either process advertises a socket or scans a library.
+    *
+    * @param consequence what goes wrong with a relative value, for the error
+    */
+  private def absoluteDir(
+      env:         String => Option[String],
+      key:         String,
+      default:     => Path,
+      consequence: String
+  ): Either[String, Path] =
+    env(key).map(_.trim).filter(_.nonEmpty) match
+      case None => Right(default)
       case Some(dir) =>
         val path = Paths.get(dir)
         if path.isAbsolute then Right(path.normalize())
         else
           Left(
-            s"$DiagramsDirEnvVar must be an absolute path, but is '$dir'. " +
+            s"$key must be an absolute path, but is '$dir'. " +
               "A relative value resolves against each process's working directory, and gx and " +
-              "the desktop do not share one — they would put new diagrams in different folders without saying so."
+              s"the desktop do not share one — $consequence without saying so."
           )

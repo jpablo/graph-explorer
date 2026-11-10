@@ -94,7 +94,7 @@ object LiveViewCodec:
     case LiveViewCommand.WhatIsSelected => ujson.Obj()
 
   private def refs(ids: Set[ElementId]): ujson.Arr =
-    ujson.Arr.from(ids.toVector.map(ElementRef.render).sorted)
+    ujson.Arr.from(ElementRef.renderAll(ids))
 
   def decode(frame: ujson.Value): Either[CommandError, LiveViewCommand] =
     for

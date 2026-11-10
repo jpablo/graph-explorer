@@ -9,6 +9,11 @@ enum DiagramFormat derives CanEqual:
     case DOT     => "DOT/Graphviz"
     case Mermaid => "Mermaid"
 
+  /** The extension of a new file in this format. */
+  def fileExtension: String = this match
+    case DOT     => ".dot"
+    case Mermaid => ".mmd"
+
 object DiagramFormat:
 
   /** Detect the diagram format from the input text.

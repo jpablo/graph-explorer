@@ -47,16 +47,14 @@ final case class AccessPolicy(allowedRoots: List[Path], deniedRoots: List[Path])
         Left(PolicyDenial(resolved.toString, s"path is under a denied root: ${denied.show}"))
       case None =>
         if allowedRoots.isEmpty then Right(resolved) // allow-all, by decision (D6)
+        else if allowedRoots.iterator.map(Root.of).exists(_.contains(resolved)) then Right(resolved)
         else
-          val allowed = allowedRoots.map(Root.of)
-          if allowed.exists(_.contains(resolved)) then Right(resolved)
-          else
-            Left(
-              PolicyDenial(
-                resolved.toString,
-                s"path is outside every allowed root: ${allowed.map(_.show).mkString(", ")}"
-              )
+          Left(
+            PolicyDenial(
+              resolved.toString,
+              s"path is outside every allowed root: ${allowedRoots.map(Root.of(_).show).mkString(", ")}"
             )
+          )
 
 object AccessPolicy:
 

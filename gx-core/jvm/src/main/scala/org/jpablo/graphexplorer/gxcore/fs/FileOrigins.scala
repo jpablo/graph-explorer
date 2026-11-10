@@ -68,7 +68,3 @@ object FileOrigins:
   /** The canonical origin of a local file. */
   def originOf(path: Path, cwd: Path = Paths.get("").toAbsolutePath): OriginUri =
     OriginUri.fromCanonicalPath(canonicalize(path, cwd).toString)
-
-  /** As [[originOf]], for a path given as text. */
-  def originOfPath(path: String, cwd: Path = Paths.get("").toAbsolutePath): OriginUri =
-    originOf(Paths.get(path), cwd)

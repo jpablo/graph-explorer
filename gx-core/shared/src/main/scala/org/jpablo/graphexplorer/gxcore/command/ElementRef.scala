@@ -27,6 +27,11 @@ object ElementRef:
   /** `node:a`, `arrow:e1`, `group:g1`. */
   def render(id: ElementId): String = id.toSvg
 
+  /** The references of `ids`, in sorted order. Thus a message or a reply
+    * lists them in the same order each time.
+    */
+  def renderAll(ids: Iterable[ElementId]): Vector[String] = ids.toVector.map(render).sorted
+
   /** Parse a reference, saying what is wrong rather than returning None.
     *
     * A command that names an element the reader cannot resolve is the most
@@ -44,7 +49,7 @@ object ElementRef:
       case _ =>
         Left(s"element reference must be <kind>:<id>, got '$text' (expected ${Kinds.mkString(", ")})")
 
-  private val Kinds = List("node", "arrow", "group")
+  private[command] val Kinds = List("node", "arrow", "group")
 
   /** Parse many, reporting EVERY bad one.
     *

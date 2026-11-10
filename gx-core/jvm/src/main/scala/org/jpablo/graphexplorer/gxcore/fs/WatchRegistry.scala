@@ -36,6 +36,10 @@ enum WatchEvent derives CanEqual:
   *
   * One entry per canonical URI, per §5.4 — a file backing three diagrams is
   * polled once and fans out to three, rather than being polled three times.
+  *
+  * The registry reports each change, also a change that this process wrote.
+  * Its only user is `gx watch`, which writes nothing. The desktop keeps the
+  * hashes of its own writes and so does not report them (V-05).
   */
 final class WatchRegistry(
     audit:      Audit,
@@ -43,7 +47,8 @@ final class WatchRegistry(
     now:        () => Long = () => System.currentTimeMillis()
 ):
 
-  private final class Entry:
+  /** `path` is None when the URI names no local file. */
+  private final class Entry(val path: Option[Path]):
     /** The content the caller has already been told about. None = the origin is
       * currently absent, as far as anyone downstream knows.
       */
@@ -51,9 +56,6 @@ final class WatchRegistry(
 
     /** Seen but not yet settled: (hash, when it first appeared). */
     var pending: Option[(ContentHash, Long)] = None
-
-    /** Content this process just wrote, awaiting its own echo (V-05). */
-    var selfWrite: Option[ContentHash] = None
 
   private val entries = mutable.LinkedHashMap.empty[OriginUri, Entry]
 
@@ -63,8 +65,8 @@ final class WatchRegistry(
   def watch(uri: OriginUri): Unit =
     synchronized:
       if !entries.contains(uri) then
-        val entry = Entry()
-        entry.notified = pathOf(uri).flatMap(Documents.hashOf)
+        val entry = Entry(uri.filePath.map(Paths.get(_)))
+        entry.notified = entry.path.flatMap(Documents.hashOf)
         entries.put(uri, entry)
         audit.record(AuditEvent.WatchAdded(uri.value))
 
@@ -76,26 +78,13 @@ final class WatchRegistry(
 
   def watched: Vector[OriginUri] = synchronized(entries.keys.toVector)
 
-  def isWatched(uri: OriginUri): Boolean = synchronized(entries.contains(uri))
-
-  /** Declare that THIS process just wrote `hash` to `uri`, so the resulting
-    * change is not reported back to its own author (V-05).
-    *
-    * Keyed by content, not by path or mtime, and that choice is what makes it
-    * work: an mtime-based guard cannot tell our write from someone else's write
-    * in the same millisecond, and a path-based guard suppresses everything.
-    * Content is the only fingerprint that is exactly as specific as the event.
-    */
-  def noteSelfWrite(uri: OriginUri, hash: ContentHash): Unit =
-    synchronized(entries.get(uri).foreach(_.selfWrite = Some(hash)))
-
   /** Sample every watched origin and return what settled since the last call. */
   def poll(): Vector[WatchEvent] =
     synchronized:
       val events = Vector.newBuilder[WatchEvent]
       val at     = now()
       for (uri, entry) <- entries do
-        val current = pathOf(uri).flatMap(Documents.hashOf)
+        val current = entry.path.flatMap(Documents.hashOf)
         current match
           case None =>
             // Deletion is reported immediately rather than debounced: an absent
@@ -107,31 +96,17 @@ final class WatchRegistry(
               audit.record(AuditEvent.OriginMissing(uri.value))
             entry.notified = None
             entry.pending = None
-            entry.selfWrite = None
 
           case Some(hash) =>
-            val wasAbsent = entry.notified.isEmpty
-            if entry.selfWrite.contains(hash) then
-              // Our own echo: adopt it silently.
-              entry.selfWrite = None
-              entry.notified = Some(hash)
-              entry.pending = None
-            else if entry.notified.contains(hash) then entry.pending = None
+            if entry.notified.contains(hash) then entry.pending = None
             else
-              // Any observation of content that is not ours invalidates a
-              // pending self-write record. Without this the entry could outlive
-              // its write and suppress a genuine, coincidentally identical
-              // change much later.
-              entry.selfWrite = None
               entry.pending match
                 case Some((pendingHash, firstSeen))
                     if pendingHash == hash && at - firstSeen >= debounceMs =>
-                  events += (if wasAbsent then WatchEvent.Restored(uri, hash)
+                  events += (if entry.notified.isEmpty then WatchEvent.Restored(uri, hash)
                              else WatchEvent.Changed(uri, hash))
                   entry.notified = Some(hash)
                   entry.pending = None
                 case Some((pendingHash, _)) if pendingHash == hash => () // still settling
                 case _                                             => entry.pending = Some((hash, at))
       events.result()
-
-  private def pathOf(uri: OriginUri): Option[Path] = uri.filePath.map(Paths.get(_))
