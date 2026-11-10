@@ -1,0 +1,5 @@
+digraph G {
+  subgraph cluster_c { label=C; t; u; t -> u [label=L] }
+  u -> a;
+  { rank=same; a -> m -> b; a -> b }
+}

@@ -30,7 +30,7 @@ WASM blob is not.
 
 | Gate | Result |
 |---|---|
-| Corpus (`corpus/*.dot`, 231 files × 3 formats) | **230/231 byte-exact** (every file but 03, 2026-11-09) |
+| Corpus (`corpus/*.dot`, 240 files × 3 formats) | **239/240 byte-exact** (every file but 03, 2026-11-09) |
 | Shape catalog (61 of 62 builtin node shapes) | byte-exact (`ShapeCatalogSpec`) |
 | Shipped viewer examples routed to the port | 5/8 byte-exact, 3 documented deferrals |
 | Full layout pipeline (rank → mincross → coords → splines) | ported |

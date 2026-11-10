@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 238/239
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 247/248
 > (2026-11-09).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 230/231 + shipped examples 8/8 = 238/239** — the SINGLE
+> **corpus 239/240 + shipped examples 8/8 = 247/248** — the SINGLE
 > remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
 > (its golden is gv's own default-mode cluster corruption; the file is
 > gated byte-exact against the 03b `newrank` oracle in ClusterSpec
@@ -676,15 +676,17 @@ enforce the deferral halves of it):
      `s.rank.orElse(defaultRank)`, not the value from when the subgraph was
      made.
 
-  The port of the flat groups (223–244) found five more gaps. No corpus case
-  has them yet:
-  8. **`splines=line`/`false` and a non-adjacent flat edge.** gv draws an
-     unlabelled non-adjacent flat edge straight (`make_flat_edge` calls
-     `makeSimpleFlat` for `EDGETYPE_LINE`). The port draws the arch.
-  9. **The arch height with edge labels.** `make_flat_edge` takes `vspace`
-     from rank r−2 when the graph has edge labels
-     (`GD_has_labels(g->root) & EDGE_LABEL`). `Spline.makeFlatArch` always
-     uses r−1.
+  The port of the flat groups (223–244) found five more gaps. Items 10–12
+  have no corpus case yet:
+  8. ~~**`splines=line`/`false` and a non-adjacent flat edge.**~~ CLOSED:
+     see the §7 entry "280–288".
+  9. ~~**The arch height with edge labels.**~~ CLOSED: see the §7 entry
+     "280–288". One case stays open, because gv has no defined behaviour
+     there: edge labels, a flat arch on rank 1, and no rank −1. Then gv
+     reads `GD_rank(g)[-1]`, out of bounds. viz-js drops the edge ("lost
+     x z edge") for `{rank=source; s} s -> t [label=L]; {rank=same; x -> y
+     -> z; x -> z}`, and a variant of that graph crashes it ("memory access
+     out of bounds"). The port uses rank r−1 there.
   10. **An adjacent pair with a record end.** `make_flat_adj_edges` routes
       nothing for the group and gives a warning. The port routes each edge
       alone.
@@ -716,6 +718,24 @@ enforce the deferral halves of it):
       order as 0.
   16. **The `ordering` attribute.** `ordered_edges` is not ported. The port
       does not read `ordering` at all.
+
+  The probes of 280–288 found three more gaps. No corpus case has them yet,
+  and a probe shows each of them:
+  17. **A labelled non-adjacent flat edge in line mode.** With
+      `splines=line`/`false`, `make_flat_labeled_edge` (dotsplines.c:1395)
+      makes a 7-point line from the tail through the label point to the
+      head. The port routes the label channel as a spline. Example:
+      `splines=line; t -> a [label=X]; {rank=same; a -> m -> b; a -> b
+      [label=Y]; a -> b}`.
+  18. **A `splines=polyline` arch.** `make_flat_edge` calls
+      `routepolylines` for `EDGETYPE_PLINE`. `Spline.makeFlatArch` always
+      calls `proutespline`. Example: `splines=polyline; t -> a;
+      {rank=same; a -> m -> b; a -> b}`.
+  19. **A self-loop label.** In gv, a self-loop label also sets
+      `GD_has_labels & EDGE_LABEL`, so gv doubles the ranks and halves
+      ranksep. `Rank.hasEdgeLabel` does not count self-loops. For
+      `a -> a [label=L]; a -> b`, the bb height is 109 in gv and 108 in the
+      port.
 
 ## 1. Goal & locked decisions
 
@@ -3277,4 +3297,29 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   edge. Two more probes check that a flat pair across a cluster boundary
   still routes as two groups. The probes left four gaps (§0, items 13–16).
   graphvizJVM 1008/1008.
+- **2026-11-09 (280–288)** — **The flat arch with edge labels, and flat
+  edges in line mode; corpus 239/240, total gate 247/248.** Two gaps of
+  `make_flat_edge` (dotsplines.c:1562) in `Spline.scala` are closed (§0
+  items 8 and 9).
+  - **The arch height** (`makeFlatArch`). gv tests `r > 0`, not the lowest
+    rank. When the graph has edge labels, gv measures `vspace` to rank r−2,
+    not to r−1, because r−1 is a label rank. The port always used r−1, so
+    each arch on a rank below a labelled edge was too low (280, 281 with
+    the label two ranks up, 283 in LR, 284 with a cluster). On rank 1 with
+    a label, r−2 is the `abomination` rank −1 (282). 288 passed before and
+    guards the `r > 0` test: a rank 0 under rank −1 takes `GD_ranksep`.
+    gv has no defined behaviour on rank 1 when rank −1 does not exist (§0
+    item 9). The port uses r−1 there.
+  - **Line mode.** With `splines=line`/`false`, an unlabelled non-adjacent
+    flat edge goes to `makeSimpleFlat`, as in gv. This test comes before
+    the port test and the bottom-port test. A straight line (285), a
+    spindle of two edges (286), and compass ports (287). `makeSimpleFlat`
+    now adds the ports of `edges[ind]` to tp and hp, as gv does, also when
+    edges[ind] goes from hn to tn. Each end reads its clip flag and `bp`
+    from the port of its own edge, so a compass end stays on the port
+    point. The group follows `edgecmp`: an edge with ports compares its own
+    ports, and an edge without ports compares the ports of the main edge.
+    Without ports, `makeSimpleFlat` gives the same values as before.
+  The probes found three more gaps (§0, items 17–19). graphvizJVM
+  1035/1035, all modules 2826.
 - _(append dated entries as milestones land)_

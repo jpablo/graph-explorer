@@ -1,0 +1,5 @@
+digraph G {
+  splines=line;
+  t -> a;
+  { rank=same; a -> m -> b; a -> b }
+}
