@@ -1,0 +1,21 @@
+digraph SubgraphEdgeFromInnerCluster {
+	graph [bb="0,0,166,132"];
+	node [label="\N"];
+	subgraph cluster_s {
+		graph [bb="8,56,158,124"];
+		subgraph cluster_t {
+			graph [bb="16,64,86,116"];
+			a	[height=0.5,
+				pos="51,90",
+				width=0.75];
+		}
+		b	[height=0.5,
+			pos="123,90",
+			width=0.75];
+	}
+	x	[height=0.5,
+		pos="87,18",
+		width=0.75];
+	a -> x	[pos="e,78.696,35.147 59.35,72.765 63.575,64.548 68.808,54.373 73.581,45.093"];
+	b -> x	[pos="e,95.304,35.147 114.65,72.765 110.42,64.548 105.19,54.373 100.42,45.093"];
+}

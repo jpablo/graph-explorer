@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 265/273
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 267/275
 > (2026-11-09).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 257/265 + shipped examples 8/8 = 265/273** — the ONLY
+> **corpus 259/267 + shipped examples 8/8 = 267/275** — the ONLY
 > remaining diffs anywhere are 03-subgraph-cluster and 261–267, intentional
 > deferrals (their goldens are gv's own default-mode cluster corruption;
 > each file is gated byte-exact against its `newrank` twin, 03b and

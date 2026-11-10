@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.gxcore.command
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{GroupId, NodeId}
 
 /** `gx` must be able to read back what `gx` wrote.
@@ -189,3 +190,31 @@ class DiagramTextRoundTripSpec extends FunSuite:
     val group = again.names.resolve("cluster_x").fold(e => fail(s"$e\n$written"), identity)
     for member <- Vector("a", "b") do
       assertEquals(group, again.graph.memberships.get(NodeId(member)).toVector, s"$member left cluster_x:\n$written")
+
+  // ------------------------------------------- an arrow to a subgraph
+
+  /** In DOT, an arrow to a subgraph goes to each node of the subgraph, also to
+    * the nodes of its inner subgraphs (checked with `dot -Tcanon`, Graphviz
+    * 14.1.5). The reader of gx made arrows only to the nodes that the
+    * subgraph names itself. Thus the reader lost `x -> a`, and a write
+    * removed it from the file, with no message.
+    */
+  private def arrowPairs(g: ViewerGraph): Vector[String] =
+    g.arrows.values.map(a => s"${a.source.value}->${a.target.value}").toVector.sorted
+
+  for (source, expected, outer, inner) <- Vector(
+      ("digraph G { x -> subgraph s { subgraph t { a } b } }", Vector("x->a", "x->b"), "s", "t"),
+      ("digraph G { subgraph s { subgraph t { a } b } -> x }", Vector("a->x", "b->x"), "s", "t"),
+      ("digraph G { x -> subgraph cluster_s { subgraph cluster_t { a } b } }", Vector("x->a", "x->b"), "cluster_s", "cluster_t")
+    )
+  do
+    test(s"an arrow to a subgraph goes to the nodes of its inner subgraphs, and a write keeps them: $source"):
+      val named = DiagramText.parseNamed(source).fold(fail(_), identity)
+      assertEquals(arrowPairs(named.graph), expected, "the reader lost an arrow")
+      val written = DiagramText.render(named.graph, named.format)
+      val again   = DiagramText.parseNamed(written).fold(e => fail(s"$e\n$written"), identity)
+      assertEquals(arrowPairs(again.graph), expected, s"a write lost an arrow:\n$written")
+      // The arrow does not move `a` out of its inner subgraph.
+      for (member, name) <- Vector("a" -> inner, "b" -> outer) do
+        val group = again.names.resolve(name).fold(e => fail(s"$e\n$written"), identity)
+        assertEquals(group, again.graph.memberships.get(NodeId(member)).toVector, s"$member left the subgraph $name:\n$written")

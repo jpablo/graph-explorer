@@ -75,7 +75,10 @@ final case class REdge(
   * @param rank     `rank=same|min|max|source|sink`, if set (a rank-constraint
   *                 subgraph — evicts its nodes from any cluster membership).
   * @param nodeIds  nodes referenced *directly* in this subgraph (first-mention
-  *                 order). Raw membership; the emitter applies the ownership
+  *                 order): by a node statement, or as an end of an edge
+  *                 statement. A subgraph end of an edge statement gives each
+  *                 of its nodes, also the nodes of its inner subgraphs.
+  *                 Raw membership; the emitter applies the ownership
   *                 rule (rank-constraint eviction) and re-orders by global id.
   * @param edgeIdxs indices into [[RGraph.edges]] for edges declared *directly*
   *                 in this subgraph.
@@ -219,6 +222,12 @@ object AttrResolver:
       walk(sg.stmts, scope, b, isRoot = false)
       b
 
+    /** All nodes of a subgraph: its own nodes, and the nodes of each inner
+      * subgraph, at each level. cgraph puts a node in its subgraph and in each
+      * outer subgraph. The result can have a node more than one time. */
+    def allNodeIds(b: Builder): Iterator[String] =
+      b.nodeIds.iterator ++ b.children.iterator.flatMap(allNodeIds)
+
     /** Make the [[RSubgraph]] tree of a builder, after all of its bodies. */
     def build(b: Builder): RSubgraph =
       val sgAttrs = b.graph.toMap
@@ -288,10 +297,17 @@ object AttrResolver:
               // T1 edge first when T1 predates 3. (`nodes` insertion order
               // IS seq order.) Subgraph ends carry no port. The set of a
               // subgraph that opens again also has the nodes of its earlier
-              // bodies.
+              // bodies. cgraph puts a node in each outer subgraph too, so the
+              // set also has the nodes of each inner subgraph:
+              // `x -> subgraph s { subgraph t { a } b }` gives `x -> a` and
+              // `x -> b`.
               val seqIdx = nodes.keysIterator.zipWithIndex.toMap
-              sub.nodeIds.toVector.sortBy(seqIdx).map((_, None))
+              allNodeIds(sub).distinct.toVector.sortBy(seqIdx).map((_, None))
           }
+          // cgraph `agedge` puts the two ends of each edge in the subgraph of
+          // the edge statement. Thus `level` gets each end, also a node of an
+          // inner subgraph of a subgraph end. This is the same as an explicit
+          // edge to that node.
           ids.foreach(_.foreach { case (nm, _) => level.nodeIds += nm })
           ids.zip(ids.drop(1)).foreach { case (tails, heads) =>
             for (t, tp) <- tails; (h, hp) <- heads do

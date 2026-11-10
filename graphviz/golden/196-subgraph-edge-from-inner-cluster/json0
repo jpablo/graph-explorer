@@ -1,0 +1,66 @@
+{
+  "name": "SubgraphEdgeFromInnerCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,166,132",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_s",
+      "bb": "8,56,158,124",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        2,3
+      ]
+    },
+    {
+      "name": "cluster_t",
+      "bb": "16,64,86,116",
+      "_gvid": 1,
+      "nodes": [
+        2
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "51,90",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "123,90",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "x",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "87,18",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 4,
+      "pos": "e,78.696,35.147 59.35,72.765 63.575,64.548 68.808,54.373 73.581,45.093"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 4,
+      "pos": "e,95.304,35.147 114.65,72.765 110.42,64.548 105.19,54.373 100.42,45.093"
+    }
+  ]
+}

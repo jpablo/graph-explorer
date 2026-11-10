@@ -532,6 +532,20 @@ class CliSpec extends FunSuite:
     assertEquals(firstColumn(g), Vector("clusterB", "cluster_B"))
   }
 
+  tmp.test("an arrow to a subgraph goes to the nodes of its inner subgraphs, and a write keeps them") { dir =>
+    // gx made only `x -> b`. Thus `gx arrows` did not show `x -> a`, and a
+    // change to a different element removed it from the file, with no message.
+    val f = write(dir, "in.dot", "digraph G {\n  x -> subgraph s { subgraph t { a } b }\n}\n")
+    val r = Run(dir)
+    assertEquals(r("arrows", "in.dot"), ExitCode.Ok, r.stderr)
+    assertEquals(firstColumn(r), Vector("x..a", "x..b"))
+    val s = Run(dir)
+    assertEquals(s("set", "in.dot", "b", "color=red"), ExitCode.Ok, s.stderr)
+    val text = Files.readString(f)
+    for target <- Vector("a", "b") do
+      assert(text.contains(s""""x" -> "$target""""), s"the write lost x -> $target:\n$text")
+  }
+
   tmp.test("a write keeps an id attribute, and gx set can write one") { dir =>
     // The DOT writer left out each `id`. Thus a change to one node removed the
     // `id` of the others, and gx refused `set … id=…`.

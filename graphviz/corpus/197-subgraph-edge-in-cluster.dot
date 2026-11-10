@@ -1,0 +1,3 @@
+digraph "SubgraphEdgeInCluster" {
+    subgraph cluster_p { y -> { { d } e } }
+}
