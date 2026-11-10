@@ -256,11 +256,7 @@ class InternalPhases(
       Option.when(lost.nonEmpty)(refusalMessage(lost))
 
   private def refusalMessage(lost: Set[UnmodeledContent]): String =
-    val names = UnmodeledContent.values.toList.filter(lost.contains).map(_.label)
-    val listed = names match
-      case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
-      case _                             => names.mkString
-    s"The viewer did not apply the canvas edit, because it would remove $listed from the file. " +
+    s"The viewer did not apply the canvas edit, because it would remove ${UnmodeledContent.listed(lost)} from the file. " +
       "Make the change in the text instead."
 
   val fullGraph = fullGraphV.signal.distinct

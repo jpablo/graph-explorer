@@ -17,20 +17,17 @@ final case class Args(
   def positionalAt(i: Int): Option[String] = positional.lift(i)
   def json: Boolean                        = has("json")
 
-  /** Each flag on the command line, without the `--`. */
-  def flags: Set[String] = switches ++ values.keySet
-
 object Args:
-  /** Flags that take a value. Each other word that starts with `--` is a
-    * switch. Thus a typo becomes an unknown switch, which the command refuses,
-    * and it does not take the next argument as its value.
-    */
-  private val ValueFlags = Set("label", "tag", "interval")
 
   /** `--` ends the flags: each word after it is positional. Use it for a
     * note or an element name that starts with `--`.
+    *
+    * `valueFlags` are the flags that take a value. Each other word that
+    * starts with `--` is a switch. Thus a typo becomes an unknown switch,
+    * which the command refuses, and it does not take the next argument as its
+    * value.
     */
-  def parse(raw: Vector[String]): Either[String, Args] =
+  def parse(raw: Vector[String], valueFlags: Set[String]): Either[String, Args] =
     def loop(
         rest:       List[String],
         positional: Vector[String],
@@ -47,7 +44,7 @@ object Args:
           if name.contains('=') then
             val (k, v) = name.span(_ != '=')
             loop(tail, positional, values + (k -> v.drop(1)), switches)
-          else if ValueFlags.contains(name) then
+          else if valueFlags.contains(name) then
             tail match
               case v :: more if !v.startsWith("--") =>
                 loop(more, positional, values + (name -> v), switches)

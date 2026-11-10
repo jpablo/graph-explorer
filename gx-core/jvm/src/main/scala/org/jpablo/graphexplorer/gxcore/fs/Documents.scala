@@ -24,7 +24,17 @@ enum DocumentError derives CanEqual:
     */
   case Conflict(path: String, expected: ContentHash, actual: ContentHash)
   case AlreadyExists(path: String)
-  case Io(path: String, message: String)
+
+  /** `detail` is the text of the exception. */
+  case Io(path: String, detail: String)
+
+  /** The error as a text for a message to a person. */
+  def message: String = this match
+    case NotFound(p)       => s"no such file: $p"
+    case NotAFile(p)       => s"not a regular file: $p"
+    case AlreadyExists(p)  => s"already exists: $p"
+    case Io(p, detail)     => s"$p: $detail"
+    case Conflict(p, _, _) => s"conflict on $p"
 
 /** Reading and writing diagram files.
   *

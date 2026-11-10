@@ -23,6 +23,7 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{ArrowId, ElementId, GroupId, NodeId, ViewerGroup}
 
 import java.nio.file.{Files, Path}
+import scala.collection.mutable
 import scala.util.control.NonFatal
 
 /** The `gx` command surface (plan §2).
@@ -132,6 +133,13 @@ object Cli:
     Command("skill", "gx skill [<version>] [--latest] [--json]", Json + "latest", Set.empty, false, skill)
   )
 
+  /** The flags that take a value, for each command. `Args.parse` takes the
+    * whole set, so a value flag of one command takes its value also after a
+    * different command. Then `checkFlags` refuses it with the message of an
+    * unknown flag.
+    */
+  private val ValueFlags: Set[String] = Commands.flatMap(_.values).toSet
+
   /** The commands that plan §2 removes, and what to use instead. An old name
     * fails with one line, so an agent with an old habit learns the new verb.
     * The old `gx run` command names are here too.
@@ -201,7 +209,7 @@ object Cli:
             env.err(s"gx: unknown command '$name'. 'gx help' lists the commands.")
             ExitCode.Usage
           case Some(command) =>
-            Args.parse(argv.drop(1)) match
+            Args.parse(argv.drop(1), ValueFlags) match
               case Left(why) =>
                 env.err(s"gx: $why")
                 ExitCode.Usage
@@ -225,16 +233,26 @@ object Cli:
         args.values.keys.toVector.sorted.find(v => !command.values.contains(v))
     bad.map: flag =>
       GoneFlags.get(flag) match
-        case Some(instead) => env.err(s"gx: '--$flag' is gone; $instead (see 'gx help')")
-        case None if command.switches.contains(flag) =>
-          env.err(s"gx: --$flag takes no value; usage: ${command.synopsis}")
-        case None if command.values.contains(flag) =>
-          env.err(s"gx: --$flag needs a value; usage: ${command.synopsis}")
+        case Some(instead) =>
+          env.err(s"gx: '--$flag' is gone; $instead (see 'gx help')")
+          ExitCode.Usage
+        case None if command.switches.contains(flag) => usage(command, s"--$flag takes no value", env)
         case None =>
           val takes = (command.switches ++ command.values).toVector.sorted.map("--" + _)
           val list  = if takes.isEmpty then "no flags" else takes.mkString(", ")
           env.err(s"gx: '${command.name}' does not take --$flag; it takes $list")
-      ExitCode.Usage
+          ExitCode.Usage
+
+  /** A usage error (exit 1): the reason, then the synopsis of the command. */
+  private def usage(command: Command, why: String, env: CliEnv): Int =
+    env.err(s"gx: $why; usage: ${command.synopsis}")
+    ExitCode.Usage
+
+  /** Run `f` on each item in order, and stop at the first `Left`. Thus no
+    * call of `f` comes after the first error.
+    */
+  private def eachOrStop[A, B](items: Seq[A])(f: A => Either[Int, B]): Either[Int, Vector[B]] =
+    items.foldLeft[Either[Int, Vector[B]]](Right(Vector.empty))((acc, item) => acc.flatMap(done => f(item).map(done :+ _)))
 
   /** The one-time migration of plan §4. It runs before a library command, and
     * only while `metadata/` does not exist. `None` means "continue".
@@ -261,21 +279,24 @@ object Cli:
     */
   private def fileArg(command: Command, args: Args, env: CliEnv): Either[Int, Path] =
     args.positionalAt(0) match
-      case None =>
-        env.err(s"gx: ${command.name} needs a <file>; usage: ${command.synopsis}")
-        Left(ExitCode.Usage)
+      case None      => Left(usage(command, s"${command.name} needs a <file>", env))
       case Some(raw) => checkPolicy(raw, env)
 
   /** The policy evaluates the canonical path: symlinks resolved, and one
     * spelling for each file (`FileOrigins.canonicalize`).
     */
   private def checkPolicy(raw: String, env: CliEnv): Either[Int, Path] =
-    env.policy.evaluate(env.cwd.resolve(raw), env.cwd) match
-      case Right(resolved) => Right(resolved)
-      case Left(denial) =>
-        env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
-        env.err(s"gx: ${denial.reason}")
-        Left(ExitCode.InvalidPathOrPolicy)
+    allowed(env.cwd.resolve(raw), env).left.map: denial =>
+      env.err(s"gx: ${denial.reason}")
+      ExitCode.InvalidPathOrPolicy
+
+  /** Evaluate a path with the policy. The audit log records each denial. The
+    * caller prints its own message.
+    */
+  private def allowed(path: Path, env: CliEnv): Either[PolicyDenial, Path] =
+    env.policy.evaluate(path, env.cwd).left.map: denial =>
+      env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
+      denial
 
   /** The file must exist, because the command reads it. */
   private def requireFile(path: Path, env: CliEnv): Either[Int, Path] =
@@ -299,7 +320,7 @@ object Cli:
         env.err(s"gx: $path is not a file")
         Left(ExitCode.InvalidPathOrPolicy)
       case Left(other) =>
-        env.err(s"gx: cannot read $path: ${describe(other)}")
+        env.err(s"gx: cannot read $path: ${other.message}")
         Left(ExitCode.InvalidPathOrPolicy)
       case Right(doc) =>
         DiagramText.parseNamed(doc.text) match
@@ -313,48 +334,46 @@ object Cli:
 
   // ---------------------------------------------------- element names
 
-  /** The texts that are not element names at all. A malformed name is a usage
-    * error (exit 1).
+  /** Refuse the texts that are not element names at all. A malformed name is
+    * a usage error (exit 1). The message reports each bad text.
     */
-  private def malformed(texts: Seq[String]): Seq[String] =
-    texts.flatMap: text =>
+  private def wellFormed(texts: Seq[String], env: CliEnv): Either[Int, Unit] =
+    val bad = texts.flatMap: text =>
       if text.isEmpty then Some("an element name cannot be empty")
       else ElementName.parse(text).left.toOption
+    if bad.isEmpty then Right(())
+    else
+      env.err(s"gx: ${bad.mkString("; ")}")
+      Left(ExitCode.Usage)
 
   /** Resolve element names against the diagram. A malformed name is exit 1. A
     * name that names nothing is exit 4. The message reports each bad name, so
     * an agent can correct all of them in one step.
     */
   private def resolve(texts: Seq[String], names: ElementNames, env: CliEnv): Either[Int, Vector[ElementId]] =
-    val bad = malformed(texts)
-    if bad.nonEmpty then
-      env.err(s"gx: ${bad.mkString("; ")}")
-      Left(ExitCode.Usage)
-    else
+    wellFormed(texts, env).flatMap: _ =>
       names.resolveAll(texts).left.map: why =>
         env.err(s"gx: $why. 'gx nodes', 'gx arrows' and 'gx groups' print the names.")
         ExitCode.InvalidPathOrPolicy
-
-  private def isGroup(id: ElementId): Boolean = id match
-    case _: GroupId => true
-    case _          => false
 
   private def kindOf(id: ElementId): String = id match
     case _: NodeId  => "a node"
     case _: ArrowId => "an arrow"
     case _: GroupId => "a group"
 
-  /** Refuse an element of a kind that the command does not take (exit 4). */
+  /** Refuse an element of a kind that the command does not take (exit 4).
+    * `render` gives the name of the element for the message.
+    */
   private def onlyKinds[A](
       command: Command,
       ids:     Vector[ElementId],
-      names:   ElementNames,
+      render:  ElementId => String,
       takes:   String,
       env:     CliEnv
   )(pick: PartialFunction[ElementId, A]): Either[Int, Vector[A]] =
     ids.find(id => !pick.isDefinedAt(id)) match
       case Some(other) =>
-        env.err(s"gx: ${command.name} takes $takes; '${names.render(other)}' is ${kindOf(other)}")
+        env.err(s"gx: ${command.name} takes $takes; '${render(other)}' is ${kindOf(other)}")
         Left(ExitCode.InvalidPathOrPolicy)
       case None => Right(ids.collect(pick))
 
@@ -372,10 +391,13 @@ object Cli:
   private def readArrows(command: Command, args: Args, env: CliEnv): Int =
     readOnly(command, args, env): loaded =>
       val op = if loaded.graph.tpe.isDirected then "->" else "--"
+      // A node is the end of many arrows, so gx renders each name one time.
+      val nodeNames                    = mutable.HashMap.empty[NodeId, String]
+      def nodeName(id: NodeId): String = nodeNames.getOrElseUpdate(id, loaded.names.render(id))
       val rows = loaded.names.arrows.flatMap: (id, name) =>
         loaded.graph.arrows.get(id).map: arrow =>
           val label = labelOf(arrow.attributes.values.get(Label.attrId).map(_.toString))
-          (name, ElementRef.render(id), loaded.names.render(arrow.source), loaded.names.render(arrow.target), label)
+          (name, ElementRef.render(id), nodeName(arrow.source), nodeName(arrow.target), label)
       if args.json then
         printJson(
           rows.map((name, ref, source, target, label) =>
@@ -409,39 +431,48 @@ object Cli:
       ExitCode.Ok
 
   private def readAttrs(command: Command, args: Args, env: CliEnv): Int =
-    readOnly(command, args, env): loaded =>
-      val texts = args.positional.drop(1)
-      if texts.isEmpty then
-        env.err(s"gx: attrs needs at least one <element>; usage: ${command.synopsis}")
-        ExitCode.Usage
-      else
-        resolve(texts, loaded.names, env) match
-          case Left(code) => code
-          case Right(ids) =>
-            // The attributes as the DOT writer prints them: `style=filled`,
-            // not the internal parts of a style.
-            val printed = loaded.graph.copy(elements = loaded.graph.elements.combineStyleAttributes)
-            val items   = ids.map(id => (loaded.names.render(id), ElementRef.render(id), attributesOf(printed, id)))
-            if args.json then
-              printJson(
-                items.map((name, ref, attrs) =>
-                  ujson.Obj(
-                    "name"       -> name,
-                    "ref"        -> ref,
-                    "attributes" -> ujson.Obj.from(attrs.map((k, v) => k -> ujson.Str(v)))
-                  )
-                ),
-                env
+    loadElements(command, args, env, "<element>") match
+      case Left(code)           => code
+      case Right((loaded, ids)) =>
+        // The attributes as the DOT writer prints them: `style=filled`,
+        // not the internal parts of a style.
+        val printed = loaded.graph.copy(elements = loaded.graph.elements.combineStyleAttributes)
+        val items   = ids.map(id => (loaded.names.render(id), ElementRef.render(id), attributesOf(printed, id)))
+        if args.json then
+          printJson(
+            items.map((name, ref, attrs) =>
+              ujson.Obj(
+                "name"       -> name,
+                "ref"        -> ref,
+                "attributes" -> ujson.Obj.from(attrs.map((k, v) => k -> ujson.Str(v)))
               )
-            else
-              for (name, _, attrs) <- items do
-                env.out(name)
-                attrs.foreach((k, v) => env.out(s"  $k=$v"))
-            ExitCode.Ok
+            ),
+            env
+          )
+        else
+          for (name, _, attrs) <- items do
+            env.out(name)
+            attrs.foreach((k, v) => env.out(s"  $k=$v"))
+        ExitCode.Ok
 
   /** A read command: it parses the file, and it never writes anything. */
   private def readOnly(command: Command, args: Args, env: CliEnv)(body: Loaded => Int): Int =
     loadFile(command, args, env).fold(identity, body)
+
+  /** Load the file, then resolve the element names after the file. The order
+    * of the checks is: the file, then "no name", then the names. `noun` is the
+    * word for an element in the "no name" message.
+    */
+  private def loadElements(
+      command: Command,
+      args:    Args,
+      env:     CliEnv,
+      noun:    String
+  ): Either[Int, (Loaded, Vector[ElementId])] =
+    val texts = args.positional.drop(1)
+    loadFile(command, args, env).flatMap: loaded =>
+      if texts.isEmpty then Left(usage(command, s"${command.name} needs at least one $noun", env))
+      else resolve(texts, loaded.names, env).map(loaded -> _)
 
   /** The attributes of an element, as the DOT writer prints them. Thus the
     * list leaves out:
@@ -462,13 +493,15 @@ object Cli:
       .map((k, v) => k.value -> v.toString)
       .filterNot: (k, v) =>
         k.startsWith("_") || v.isEmpty || defaults.get(k).contains(v) ||
-          (isGroup(id) && k == Name.attrId.value)
+          (id.isGroupId && k == Name.attrId.value)
 
   /** `\N` is the DOT default label (the node id), so it is no label. */
   private def labelOf(label: Option[String]): Option[String] =
     label.filter(l => l.nonEmpty && l != "\\N")
 
   private def optional(value: Option[String]): ujson.Value = value.map(ujson.Str(_)).getOrElse(ujson.Null)
+
+  private def strings(xs: Iterable[String]): ujson.Arr = ujson.Arr.from(xs.map(ujson.Str(_)))
 
   private def quoted(text: String): String = "\"" + text.replace("\"", "\\\"") + "\""
 
@@ -499,15 +532,14 @@ object Cli:
     // The writer keeps `id`, so gx accepts it.
     val dropped = attributes.map(_._1).filter(_.startsWith("_")).distinct
 
-    def usage(why: String): Int =
-      env.err(s"gx: $why; usage: ${command.synopsis}")
-      ExitCode.Usage
-
-    if args.positional.isEmpty then usage("set needs a <file>")
-    else if elements.isEmpty then usage("set needs at least one <element> before the attributes")
-    else if attributes.isEmpty then usage("set needs at least one <name>=<value> (an empty value removes the attribute)")
-    else if repeated.nonEmpty then usage(s"set gives ${repeated.mkString(", ")} more than once; give each attribute once")
-    else if dropped.nonEmpty then usage(s"gx cannot write ${dropped.mkString(", ")}: its DOT writer leaves it out of the file")
+    if args.positional.isEmpty then usage(command, "set needs a <file>", env)
+    else if elements.isEmpty then usage(command, "set needs at least one <element> before the attributes", env)
+    else if attributes.isEmpty then
+      usage(command, "set needs at least one <name>=<value> (an empty value removes the attribute)", env)
+    else if repeated.nonEmpty then
+      usage(command, s"set gives ${repeated.mkString(", ")} more than once; give each attribute once", env)
+    else if dropped.nonEmpty then
+      usage(command, s"gx cannot write ${dropped.mkString(", ")}: its DOT writer leaves it out of the file", env)
     else
       change(command, args, env): loaded =>
         resolve(elements, loaded.names, env).flatMap: ids =>
@@ -525,7 +557,7 @@ object Cli:
 
   private def group(command: Command, args: Args, env: CliEnv): Int =
     withElements(command, args, env): (loaded, ids) =>
-      onlyKinds(command, ids, loaded.names, "nodes and groups", env) {
+      onlyKinds(command, ids, loaded.names.render, "nodes and groups", env) {
         case n: NodeId  => n: ElementId
         case g: GroupId => g: ElementId
       }.flatMap: members =>
@@ -541,13 +573,13 @@ object Cli:
     */
   private def ungroup(command: Command, args: Args, env: CliEnv): Int =
     withElements(command, args, env): (loaded, ids) =>
-      onlyKinds(command, ids, loaded.names, "groups", env) { case g: GroupId => g }.flatMap: groups =>
+      onlyKinds(command, ids, loaded.names.render, "groups", env) { case g: GroupId => g }.flatMap: groups =>
         val members: Set[ElementId] = loaded.graph.getDirectChildren(groups.toSet).map(m => m: ElementId)
         runSource(loaded.graph, SourceCommand.Ungroup(members), env).map(_ -> Vector.empty)
 
   private def combineRecord(command: Command, args: Args, env: CliEnv): Int =
     withElements(command, args, env): (loaded, ids) =>
-      onlyKinds(command, ids, loaded.names, "nodes", env) { case n: NodeId => n }.flatMap: nodes =>
+      onlyKinds(command, ids, loaded.names.render, "nodes", env) { case n: NodeId => n }.flatMap: nodes =>
         if !loaded.graph.canCombineNodes(nodes.toSet) then
           env.err("gx: combine-record needs two or more nodes, and the nodes must be in the same group")
           Left(ExitCode.InvalidPathOrPolicy)
@@ -560,12 +592,10 @@ object Cli:
     oneRecord(command, args, env)(SourceCommand.TransposeRecord(_))
 
   private def oneRecord(command: Command, args: Args, env: CliEnv)(make: NodeId => SourceCommand): Int =
-    if args.positional.size > 2 then
-      env.err(s"gx: ${command.name} takes exactly one <node>; usage: ${command.synopsis}")
-      ExitCode.Usage
+    if args.positional.size > 2 then usage(command, s"${command.name} takes exactly one <node>", env)
     else
       withElements(command, args, env): (loaded, ids) =>
-        onlyKinds(command, ids, loaded.names, "a node", env) { case n: NodeId => n }.flatMap:
+        onlyKinds(command, ids, loaded.names.render, "a node", env) { case n: NodeId => n }.flatMap:
           case Vector(node) if loaded.graph.isRecordNode(node) =>
             runSource(loaded.graph, make(node), env).map(_ -> Vector.empty)
           case Vector(node) =>
@@ -579,9 +609,7 @@ object Cli:
   private def withElements(command: Command, args: Args, env: CliEnv)(
       edit: (Loaded, Vector[ElementId]) => Either[Int, (ViewerGraph, Vector[(String, String)])]
   ): Int =
-    if args.positional.sizeIs == 1 then
-      env.err(s"gx: ${command.name} needs at least one element; usage: ${command.synopsis}")
-      ExitCode.Usage
+    if args.positional.sizeIs == 1 then usage(command, s"${command.name} needs at least one element", env)
     else
       change(command, args, env): loaded =>
         resolve(args.positional.drop(1), loaded.names, env).flatMap(ids => edit(loaded, ids))
@@ -626,7 +654,7 @@ object Cli:
           reportWrite(loaded.path, loaded.doc.hash, changed = false, extra, args, env)
         else if lost.nonEmpty && !args.has("reformat") then
           env.err(
-            s"gx: gx writes the whole file again, and that removes ${listed(lost)} from ${loaded.path}. " +
+            s"gx: gx writes the whole file again, and that removes ${UnmodeledContent.listed(lost)} from ${loaded.path}. " +
               "Add --reformat to accept the rewrite, or change the text yourself."
           )
           ExitCode.InvalidPathOrPolicy
@@ -641,7 +669,7 @@ object Cli:
               )
               ExitCode.Conflict
             case Left(err) =>
-              env.err(s"gx: cannot write ${loaded.path}: ${describe(err)}")
+              env.err(s"gx: cannot write ${loaded.path}: ${err.message}")
               ExitCode.InvalidPathOrPolicy
             case Right(doc) =>
               env.audit.record(AuditEvent.Written(loaded.path.toString, doc.hash, "cli"))
@@ -662,12 +690,6 @@ object Cli:
       val notes = Option.unless(changed)("unchanged").toVector ++ extra.map((k, v) => s"$k $v")
       env.out((Vector(path.toString, hash.hex) ++ notes).mkString("  "))
     ExitCode.Ok
-
-  /** "the comments and the `strict` keyword", in the order of the enum. */
-  private def listed(lost: Set[UnmodeledContent]): String =
-    UnmodeledContent.values.toList.filter(lost.contains).map(_.label) match
-      case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
-      case names                         => names.mkString
 
   // ---------------------------------------------------------- metadata
 
@@ -698,11 +720,15 @@ object Cli:
         if next == entry.metadata then Right(Some(entry))
         else put(entry.copy(metadata = next, updatedAt = env.now()), env).map(Some(_))
       case None if !create => Right(None)
-      case None =>
-        requireFile(path, env).flatMap: _ =>
-          val now  = env.now()
-          val meta = update(DiagramMetadata.empty)
-          put(LibraryEntry(path.toString, meta, now, now), env).map(Some(_))
+      case None            => newEntry(path, update(DiagramMetadata.empty), env).map(Some(_))
+
+  /** Make the entry of a file that has no entry. Only a file that exists can
+    * get a new entry.
+    */
+  private def newEntry(path: Path, meta: DiagramMetadata, env: CliEnv): Either[Int, LibraryEntry] =
+    requireFile(path, env).flatMap: _ =>
+      val now = env.now()
+      put(LibraryEntry(path.toString, meta, now, now), env)
 
   private def put(entry: LibraryEntry, env: CliEnv): Either[Int, LibraryEntry] =
     env.library.put(entry).left.map: err =>
@@ -711,30 +737,50 @@ object Cli:
 
   /** The names of the elements of the file, when the file parses. */
   private def namesOf(path: Path): Option[ElementNames] =
-    Documents.read(path).toOption.flatMap(doc => DiagramText.parseNamed(doc.text).toOption).map(_.names)
+    readNamed(path).toOption.map(_.names)
+
+  /** Read a file and parse it. The error is the text for a message. */
+  private def readNamed(path: Path): Either[String, DiagramText.Named] =
+    Documents.read(path).left.map(_.message).flatMap(doc => DiagramText.parseNamed(doc.text))
 
   /** A stored ref, as a name when the file parses, else as the ref.
     * `ElementNames.render` gives the ref spelling for an element that the file
     * does not have.
     */
-  private def displayed(refs: Iterable[String], names: Option[ElementNames]): Vector[String] =
-    refs.toVector.map(ref =>
-      (names, ElementRef.parse(ref).toOption) match
-        case (Some(n), Some(id)) => n.render(id)
-        case _                   => ref
-    ).sorted
+  private def nameOfRef(ref: String, names: Option[ElementNames]): String =
+    (names, ElementRef.parse(ref).toOption) match
+      case (Some(n), Some(id)) => n.render(id)
+      case _                   => ref
 
-  private def infoJson(path: Path, entry: Option[LibraryEntry], names: Option[ElementNames]): ujson.Obj =
+  /** The stored refs as names, in sorted order. `names` is by-name: with no
+    * ref, gx does not evaluate it.
+    */
+  private def displayed(refs: Iterable[String], names: => Option[ElementNames]): Vector[String] =
+    lazy val known = names
+    refs.toVector.map(nameOfRef(_, known)).sorted
+
+  /** The fields of `info`, in the order of the output. Each value is a
+    * function, so that a caller can build one field only. Only `hidden` and
+    * `collapsed` evaluate `names`, and only when they have a ref.
+    */
+  private def infoFields(
+      path:  Path,
+      entry: Option[LibraryEntry],
+      names: => Option[ElementNames]
+  ): Vector[(String, () => ujson.Value)] =
     val meta = entry.map(_.metadata)
-    ujson.Obj(
-      "path"             -> path.toString,
-      "inLibrary"        -> entry.isDefined,
-      "tags"             -> ujson.Arr.from(meta.toVector.flatMap(_.tags).map(ujson.Str(_))),
-      "notes"            -> meta.map(_.notes).getOrElse(""),
-      "hidden"           -> ujson.Arr.from(displayed(meta.toVector.flatMap(_.hiddenElements), names).map(ujson.Str(_))),
-      "collapsed"        -> ujson.Arr.from(displayed(meta.toVector.flatMap(_.collapsedGroups), names).map(ujson.Str(_))),
-      "autoDetectFormat" -> meta.flatMap(_.autoDetectFormat).map(ujson.Bool(_)).getOrElse(ujson.Null)
+    Vector(
+      "path"             -> (() => ujson.Str(path.toString)),
+      "inLibrary"        -> (() => ujson.Bool(entry.isDefined)),
+      "tags"             -> (() => strings(meta.toVector.flatMap(_.tags))),
+      "notes"            -> (() => ujson.Str(meta.map(_.notes).getOrElse(""))),
+      "hidden"           -> (() => strings(displayed(meta.toVector.flatMap(_.hiddenElements), names))),
+      "collapsed"        -> (() => strings(displayed(meta.toVector.flatMap(_.collapsedGroups), names))),
+      "autoDetectFormat" -> (() => meta.flatMap(_.autoDetectFormat).map(ujson.Bool(_)).getOrElse(ujson.Null))
     )
+
+  private def infoJson(path: Path, entry: Option[LibraryEntry], names: => Option[ElementNames]): ujson.Obj =
+    ujson.Obj.from(infoFields(path, entry, names).map((key, value) => key -> value()))
 
   /** A value of `info`, for a person. */
   private def text(value: ujson.Value): String = value match
@@ -743,19 +789,22 @@ object Cli:
     case other            => if other.isNull then "(not set)" else other.render()
 
   /** The output of a metadata command: the metadata of the file with
-    * `--json`, else one line with the field that the command changes.
+    * `--json`, else one line with the field that the command changes. The
+    * line builds only that field.
     */
   private def reportEntry(
       path:  Path,
       entry: Option[LibraryEntry],
-      names: Option[ElementNames],
+      names: => Option[ElementNames],
       field: String,
       args:  Args,
       env:   CliEnv
   ): Int =
     if args.json then env.out(infoJson(path, entry, names).render(indent = 2))
     else if entry.isEmpty then env.out(s"$path  not in the library; nothing to change")
-    else env.out(s"$path  $field: ${text(infoJson(path, entry, names)(field)).linesIterator.mkString(" / ")}")
+    else
+      val fields = infoFields(path, entry, names).toMap
+      env.out(s"$path  $field: ${text(fields(field)()).linesIterator.mkString(" / ")}")
     ExitCode.Ok
 
   private def hide(command: Command, args: Args, env: CliEnv): Int =
@@ -764,7 +813,7 @@ object Cli:
 
   private def collapse(command: Command, args: Args, env: CliEnv): Int =
     addElements(command, args, env, "collapsed"): (loaded, ids) =>
-      onlyKinds(command, ids, loaded.names, "groups", env) { case g: GroupId => g }
+      onlyKinds(command, ids, loaded.names.render, "groups", env) { case g: GroupId => g }
         .map(groups => MetadataCommand.Collapse(groups.toSet))
 
   /** `hide` and `collapse`: resolve the names against the file, then store
@@ -773,20 +822,13 @@ object Cli:
   private def addElements(command: Command, args: Args, env: CliEnv, field: String)(
       make: (Loaded, Vector[ElementId]) => Either[Int, MetadataCommand]
   ): Int =
-    val texts = args.positional.drop(1)
-    loadFile(command, args, env) match
-      case Left(code) => code
-      case Right(_) if texts.isEmpty =>
-        env.err(s"gx: ${command.name} needs at least one element; usage: ${command.synopsis}")
-        ExitCode.Usage
-      case Right(loaded) =>
-        val result =
-          for
-            ids   <- resolve(texts, loaded.names, env)
-            meta  <- make(loaded, ids)
-            entry <- updateEntry(loaded.path, create = true, env)(MetadataCommands.run(_, meta))
-          yield entry
-        result.fold(identity, entry => reportEntry(loaded.path, entry, Some(loaded.names), field, args, env))
+    val result =
+      for
+        (loaded, ids) <- loadElements(command, args, env, "element")
+        meta          <- make(loaded, ids)
+        entry         <- updateEntry(loaded.path, create = true, env)(MetadataCommands.run(_, meta))
+      yield loaded -> entry
+    result.fold(identity, (loaded, entry) => reportEntry(loaded.path, entry, Some(loaded.names), field, args, env))
 
   private def unhide(command: Command, args: Args, env: CliEnv): Int =
     removeElements(command, args, env, "hidden", MetadataCommand.UnhideAll)(_.hiddenElements): (_, ids) =>
@@ -794,12 +836,9 @@ object Cli:
 
   private def expand(command: Command, args: Args, env: CliEnv): Int =
     removeElements(command, args, env, "collapsed", MetadataCommand.ExpandAll)(_.collapsedGroups): (names, ids) =>
-      ids.find(!isGroup(_)) match
-        case Some(other) =>
-          val name = names.fold(ElementRef.render(other))(_.render(other))
-          env.err(s"gx: expand takes groups; '$name' is ${kindOf(other)}")
-          Left(ExitCode.InvalidPathOrPolicy)
-        case None => Right(MetadataCommand.Expand(ids.collect { case g: GroupId => g }.toSet))
+      onlyKinds(command, ids, id => names.fold(ElementRef.render(id))(_.render(id)), "groups", env) {
+        case g: GroupId => g
+      }.map(groups => MetadataCommand.Expand(groups.toSet))
 
   /** `unhide` and `expand`: the elements, or `--all`.
     *
@@ -811,19 +850,19 @@ object Cli:
       stored: DiagramMetadata => Set[String]
   )(make: (Option[ElementNames], Vector[ElementId]) => Either[Int, MetadataCommand]): Int =
     val texts = args.positional.drop(1)
-    def usage(why: String): Int =
-      env.err(s"gx: ${command.name} $why; usage: ${command.synopsis}")
-      ExitCode.Usage
     fileArg(command, args, env) match
-      case Left(code)                                     => code
-      case Right(_) if texts.isEmpty && !args.has("all")  => usage("needs elements or --all")
-      case Right(_) if texts.nonEmpty && args.has("all")  => usage("takes elements or --all, not both")
+      case Left(code) => code
+      case Right(_) if texts.isEmpty && !args.has("all") =>
+        usage(command, s"${command.name} needs elements or --all", env)
+      case Right(_) if texts.nonEmpty && args.has("all") =>
+        usage(command, s"${command.name} takes elements or --all, not both", env)
       case Right(path) =>
         entryOf(path, env) match
           case Left(code)  => code
           case Right(None) => reportEntry(path, None, None, field, args, env)
           case Right(Some(entry)) =>
-            val names = namesOf(path)
+            // Lazy: `--all` needs the names only to print a stored ref.
+            lazy val names = namesOf(path)
             val metaCommand =
               if args.has("all") then Right(all)
               else resolveStored(texts, names, stored(entry.metadata), path, env).flatMap(make(names, _))
@@ -841,11 +880,7 @@ object Cli:
       path:   Path,
       env:    CliEnv
   ): Either[Int, Vector[ElementId]] =
-    val bad = malformed(texts)
-    if bad.nonEmpty then
-      env.err(s"gx: ${bad.mkString("; ")}")
-      Left(ExitCode.Usage)
-    else
+    wellFormed(texts, env).flatMap: _ =>
       val results = texts.map: text =>
         val storedRef = ElementRef.parse(text).toOption.filter(id => stored.contains(ElementRef.render(id)))
         names match
@@ -872,10 +907,8 @@ object Cli:
   ): Int =
     val tags = args.positional.drop(1).toList
     fileArg(command, args, env) match
-      case Left(code) => code
-      case Right(_) if tags.isEmpty =>
-        env.err(s"gx: ${command.name} needs at least one <tag>; usage: ${command.synopsis}")
-        ExitCode.Usage
+      case Left(code)               => code
+      case Right(_) if tags.isEmpty => usage(command, s"${command.name} needs at least one <tag>", env)
       case Right(_) if tags.exists(_.trim.isEmpty) =>
         env.err("gx: a tag cannot be empty")
         ExitCode.Usage
@@ -888,11 +921,9 @@ object Cli:
     fileArg(command, args, env) match
       case Left(code) => code
       case Right(_) if texts.size > 1 =>
-        env.err(s"gx: note takes one <text>; put the text in quotes; usage: ${command.synopsis}")
-        ExitCode.Usage
+        usage(command, s"${command.name} takes one <text>; put the text in quotes", env)
       case Right(_) if sources != 1 =>
-        env.err(s"gx: note needs exactly one of <text>, --stdin and --clear; usage: ${command.synopsis}")
-        ExitCode.Usage
+        usage(command, s"${command.name} needs exactly one of <text>, --stdin and --clear", env)
       case Right(path) =>
         // Text from stdin loses its last line endings, as `$(...)` does in a shell.
         val note =
@@ -915,7 +946,9 @@ object Cli:
         env.err(s"gx: $path does not exist, and it is not in the library")
         ExitCode.InvalidPathOrPolicy
       case Right((path, entry)) =>
-        val json = infoJson(path, entry, namesOf(path))
+        // Lazy: gx parses the file only to print a hidden or a collapsed ref.
+        lazy val names = namesOf(path)
+        val json       = infoJson(path, entry, names)
         if args.json then env.out(json.render(indent = 2))
         else
           val width = json.obj.keys.map(_.length).max + 1
@@ -925,9 +958,7 @@ object Cli:
         ExitCode.Ok
 
   private def ls(command: Command, args: Args, env: CliEnv): Int =
-    if args.positional.nonEmpty then
-      env.err(s"gx: ls takes no file; usage: ${command.synopsis}")
-      ExitCode.Usage
+    if args.positional.nonEmpty then usage(command, s"${command.name} takes no file", env)
     else
       val (entries, unreadable) = env.library.listing()
       for bad <- unreadable do
@@ -938,7 +969,7 @@ object Cli:
       if args.json then
         printJson(
           rows.map((e, missing) =>
-            ujson.Obj("path" -> e.path, "tags" -> ujson.Arr.from(e.metadata.tags.map(ujson.Str(_))), "missing" -> missing)
+            ujson.Obj("path" -> e.path, "tags" -> strings(e.metadata.tags), "missing" -> missing)
           ),
           env
         )
@@ -959,19 +990,16 @@ object Cli:
 
   private def add(command: Command, args: Args, env: CliEnv): Int =
     // Each file is checked before the first write, so a bad file adds nothing.
-    val checked = files(command, args, env).flatMap(paths =>
-      paths.foldLeft[Either[Int, Vector[Path]]](Right(Vector.empty))((acc, p) => acc.flatMap(ok => requireFile(p, env).map(ok :+ _)))
-    )
+    val checked = files(command, args, env).flatMap(eachOrStop(_)(requireFile(_, env)))
     val results = checked.flatMap: paths =>
-      paths.foldLeft[Either[Int, Vector[(Path, Boolean)]]](Right(Vector.empty)): (acc, path) =>
+      eachOrStop(paths): path =>
         for
-          done  <- acc
           entry <- entryOf(path, env)
-          added <- if entry.isDefined then Right(false) else updateEntry(path, create = true, env)(identity).map(_ => true)
+          added <- if entry.isDefined then Right(false) else newEntry(path, DiagramMetadata.empty, env).map(_ => true)
         yield
           // V-08: the audit log records each path that gx lets into the library.
           if added then env.audit.record(AuditEvent.Allowed(path.toString, "add"))
-          done :+ (path -> added)
+          path -> added
     results.fold(
       identity,
       rows =>
@@ -982,13 +1010,12 @@ object Cli:
 
   private def remove(command: Command, args: Args, env: CliEnv): Int =
     val results = files(command, args, env).flatMap: paths =>
-      paths.foldLeft[Either[Int, Vector[(Path, Boolean)]]](Right(Vector.empty)): (acc, path) =>
-        acc.flatMap: done =>
-          env.library.remove(path.toString) match
-            case Right(removed) => Right(done :+ (path -> removed))
-            case Left(err) =>
-              env.err(s"gx: cannot remove the library entry of $path: $err")
-              Left(ExitCode.Unknown)
+      eachOrStop(paths): path =>
+        env.library.remove(path.toString) match
+          case Right(removed) => Right(path -> removed)
+          case Left(err) =>
+            env.err(s"gx: cannot remove the library entry of $path: $err")
+            Left(ExitCode.Unknown)
     results.fold(
       identity,
       rows =>
@@ -1001,13 +1028,8 @@ object Cli:
 
   /** Each positional argument is a file. Each goes through the policy. */
   private def files(command: Command, args: Args, env: CliEnv): Either[Int, Vector[Path]] =
-    if args.positional.isEmpty then
-      env.err(s"gx: ${command.name} needs at least one <file>; usage: ${command.synopsis}")
-      Left(ExitCode.Usage)
-    else
-      args.positional
-        .foldLeft[Either[Int, Vector[Path]]](Right(Vector.empty))((acc, raw) => acc.flatMap(done => checkPolicy(raw, env).map(done :+ _)))
-        .map(_.distinct)
+    if args.positional.isEmpty then Left(usage(command, s"${command.name} needs at least one <file>", env))
+    else eachOrStop(args.positional)(checkPolicy(_, env)).map(_.distinct)
 
   // ----------------------------------------------------------- desktop
 
@@ -1019,7 +1041,7 @@ object Cli:
       case Left(code) => code
       case Right(path) =>
         val payload = ujson.Obj("target" -> ujson.Obj("kind" -> "file", "path" -> path.toString))
-        desktop("show", payload, env, refused = "the desktop refused to open it"): result =>
+        outcome(env.rpc("show", payload), env, refused = "the desktop refused to open it"): result =>
           val focused = result.objOpt.flatMap(_.get("focused")).flatMap(_.boolOpt).getOrElse(true)
           if args.json then env.out(ujson.Obj("path" -> path.toString, "focused" -> focused).render(indent = 2))
           else
@@ -1037,29 +1059,22 @@ object Cli:
     * names the diagram on the screen.
     */
   private def select(command: Command, args: Args, env: CliEnv): Int =
-    val texts = args.positional.drop(1)
-    loadFile(command, args, env) match
+    loadElements(command, args, env, "element") match
       case Left(code) => code
-      case Right(_) if texts.isEmpty =>
-        env.err(s"gx: select needs at least one element; usage: ${command.synopsis}")
-        ExitCode.Usage
-      case Right(loaded) =>
-        resolve(texts, loaded.names, env) match
-          case Left(code) => code
-          case Right(ids) =>
-            val frame = LiveViewCodec.encode(LiveViewCommand.Select(loaded.path.toString, ids.toSet))
-            liveView(frame, env, Some(loaded.path)): _ =>
-              val names = ids.map(loaded.names.render)
-              if args.json then
-                env.out(
-                  ujson.Obj(
-                    "path"     -> loaded.path.toString,
-                    "selected" -> ujson.Arr.from(ids.map(ElementRef.render).sorted.map(ujson.Str(_))),
-                    "names"    -> ujson.Arr.from(names.map(ujson.Str(_)))
-                  ).render(indent = 2)
-                )
-              else env.out(s"${loaded.path}  selected: ${names.mkString(", ")}")
-              ExitCode.Ok
+      case Right((loaded, ids)) =>
+        val frame = LiveViewCodec.encode(LiveViewCommand.Select(loaded.path.toString, ids.toSet))
+        liveView(frame, env, Some(loaded.path)): _ =>
+          val names = ids.map(loaded.names.render)
+          if args.json then
+            env.out(
+              ujson.Obj(
+                "path"     -> loaded.path.toString,
+                "selected" -> strings(ElementRef.renderAll(ids)),
+                "names"    -> strings(names)
+              ).render(indent = 2)
+            )
+          else env.out(s"${loaded.path}  selected: ${names.mkString(", ")}")
+          ExitCode.Ok
 
   /** `selection` asks the desktop what is selected, and in which diagram.
     *
@@ -1070,9 +1085,7 @@ object Cli:
     * spelling, and stderr says why.
     */
   private def selection(command: Command, args: Args, env: CliEnv): Int =
-    if args.positional.nonEmpty then
-      env.err(s"gx: selection takes no file; usage: ${command.synopsis}")
-      ExitCode.Usage
+    if args.positional.nonEmpty then usage(command, s"${command.name} takes no file", env)
     else
       liveView(LiveViewCodec.encode(LiveViewCommand.WhatIsSelected), env, None): result =>
         LiveViewSelection.decode(result) match
@@ -1086,17 +1099,9 @@ object Cli:
                 env.err(s"gx: the desktop shows ${answer.shows}, and it is not a file. The selection is in the ref spelling.")
                 None
               case Some(path) => selectionNames(path, env)
-            val shown = answer.selection.map: ref =>
-              (names, ElementRef.parse(ref).toOption) match
-                case (Some(n), Some(id)) => n.render(id)
-                case _                   => ref
+            val shown = answer.selection.map(nameOfRef(_, names))
             if args.json then
-              env.out(
-                ujson.Obj(
-                  "path"      -> answer.path.fold(ujson.Null)(ujson.Str(_)),
-                  "selection" -> ujson.Arr.from(shown.map(ujson.Str(_)))
-                ).render(indent = 2)
-              )
+              env.out(ujson.Obj("path" -> optional(answer.path), "selection" -> strings(shown)).render(indent = 2))
             else
               val what = if shown.isEmpty then "nothing selected" else s"selected: ${shown.mkString(", ")}"
               env.out(answer.path.fold(what)(path => s"$path  $what"))
@@ -1116,13 +1121,12 @@ object Cli:
         env.err(s"gx: gx cannot read $path (no local file can have this path). The selection is in the ref spelling.")
         None
       case Some(local) =>
-        env.policy.evaluate(local, env.cwd) match
+        allowed(local, env) match
           case Left(denial) =>
-            env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
             env.err(s"gx: gx may not read $path (${denial.reason}). The selection is in the ref spelling.")
             None
-          case Right(allowed) =>
-            Documents.read(allowed).left.map(describe).flatMap(doc => DiagramText.parseNamed(doc.text)) match
+          case Right(file) =>
+            readNamed(file) match
               case Right(diagram) => Some(diagram.names)
               case Left(why) =>
                 env.err(s"gx: gx cannot read $path ($why). The selection is in the ref spelling.")
@@ -1142,15 +1146,13 @@ object Cli:
     * `VIEW_REJECTED`, and gx tells the caller to show the file first.
     */
   private def liveView(frame: ujson.Obj, env: CliEnv, file: Option[Path])(onOk: ujson.Value => Int): Int =
-    file match
-      case Some(path) =>
-        env.rpc("live-view", frame) match
-          case Left(ChannelError.Rpc("VIEW_REJECTED", message, _)) =>
-            env.err(s"gx: the desktop refused it (VIEW_REJECTED): $message")
-            env.err(s"gx: show the file first: gx open ${shellWord(path.toString)}, then retry")
-            ExitCode.InvalidPathOrPolicy
-          case other => outcome(other, env, refused = "the desktop refused it")(onOk)
-      case None => desktop("live-view", frame, env, refused = "the desktop refused it")(onOk)
+    (env.rpc("live-view", frame), file) match
+      case (Left(ChannelError.Rpc("VIEW_REJECTED", message, _)), Some(path)) =>
+        env.err(s"gx: the desktop refused it (VIEW_REJECTED): $message")
+        env.err(s"gx: show the file first: gx open ${shellWord(path.toString)}, then retry")
+        ExitCode.InvalidPathOrPolicy
+      // With no file, VIEW_REJECTED is one more refusal of `outcome`.
+      case (answer, _) => outcome(answer, env, refused = "the desktop refused it")(onOk)
 
   /** A path as one word for a shell: as it is when it has only safe
     * characters, and else in single quotes.
@@ -1159,12 +1161,9 @@ object Cli:
     if text.nonEmpty && text.forall(c => c.isLetterOrDigit || "/._-+:@%=,".contains(c)) then text
     else "'" + text.replace("'", "'\\''") + "'"
 
-  /** One request to the desktop, and the exit code of each failure. */
-  private def desktop(method: String, params: ujson.Obj, env: CliEnv, refused: String)(
-      onOk: ujson.Value => Int
-  ): Int =
-    outcome(env.rpc(method, params), env, refused)(onOk)
-
+  /** The answer of one request to the desktop, and the exit code of each
+    * failure.
+    */
   private def outcome(answer: Either[ChannelError, ujson.Value], env: CliEnv, refused: String)(
       onOk: ujson.Value => Int
   ): Int =
@@ -1205,9 +1204,7 @@ object Cli:
     * desktop commands, so it is information and not a failure.
     */
   private def status(command: Command, args: Args, env: CliEnv): Int =
-    if args.positional.nonEmpty then
-      env.err(s"gx: status takes no file; usage: ${command.synopsis}")
-      ExitCode.Usage
+    if args.positional.nonEmpty then usage(command, s"${command.name} takes no file", env)
     else
       val entries = env.library.list()
       val missing = entries.count(isMissing)
@@ -1233,7 +1230,7 @@ object Cli:
             "desktopRunning"    -> running,
             "desktopStarting"   -> starting,
             "desktopWatches"    -> watchItems.size,
-            "desktopWatchPaths" -> ujson.Arr.from(watchPaths.map(ujson.Str(_)))
+            "desktopWatchPaths" -> strings(watchPaths)
           ).render(indent = 2)
         )
       else
@@ -1264,9 +1261,7 @@ object Cli:
       case Some(raw) => raw.toLongOption.filter(_ >= 1).toRight(raw)
     (files(command, args, env), interval) match
       case (Left(code), _) => code
-      case (_, Left(raw)) =>
-        env.err(s"gx: --interval needs a number of milliseconds, 1 or more, not '$raw'; usage: ${command.synopsis}")
-        ExitCode.Usage
+      case (_, Left(raw))  => usage(command, s"--interval needs a number of milliseconds, 1 or more, not '$raw'", env)
       case (Right(paths), Right(ms)) =>
         val origins = paths.map(FileOrigins.originOf(_, env.cwd)).distinct
         // The debounce uses the clock of the environment, as each other time
@@ -1349,12 +1344,3 @@ object Cli:
               case Some(base) => env.out(s"Pin it to a release instead:  gx skill $base")
               case None       => env.out("Pin it to a release instead:  gx skill <version>")
         ExitCode.Ok
-
-  // ------------------------------------------------------------ helpers
-
-  private def describe(err: DocumentError): String = err match
-    case DocumentError.NotFound(p)       => s"no such file: $p"
-    case DocumentError.NotAFile(p)       => s"not a regular file: $p"
-    case DocumentError.AlreadyExists(p)  => s"already exists: $p"
-    case DocumentError.Io(p, m)          => s"$p: $m"
-    case DocumentError.Conflict(p, _, _) => s"conflict on $p"
