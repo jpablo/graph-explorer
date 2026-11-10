@@ -72,19 +72,32 @@ object Documents:
   /** Create a file that does not exist yet. Separate from [[write]] because
     * "I expect nothing here" and "I expect exactly these bytes" are different
     * claims, and conflating them makes an overwrite look like a create.
+    *
+    * The create never replaces a file. This is also true when a different
+    * writer makes the same file at the same time: [[AtomicFiles.create]] does
+    * the check and the write in one atomic step. The create that loses gets
+    * `AlreadyExists`, and it changes nothing.
     */
   def create(path: Path, text: String, lineEnding: LineEnding = LineEnding.Lf)
       : Either[DocumentError, Document] =
+    // This check only makes the usual refusal fast. AtomicFiles.create does
+    // the check that closes the race.
     if Files.exists(path) then Left(DocumentError.AlreadyExists(path.toString))
-    else writeBytes(path, text, lineEnding)
+    else
+      val (doc, bytes) = encode(path, text, lineEnding)
+      attempt(path)(AtomicFiles.create(path, bytes)).flatMap: created =>
+        Either.cond(created, doc, DocumentError.AlreadyExists(path.toString))
 
   private def writeBytes(path: Path, text: String, lineEnding: LineEnding)
       : Either[DocumentError, Document] =
-    attempt(path):
-      val encoded = lineEnding.applyTo(text)
-      val bytes   = encoded.getBytes(StandardCharsets.UTF_8) // V-16
-      AtomicFiles.write(path, bytes)
-      Document(path, encoded, Hashing.ofBytes(bytes), lineEnding)
+    val (doc, bytes) = encode(path, text, lineEnding)
+    attempt(path)(AtomicFiles.write(path, bytes)).map(_ => doc)
+
+  /** The document that the bytes give, and the bytes. */
+  private def encode(path: Path, text: String, lineEnding: LineEnding): (Document, Array[Byte]) =
+    val encoded = lineEnding.applyTo(text)
+    val bytes   = encoded.getBytes(StandardCharsets.UTF_8) // V-16
+    (Document(path, encoded, Hashing.ofBytes(bytes), lineEnding), bytes)
 
   private def attempt[A](path: Path)(body: => A): Either[DocumentError, A] =
     try Right(body)

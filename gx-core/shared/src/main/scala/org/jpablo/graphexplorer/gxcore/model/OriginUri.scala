@@ -41,19 +41,54 @@ object OriginUri:
       else out.append("%%%02X".format(byte & 0xff))
     out.toString
 
+  /** The value of the ASCII hex digit `c`, or -1 for a different character.
+    *
+    * `Character.digit` also accepts digits that are not ASCII, for example the
+    * full-width digits. Thus this function compares the ranges itself.
+    */
+  private def hexDigit(c: Char): Int =
+    if c >= '0' && c <= '9' then c - '0'
+    else if c >= 'a' && c <= 'f' then c - 'a' + 10
+    else if c >= 'A' && c <= 'F' then c - 'A' + 10
+    else -1
+
+  /** The byte of the escape at index `i` of `s`, or -1 if no escape starts
+    * there.
+    *
+    * An escape is a `%` and exactly two hex digits. `Integer.parseInt` is not
+    * correct here: it accepts a sign, so `%+1` gives the byte 0x01.
+    */
+  private def escapeAt(s: String, i: Int): Int =
+    if s.charAt(i) != '%' || i + 2 >= s.length then -1
+    else
+      val high = hexDigit(s.charAt(i + 1))
+      val low  = hexDigit(s.charAt(i + 2))
+      if high < 0 || low < 0 then -1 else (high << 4) | low
+
+  /** The UTF-8 bytes of a URI path that is percent-encoded.
+    *
+    * The decoder is lenient, because `parse` accepts each text that starts
+    * with `file://`. An old record or a different writer can contain a `%`
+    * that does not start an escape, for example `50% done.dot`. That `%` stays
+    * in the path as a literal character.
+    *
+    * `encodeSegment` encodes each character that is not ASCII. A different
+    * writer can keep such a character as it is. The decoder then writes the
+    * UTF-8 bytes of the full code point. A character outside the BMP has two
+    * UTF-16 units, and one unit alone has no UTF-8 form.
+    */
   private def decodeToBytes(encoded: String): Array[Byte] =
     val out = new scala.collection.mutable.ArrayBuffer[Byte](encoded.length)
     var i   = 0
     while i < encoded.length do
-      encoded.charAt(i) match
-        case '%' if i + 2 < encoded.length =>
-          out += Integer.parseInt(encoded.substring(i + 1, i + 3), 16).toByte
-          i += 3
-        case c =>
-          // Already-unescaped characters are ASCII by construction; anything
-          // else would mean the URI was never encoded by `encodeSegment`.
-          out ++= c.toString.getBytes(StandardCharsets.UTF_8)
-          i += 1
+      val escaped = escapeAt(encoded, i)
+      if escaped >= 0 then
+        out += escaped.toByte
+        i += 3
+      else
+        val end = i + Character.charCount(encoded.codePointAt(i))
+        out ++= encoded.substring(i, end).getBytes(StandardCharsets.UTF_8)
+        i = end
     out.toArray
 
   /** Build a `file:` URI from an ALREADY canonical absolute path.
