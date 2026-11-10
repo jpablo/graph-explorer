@@ -1,0 +1,6 @@
+digraph "LRFlatLabelInLabelledCluster" {
+    rankdir=LR
+    subgraph cluster_p { label="a cluster label that is quite long"; a -> m -> b; a -> b [label="x"]; { rank=same; a; m; b } }
+    a -> c
+    b -> c
+}

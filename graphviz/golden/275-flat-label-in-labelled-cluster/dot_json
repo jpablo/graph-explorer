@@ -1,0 +1,85 @@
+{
+  "name": "FlatLabelInsideLabelledCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 266 242",
+  "label": "",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_p",
+      "label": "p",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0,3,1
+      ]
+    },
+    {
+      "name": "%7",
+      "label": "p",
+      "rank": "same",
+      "_gvid": 1,
+      "nodes": [
+        2,3,4
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "m",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "c",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "label": ""
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 4,
+      "label": ""
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4,
+      "label": "x"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 5,
+      "label": ""
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 5,
+      "label": ""
+    }
+  ]
+}

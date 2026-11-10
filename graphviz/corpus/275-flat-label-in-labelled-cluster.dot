@@ -1,0 +1,5 @@
+digraph "FlatLabelInsideLabelledCluster" {
+    subgraph cluster_p { label="p"; a -> m -> b; a -> b [label="x"]; { rank=same; a; m; b } }
+    a -> c
+    b -> c
+}
