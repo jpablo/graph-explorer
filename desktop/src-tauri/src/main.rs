@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -353,7 +353,13 @@ fn main() {
     let unsaved = Arc::new(AtomicBool::new(false));
     let closing = Arc::new(AtomicBool::new(false));
 
-    let listener = bind_control_socket().expect("failed to bind the control socket");
+    let listener = match bind_control_socket() {
+        Err(err) if err.is::<DesktopAlreadyRunning>() => {
+            eprintln!("graph explorer desktop: {err}");
+            std::process::exit(1);
+        }
+        bound => bound.expect("failed to bind the control socket"),
+    };
 
     spawn_control_server(
         listener,
@@ -706,7 +712,7 @@ fn load_access_policy() -> Result<AccessPolicy> {
         .map(|raw| {
             env::split_paths(&raw)
                 .filter(|path| !path.as_os_str().is_empty())
-                .map(normalize_policy_root)
+                .map(absolute_policy_root)
                 .collect::<Result<Vec<_>>>()
         })
         .transpose()?
@@ -718,7 +724,7 @@ fn load_access_policy() -> Result<AccessPolicy> {
         .map(|raw| {
             env::split_paths(&raw)
                 .filter(|path| !path.as_os_str().is_empty())
-                .map(normalize_policy_root)
+                .map(absolute_policy_root)
                 .collect::<Result<Vec<_>>>()
         })
         .transpose()?
@@ -742,7 +748,10 @@ fn load_request_limits() -> Result<RequestLimits> {
     })
 }
 
-fn normalize_policy_root(path: PathBuf) -> Result<PathBuf> {
+/// Make a policy root absolute, and keep it as the person gave it. Each check
+/// makes the canonical form of the root (`PolicyRoot`), as gx-core does. A
+/// canonical form from the load becomes wrong when the root changes later.
+fn absolute_policy_root(path: PathBuf) -> Result<PathBuf> {
     let absolute = if path.is_absolute() {
         path
     } else {
@@ -750,7 +759,7 @@ fn normalize_policy_root(path: PathBuf) -> Result<PathBuf> {
             .context("failed to read current working directory for policy path")?
             .join(path)
     };
-    Ok(fs::canonicalize(&absolute).unwrap_or(absolute))
+    Ok(absolute)
 }
 
 fn default_denied_roots() -> Vec<PathBuf> {
@@ -764,6 +773,9 @@ fn default_denied_roots() -> Vec<PathBuf> {
         "/sbin",
         "/usr/bin",
         "/usr/sbin",
+        // gx-core denies these too (`AccessPolicy.defaultDeniedRoots`).
+        "/proc",
+        "/sys",
     ] {
         roots.push(PathBuf::from(static_path));
     }
@@ -1024,8 +1036,44 @@ struct DocumentChangedEventPayload {
 /// makes `connect` succeed and that must happen at the top of `main` -- long
 /// before tauri has a window.
 fn bind_control_socket() -> Result<UnixListener> {
-    let socket_path = control_socket_path()?;
-    check_socket_path_length(&socket_path)?;
+    bind_control_socket_at(&control_socket_path()?)
+}
+
+/// The refusal of a bind when a different desktop answers on the socket.
+/// `main` prints it and exits with code 1. It does not panic, because this
+/// refusal is a fact for the person, not a defect.
+#[derive(Debug)]
+struct DesktopAlreadyRunning {
+    socket_path: PathBuf,
+}
+
+impl std::fmt::Display for DesktopAlreadyRunning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "a different Graph Explorer desktop is running. It answers on the control socket {}. \
+             Use that desktop, or quit it and start this one again.",
+            self.socket_path.display()
+        )
+    }
+}
+
+impl std::error::Error for DesktopAlreadyRunning {}
+
+/// The body of `bind_control_socket`, for a given path, so that a test can
+/// bind a socket in a temporary directory.
+fn bind_control_socket_at(socket_path: &Path) -> Result<UnixListener> {
+    check_socket_path_length(socket_path)?;
+
+    // A connect that succeeds means that a live desktop listens on this
+    // socket. Then this desktop stops. If it removed the file, the live
+    // desktop would keep a socket with no name, and `gx` could not reach it.
+    if UnixStream::connect(socket_path).is_ok() {
+        return Err(DesktopAlreadyRunning {
+            socket_path: socket_path.to_path_buf(),
+        }
+        .into());
+    }
 
     // A socket file outlives the process that made it, so a crashed desktop
     // leaves one behind. Removing it before binding is what makes a restart
@@ -1142,19 +1190,31 @@ impl ConnectionContext {
 /// human can read the traffic.
 fn serve_connection(stream: UnixStream, context: &ConnectionContext) -> Result<()> {
     let mut writer = stream.try_clone().context("failed to clone control stream")?;
-    let reader = BufReader::new(stream);
+    let mut reader = BufReader::new(stream);
+    let max_body_bytes = context.request_limits.max_body_bytes;
 
-    for line in reader.split(b'\n') {
-        let line = line.context("failed to read control frame")?;
-        if line.len() > context.request_limits.max_body_bytes {
+    loop {
+        // The limit is for the frame without its newline. Read one byte more
+        // than the limit, and no more. Thus a client that sends no newline
+        // cannot make the desktop keep each byte in memory.
+        let mut line = Vec::new();
+        let read = (&mut reader)
+            .take((max_body_bytes as u64).saturating_add(1))
+            .read_until(b'\n', &mut line)
+            .context("failed to read control frame")?;
+        if read == 0 {
+            break;
+        }
+        // A read that stops with no newline is at the end of the stream or
+        // at the bound. At the end of the stream, the bytes are a frame.
+        if line.last() == Some(&b'\n') {
+            line.pop();
+        }
+        if line.len() > max_body_bytes {
             let response = RpcResponse::failure(
                 None,
                 "PAYLOAD_TOO_LARGE",
-                format!(
-                    "request frame is {} bytes (max {})",
-                    line.len(),
-                    context.request_limits.max_body_bytes
-                ),
+                format!("request frame is longer than the limit of {max_body_bytes} bytes"),
             );
             write_frame(&mut writer, &response)?;
             // The frame boundary is now untrustworthy — a body that overran the
@@ -1910,22 +1970,54 @@ fn configured_denied_roots(access_policy: &AccessPolicy) -> Vec<String> {
         .collect()
 }
 
+/// The text of a document file and its revision, from ONE read of the bytes.
+struct DocumentText {
+    /// A LOSSY UTF-8 decode, as the watch loop makes. Thus a file with a byte
+    /// that is not UTF-8 still opens.
+    text: String,
+    /// The hash of the bytes on disk (V-13), not of the decoded text.
+    revision: String,
+}
+
+/// Read the bytes of `path` one time, and give the text and the revision of
+/// those bytes. Two reads can see two different files. Then the revision is
+/// not the revision of the text, and the next save of the page fails with a
+/// false DOCUMENT_CONFLICT.
+fn read_document_text(path: &str) -> std::io::Result<DocumentText> {
+    let bytes = fs::read(path)?;
+    let revision = content_hash(&bytes);
+    Ok(DocumentText {
+        text: lossy_text(bytes),
+        revision,
+    })
+}
+
+/// The text of `bytes`, with a LOSSY UTF-8 decode. Only bytes that are not
+/// UTF-8 are copied.
+fn lossy_text(bytes: Vec<u8>) -> String {
+    String::from_utf8(bytes)
+        .unwrap_or_else(|err| String::from_utf8_lossy(err.as_bytes()).into_owned())
+}
+
 fn get_document_snapshot(watch_registry: &WatchRegistry, path: &str) -> Result<DocumentSnapshot> {
     let normalized = normalize_path(path)?;
-    let watch = watch_registry
+    let format = watch_registry
         .lock()
         .map_err(|err| anyhow::anyhow!("watch registry lock poisoned: {err}"))?
         .get(&normalized)
-        .cloned()
+        .map(|watch| watch.format.clone())
         .ok_or_else(|| anyhow::anyhow!("path is not currently watched: {normalized}"))?;
 
-    let text = fs::read_to_string(&normalized)
+    // The revision comes from the bytes of this read, not from the registry.
+    // The watch loop updates the registry only after its debounce, so the
+    // registry can have the revision of an older text.
+    let document = read_document_text(&normalized)
         .with_context(|| format!("failed to read {}", normalized))?;
     Ok(DocumentSnapshot {
         path: normalized,
-        text,
-        format: watch.format,
-        revision: watch.revision,
+        text: document.text,
+        format,
+        revision: document.revision,
         timestamp_ms: current_time_ms(),
     })
 }
@@ -1987,10 +2079,20 @@ fn put_document_snapshot(
         });
     }
 
-    write_file_atomic(&normalized, &payload.text).map_err(PutDocumentError::Other)?;
+    // Record the hash BEFORE the write. The watch loop can see the new bytes
+    // immediately after the rename. With no record at that time, the loop
+    // takes our write for a change from a different process.
     let content_hash = content_hash(payload.text.as_bytes());
     if let Ok(mut writes) = recent_write_hashes.lock() {
         writes.insert(normalized.clone(), content_hash.clone());
+    }
+    if let Err(err) = write_file_atomic(&normalized, &payload.text) {
+        // The bytes on disk did not change, so remove the record. A record of
+        // bytes that are not on disk can hide a later change.
+        if let Ok(mut writes) = recent_write_hashes.lock() {
+            writes.remove(&normalized);
+        }
+        return Err(PutDocumentError::Other(err));
     }
 
     watch.revision = content_hash.clone();
@@ -2052,13 +2154,14 @@ fn write_file_atomic(path: &str, text: &str) -> Result<()> {
     );
     let temp_path = parent.join(temp_name);
 
-    // A stale temp from a crashed write would be REUSED by `fs::write`, which
+    // A stale temp from a crashed write would be REUSED by `File::create`, which
     // truncates rather than recreates — and keeps whatever mode it already had.
     // That matters below, where the freshly created temp's mode is read as the
     // umask probe.
     let _ = fs::remove_file(&temp_path);
 
-    fs::write(&temp_path, text)
+    fs::File::create(&temp_path)
+        .and_then(|temp| write_and_sync(temp, text.as_bytes()))
         .with_context(|| format!("failed to write temporary file {}", temp_path.display()))?;
 
     // What a new file should end up as: whatever the OS just gave the temp,
@@ -2086,6 +2189,14 @@ fn write_file_atomic(path: &str, text: &str) -> Result<()> {
     fs::rename(&temp_path, &target)
         .with_context(|| format!("failed to move temporary file into {}", target.display()))?;
     Ok(())
+}
+
+/// V-02. Write `bytes`, and flush them to the disk, as `AtomicFiles.fill` in
+/// gx-core does. Each writer calls this BEFORE its rename or link. With no
+/// flush, a crash or a power loss can leave an empty file under the real name.
+fn write_and_sync(mut file: fs::File, bytes: &[u8]) -> std::io::Result<()> {
+    file.write_all(bytes)?;
+    file.sync_all()
 }
 
 /// Permission bits only.
@@ -2252,45 +2363,97 @@ fn ensure_watch_target_is_file(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// A policy root as the person gave it, and its canonical form.
+///
+/// Each path that a check gets is canonical (`normalize_path`). Thus the root
+/// must be canonical too. If not, a denied `~/.ssh` that is a symlink denies
+/// nothing. On macOS, an allowed root under `/tmp` allows nothing, because
+/// `/tmp` is a symlink to `/private/tmp`.
+///
+/// A check makes the canonical form of each root for each call, as `Root.of`
+/// in gx-core does. It does not make it one time, when the policy loads. A
+/// root that does not exist then can exist later, or it can become a symlink.
+struct PolicyRoot<'a> {
+    as_given: &'a Path,
+    canonical: PathBuf,
+}
+
+impl<'a> PolicyRoot<'a> {
+    /// `normalize_path` is the rule of `FileOrigins.canonicalize` in gx-core,
+    /// and it accepts a root that does not exist.
+    fn of(root: &'a Path) -> Self {
+        let canonical = normalize_path(&root.to_string_lossy())
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| root.to_path_buf());
+        PolicyRoot {
+            as_given: root,
+            canonical,
+        }
+    }
+
+    fn contains(&self, path: &Path) -> bool {
+        path.starts_with(&self.canonical)
+    }
+
+    /// The root as the person gave it. If the canonical form is different,
+    /// the text shows it too, as `Root.show` in gx-core does. Thus the person
+    /// sees why a path matches or does not.
+    fn show(&self) -> String {
+        if self.canonical == self.as_given {
+            self.as_given.display().to_string()
+        } else {
+            format!(
+                "{} (real path: {})",
+                self.as_given.display(),
+                self.canonical.display()
+            )
+        }
+    }
+}
+
 fn ensure_path_allowed(access_policy: &AccessPolicy, path: &Path) -> Result<()> {
     if access_policy.allowed_roots.is_empty() {
         return Ok(());
     }
 
-    let allowed = access_policy
-        .allowed_roots
-        .iter()
-        .any(|root| path.starts_with(root));
-    if allowed {
-        Ok(())
-    } else {
-        let roots = access_policy
-            .allowed_roots
-            .iter()
-            .map(|root| root.to_string_lossy().to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        Err(anyhow::anyhow!(
-            "path is outside configured allowlist: {} (allowed roots: {})",
-            path.display(),
-            roots
-        ))
+    let allowed_roots = || access_policy.allowed_roots.iter().map(|root| PolicyRoot::of(root));
+    if allowed_roots().any(|root| root.contains(path)) {
+        return Ok(());
     }
+    let roots = allowed_roots()
+        .map(|root| root.show())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Err(anyhow::anyhow!(
+        "path is outside configured allowlist: {} (allowed roots: {})",
+        path.display(),
+        roots
+    ))
 }
 
 fn ensure_path_not_denied(access_policy: &AccessPolicy, path: &Path) -> Result<()> {
     if let Some(denied_root) = access_policy
         .denied_roots
         .iter()
-        .find(|root| path.starts_with(root))
+        .map(|root| PolicyRoot::of(root))
+        .find(|root| root.contains(path))
     {
         return Err(anyhow::anyhow!(
             "path is blocked by denylist: {} (matched root: {})",
             path.display(),
-            denied_root.display()
+            denied_root.show()
         ));
     }
     Ok(())
+}
+
+/// The access policy for a canonical path: the deny list first, then the
+/// allow list, as `AccessPolicy.evaluate` in gx-core. Each caller does this
+/// check BEFORE its existence checks. Thus a refusal tells nothing about a
+/// file that the policy hides.
+fn ensure_path_permitted(access_policy: &AccessPolicy, path: &Path) -> Result<()> {
+    ensure_path_not_denied(access_policy, path)?;
+    ensure_path_allowed(access_policy, path)
 }
 
 fn infer_format_from_path(path: &str) -> String {
@@ -2338,12 +2501,39 @@ fn add_watch(
     path: &str,
     source: &str,
 ) -> Result<WatchOutcome> {
+    register_watch(
+        access_policy,
+        watch_registry,
+        watch_controllers,
+        audit_logger,
+        &|payload| emit_document_changed_event(app_handle, payload),
+        &watch_loop_spawner(watch_registry, recent_write_hashes, app_handle),
+        path,
+        source,
+    )
+}
+
+/// The body of `add_watch`. `notify` sends the initial document event, and
+/// `spawn` starts the watch loop. They are parameters, so that a test can add
+/// a watch without an `AppHandle`.
+fn register_watch(
+    access_policy: &AccessPolicy,
+    watch_registry: &WatchRegistry,
+    watch_controllers: &WatchControllers,
+    audit_logger: &AuditLogger,
+    notify: &dyn Fn(&DocumentChangedEventPayload) -> Result<()>,
+    spawn: &dyn Fn(&str) -> WatchController,
+    path: &str,
+    source: &str,
+) -> Result<WatchOutcome> {
     let normalized = normalize_path(path)?;
     let normalized_path = PathBuf::from(&normalized);
+    ensure_path_permitted(access_policy, &normalized_path)?;
     ensure_watch_target_is_file(&normalized_path)?;
-    ensure_path_not_denied(access_policy, &normalized_path)?;
-    ensure_path_allowed(access_policy, &normalized_path)?;
 
+    // A fast path: a path that has a watch needs no read of the file. This
+    // check does not decide. A different open can add the watch after it, so
+    // the check under the lock below is the one that decides.
     if let Some(existing) = existing_watch(watch_registry, &normalized)? {
         return Ok(WatchOutcome {
             watch: existing,
@@ -2351,39 +2541,52 @@ fn add_watch(
         });
     }
 
+    // One read gives the revision of the descriptor and the text of the first
+    // event. The watch loop takes its start hash from the descriptor. If the
+    // two came from two reads, a write between them never reaches the page.
+    let document = read_document_text(&normalized).ok();
     let watch = WatchDescriptor {
         format: infer_format_from_path(&normalized),
         path: normalized.clone(),
         // Seeded from the bytes, not from 1. A restart therefore hands out the
         // same revision it did before, which is what "revisions restart at 1"
         // used to break.
-        revision: fs::read(&normalized).map(|b| content_hash(&b)).unwrap_or_default(),
+        revision: document
+            .as_ref()
+            .map(|document| document.revision.clone())
+            .unwrap_or_default(),
     };
 
+    // The lookup and the insert are one critical section. Thus, when two
+    // opens of one file come at the same time, one open creates the watch,
+    // and only that open starts a watch loop.
     let mut registry = watch_registry
         .lock()
         .map_err(|err| anyhow::anyhow!("watch registry lock poisoned: {err}"))?;
+    if let Some(existing) = registry.get(&normalized) {
+        return Ok(WatchOutcome {
+            watch: existing.clone(),
+            created: false,
+        });
+    }
     registry.insert(normalized, watch.clone());
     drop(registry);
 
-    if let Ok(text) = fs::read_to_string(&watch.path) {
+    if let Some(document) = document {
         let initial_event = DocumentChangedEventPayload {
-            text,
+            text: document.text,
             path: Some(watch.path.clone()),
             revision: Some(watch.revision.clone()),
         };
-        let _ = emit_document_changed_event(app_handle, &initial_event);
+        let _ = notify(&initial_event);
     }
 
-    let controller = spawn_watch_loop(
-        watch_registry.clone(),
-        recent_write_hashes.clone(),
-        app_handle.clone(),
-        watch.path.clone(),
-    );
+    let controller = spawn(&watch.path);
     let mut controllers = watch_controllers
         .lock()
         .map_err(|err| anyhow::anyhow!("watch controller lock poisoned: {err}"))?;
+    // If this insert replaces a controller, the old controller drops here, and
+    // its loop stops.
     controllers.insert(watch.path.clone(), controller);
 
     audit_logger.log_event(
@@ -2408,12 +2611,16 @@ fn add_watch(
 /// on a path already being watched used to return the existing descriptor and
 /// emit nothing — the window came forward still showing whatever it had been
 /// showing. Activation is what makes the open actually open something.
+///
+/// The revision of the event comes from the bytes that the event carries, not
+/// from the registry. During the debounce of the watch loop, the registry can
+/// have the revision of an older text.
 fn activate_document(app_handle: &tauri::AppHandle, watch: &WatchDescriptor) -> Result<()> {
-    let text = fs::read_to_string(&watch.path)?;
+    let document = read_document_text(&watch.path)?;
     let payload = DocumentChangedEventPayload {
-        text,
+        text: document.text,
         path: Some(watch.path.clone()),
-        revision: Some(watch.revision.clone()),
+        revision: Some(document.revision),
     };
     emit_document_changed_event(app_handle, &payload)
 }
@@ -2614,19 +2821,49 @@ fn remove_watch(
 const WATCH_POLL_INTERVAL: Duration = Duration::from_millis(15);
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(50);
 
+/// The `spawn` of `register_watch` and `move_watch` in the app. Each watch
+/// loop sends its document events to the page.
+fn watch_loop_spawner<'a>(
+    watch_registry: &'a WatchRegistry,
+    recent_write_hashes: &'a RecentWriteHashes,
+    app_handle: &'a tauri::AppHandle,
+) -> impl Fn(&str) -> WatchController + 'a {
+    move |path| {
+        let app_handle = app_handle.clone();
+        spawn_watch_loop(
+            watch_registry.clone(),
+            recent_write_hashes.clone(),
+            path.to_string(),
+            move |payload| emit_document_changed_event(&app_handle, payload),
+        )
+    }
+}
+
+/// `notify` sends each document event. It is a parameter, so that a test can
+/// run a watch loop without an `AppHandle`.
 fn spawn_watch_loop(
     watch_registry: WatchRegistry,
     recent_write_hashes: RecentWriteHashes,
-    app_handle: tauri::AppHandle,
     path: String,
+    notify: impl Fn(&DocumentChangedEventPayload) -> Result<()> + Send + 'static,
 ) -> WatchController {
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     std::thread::spawn(move || {
-        let mut previous_hash: Option<String> = hash_file_contents(&path).ok();
+        // The start is the revision in the registry, that is, the revision of
+        // the text that the page got. A new read here can come after a write
+        // that the page did not get, and then that write never reaches the
+        // page. Each caller registers the descriptor before the spawn.
+        let mut previous_hash = existing_watch(&watch_registry, &path)
+            .ok()
+            .flatten()
+            .map(|watch| watch.revision);
         let mut pending: Option<(Instant, String, String)> = None;
 
         loop {
-            if stop_rx.try_recv().is_ok() {
+            // A stop message stops the loop. A dropped controller also stops
+            // it: then the channel is disconnected, and no stop message can
+            // come.
+            if !matches!(stop_rx.try_recv(), Err(std::sync::mpsc::TryRecvError::Empty)) {
                 break;
             }
 
@@ -2636,20 +2873,29 @@ fn spawn_watch_loop(
             // decode would smooth over into a hash that never existed.
             if let Ok(raw) = fs::read(&path) {
                 let current_hash = content_hash(&raw);
-                let contents = String::from_utf8_lossy(&raw).into_owned();
-                let pending_hash = pending.as_ref().map(|(_, _, hash)| hash.clone());
+                // New bytes are different from the bytes that the page has and
+                // from the bytes that wait for the debounce.
+                let is_new = Some(&current_hash) != previous_hash.as_ref()
+                    && Some(&current_hash) != pending.as_ref().map(|(_, _, hash)| hash);
 
                 let is_self_write = recent_write_hashes
                     .lock()
                     .ok()
-                    .and_then(|mut writes| {
-                        let matched = writes.get(&path) == Some(&current_hash);
-                        if matched {
+                    .map(|mut writes| match writes.get(&path) {
+                        Some(recorded) if *recorded == current_hash => {
                             writes.remove(&path);
-                            Some(true)
-                        } else {
-                            Some(false)
+                            true
                         }
+                        // New bytes that are not the recorded bytes come from a
+                        // different process, so the record can be stale. Remove
+                        // it, because it can hide a later external write of the
+                        // same bytes. A late self-write then reaches the page,
+                        // and that costs less than a lost change.
+                        Some(_) if is_new => {
+                            writes.remove(&path);
+                            false
+                        }
+                        _ => false,
                     })
                     .unwrap_or(false);
 
@@ -2660,35 +2906,32 @@ fn spawn_watch_loop(
                     continue;
                 }
 
-                if Some(&current_hash) != previous_hash.as_ref()
-                    && Some(&current_hash) != pending_hash.as_ref()
-                {
-                    pending = Some((Instant::now(), contents, current_hash));
+                if is_new {
+                    // Decode only new bytes. Each tick still reads and hashes
+                    // the file, because the hash finds the change.
+                    pending = Some((Instant::now(), lossy_text(raw), current_hash));
                 }
             }
 
-            if let Some((seen_at, text, hash)) = pending.as_ref() {
-                if seen_at.elapsed() >= WATCH_DEBOUNCE {
-                    if let Ok(mut registry) = watch_registry.lock() {
-                        if let Some(watch) = registry.get_mut(&path) {
-                            // The loop already hashed these bytes to notice the
-                            // change; that hash IS the revision. Nothing to count.
-                            watch.revision = hash.clone();
-                            let event_payload = DocumentChangedEventPayload {
-                                text: text.clone(),
-                                path: Some(path.clone()),
-                                revision: Some(watch.revision.clone()),
-                            };
-                            if let Err(err) =
-                                emit_document_changed_event(&app_handle, &event_payload)
-                            {
-                                eprintln!("watch loop failed to emit event for {path}: {err}");
-                            }
+            if let Some((_, text, hash)) =
+                pending.take_if(|(seen_at, _, _)| seen_at.elapsed() >= WATCH_DEBOUNCE)
+            {
+                if let Ok(mut registry) = watch_registry.lock() {
+                    if let Some(watch) = registry.get_mut(&path) {
+                        // The loop already hashed these bytes to notice the
+                        // change; that hash IS the revision. Nothing to count.
+                        watch.revision = hash.clone();
+                        let event_payload = DocumentChangedEventPayload {
+                            text,
+                            path: Some(path.clone()),
+                            revision: Some(hash.clone()),
+                        };
+                        if let Err(err) = notify(&event_payload) {
+                            eprintln!("watch loop failed to emit event for {path}: {err}");
                         }
                     }
-                    previous_hash = Some(hash.clone());
-                    pending = None;
                 }
+                previous_hash = Some(hash);
             }
 
             std::thread::sleep(WATCH_POLL_INTERVAL);
@@ -2696,12 +2939,6 @@ fn spawn_watch_loop(
     });
 
     WatchController { stop_tx }
-}
-
-fn hash_file_contents(path: &str) -> Result<String> {
-    let bytes =
-        fs::read(path).with_context(|| format!("failed to read watched file {}", path))?;
-    Ok(content_hash(&bytes))
 }
 
 /// V-13: the content hash, identical to `gx-core`'s `Hashing.ofBytes`.
@@ -2729,9 +2966,10 @@ fn content_hash(bytes: &[u8]) -> String {
 fn document_changed_script(payload: &DocumentChangedEventPayload) -> Result<String> {
     let payload_json =
         serde_json::to_string(payload).context("failed to serialize event payload")?;
+    // One event. The page listens only to `ge:document.changed`
+    // (`DesktopBridge.install`).
     Ok(format!(
-        "window.dispatchEvent(new CustomEvent('ge:document.changed', {{ detail: {payload} }}));\
-         window.dispatchEvent(new CustomEvent('document.changed', {{ detail: {payload} }}));",
+        "window.dispatchEvent(new CustomEvent('ge:document.changed', {{ detail: {payload} }}));",
         payload = payload_json
     ))
 }
@@ -2974,10 +3212,27 @@ fn write_library_entry(
 
     let existed = path.exists();
 
+    // Keep the hash of our own bytes, so that the watcher does not tell the
+    // page about a change that the page made. Without this, each change in the
+    // page comes back as an outside change. Record the hash BEFORE the write,
+    // as `put_document_snapshot` does. The watcher can see the new bytes
+    // immediately after the rename. With no record at that time, the watcher
+    // takes our write for a change from a different process.
+    let key = path.to_string_lossy().to_string();
+    if let Ok(mut hashes) = recent_write_hashes.lock() {
+        hashes.insert(key.clone(), content_hash(json.as_bytes()));
+    }
+
     // The same atomic write that documents use. Thus V-03 (a write keeps the
     // permission bits of the file) applies to library entries too.
-    write_file_atomic(&path.to_string_lossy(), json)
-        .map_err(|err| IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")))?;
+    if let Err(err) = write_file_atomic(&key, json) {
+        // The bytes on disk did not change, so remove the record. A record of
+        // bytes that are not on disk can hide a later change.
+        if let Ok(mut hashes) = recent_write_hashes.lock() {
+            hashes.remove(&key);
+        }
+        return Err(IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}")));
+    }
 
     // A NEW entry is owner-only, as the entries that `gx` writes are.
     //
@@ -2993,13 +3248,6 @@ fn write_library_entry(
     }
     #[cfg(not(unix))]
     let _ = existed;
-
-    // Keep the hash of our own bytes, so that the watcher does not tell the
-    // page about a change that the page made. Without this, each change in the
-    // page comes back as an outside change.
-    if let Ok(mut hashes) = recent_write_hashes.lock() {
-        hashes.insert(path.to_string_lossy().to_string(), content_hash(json.as_bytes()));
-    }
 
     audit_logger.log_event(
         "library.write",
@@ -3021,7 +3269,21 @@ fn delete_library_entry(
     audit_logger: &AuditLogger,
 ) -> std::result::Result<bool, IpcError> {
     let path = library_entry_path(dir, name)?;
-    let removed = match fs::remove_file(&path) {
+    // Thus the watcher does not report our own delete back to us. Record the
+    // delete BEFORE the remove, for the same reason as `write_library_entry`.
+    let key = path.to_string_lossy().to_string();
+    if let Ok(mut hashes) = recent_write_hashes.lock() {
+        hashes.insert(key.clone(), LIBRARY_DELETED.to_string());
+    }
+    let result = fs::remove_file(&path);
+    if result.is_err() {
+        // No file went away, so remove the record. A record of a delete that
+        // did not occur can hide a later delete.
+        if let Ok(mut hashes) = recent_write_hashes.lock() {
+            hashes.remove(&key);
+        }
+    }
+    let removed = match result {
         Ok(()) => true,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => false,
         Err(err) => {
@@ -3031,12 +3293,6 @@ fn delete_library_entry(
             ))
         }
     };
-    // Thus the watcher does not report our own delete back to us.
-    if removed {
-        if let Ok(mut hashes) = recent_write_hashes.lock() {
-            hashes.insert(path.to_string_lossy().to_string(), LIBRARY_DELETED.to_string());
-        }
-    }
     audit_logger.log_event(
         "library.delete",
         Some(&path.to_string_lossy()),
@@ -3306,8 +3562,7 @@ fn diagrams_folder_listing(
     let canonical = normalize_path(&folder.to_string_lossy())
         .map_err(|err| IpcError::new("DIAGRAMS_FOLDER_INVALID", err))?;
     let canonical_path = PathBuf::from(&canonical);
-    ensure_path_not_denied(access_policy, &canonical_path)
-        .and_then(|_| ensure_path_allowed(access_policy, &canonical_path))
+    ensure_path_permitted(access_policy, &canonical_path)
         .map_err(|err| IpcError::new("DOCUMENT_DENIED", err))?;
 
     let names_in = |dir: &Path, prefix: &str| -> Vec<String> {
@@ -3350,18 +3605,13 @@ fn diagrams_folder(
 // --------------------------------------------------------- diagram files
 
 /// The canonical path of a document, after the access policy.
-///
-/// The policy check comes BEFORE each existence check. Thus a refusal tells
-/// nothing about a file that the policy hides.
 fn allowed_document_path(
     access_policy: &AccessPolicy,
     path: &str,
     failure_code: &'static str,
 ) -> std::result::Result<String, IpcError> {
     let normalized = normalize_path(path).map_err(|err| IpcError::new(failure_code, err))?;
-    let normalized_path = PathBuf::from(&normalized);
-    ensure_path_not_denied(access_policy, &normalized_path)
-        .and_then(|_| ensure_path_allowed(access_policy, &normalized_path))
+    ensure_path_permitted(access_policy, Path::new(&normalized))
         .map_err(|err| IpcError::new("DOCUMENT_DENIED", err))?;
     Ok(normalized)
 }
@@ -3422,12 +3672,12 @@ fn read_document_at(
             }
             Ok(_) => {}
         }
-        let bytes = fs::read(&normalized)
+        let document = read_document_text(&normalized)
             .map_err(|err| IpcError::new("DOCUMENT_READ_FAILED", format!("{normalized}: {err}")))?;
-        let revision = content_hash(&bytes);
+        let revision = document.revision;
         let snapshot = DocumentSnapshot {
             format: infer_format_from_path(&normalized),
-            text: String::from_utf8_lossy(&bytes).into_owned(),
+            text: document.text,
             revision: revision.clone(),
             path: normalized,
             timestamp_ms: current_time_ms(),
@@ -3492,9 +3742,11 @@ fn create_document_at(
             std::process::id()
         ));
         let write_new = |at: &Path| -> std::io::Result<()> {
-            let mut file = OpenOptions::new().write(true).create_new(true).open(at)?;
-            file.write_all(text.as_bytes())?;
-            file.sync_all()
+            OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(at)
+                .and_then(|file| write_and_sync(file, text.as_bytes()))
         };
         write_new(&temp).map_err(|err| {
             let _ = fs::remove_file(&temp);
@@ -3737,14 +3989,6 @@ fn rename_document(
     from: String,
     to: String,
 ) -> std::result::Result<RenameOutcome, IpcError> {
-    let spawn = |path: &str| {
-        spawn_watch_loop(
-            state.watch_registry.clone(),
-            state.recent_write_hashes.clone(),
-            app.clone(),
-            path.to_string(),
-        )
-    };
     rename_document_at(
         &state.access_policy,
         &state.audit_logger,
@@ -3753,7 +3997,7 @@ fn rename_document(
         &state.recent_write_hashes,
         &from,
         &to,
-        &spawn,
+        &watch_loop_spawner(&state.watch_registry, &state.recent_write_hashes, &app),
     )
 }
 
@@ -3848,9 +4092,12 @@ fn changed_records(previous: &[LibraryStamp], current: &[LibraryStamp]) -> Vec<S
 /// because its logic took an `AppHandle`, which no unit test can build; a
 /// decision function takes a directory and a map, and can be run anywhere.
 ///
-/// Consumes the matching entries: a recorded write explains exactly one
-/// observation, and leaving it in the map would suppress a later genuine
-/// change to the same record.
+/// Removes the record of each changed entry, also a record that does not
+/// match. A record that matches explains one change, and then it has no use.
+/// A record that does not match is stale: a different process changed the
+/// entry after our write or delete. A record that stays in the map can hide a
+/// later change of the entry to the recorded state. The `is_self_write` match
+/// in `spawn_watch_loop` has the same rule.
 fn library_change_is_news(
     dir: &Path,
     changed: &[String],
@@ -3870,15 +4117,15 @@ fn library_change_is_news(
     for name in changed {
         let path = dir.join(name);
         let key = path.to_string_lossy().to_string();
-        let recorded = hashes.get(&key).cloned();
+        // Remove the record also when it does not match. Then a late write of
+        // ours can reach the page, and that costs less than a lost change.
+        let recorded = hashes.remove(&key);
         let ours = match (recorded.as_deref(), fs::read(&path).ok()) {
             (Some(LIBRARY_DELETED), None) => true,
             (Some(known), Some(bytes)) => known == content_hash(&bytes),
             _ => false,
         };
-        if ours {
-            hashes.remove(&key);
-        } else {
+        if !ours {
             news = true;
         }
     }
@@ -5914,5 +6161,541 @@ mod tests {
         assert!(put("C", a).is_ok(), "a base matching what is on disk must be accepted");
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    // ------------------------------------------- the review of the desktop
+
+    /// The texts of the document events that a hook got, and the hook.
+    fn event_recorder() -> (
+        Arc<Mutex<Vec<String>>>,
+        impl Fn(&DocumentChangedEventPayload) -> Result<()> + Send + 'static,
+    ) {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let sink = seen.clone();
+        let notify = move |payload: &DocumentChangedEventPayload| {
+            sink.lock().unwrap().push(payload.text.clone());
+            Ok(())
+        };
+        (seen, notify)
+    }
+
+    /// True when `check` becomes true in two seconds.
+    fn eventually(mut check: impl FnMut() -> bool) -> bool {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < deadline {
+            if check() {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        false
+    }
+
+    /// True when `seen` gets an event with `text` in two seconds.
+    fn event_arrives(seen: &Arc<Mutex<Vec<String>>>, text: &str) -> bool {
+        eventually(|| seen.lock().unwrap().iter().any(|seen_text| seen_text == text))
+    }
+
+    /// A watched file with the text `text`, and its canonical path.
+    fn watched_file(
+        dir: &Path,
+        text: &str,
+        registry: &WatchRegistry,
+    ) -> (PathBuf, String) {
+        let file = dir.join("diagram.dot");
+        fs::write(&file, text).expect("seed file");
+        let path = normalize_path(&file.to_string_lossy()).expect("normal path");
+        registry.lock().unwrap().insert(
+            path.clone(),
+            WatchDescriptor {
+                path: path.clone(),
+                format: "dot".to_string(),
+                revision: content_hash(text.as_bytes()),
+            },
+        );
+        (file, path)
+    }
+
+    /// Review finding 1. Two opens of one file at the same time must start
+    /// ONE watch loop. `existing_watch` and the insert took the lock two
+    /// times, so each open found no watch and started a loop. The second
+    /// controller replaced the first, and the first loop never stopped.
+    ///
+    /// A race does not occur in each round, so the test runs many rounds.
+    #[test]
+    fn concurrent_opens_of_one_file_start_one_watch_loop() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        const ROUNDS: usize = 50;
+        const OPENS: usize = 8;
+
+        let dir = fresh_dir("concurrent-opens");
+        let audit = test_audit(&dir);
+        let policy = no_policy();
+        for round in 0..ROUNDS {
+            let file = dir.join(format!("diagram-{round}.dot"));
+            fs::write(&file, "digraph G { a }").expect("seed file");
+            let path = file.to_string_lossy().to_string();
+            let (registry, controllers, _) = empty_registries();
+            let spawned = Arc::new(AtomicUsize::new(0));
+            let created = Arc::new(AtomicUsize::new(0));
+            let barrier = Arc::new(std::sync::Barrier::new(OPENS));
+
+            let opens: Vec<_> = (0..OPENS)
+                .map(|_| {
+                    let (registry, controllers) = (registry.clone(), controllers.clone());
+                    let (spawned, created, barrier) = (spawned.clone(), created.clone(), barrier.clone());
+                    let (policy, audit, path) = (policy.clone(), audit.clone(), path.clone());
+                    std::thread::spawn(move || {
+                        let spawn = |watched: &str| {
+                            spawned.fetch_add(1, Ordering::SeqCst);
+                            fake_spawn()(watched)
+                        };
+                        barrier.wait();
+                        let outcome = register_watch(
+                            &policy, &registry, &controllers, &audit, &|_| Ok(()), &spawn, &path, "test",
+                        )
+                        .expect("the open is allowed");
+                        if outcome.created {
+                            created.fetch_add(1, Ordering::SeqCst);
+                        }
+                    })
+                })
+                .collect();
+            for open in opens {
+                open.join().expect("an open thread");
+            }
+
+            assert_eq!(
+                spawned.load(Ordering::SeqCst),
+                1,
+                "round {round}: {OPENS} opens of one file started more than one watch loop"
+            );
+            assert_eq!(created.load(Ordering::SeqCst), 1, "round {round}: more than one open created the watch");
+        }
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 1, the second half. A watch loop stopped only when it
+    /// got a stop message. A controller that goes away sends no message, so
+    /// its loop polled until the process ended.
+    #[test]
+    fn a_watch_loop_stops_when_its_controller_is_dropped() {
+        let dir = fresh_dir("dropped-controller");
+        let (registry, _, hashes) = empty_registries();
+        let (file, path) = watched_file(&dir, "one", &registry);
+        let (seen, notify) = event_recorder();
+        let controller = spawn_watch_loop(registry.clone(), hashes.clone(), path.clone(), notify);
+
+        fs::write(&file, "two").expect("change");
+        assert!(event_arrives(&seen, "two"), "the loop did not report a change");
+
+        // The thread of the loop owns the only other reference to `seen`, in
+        // `notify`. Thus the count goes to 1 only when the loop ends.
+        drop(controller);
+        assert!(
+            eventually(|| Arc::strong_count(&seen) == 1),
+            "a loop with no controller still runs"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A new finding, found while the tests above were written. A change
+    /// that comes before the watch loop takes its first hash must reach the
+    /// page. The registry has the revision of the text that the page got. The
+    /// loop read the file again in its own thread, and it took THAT hash as
+    /// the start. Thus a write between the registration and the start of the
+    /// loop never reached the page.
+    #[test]
+    fn a_change_before_the_loop_starts_is_reported() {
+        let dir = fresh_dir("change-before-start");
+        let (registry, _, hashes) = empty_registries();
+        let (file, path) = watched_file(&dir, "registered", &registry);
+
+        // A different process writes the file before the loop starts.
+        fs::write(&file, "changed").expect("external write");
+        let (seen, notify) = event_recorder();
+        let controller = spawn_watch_loop(registry.clone(), hashes.clone(), path.clone(), notify);
+
+        assert!(event_arrives(&seen, "changed"), "a change before the start of the loop did not reach the page");
+        let _ = controller.stop_tx.send(());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 2. The limit on a frame must also limit the memory of a
+    /// frame. `split(b'\n')` read the WHOLE line before the check, so a client
+    /// that sent no newline made the desktop keep each byte in memory. The
+    /// refusal must come when the frame passes the limit.
+    #[cfg(unix)]
+    #[test]
+    fn a_frame_over_the_limit_is_refused_before_its_newline_arrives() {
+        let dir = fresh_dir("frame-limit");
+        let context = starting_context(&dir);
+        let limit = context.request_limits.max_body_bytes;
+        let (mut client, server) = UnixStream::pair().expect("a socket pair");
+        let serving = std::thread::spawn(move || serve_connection(server, &context));
+
+        client.write_all(&vec![b'x'; limit * 4]).expect("send");
+        client
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("read timeout");
+        // A read that times out keeps the bytes that came before it.
+        let mut answer = Vec::new();
+        let _ = BufReader::new(&client).read_until(b'\n', &mut answer);
+        drop(client);
+        let _ = serving.join();
+
+        let answer = String::from_utf8_lossy(&answer);
+        assert!(
+            answer.contains("PAYLOAD_TOO_LARGE"),
+            "no refusal while the frame has no newline: {answer:?}"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 3. A snapshot must give the revision of the text that
+    /// it gives. It read the text from the disk, but it took the revision from
+    /// the registry. For 50 ms after an external write, the watch loop has not
+    /// updated the registry. Then the two did not agree, and the next save of
+    /// the page failed with a false DOCUMENT_CONFLICT.
+    #[test]
+    fn a_snapshot_gives_the_revision_of_the_text_it_gives() {
+        let dir = fresh_dir("snapshot-revision");
+        let (registry, _, hashes) = empty_registries();
+        let (file, path) = watched_file(&dir, "old", &registry);
+
+        // A different process writes the file. No watch loop saw it.
+        fs::write(&file, "new").expect("external write");
+
+        let snapshot = get_document_snapshot(&registry, &path).expect("snapshot");
+        assert_eq!(snapshot.text, "new");
+        assert_eq!(snapshot.revision, content_hash(b"new"), "the revision is not the revision of the text");
+
+        let saved = put_document_snapshot(
+            &registry,
+            &hashes,
+            &test_audit(&dir),
+            &|_| Ok(()),
+            PutDocumentRequest {
+                path: path.clone(),
+                text: "edited".to_string(),
+                base_revision: snapshot.revision,
+                source: Some("test".to_string()),
+            },
+        );
+        assert!(saved.is_ok(), "a save on the text of the snapshot was a conflict");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 3, the second half. `open_document` must open each file
+    /// that `read_document` reads. The snapshot used a strict UTF-8 read. Thus
+    /// a file with one bad byte showed on the home page, and then it did not
+    /// open.
+    #[test]
+    fn a_snapshot_reads_a_file_that_is_not_utf8_as_read_document_does() {
+        let dir = fresh_dir("snapshot-lossy");
+        let (registry, _, _) = empty_registries();
+        let (file, path) = watched_file(&dir, "", &registry);
+        let bytes: &[u8] = b"digraph { a [label=\"\xff\"] }";
+        fs::write(&file, bytes).expect("bytes that are not UTF-8");
+
+        let snapshot = get_document_snapshot(&registry, &path).expect("a file that is not UTF-8 must open");
+        let read = read_document_at(&no_policy(), &test_audit(&dir), &path).expect("read_document");
+        assert_eq!(snapshot.text, read.text);
+        assert_eq!(snapshot.revision, read.revision);
+        assert_eq!(snapshot.revision, content_hash(bytes), "the revision is the hash of the bytes");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Near finding 3, found by the fix of the watch code. The first event of
+    /// a new watch must carry a file that is not UTF-8. `register_watch` used
+    /// a strict read for the text, so that file got no first event, and the
+    /// page had no text to show.
+    #[test]
+    fn a_new_watch_sends_a_first_event_for_a_file_that_is_not_utf8() {
+        let dir = fresh_dir("first-event-lossy");
+        let file = dir.join("diagram.dot");
+        let bytes: &[u8] = b"digraph { a [label=\"\xff\"] }";
+        fs::write(&file, bytes).expect("bytes that are not UTF-8");
+        let (registry, controllers, _) = empty_registries();
+        let (seen, notify) = event_recorder();
+
+        let outcome = register_watch(
+            &no_policy(),
+            &registry,
+            &controllers,
+            &test_audit(&dir),
+            &notify,
+            &fake_spawn(),
+            &file.to_string_lossy(),
+            "test",
+        )
+        .expect("the watch is allowed");
+        assert_eq!(outcome.watch.revision, content_hash(bytes), "the revision is the hash of the bytes");
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec![String::from_utf8_lossy(bytes).into_owned()],
+            "the first event did not carry the file"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 4. A second desktop must not take the socket of a
+    /// desktop that answers. The bind removed the socket file with no check.
+    /// Then the first desktop had a socket with no name, `gx` could not reach
+    /// it, and no message told the person.
+    #[cfg(unix)]
+    #[test]
+    fn a_second_desktop_does_not_take_the_socket_of_a_live_one() {
+        let dir = fresh_dir("sock-live");
+        let socket = dir.join("s.sock");
+        let first = bind_control_socket_at(&socket).expect("the first desktop binds");
+
+        let second = bind_control_socket_at(&socket);
+        assert!(second.is_err(), "a second desktop took the socket of a live one");
+
+        first.set_nonblocking(true).expect("nonblocking");
+        let _client = UnixStream::connect(&socket).expect("the socket still has a listener");
+        assert!(
+            eventually(|| first.accept().is_ok()),
+            "the first desktop does not get the connections any more"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The other half of finding 4: a socket file with no desktop behind it
+    /// stays replaceable. A desktop that crashed leaves one, and a restart
+    /// must work.
+    #[cfg(unix)]
+    #[test]
+    fn a_stale_socket_file_is_replaced() {
+        let dir = fresh_dir("sock-stale");
+        let socket = dir.join("s.sock");
+        drop(bind_control_socket_at(&socket).expect("bind"));
+        assert!(socket.exists(), "the test needs a stale socket file");
+
+        let listener = bind_control_socket_at(&socket).expect("a stale socket must not stop a restart");
+        let _client = UnixStream::connect(&socket).expect("connect");
+        drop(listener);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 7. The desktop must deny each root that gx-core denies.
+    /// `AccessPolicy.defaultDeniedRoots` in gx-core has `/proc` and `/sys`.
+    #[test]
+    fn the_default_deny_list_has_each_root_that_gx_core_denies() {
+        let roots = default_denied_roots();
+        for root in ["/System", "/proc", "/sys"] {
+            assert!(roots.contains(&PathBuf::from(root)), "{root} is not denied: {roots:?}");
+        }
+        if let Some(home) = dirs::home_dir() {
+            for name in [".ssh", ".gnupg", ".aws", ".kube"] {
+                assert!(roots.contains(&home.join(name)), "~/{name} is not denied: {roots:?}");
+            }
+        }
+    }
+
+    /// Review finding 7, the second half. A policy root with a symlink in it
+    /// must still match. Each path is canonical, but the default roots were
+    /// not. Thus a `~/.ssh` that is a symlink denied nothing. gx-core makes
+    /// the canonical form of each root (V-07). An allowed root has the same
+    /// rule: on macOS, `/tmp` is a symlink to `/private/tmp`.
+    #[test]
+    fn a_policy_root_that_is_a_symlink_still_matches() {
+        let dir = fresh_dir("symlinked-root");
+        let real = dir.join("real-ssh");
+        fs::create_dir_all(&real).expect("real dir");
+        fs::write(real.join("id_rsa"), "secret").expect("secret");
+        let link = dir.join("ssh-link");
+        make_symlink(&real.to_string_lossy(), &link).expect("symlink");
+        let secret = link.join("id_rsa").to_string_lossy().to_string();
+        let canonical = normalize_path(&secret).expect("normal path");
+
+        let denying_link = AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: vec![link.clone()],
+        };
+        assert!(
+            ensure_path_not_denied(&denying_link, Path::new(&canonical)).is_err(),
+            "a denied root that is a symlink denied nothing"
+        );
+        assert!(
+            read_document_at(&denying_link, &test_audit(&dir), &secret).is_err(),
+            "read_document read a file under a denied root"
+        );
+
+        let allowing_link = AccessPolicy {
+            allowed_roots: vec![link.clone()],
+            denied_roots: Vec::new(),
+        };
+        assert!(
+            ensure_path_allowed(&allowing_link, Path::new(&canonical)).is_ok(),
+            "an allowed root that is a symlink allowed nothing"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 8. A recorded write that the watch loop did not see
+    /// must not hide a later change. The loop removed a recorded hash only
+    /// when it saw those bytes. When a different process wrote the file
+    /// first, the hash stayed. Then a later external write of the same bytes
+    /// looked like our own write, and the page did not get it.
+    #[test]
+    fn a_recorded_write_that_the_loop_did_not_see_does_not_hide_a_later_change() {
+        let dir = fresh_dir("stale-self-write");
+        let (registry, _, hashes) = empty_registries();
+        let (file, path) = watched_file(&dir, "A", &registry);
+        let (seen, notify) = event_recorder();
+        let controller = spawn_watch_loop(registry.clone(), hashes.clone(), path.clone(), notify);
+
+        // Our write of "B" has its record, but a different process wrote "C"
+        // before the loop saw "B".
+        hashes.lock().unwrap().insert(path.clone(), content_hash(b"B"));
+        fs::write(&file, "C").expect("external write");
+        assert!(event_arrives(&seen, "C"), "the loop did not report C");
+
+        // Later, a different process writes "B".
+        fs::write(&file, "B").expect("external write");
+        assert!(event_arrives(&seen, "B"), "an external write of B looked like our own write");
+
+        let _ = controller.stop_tx.send(());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 9. A refusal must not tell if a file exists in a denied
+    /// folder. `add_watch` checked that the file exists BEFORE the policy
+    /// check. Thus a missing file got "does not exist", and a file that exists
+    /// got "blocked by denylist". `allowed_document_path` states the rule: the
+    /// policy check comes first.
+    #[test]
+    fn a_watch_refusal_in_a_denied_folder_does_not_tell_if_the_file_exists() {
+        let dir = fresh_dir("denied-watch");
+        let denied = dir.join("secret");
+        fs::create_dir_all(&denied).expect("denied dir");
+        fs::write(denied.join("exists.dot"), "digraph {}").expect("seed file");
+        let policy = denying(&denied);
+        let (registry, controllers, _) = empty_registries();
+        let audit = test_audit(&dir);
+
+        let refusal = |name: &str| {
+            let path = denied.join(name).to_string_lossy().to_string();
+            match register_watch(&policy, &registry, &controllers, &audit, &|_| Ok(()), &fake_spawn(), &path, "test") {
+                Ok(_) => panic!("a watch in a denied folder was allowed: {name}"),
+                Err(err) => err.to_string().replace(name, "<name>"),
+            }
+        };
+        assert_eq!(refusal("missing.dot"), refusal("exists.dot"));
+        assert!(registry.lock().unwrap().is_empty(), "a refused watch was registered");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Review finding 10. The event script must dispatch ONE event. The page
+    /// listens only to `ge:document.changed` (`DesktopBridge.install`). The
+    /// bare `document.changed` sent the full text a second time, to a name
+    /// with no listener.
+    #[test]
+    fn the_event_script_dispatches_one_event() {
+        let script = document_changed_script(&sample_event_payload()).expect("serializable");
+        assert_eq!(script.matches("dispatchEvent").count(), 1, "{script}");
+        assert!(script.contains("'ge:document.changed'"), "{script}");
+    }
+
+    /// Review finding 8, for library entries. A recorded write that the
+    /// library watcher did not see must not hide a later change.
+    /// `library_change_is_news` kept a record that did not match the bytes.
+    /// When `gx` wrote the entry before the watcher saw our write, the record
+    /// stayed. Then a later write of our bytes by `gx` looked like our own
+    /// write, and the page did not hear about it.
+    #[test]
+    fn a_recorded_library_write_that_the_watcher_did_not_see_does_not_hide_a_later_change() {
+        let root = fresh_dir("library-stale-write");
+        let metadata = metadata_dir_in(&root);
+        fs::create_dir_all(&metadata).expect("metadata");
+        let recent: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let name = key_name("a");
+        let path = metadata.join(&name);
+
+        // Our write of B has its record. `gx` writes C before the watcher
+        // looks at the library.
+        write_library_entry(&metadata, &name, "{\"v\":\"B\"}", &recent, &test_audit(&root))
+            .expect("our write");
+        fs::write(&path, "{\"v\":\"C\"}").expect("gx writes C");
+        assert!(
+            library_change_is_news(&metadata, &[name.clone()], &recent),
+            "the page did not hear about C"
+        );
+
+        // Later, `gx` writes B.
+        fs::write(&path, "{\"v\":\"B\"}").expect("gx writes B");
+        assert!(
+            library_change_is_news(&metadata, &[name.clone()], &recent),
+            "a write of B by gx looked like our own write"
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Review finding 8, for a library delete. Our delete has its record.
+    /// `gx` makes the entry again before the watcher looks. Then the record
+    /// stayed. When `gx` deleted the entry later, the delete looked like our
+    /// own delete, and the page kept an entry that is not there.
+    #[test]
+    fn a_recorded_library_delete_that_the_watcher_did_not_see_does_not_hide_a_later_delete() {
+        let root = fresh_dir("library-stale-delete");
+        let metadata = metadata_dir_in(&root);
+        fs::create_dir_all(&metadata).expect("metadata");
+        let recent: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let name = key_name("a");
+        let path = metadata.join(&name);
+        fs::write(&path, "{}").expect("an entry");
+
+        assert!(delete_library_entry(&metadata, &name, &recent, &test_audit(&root)).expect("our delete"));
+        fs::write(&path, "{\"v\":\"again\"}").expect("gx makes the entry again");
+        assert!(
+            library_change_is_news(&metadata, &[name.clone()], &recent),
+            "the page did not hear about the new entry"
+        );
+
+        // Later, `gx` deletes the entry.
+        fs::remove_file(&path).expect("gx deletes the entry");
+        assert!(
+            library_change_is_news(&metadata, &[name.clone()], &recent),
+            "a delete by gx looked like our own delete"
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// A write and a delete of a library entry record their result BEFORE the
+    /// disk changes, as `put_document_snapshot` does. When the disk does not
+    /// change, the record must go. A record of bytes that are not on disk, or
+    /// of a delete that did not occur, can hide a later change by `gx`.
+    #[test]
+    fn a_library_write_or_delete_that_changes_nothing_leaves_no_record() {
+        let root = fresh_dir("library-no-change");
+        let metadata = metadata_dir_in(&root);
+        fs::create_dir_all(&metadata).expect("metadata");
+        let recent: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let name = key_name("a");
+        let path = metadata.join(&name);
+
+        // A delete of an entry that does not exist removes nothing.
+        let removed = delete_library_entry(&metadata, &name, &recent, &test_audit(&root))
+            .expect("a delete of a missing entry");
+        assert!(!removed, "the delete found an entry that does not exist");
+        assert!(recent.lock().expect("lock").is_empty(), "a missing entry left a record");
+
+        // A directory at the entry path makes the rename fail.
+        fs::create_dir_all(&path).expect("a directory at the entry path");
+        let err = write_library_entry(&metadata, &name, "{}", &recent, &test_audit(&root))
+            .expect_err("a write onto a directory must fail");
+        assert_eq!(err.code, "LIBRARY_WRITE_FAILED");
+        assert!(path.is_dir(), "the write replaced the directory");
+        assert!(recent.lock().expect("lock").is_empty(), "a failed write left a record");
+
+        // A remove of the directory fails too, and leaves no record.
+        let err = delete_library_entry(&metadata, &name, &recent, &test_audit(&root))
+            .expect_err("a delete of a directory must fail");
+        assert_eq!(err.code, "LIBRARY_DELETE_FAILED");
+        assert!(recent.lock().expect("lock").is_empty(), "a failed delete left a record");
+
+        let _ = fs::remove_dir_all(&root);
     }
 }
