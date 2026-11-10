@@ -113,6 +113,55 @@ class RoundTripLossSpec extends FunSuite:
   test("mermaid: a node whose name starts with `click` is not a click line"):
     assertEquals(mermaid("flowchart LR\n  clicked --> b"), Set.empty)
 
+  // -------------------------------------------------- Mermaid state diagrams
+
+  test("state: notes, in each form"):
+    assertEquals(mermaid("stateDiagram-v2\n  [*] --> A\n  note right of A : a note"), Set(StateNotes))
+    assertEquals(mermaid("stateDiagram-v2\n  [*] --> A\n  note \"floating\" as N1"), Set(StateNotes))
+    // The lines of a multi-line note are text: the `--` and the `direction`
+    // in it are not concurrent regions or a direction.
+    val block = "stateDiagram-v2\n  state A {\n    note left of B\n      --\n      direction LR\n    end note\n    B --> C\n  }"
+    assertEquals(mermaid(block), Set(StateNotes))
+
+  test("state: concurrent regions"):
+    assertEquals(mermaid("stateDiagram-v2\n  state A {\n    [*] --> B\n    --\n    [*] --> C\n  }"), Set(ConcurrentRegions))
+
+  test("state: a direction inside a composite state"):
+    assertEquals(mermaid("stateDiagram-v2\n  direction LR\n  state A {\n    direction TB\n    B --> C\n  }\n  A --> D"), Set(SubgraphDirection))
+
+  test("state: display options"):
+    assertEquals(mermaid("stateDiagram-v2\n  hide empty description\n  A --> B"), Set(StateDisplayOptions))
+    assertEquals(mermaid("stateDiagram-v2\n  scale 350 width\n  A --> B"), Set(StateDisplayOptions))
+
+  test("state: what the model keeps is not flagged"):
+    val text =
+      """---
+        |title: Editor
+        |---
+        |stateDiagram-v2
+        |  direction LR
+        |  classDef bad fill:#f00,color:white
+        |  state "Long name" as Idle
+        |  Idle : more text
+        |  state F <<fork>>
+        |  [*] --> Idle
+        |  state Active {
+        |    [*] --> Typing
+        |    state Inner {
+        |      X --> [*]
+        |    }
+        |  }
+        |  Idle --> F : go
+        |  F --> Active
+        |  Typing:::bad --> Done
+        |  class Done bad
+        |  style Idle fill:#ccc""".stripMargin
+    assertEquals(mermaid(text), Set.empty)
+
+  test("state: a state named `end` does not close a block"):
+    // In a flowchart `end` closes a subgraph. In a state diagram `}` does.
+    assertEquals(mermaid("stateDiagram-v2\n  state A {\n    end --> B\n    direction LR\n  }"), Set(SubgraphDirection))
+
   // ------------------------------------------------ the printers themselves
 
   test("the DOT printer's own output is never flagged"):
@@ -138,3 +187,22 @@ class RoundTripLossSpec extends FunSuite:
       val graph   = MermaidFlowchartParser.parse(text).fold(e => fail(s"could not parse $text: $e"), identity)
       val printed = viewerGraphToMermaidText(mermaidToViewerGraph(graph))
       assertEquals(mermaid(printed), Set.empty, s"the printer's output is flagged:\n$printed")
+
+  test("the state diagram printer's own output is never flagged"):
+    import org.jpablo.graphexplorer.viewer.backends.mermaid.{MermaidStateGraph, stateDiagramToViewerGraph}
+    import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidStateGraph.{LayoutEdge, LayoutNode}
+    val diagram = MermaidStateGraph.fromLayout(
+      nodes = Seq(
+        LayoutNode("root_start", "root_start", shape = "stateStart"),
+        LayoutNode("Active", "Long name", shape = "roundedWithTitle", isGroup = true),
+        LayoutNode("Active_start", "Active_start", shape = "stateStart", parentId = Some("Active")),
+        LayoutNode("Typing", "Typing: now", descriptions = List("more"), parentId = Some("Active"), cssClasses = "bad"),
+        LayoutNode("F", "F", shape = "fork")
+      ),
+      edges = Seq(LayoutEdge("edge0", "root_start", "Active"), LayoutEdge("edge1", "Active_start", "Typing", "go; now"), LayoutEdge("edge2", "Typing", "F")),
+      direction = Some("LR"),
+      title = Some("Editor"),
+      classDefs = Seq("bad" -> List("fill:#f00"))
+    )
+    val printed = viewerGraphToMermaidText(stateDiagramToViewerGraph(diagram))
+    assertEquals(mermaid(printed), Set.empty, s"the printer's output is flagged:\n$printed")

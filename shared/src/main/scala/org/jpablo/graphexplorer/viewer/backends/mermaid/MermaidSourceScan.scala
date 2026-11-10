@@ -113,15 +113,9 @@ private[backends] object MermaidSourceScan:
     */
   def diagramTitle(text: String): Option[String] =
     val lines = text.linesIterator.map(_.trim).take(50).toList
-    val fromFrontmatter = lines match
-      case "---" :: rest =>
-        rest.takeWhile(_ != "---").collectFirst {
-          case l if l.startsWith("title:") => l.drop("title:".length).trim
-        }
-      case _ => None
     def firstContent = lines.find(l => l.nonEmpty && !l.startsWith("%%") && l != "---")
     def isFlowchart  = firstContent.exists(l => l.startsWith("flowchart") || l.toLowerCase.startsWith("graph "))
-    fromFrontmatter
+    rawFrontmatterTitle(lines)
       .orElse(
         Option.unless(isFlowchart)(
           lines.collectFirst { case l if l.startsWith("title ") => l.drop("title ".length).trim }
@@ -129,6 +123,22 @@ private[backends] object MermaidSourceScan:
       )
       .map(stripSurroundingQuotes)
       .filter(_.nonEmpty)
+
+  /** The `title:` entry of the YAML frontmatter, when the source has one.
+    *
+    * `mermaidAPI.getDiagramFromText` removes the frontmatter and does not give
+    * its title to the diagram, so the parsed diagram has no title.
+    */
+  def frontmatterTitle(text: String): Option[String] =
+    rawFrontmatterTitle(text.linesIterator.map(_.trim).take(50).toList).map(stripSurroundingQuotes).filter(_.nonEmpty)
+
+  private def rawFrontmatterTitle(lines: List[String]): Option[String] =
+    lines match
+      case "---" :: rest =>
+        rest.takeWhile(_ != "---").collectFirst {
+          case l if l.startsWith("title:") => l.drop("title:".length).trim
+        }
+      case _ => None
 
   private def stripSurroundingQuotes(s: String): String =
     if s.length >= 2 && s.head == '"' && s.last == '"' then s.substring(1, s.length - 1).trim else s

@@ -11,11 +11,20 @@ import scala.collection.immutable.VectorMap
 private val MermaidNodeCssPreferredKeyOrder = Vector("fill", "stroke", "stroke-width", "color", "font-family", "font-size")
 private val MermaidUnsafeIdChar             = "[^A-Za-z0-9_-]".r
 
+/** Converts a ViewerGraph back to Mermaid text.
+  *
+  * A graph from a state diagram becomes a state diagram again (see
+  * `viewerGraphToMermaidStateText`). Each other graph becomes a flowchart.
+  */
+def viewerGraphToMermaidText(graph: ViewerGraph): String =
+  if isMermaidStateDiagram(graph) then viewerGraphToMermaidStateText(graph)
+  else viewerGraphToMermaidFlowchartText(graph)
+
 /** Converts a ViewerGraph back to Mermaid flowchart text.
   *
   * This is the inverse of `toViewerGraph` in ToViewerGraph.scala.
   */
-def viewerGraphToMermaidText(graph: ViewerGraph): String =
+private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
   val lines = StringBuilder()
 
   // Get title from graph attributes (Label attribute)
@@ -294,7 +303,7 @@ private def emitClassDefLines(lines: StringBuilder, graphAttributes: Attributes)
     lines.append(s"  classDef $className $body\n")
   }
 
-private def collectClassDefBodies(graphAttributes: Attributes): Vector[(String, String)] =
+private[mermaid] def collectClassDefBodies(graphAttributes: Attributes): Vector[(String, String)] =
   val styleByClass = graphAttributes.values.collect {
     case (attrId, value) if attrId.value.startsWith(MermaidClassDefPrefix) =>
       attrId.value.stripPrefix(MermaidClassDefPrefix) -> value.toString
@@ -378,7 +387,7 @@ private def mergeCssOverrides(
   if merged.isEmpty then None
   else Some(formatMermaidCssBody(merged))
 
-private def nodeStyleDirectiveCss(node: ViewerNode): Option[String] =
+private[mermaid] def nodeStyleDirectiveCss(node: ViewerNode): Option[String] =
   val attrs = node.attributes.values
   mergeCssOverrides(
     cssDeclarationsOf(attrs, Style.attrId),
@@ -419,7 +428,7 @@ private def edgeStyleDirectiveCss(arrow: Arrow): Option[String] =
     )
   )
 
-private def groupStyleDirectiveCss(group: ViewerGroup): Option[String] =
+private[mermaid] def groupStyleDirectiveCss(group: ViewerGroup): Option[String] =
   val attrs       = group.attributes.values
   val borderColor = attrs.get(PenColor.attrId).orElse(attrs.get(Color.attrId)).map(_.toString).filter(_.nonEmpty)
   mergeCssOverrides(

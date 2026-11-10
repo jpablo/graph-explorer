@@ -131,6 +131,111 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
     graphAttributes = Attributes.fromOrdered(graphAttrs)
   )
 
+/** Converts a Mermaid state diagram to a ViewerGraph.
+  *
+  * A state is a node, a transition is an arrow, and a composite state is a
+  * group. A start or end state (`[*]`) is a node too, with its kind in
+  * `MermaidStateTypeAttr`. The graph keeps the kind of diagram in
+  * `MermaidDiagramAttr`, so that the printer writes a state diagram back.
+  */
+def stateDiagramToViewerGraph(diagram: MermaidStateGraph): ViewerGraph =
+  ViewerGraph(
+    elements = stateDiagramToViewerGraphElements(diagram),
+    id = "mermaid",
+    tpe = GraphType.digraph
+  )
+
+def stateDiagramToViewerGraphElements(diagram: MermaidStateGraph): ViewerGraphElements =
+  val compositeIds = diagram.composites.iterator.map(_.id).toSet
+
+  // A composite state is a group, not a node. The flowchart conversion does the
+  // same with a subgraph.
+  val nodes: VectorMap[NodeId, ViewerNode] =
+    diagram.states.iterator.filterNot(s => compositeIds.contains(s.id)).foldLeft(VectorMap.empty[NodeId, ViewerNode]) { (acc, state) =>
+      val nodeId = NodeId(state.id)
+      if acc.contains(nodeId) then acc
+      else acc.updated(nodeId, ViewerNode.nodeNoDefaults(nodeId, stateToAttributes(state)))
+    }
+
+  val numbered = diagram.numberedTransitions
+  val arrows: Map[ArrowId, Arrow] =
+    numbered.map { (transition, seq) =>
+      val arrow = Arrow(
+        source = NodeId(transition.start),
+        target = NodeId(transition.end),
+        seq = seq,
+        attributes = transitionToAttributes(transition)
+      )
+      arrow.id -> arrow
+    }.toMap
+
+  val groups: Map[GroupId, ViewerGroup] =
+    diagram.composites.map { composite =>
+      val groupId = GroupId(composite.id)
+      groupId -> ViewerGroup.group(groupId, compositeToAttributes(composite))
+    }.toMap
+
+  val memberships: VectorMap[GroupMemberId, GroupId] =
+    VectorMap.from(
+      diagram.states.iterator.collect {
+        case s if !compositeIds.contains(s.id) && s.parent.exists(compositeIds.contains) =>
+          (NodeId(s.id): GroupMemberId) -> GroupId(s.parent.get)
+      } ++
+        diagram.composites.iterator.collect {
+          case c if c.parent.exists(compositeIds.contains) => (GroupId(c.id): GroupMemberId) -> GroupId(c.parent.get)
+        }
+    )
+
+  // A transition to a composite state ends at a node with the id of the group,
+  // as an edge to a subgraph does in a flowchart.
+  val missingNodes =
+    numbered.iterator.flatMap((t, _) => Iterator(NodeId(t.start), NodeId(t.end))).filterNot(nodes.contains).distinct
+  val allNodes = nodes ++ missingNodes.map(nid => nid -> ViewerNode.nodeNoDefaults(nid, Attributes.empty))
+
+  val graphAttrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
+  graphAttrs += MermaidDiagramAttr -> AttrValue(StateDiagramHeader)
+  diagram.direction.foreach(d => graphAttrs += Rankdir.attrId -> AttrValue(d))
+  diagram.title.foreach(t => graphAttrs += Label.attrId -> AttrValue(t))
+  diagram.classDefs.foreach { (name, styles) =>
+    if styles.nonEmpty then graphAttrs += AttributeId(MermaidClassDefPrefix + name) -> AttrValue(styles.mkString(","))
+  }
+
+  ViewerGraphElements(
+    nodes = allNodes,
+    arrows = arrows,
+    memberships = memberships,
+    groups = groups,
+    graphAttributes = Attributes.fromOrdered(graphAttrs)
+  )
+
+/** Converts a state of a state diagram to Attributes. */
+private def stateToAttributes(state: MermaidState): Attributes =
+  val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
+  state.label.foreach(l => attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(l)))
+  state.kind.keyword.foreach(k => attrs += MermaidStateTypeAttr -> AttrValue(k))
+  // A description cannot contain a line break, so one line holds one description.
+  if state.descriptions.nonEmpty then attrs += MermaidStateDescriptionsAttr -> AttrValue(state.descriptions.mkString("\n"))
+  if state.styles.nonEmpty then attrs += Style.attrId -> AttrValue(state.styles.mkString(","))
+  if state.classes.nonEmpty then attrs += MermaidClassAttr -> AttrValue(state.classes.mkString(" "))
+  Attributes.fromOrdered(attrs)
+
+/** Converts a transition to Attributes. The DOM id (`edge<N>`) keeps the order
+  * of the source, so that the printer writes the transitions in the same order.
+  */
+private def transitionToAttributes(transition: MermaidTransition): Attributes =
+  val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
+  transition.label.foreach(l => attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(l)))
+  transition.domId.foreach(d => attrs += MermaidDomIdAttr -> AttrValue(d))
+  Attributes.fromOrdered(attrs)
+
+/** Converts a composite state to Attributes. */
+private def compositeToAttributes(composite: MermaidCompositeState): Attributes =
+  val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
+  composite.label.foreach(l => attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(l)))
+  if composite.styles.nonEmpty then attrs += Style.attrId -> AttrValue(composite.styles.mkString(","))
+  if composite.classes.nonEmpty then attrs += MermaidClassAttr -> AttrValue(composite.classes.mkString(" "))
+  Attributes.fromOrdered(attrs)
+
 /** Converts a MermaidVertex to Attributes. */
 private def vertexToAttributes(vertex: MermaidVertex): Attributes =
   val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()

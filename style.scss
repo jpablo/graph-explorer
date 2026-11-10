@@ -1009,7 +1009,7 @@ svg {
       // figure/ground does the work instead: fade everything that is NOT selected.
       // Keyed on DOM state via :has() — no state plumbing. Opacity only: filters
       // and animations on many edges are a known perf trap (see note below).
-      g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link {
+      g.node, g.edge, g.cluster, g.statediagram-cluster, g.edgeLabel, path.flowchart-link, path.transition {
         transition: opacity 150ms ease;
       }
       // …but a LAYOUT TRANSITION owns opacity while it runs, and it writes per
@@ -1030,11 +1030,11 @@ svg {
       // `&.gx-transitioning`, not `svg.gx-transitioning`: the enclosing block
       // IS `svg.graphviz`, so the latter compiles to `svg.graphviz svg…` and
       // matches nothing.
-      &.gx-transitioning :is(g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link) {
+      &.gx-transitioning :is(g.node, g.edge, g.cluster, g.statediagram-cluster, g.edgeLabel, path.flowchart-link, path.transition) {
         transition: none;
       }
       &:has(.selected) {
-        :is(g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link):not(.selected) {
+        :is(g.node, g.edge, g.cluster, g.statediagram-cluster, g.edgeLabel, path.flowchart-link, path.transition):not(.selected) {
           opacity: 0.5;
         }
       }
@@ -1065,6 +1065,7 @@ svg {
       // (Graphviz/MermaidBackend.addEdgeHitAreas), there so a hairline spline
       // can be clicked. Idle it must never paint.
       path.flowchart-link.edge-hit-area,
+      path.transition.edge-hit-area,
       .edge path.edge-hit-area {
         stroke: transparent !important;
         filter: none !important;
@@ -1081,6 +1082,7 @@ svg {
       // source order — same-!important ties go to whichever is written last,
       // which is not a property worth depending on.
       path.flowchart-link.edge-hit-area.gx-casing-on,
+      path.transition.edge-hit-area.gx-casing-on,
       .edge path.edge-hit-area.gx-casing-on {
         stroke: var(--gx-select-casing) !important;
         filter: none !important;
