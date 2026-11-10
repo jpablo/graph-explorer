@@ -199,9 +199,13 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     val defaultEdgeStyle = jsEdges.defaultStyle.toOption.map(_.toList).getOrElse(Nil)
     val defaultEdgeInterpolate = jsEdges.defaultInterpolate.toOption
     val direction = yy.getDirection().toOption
-    // Try getDiagramTitle first, fallback to getAccTitle
+    // getDiagramFromText removes the frontmatter and does not keep its title,
+    // so getDiagramTitle returns "". Read the frontmatter title from the source,
+    // because a canvas edit prints the title again only from the graph.
+    // The accTitle is not a title: it is text for screen readers, and Mermaid
+    // does not draw it. A canvas edit prints the title as a visible title.
     val title = yy.getDiagramTitle().toOption.filter(_.nonEmpty)
-      .orElse(yy.getAccTitle().toOption.filter(_.nonEmpty))
+      .orElse(MermaidSourceScan.frontmatterTitle(text))
 
     dom.console.info(
       s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} classDefs=${classDefs.size} defaultEdgeStyle=${defaultEdgeStyle.nonEmpty} dir=${direction.getOrElse("")} title=${title.getOrElse("")}"

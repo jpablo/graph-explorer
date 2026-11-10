@@ -36,7 +36,7 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
   // Add front matter with title if present
   titleOpt.foreach { title =>
     lines.append("---\n")
-    lines.append(s"title: $title\n")
+    lines.append(s"title: ${MermaidSourceScan.titleToYaml(title)}\n")
     lines.append("---\n")
   }
 

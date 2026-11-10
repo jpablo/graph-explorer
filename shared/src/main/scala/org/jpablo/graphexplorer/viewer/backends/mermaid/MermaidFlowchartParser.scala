@@ -17,6 +17,9 @@ object MermaidFlowchartParser:
   private val ClassDefLine  = raw"(?i)^classDef\s+([^\s]+)\s+(.+?)\s*;?$$".r
   private val ClassLine     = raw"(?i)^class\s+([^\s]+)\s+(.+?)\s*;?$$".r
   private val LinkStyleLine = raw"(?i)^linkStyle\s+(default|\d+)\s+(.+?)\s*;?$$".r
+  // `accTitle` and `accDescr` are text for screen readers. The graph does not keep them.
+  private val AccessibleLine = raw"(?i)^acc(?:Title|Descr)\s*:.*$$".r
+  private val AccDescrBlock  = raw"(?i)^accDescr\s*\{(.*)$$".r
   private val EdgeLine =
     raw"^([^\s]+)\s+(<-->|<-\.->|<==>|-->|-\.->|==>|---|-\.-|===)(?:\|([^|]*)\|)?\s+([^\s]+)\s*;?$$".r
 
@@ -55,6 +58,7 @@ object MermaidFlowchartParser:
     var defaultEdgeStyle: List[String]         = Nil
     var defaultEdgeInterpolate: Option[String] = None
     var sawHeader                              = false
+    var inAccDescrBlock                        = false
     var failure: Option[String]                = None
 
     def registerVertex(vertex: MermaidVertex): Unit =
@@ -82,6 +86,8 @@ object MermaidFlowchartParser:
         line match
           case ""                         => ()
           case _ if line.startsWith("%%") => ()
+          // A multi-line `accDescr { ... }` block continues to the line with `}`.
+          case _ if inAccDescrBlock       => inAccDescrBlock = !line.contains("}")
           case HeaderLine(dir) if !sawHeader =>
             direction = Some(dir.toUpperCase)
             sawHeader = true
@@ -90,6 +96,7 @@ object MermaidFlowchartParser:
           case _ if !sawHeader =>
             failure = Some(s"could not parse the Mermaid flowchart: expected a flowchart header at line $lineNumber")
           case DirectionLine(_) => () // A subgraph-local layout hint does not change graph identity.
+          case AccDescrBlock(rest) => inAccDescrBlock = !rest.contains("}")
           case "end" | "end;" =>
             if stack.nonEmpty then stack.pop()
             else failure = Some(s"could not parse the Mermaid flowchart: unmatched 'end' at line $lineNumber")
@@ -197,7 +204,7 @@ object MermaidFlowchartParser:
         val title = lines.slice(1, closing).iterator
           .map(_.trim)
           .collectFirst { case line if line.startsWith("title:") => line.drop("title:".length).trim }
-          .map(MermaidSourceScan.normalizeLabel)
+          .map(MermaidSourceScan.titleFromYaml)
           .filter(_.nonEmpty)
         (title, closing + 1)
 
@@ -205,8 +212,7 @@ object MermaidFlowchartParser:
     value.stripSuffix(";").split("[\\s,]+").iterator.map(_.trim).filter(_.nonEmpty).toList
 
   private def ignoredDirective(line: String): Boolean =
-    val lower = line.toLowerCase
-    lower.startsWith("click ") || lower.startsWith("accTitle:") || lower.startsWith("accDescr:")
+    line.toLowerCase.startsWith("click ") || AccessibleLine.matches(line)
 
   private def edgeType(arrow: String): String =
     if arrow.startsWith("<") then "double_arrow_point"

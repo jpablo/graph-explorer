@@ -115,14 +115,12 @@ private[backends] object MermaidSourceScan:
     val lines = text.linesIterator.map(_.trim).take(50).toList
     def firstContent = lines.find(l => l.nonEmpty && !l.startsWith("%%") && l != "---")
     def isFlowchart  = firstContent.exists(l => l.startsWith("flowchart") || l.toLowerCase.startsWith("graph "))
-    rawFrontmatterTitle(lines)
-      .orElse(
-        Option.unless(isFlowchart)(
-          lines.collectFirst { case l if l.startsWith("title ") => l.drop("title ".length).trim }
-        ).flatten
-      )
-      .map(stripSurroundingQuotes)
-      .filter(_.nonEmpty)
+    def titleLine =
+      Option.unless(isFlowchart)(
+        lines.collectFirst { case l if l.startsWith("title ") => l.drop("title ".length).trim }
+      ).flatten
+    frontmatterTitleOf(lines)
+      .orElse(titleLine.map(stripSurroundingQuotes).filter(_.nonEmpty))
 
   /** The `title:` entry of the YAML frontmatter, when the source has one.
     *
@@ -130,7 +128,10 @@ private[backends] object MermaidSourceScan:
     * its title to the diagram, so the parsed diagram has no title.
     */
   def frontmatterTitle(text: String): Option[String] =
-    rawFrontmatterTitle(text.linesIterator.map(_.trim).take(50).toList).map(stripSurroundingQuotes).filter(_.nonEmpty)
+    frontmatterTitleOf(text.linesIterator.map(_.trim).take(50).toList)
+
+  private def frontmatterTitleOf(lines: List[String]): Option[String] =
+    rawFrontmatterTitle(lines).map(titleFromYaml).filter(_.nonEmpty)
 
   private def rawFrontmatterTitle(lines: List[String]): Option[String] =
     lines match
@@ -142,6 +143,88 @@ private[backends] object MermaidSourceScan:
 
   private def stripSurroundingQuotes(s: String): String =
     if s.length >= 2 && s.head == '"' && s.last == '"' then s.substring(1, s.length - 1).trim else s
+
+  // ── the front-matter title as a YAML scalar ──────────────────────────────
+  //
+  // Mermaid reads the front matter as YAML. In a plain YAML scalar, `: ` makes
+  // a second mapping, and ` #` starts a comment. The printer and all readers
+  // use the two functions below, so that a title that they print and read
+  // again does not change.
+
+  /** The punctuation that a plain title can have, after its first letter. */
+  private val PlainTitlePunctuation: Set[Char] = Set('-', '_', '.', ',', '(', ')', '/', '&', '+', '?', '!', '\'')
+
+  /** Words that YAML can read as a null or a boolean, and not as a string. */
+  private val YamlKeywords: Set[String] = Set("null", "true", "false", "yes", "no", "on", "off", "y", "n")
+
+  /** The YAML scalar for `title` in the front matter `title:` entry.
+    *
+    * A title that is safe as a plain scalar stays plain. A safe title starts
+    * with a letter, does not end with a space, has only letters, digits,
+    * spaces and some punctuation, and is not a YAML keyword. The function
+    * writes all other titles as a YAML double-quoted scalar.
+    */
+  def titleToYaml(title: String): String =
+    if isPlainTitle(title) then title else "\"" + title.flatMap(escapeYamlChar) + "\""
+
+  private def isPlainTitle(title: String): Boolean =
+    title.headOption.exists(_.isLetter) &&
+      !title.last.isWhitespace &&
+      title.forall(c => c.isLetterOrDigit || c == ' ' || PlainTitlePunctuation.contains(c)) &&
+      !YamlKeywords.contains(title.toLowerCase)
+
+  private def escapeYamlChar(c: Char): String = c match
+    case '\\'             => "\\\\"
+    case '"'              => "\\\""
+    case '\n'             => "\\n"
+    case '\r'             => "\\r"
+    case '\t'             => "\\t"
+    case c if c.isControl => "\\u%04x".format(c.toInt)
+    case c                => c.toString
+
+  /** The title in `raw`, the YAML scalar after `title:` in the front matter.
+    *
+    * The function removes the quotes of a double-quoted scalar and decodes its
+    * escapes. It removes the quotes of a single-quoted scalar and changes `''`
+    * to `'`. It removes a ` #` comment from a plain scalar, and trims it.
+    */
+  def titleFromYaml(raw: String): String =
+    val value = raw.trim
+    DoubleQuotedScalar.findPrefixMatchOf(value).map(m => unescapeYaml(m.group(1)))
+      .orElse(SingleQuotedScalar.findPrefixMatchOf(value).map(_.group(1).replace("''", "'")))
+      .getOrElse(PlainComment.findFirstMatchIn(value).fold(value)(m => value.take(m.start)).trim)
+
+  private val DoubleQuotedScalar = "\"((?:[^\"\\\\]|\\\\.)*)\"".r
+  private val SingleQuotedScalar = "'((?:[^']|'')*)'".r
+  private val PlainComment       = "(?:^|\\s)#".r
+  private val YamlEscape         = "\\\\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)".r
+
+  private def unescapeYaml(body: String): String =
+    YamlEscape.replaceAllIn(body, m => scala.util.matching.Regex.quoteReplacement(decodeYamlEscape(m.group(1))))
+
+  /** The text of one YAML escape. `code` is the text after the backslash. The
+    * function keeps an escape that it does not know as it is.
+    */
+  private def decodeYamlEscape(code: String): String = code match
+    case "n"  => "\n"
+    case "t"  => "\t"
+    case "r"  => "\r"
+    case "0"  => "\u0000"
+    case "a"  => "\u0007"
+    case "b"  => "\b"
+    case "e"  => "\u001b"
+    case "f"  => "\f"
+    case "v"  => "\u000b"
+    case "N"  => "\u0085"
+    case "_"  => "\u00a0"
+    case "L"  => "\u2028"
+    case "P"  => "\u2029"
+    case "\t" => "\t"
+    case hex if hex.length > 1 =>
+      val codePoint = Integer.parseInt(hex.drop(1), 16)
+      if Character.isValidCodePoint(codePoint) then String(Character.toChars(codePoint)) else "\\" + hex
+    case other if "\"\\/ ".contains(other) => other
+    case other => "\\" + other
 
   private val IgnoredLinePrefixes = List(
     "%%",
