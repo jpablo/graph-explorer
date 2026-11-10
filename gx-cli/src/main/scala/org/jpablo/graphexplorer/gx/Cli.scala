@@ -600,9 +600,15 @@ object Cli:
     *
     *   1. Read the file and its hash, and parse it.
     *   2. Make the change on the graph.
-    *   3. Render the text. If it is the same text, write nothing.
+    *   3. Render the text. If a save of it gives the same text as a save of
+    *      the file over itself, write nothing (`LineEnding.sameOnDisk`). The
+    *      renderer gives LF, and a save keeps the line endings and the end of
+    *      the file (V-04). Thus a check with `==` sees a change on each CRLF
+    *      file.
     *   4. Refuse a write that removes content that the graph does not keep
-    *      (comments, `strict`), unless the caller gives `--reformat`.
+    *      (comments, `strict`), unless the caller gives `--reformat`. This
+    *      check comes after step 3, because a change that writes nothing
+    *      removes nothing.
     *   5. Write the file only if it still has the hash of step 1. Else stop
     *      with exit 5, and the file stays as the other writer left it.
     *
@@ -614,9 +620,10 @@ object Cli:
     loadFile(command, args, env).flatMap(loaded => edit(loaded).map(loaded -> _)) match
       case Left(code) => code
       case Right((loaded, (graph, extra))) =>
-        val text = DiagramText.render(graph, loaded.format)
-        val lost = RoundTripLoss.scan(loaded.doc.text, loaded.format)
-        if text == loaded.doc.text then reportWrite(loaded.path, loaded.doc.hash, changed = false, extra, args, env)
+        val text      = DiagramText.render(graph, loaded.format)
+        lazy val lost = RoundTripLoss.scan(loaded.doc.text, loaded.format)
+        if LineEnding.sameOnDisk(loaded.doc.text, text) then
+          reportWrite(loaded.path, loaded.doc.hash, changed = false, extra, args, env)
         else if lost.nonEmpty && !args.has("reformat") then
           env.err(
             s"gx: gx writes the whole file again, and that removes ${listed(lost)} from ${loaded.path}. " +
@@ -886,17 +893,20 @@ object Cli:
       case Right(_) if sources != 1 =>
         env.err(s"gx: note needs exactly one of <text>, --stdin and --clear; usage: ${command.synopsis}")
         ExitCode.Usage
-      case Right(_) if texts.headOption.exists(_.isEmpty) =>
-        env.err("gx: the text of the note is empty; --clear removes the note")
-        ExitCode.Usage
       case Right(path) =>
         // Text from stdin loses its last line endings, as `$(...)` does in a shell.
         val note =
           if args.has("clear") then ""
           else if args.has("stdin") then env.stdin().reverse.dropWhile(c => c == '\n' || c == '\r').reverse
           else texts.head
-        updateEntry(path, create = note.nonEmpty, env)(MetadataCommands.run(_, MetadataCommand.SetNotes(note)))
-          .fold(identity, entry => reportEntry(path, entry, None, "notes", args, env))
+        // Only --clear removes the note. An empty stdin (for example from a
+        // command that failed in a pipe) is the same error as an empty <text>.
+        if note.isEmpty && !args.has("clear") then
+          env.err("gx: the text of the note is empty; --clear removes the note")
+          ExitCode.Usage
+        else
+          updateEntry(path, create = note.nonEmpty, env)(MetadataCommands.run(_, MetadataCommand.SetNotes(note)))
+            .fold(identity, entry => reportEntry(path, entry, None, "notes", args, env))
 
   private def info(command: Command, args: Args, env: CliEnv): Int =
     fileArg(command, args, env).flatMap(path => entryOf(path, env).map(path -> _)) match
@@ -1248,17 +1258,20 @@ object Cli:
     * process stops.
     */
   private def watch(command: Command, args: Args, env: CliEnv): Int =
+    // An interval of 0 gives no pause, and the loop uses one CPU core at 100%.
     val interval = args.value("interval") match
       case None      => Right(50L)
-      case Some(raw) => raw.toLongOption.filter(_ >= 0).toRight(raw)
+      case Some(raw) => raw.toLongOption.filter(_ >= 1).toRight(raw)
     (files(command, args, env), interval) match
       case (Left(code), _) => code
       case (_, Left(raw)) =>
-        env.err(s"gx: --interval needs a number of milliseconds, 0 or more, not '$raw'; usage: ${command.synopsis}")
+        env.err(s"gx: --interval needs a number of milliseconds, 1 or more, not '$raw'; usage: ${command.synopsis}")
         ExitCode.Usage
       case (Right(paths), Right(ms)) =>
-        val origins  = paths.map(FileOrigins.originOf(_, env.cwd)).distinct
-        val registry = WatchRegistry(env.audit, debounceMs = ms)
+        val origins = paths.map(FileOrigins.originOf(_, env.cwd)).distinct
+        // The debounce uses the clock of the environment, as each other time
+        // in the CLI does. Thus a test controls the debounce.
+        val registry = WatchRegistry(env.audit, debounceMs = ms, now = env.now)
         origins.foreach(registry.watch)
         for o <- origins do env.err(s"watching ${o.value}")
         while env.keepWatching() do

@@ -304,6 +304,70 @@ class GroupsOpsSpec extends FunSuite:
     ), "Node a should be moved to parent group and child group should be removed")
   }
 
+  // `ungroupSelection` called `removeEmptyGroups()`, which removes EACH empty
+  // group of the graph. Thus an empty group that the ungroup did not touch,
+  // for example an empty legend cluster, also went out of the file.
+  test("ungroupSelection keeps an empty group that the ungroup did not empty") {
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b))))
+      .moveToNewGroup("Services", a, b)
+    val services = graph.membership(a).get
+
+    val legend = GroupId("cluster_legend")
+    val withLegend = graph.modifyElements.using(_.copy(
+      groups = graph.groups + (legend -> group(legend, Attributes.of(Label -> "Legend")))
+    ))
+
+    val updatedGraph = withLegend.ungroupSelection(ElementIds.from(a, b))
+
+    assert(!updatedGraph.groups.contains(services), "the ungroup empties this group, so it goes away")
+    assert(updatedGraph.groups.contains(legend), "the ungroup did not touch this group, so it must stay")
+  }
+
+  /** A graph with the group "Services" (a, b), the node c, and an empty group
+    * `legend` that no operation below names.
+    */
+  private def withEmptyLegend(): (ViewerGraph, GroupId, GroupId) =
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+      .moveToNewGroup("Services", a, b)
+    val services = graph.membership(a).get
+    val legend   = GroupId("cluster_legend")
+    val withLegend = graph.modifyElements.using(_.copy(
+      groups = graph.groups + (legend -> group(legend, Attributes.of(Label -> "Legend")))
+    ))
+    (withLegend, services, legend)
+
+  // `removeElements` and `moveToNewGroup` called `removeEmptyGroups()`, which
+  // removes EACH empty group of the graph. The reader now keeps an empty DOT
+  // cluster as a group (`EmptySubgraphSpec`), so a delete or a new group in
+  // the desktop or in `gx group` removed an empty legend from the file.
+  test("removeElements keeps an empty group that the removal did not empty") {
+    val (graph, services, legend) = withEmptyLegend()
+    val updatedGraph = graph.removeElements(ElementIds.from(a, b))
+    assert(!updatedGraph.groups.contains(services), "the removal empties this group, so it goes away")
+    assert(updatedGraph.groups.contains(legend), "the removal did not touch this group, so it must stay")
+  }
+
+  test("moveToNewGroup keeps an empty group that the move did not empty") {
+    // a and b come from two groups. Thus the new group goes to the root, and
+    // the move empties both former groups. (Members with one common parent
+    // put the new group into that parent, which then is not empty.)
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+      .moveToNewGroup("First", a)
+      .moveToNewGroup("Second", b)
+    val first  = graph.membership(a).get
+    val second = graph.membership(b).get
+    val legend = GroupId("cluster_legend")
+    val withLegend = graph.modifyElements.using(_.copy(
+      groups = graph.groups + (legend -> group(legend, Attributes.of(Label -> "Legend")))
+    ))
+
+    val updatedGraph = withLegend.moveToNewGroup("Moved", a, b)
+
+    assert(!updatedGraph.groups.contains(first), "the move empties this group, so it goes away")
+    assert(!updatedGraph.groups.contains(second), "the move empties this group, so it goes away")
+    assert(updatedGraph.groups.contains(legend), "the move did not touch this group, so it must stay")
+  }
+
   test("moveToNewGroup should create nested structure when moving nodes within a group") {
     // Create a group with one node, then move that node to a new group
     val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b))))

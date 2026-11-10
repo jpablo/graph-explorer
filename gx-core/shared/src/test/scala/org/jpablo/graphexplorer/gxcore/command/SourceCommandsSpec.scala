@@ -79,11 +79,11 @@ class SourceCommandsSpec extends FunSuite:
     val viaOps     = graph.moveToNewGroup(ElementIds(targets), "cluster")
     assertEquals(viaCommand.elements, viaOps.elements)
 
-    // What actually happens, which is worth writing down: a new group appears
-    // holding both nodes, AND the pre-existing empty g1 disappears —
-    // `moveToNewGroup` finishes with `removeEmptyGroups()`. The group COUNT is
-    // therefore unchanged, so counting groups would have "passed" for a command
-    // that did nothing at all.
+    // A new group appears with both nodes. The empty g1 stays, because the
+    // move did not empty it. Before, `moveToNewGroup` ended with
+    // `removeEmptyGroups()`, which removed g1 too. Then the group COUNT did not
+    // change, so a count of the groups "passed" for a command that did
+    // nothing. Thus the test names the new group and its members.
     val newGroups = viaCommand.elements.groups.keySet -- graph.elements.groups.keySet
     assertEquals(newGroups.size, 1, "exactly one new group")
     val gid = newGroups.head
@@ -91,7 +91,7 @@ class SourceCommandsSpec extends FunSuite:
       viaCommand.elements.memberships.collect { case (m, g) if g == gid => m }.toSet,
       Set[GroupMemberId](NodeId("a"), NodeId("b"))
     )
-    assert(!viaCommand.elements.groups.contains(GroupId("g1")), "the empty group should be gone")
+    assert(viaCommand.elements.groups.contains(GroupId("g1")), "the move did not touch the empty g1, so it must stay")
 
   // ---------------------------------------------------------------- queries
 
