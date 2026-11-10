@@ -98,7 +98,15 @@ final case class RSubgraph(
       * attrs at creation (DOT inheritance) overlaid with its locally-declared
       * ones (`graph [...]` / bare `k=v`). Drives the writers' cluster attr
       * echo (`sgAttrs`) and the cluster style/color rendering in `Svg`. */
-    attrs:     Map[String, String] = Map.empty
+    attrs:     Map[String, String] = Map.empty,
+    /** cgraph `AGSEQ` of the subgraph: its position (from 1) in the creation
+      * order of ALL subgraphs, plain and cluster. One counter serves the
+      * whole graph (cgraph `agnextseq` on the shared closure). The svg
+      * cluster id is `clust<seq>` (emit.c `getObjId`): in 202, `cluster_q`
+      * is the sixth subgraph, so its id is `clust6`. A second body of a
+      * named subgraph keeps the first seq, but its new children get new
+      * seqs, so this order can differ from the preorder of the tree. */
+    seq:       Int = 0
 ) derives CanEqual
 
 final case class RGraph(
@@ -147,7 +155,7 @@ object AttrResolver:
     *                  the subgraph, so they apply in a later body too.
     * @param localEdge the edge defaults that the bodies declare, as for nodes.
     */
-  private final class Builder(val id: String, var graph: Attrs):
+  private final class Builder(val id: String, var graph: Attrs, val seq: Int = 0):
     val nodeIds   = mutable.LinkedHashSet.empty[String] // first-mention order
     val edgeIdxs  = mutable.ListBuffer.empty[Int]
     val children  = mutable.ListBuffer.empty[Builder]   // first-body order
@@ -170,6 +178,10 @@ object AttrResolver:
     // id ⇒ they do **not** tick. Derived + oracle-verified (PORT.md §5.2).
     var anonCtr = if g.id.isEmpty then 1 else 0 // unnamed root consumes id 1
 
+    // cgraph AGSEQ of the subgraphs (RSubgraph.seq): one counter for all
+    // subgraphs, in creation order. The first subgraph gets 1.
+    var sgSeq = 0
+
     // graph-attribute keys in first-declaration order, across all levels
     val graphAttrKeys = mutable.LinkedHashSet.empty[String]
 
@@ -190,7 +202,8 @@ object AttrResolver:
       * before the ids of the anonymous objects in the body. */
     def enterSub(sg: ast.Subgraph, sc: Scope, parent: Builder): Builder =
       def create(id: String): Builder =
-        val b = Builder(id, sc.graph)
+        sgSeq += 1
+        val b = Builder(id, sc.graph, sgSeq)
         parent.children += b
         b
       val b = sg.id match
@@ -217,7 +230,8 @@ object AttrResolver:
         case other          => other.toIntOption.exists(_ > 0)
       val isClu = b.id.toLowerCase.startsWith("cluster") || sgAttrs.get("cluster").exists(mapBool)
       RSubgraph(b.id, b.label, isClu, b.rank,
-        b.nodeIds.toVector, b.edgeIdxs.toVector, b.children.iterator.map(build).toVector, sgAttrs)
+        b.nodeIds.toVector, b.edgeIdxs.toVector, b.children.iterator.map(build).toVector, sgAttrs,
+        b.seq)
 
     /** Read one body into `level`. A statement changes the data of `level`,
       * and a default statement also changes the scope of the next statements

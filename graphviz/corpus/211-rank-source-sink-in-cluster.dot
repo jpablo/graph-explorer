@@ -1,0 +1,5 @@
+digraph ClusterSourceSink {
+    x -> a
+    subgraph cluster_c { a -> b -> c; e -> b; { rank=source; e } { rank=sink; c; f } }
+    c -> y
+}

@@ -1,0 +1,5 @@
+digraph SetInSet {
+    { rank=same; a; { rank=min; b } }
+    a -> c
+    x -> b
+}

@@ -1,0 +1,5 @@
+digraph G {
+  t -> u;
+  u -> v [label=L];
+  { rank=same; v -> m -> w; v -> w }
+}

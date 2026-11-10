@@ -1,0 +1,25 @@
+digraph FlatEdgeClusterCrossing {
+	graph [bb="0,0,158,124"];
+	node [label="\N"];
+	subgraph cluster_c {
+		graph [bb="8,8,150,60"];
+		{
+			graph [rank=same];
+			p	[height=0.5,
+				pos="115,34",
+				width=0.75];
+			q	[height=0.5,
+				pos="43,34",
+				width=0.75];
+			p -> q	[pos="e,70.281,34 87.75,34 85.748,34 83.746,34 81.745,34"];
+		}
+	}
+	r	[height=0.5,
+		pos="43,106",
+		width=0.75];
+	r -> q	[pos="e,43,52.104 43,87.697 43,80.407 43,71.726 43,63.536"];
+	s	[height=0.5,
+		pos="115,106",
+		width=0.75];
+	s -> p	[pos="e,115,52.104 115,87.697 115,80.407 115,71.726 115,63.536"];
+}

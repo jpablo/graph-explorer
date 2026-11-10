@@ -1,0 +1,3 @@
+digraph "FlatLabelClusterOrder" {
+    subgraph cluster_c { p; q; p -> q [minlen=0 label=e]; r -> p }
+}

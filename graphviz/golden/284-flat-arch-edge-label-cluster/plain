@@ -1,0 +1,12 @@
+graph 1 3.4722 3.3139
+node t 0.59722 2.4972 0.75 0.5 t solid ellipse black lightgrey
+node u 0.59722 1.2639 0.75 0.5 u solid ellipse black lightgrey
+node a 0.59722 0.25 0.75 0.5 a solid ellipse black lightgrey
+node m 1.8472 0.25 0.75 0.5 m solid ellipse black lightgrey
+node b 3.0972 0.25 0.75 0.5 b solid ellipse black lightgrey
+edge t u 4 0.59722 2.2452 0.59722 2.0827 0.59722 1.8638 0.59722 1.6752 L 0.65661 1.8806 solid black
+edge u a 4 0.59722 1.0113 0.59722 0.90591 0.59722 0.77919 0.59722 0.66027 solid black
+edge a m 4 0.97808 0.25 1.0888 0.25 1.1996 0.25 1.3104 0.25 solid black
+edge a b 10 0.8637 0.42998 1.0306 0.53161 1.2546 0.64857 1.4722 0.70139 1.7961 0.78002 1.8983 0.78002 2.2222 0.70139 2.3854 0.66177 2.5522 0.58608 2.6959 0.50783 solid black
+edge m b 4 2.2281 0.25 2.3388 0.25 2.4496 0.25 2.5604 0.25 solid black
+stop

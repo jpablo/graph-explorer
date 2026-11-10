@@ -1,0 +1,57 @@
+{
+  "name": "FlatPairBetweenClusters",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,164,68",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_p",
+      "bb": "8,8,78,60",
+      "_gvid": 0,
+      "nodes": [
+        2
+      ]
+    },
+    {
+      "name": "cluster_q",
+      "bb": "86,8,156,60",
+      "_gvid": 1,
+      "nodes": [
+        3
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "121,34",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "minlen": "0",
+      "pos": "e,93.735,34 70.422,34 74.429,34 78.436,34 82.443,34"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 2,
+      "minlen": "0",
+      "pos": "e,70.422,34 93.735,34 89.728,34 85.721,34 81.714,34"
+    }
+  ]
+}

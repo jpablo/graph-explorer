@@ -1,0 +1,5 @@
+digraph "FlatPairWithRankedEdges" {
+    { rank=same; a -> b; b -> a }
+    x -> a
+    x -> b
+}

@@ -1,0 +1,101 @@
+{
+  "name": "ClusterSourceSink",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 212 340",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "cluster_c",
+      "_gvid": 0,
+      "subgraphs": [
+        1,
+2
+      ],
+      "nodes": [
+        4,5,6,7,8
+      ],
+      "edges": [
+        1,2,4
+      ]
+    },
+    {
+      "name": "%9",
+      "rank": "source",
+      "_gvid": 1,
+      "nodes": [
+        7
+      ]
+    },
+    {
+      "name": "%11",
+      "rank": "sink",
+      "_gvid": 2,
+      "nodes": [
+        6,8
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "e",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "f",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "y",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 3,
+      "head": 4
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 5
+    },
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 6
+    },
+    {
+      "_gvid": 4,
+      "tail": 7,
+      "head": 5
+    },
+    {
+      "_gvid": 3,
+      "tail": 6,
+      "head": 9
+    }
+  ]
+}

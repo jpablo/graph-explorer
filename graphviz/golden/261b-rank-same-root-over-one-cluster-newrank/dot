@@ -1,0 +1,28 @@
+digraph RootSetOverCluster {
+	graph [bb="0,0,158,196",
+		newrank=true
+	];
+	node [label="\N"];
+	subgraph cluster_k {
+		graph [bb="8,8,150,132"];
+		p	[height=0.5,
+			pos="43,106",
+			width=0.75];
+		q	[height=0.5,
+			pos="43,34",
+			width=0.75];
+		p -> q	[pos="e,43,52.104 43,87.697 43,80.407 43,71.726 43,63.536"];
+		r	[height=0.5,
+			pos="115,34",
+			width=0.75];
+	}
+	{
+		graph [rank=same];
+		q;
+		r;
+	}
+	s	[height=0.5,
+		pos="43,178",
+		width=0.75];
+	s -> p	[pos="e,43,124.1 43,159.7 43,152.41 43,143.73 43,135.54"];
+}

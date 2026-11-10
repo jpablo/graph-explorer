@@ -1,0 +1,7 @@
+digraph "ClusterInnerSubgraphOrder" {
+    x
+    subgraph cluster_s { label="s"; { a -> c } b }
+    x -> a
+    x -> c
+    x -> b
+}

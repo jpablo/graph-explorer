@@ -1,0 +1,74 @@
+{
+  "name": "SetInSet",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,126,180",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%1",
+      "rank": "same",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        2,3
+      ]
+    },
+    {
+      "name": "%3",
+      "rank": "min",
+      "_gvid": 1,
+      "nodes": [
+        3
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,90",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,90",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "c",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,18",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "x",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,162",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 4,
+      "pos": "e,27,36.104 27,71.697 27,64.407 27,55.726 27,47.536"
+    },
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 3,
+      "pos": "e,99,108.1 99,143.7 99,136.41 99,127.73 99,119.54"
+    }
+  ]
+}

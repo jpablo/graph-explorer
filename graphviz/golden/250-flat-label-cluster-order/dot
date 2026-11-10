@@ -1,0 +1,21 @@
+digraph FlatLabelClusterOrder {
+	graph [bb="0,0,164,141"];
+	node [label="\N"];
+	subgraph cluster_c {
+		graph [bb="8,8,156,133"];
+		p	[height=0.5,
+			pos="43,34",
+			width=0.75];
+		q	[height=0.5,
+			pos="121,34",
+			width=0.75];
+		p -> q	[label=e,
+			lp="82,45.4",
+			minlen=0,
+			pos="e,93.603,34 70.281,34 74.177,34 78.245,34 82.309,34"];
+		r	[height=0.5,
+			pos="43,107",
+			width=0.75];
+		r -> p	[pos="e,43,52.029 43,88.813 43,81.226 43,72.101 43,63.539"];
+	}
+}

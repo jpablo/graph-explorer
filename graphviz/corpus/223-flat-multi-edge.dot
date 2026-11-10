@@ -1,0 +1,3 @@
+digraph "FlatMultiEdge" {
+    { rank=same; a -> b; a -> b }
+}

@@ -1,0 +1,17 @@
+digraph FlatPairClusterAndRoot {
+	graph [bb="0,0,142,68"];
+	node [label="\N"];
+	subgraph cluster_p {
+		graph [bb="8,8,78,60"];
+		a	[height=0.5,
+			pos="43,34",
+			width=0.75];
+	}
+	b	[height=0.5,
+		pos="115,34",
+		width=0.75];
+	a -> b	[minlen=0,
+		pos="e,87.75,34 70.281,34 72.283,34 74.284,34 76.286,34"];
+	b -> a	[minlen=0,
+		pos="e,70.281,34 87.75,34 85.748,34 83.746,34 81.745,34"];
+}

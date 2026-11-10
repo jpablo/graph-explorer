@@ -1,0 +1,7 @@
+digraph SetHoldsCluster {
+    newrank = true;
+    s -> a
+    s -> c
+    c -> b
+    { rank=same; a; subgraph cluster_x { b } }
+}

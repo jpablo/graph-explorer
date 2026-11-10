@@ -1,0 +1,31 @@
+digraph SvgRoundHalfEven {
+	graph [bb="0,0,166,169.6"];
+	node [label="\N"];
+	subgraph cluster_s {
+		graph [bb="8,8,158,125.6",
+			label=s,
+			lheight=0.23,
+			lp="83,113.2",
+			lwidth=0.08
+		];
+		subgraph cluster_t {
+			graph [bb="16,16,86,92.8",
+				label=t,
+				lheight=0.23,
+				lp="51,80.4",
+				lwidth=0.05
+			];
+			a	[height=0.5,
+				pos="51,42",
+				width=0.75];
+		}
+		b	[height=0.5,
+			pos="123,42",
+			width=0.75];
+	}
+	x	[height=0.5,
+		pos="87,151.6",
+		width=0.75];
+	x -> a	[pos="e,56.704,60.05 81.375,133.79 75.754,116.99 67.014,90.864 60.349,70.944"];
+	x -> b	[pos="e,117.3,60.05 92.625,133.79 98.246,116.99 106.99,90.864 113.65,70.944"];
+}

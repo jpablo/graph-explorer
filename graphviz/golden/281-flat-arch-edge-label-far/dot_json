@@ -1,0 +1,77 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 234 198",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "%5",
+      "rank": "same",
+      "_gvid": 0,
+      "nodes": [
+        3,4,5
+      ],
+      "edges": [
+        2,4,3
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "t",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "u",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "v",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "m",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "w",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "label": ""
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 3,
+      "label": "L"
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 4,
+      "label": ""
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 5,
+      "label": ""
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 5,
+      "label": ""
+    }
+  ]
+}

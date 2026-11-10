@@ -1,0 +1,60 @@
+{
+  "name": "FlatEdgeNestedClusterOrder",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 174 156",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_o",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0,1
+      ]
+    },
+    {
+      "name": "cluster_i",
+      "_gvid": 1,
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0,1
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "p",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "q",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "r",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "minlen": "0"
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 2
+    }
+  ]
+}

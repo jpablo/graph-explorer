@@ -1,0 +1,22 @@
+digraph FlatEdgeRootNextToCluster {
+	graph [bb="0,0,214,124"];
+	node [label="\N"];
+	subgraph cluster_c {
+		graph [bb="8,64,78,116"];
+		z	[height=0.5,
+			pos="43,90",
+			width=0.75];
+	}
+	p	[height=0.5,
+		pos="115,18",
+		width=0.75];
+	q	[height=0.5,
+		pos="187,18",
+		width=0.75];
+	p -> q	[minlen=0,
+		pos="e,159.75,18 142.28,18 144.28,18 146.28,18 148.29,18"];
+	r	[height=0.5,
+		pos="115,90",
+		width=0.75];
+	r -> p	[pos="e,115,36.104 115,71.697 115,64.407 115,55.726 115,47.536"];
+}

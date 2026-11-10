@@ -1,0 +1,4 @@
+digraph "FlatPairRLLabel" {
+    rankdir=RL
+    { rank=same; a -> b; b -> a; a -> b [label=x] }
+}

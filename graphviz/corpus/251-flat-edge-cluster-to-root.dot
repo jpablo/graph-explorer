@@ -1,0 +1,6 @@
+digraph "FlatEdgeClusterToRoot" {
+    subgraph cluster_c { p; q; p -> q [minlen=0]; r -> p }
+    x
+    q -> x [minlen=0]
+    y -> x
+}

@@ -1,0 +1,14 @@
+digraph "PlainSubgraphInnerEdges" {
+    x
+    subgraph s { subgraph t { a -> c } b }
+    x -> a
+    x -> c
+    x -> b
+    subgraph u { subgraph v { d } }
+    d -> b
+    subgraph w { subgraph cluster_q { f; g } h }
+    f -> g
+    x -> f
+    subgraph p { subgraph r { k } m }
+    k -> m
+}

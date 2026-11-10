@@ -1,0 +1,3 @@
+digraph "FlatPairFourEdges" {
+    { rank=same; a -> b [label=x]; b -> a [label=y]; a -> b; b -> a }
+}

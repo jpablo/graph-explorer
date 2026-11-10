@@ -1,0 +1,6 @@
+digraph "RankSameInCluster" {
+    x
+    subgraph cluster_p { { rank=same; a -> m -> b } }
+    x -> a
+    b -> y
+}

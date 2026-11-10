@@ -1,0 +1,3 @@
+digraph "FlatCycleInCluster" {
+    subgraph cluster_c { { rank=same; a -> b; b -> c; c -> a } x -> a }
+}

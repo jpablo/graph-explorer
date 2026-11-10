@@ -1,0 +1,10 @@
+digraph NestedClusterSet {
+    x
+    subgraph cluster_o {
+        o1
+        subgraph cluster_i { { rank=same; a -> m -> b } }
+    }
+    x -> o1
+    o1 -> a
+    b -> y
+}

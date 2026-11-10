@@ -1,0 +1,110 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 276 188",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%1",
+      "rank": "source",
+      "_gvid": 0,
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0,3,1
+      ]
+    },
+    {
+      "name": "%11",
+      "rank": "same",
+      "_gvid": 1,
+      "nodes": [
+        6,7,8
+      ],
+      "edges": [
+        4,6,5
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "s",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "m0",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "s3",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "t",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "y",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "z",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "label": ""
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 4,
+      "label": ""
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4,
+      "label": "L"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 5,
+      "label": ""
+    },
+    {
+      "_gvid": 4,
+      "tail": 6,
+      "head": 7,
+      "label": ""
+    },
+    {
+      "_gvid": 6,
+      "tail": 7,
+      "head": 8,
+      "label": ""
+    },
+    {
+      "_gvid": 5,
+      "tail": 6,
+      "head": 8,
+      "label": ""
+    }
+  ]
+}

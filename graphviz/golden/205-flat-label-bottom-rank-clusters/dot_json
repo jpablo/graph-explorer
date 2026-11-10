@@ -1,0 +1,87 @@
+{
+  "name": "FlatLabelBottomRankClusters",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 230 157",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_p",
+      "_gvid": 0,
+      "nodes": [
+        2,3
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "name": "cluster_q",
+      "_gvid": 1,
+      "nodes": [
+        4,5
+      ],
+      "edges": [
+        3
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "a2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "b1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "b2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "m",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "label": ""
+    },
+    {
+      "_gvid": 3,
+      "tail": 4,
+      "head": 5,
+      "label": ""
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 6,
+      "label": ""
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 6,
+      "label": ""
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 5,
+      "constraint": "false",
+      "label": "x"
+    }
+  ]
+}

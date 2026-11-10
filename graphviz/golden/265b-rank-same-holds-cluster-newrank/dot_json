@@ -1,0 +1,68 @@
+{
+  "name": "SetHoldsCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 142 196",
+  "newrank": "true",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%7",
+      "newrank": "true",
+      "rank": "same",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        3,5
+      ]
+    },
+    {
+      "name": "cluster_x",
+      "newrank": "true",
+      "rank": "same",
+      "_gvid": 1,
+      "nodes": [
+        5
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "s",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "b",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4
+    },
+    {
+      "_gvid": 2,
+      "tail": 4,
+      "head": 5
+    }
+  ]
+}

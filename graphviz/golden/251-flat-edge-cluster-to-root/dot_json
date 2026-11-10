@@ -1,0 +1,68 @@
+{
+  "name": "FlatEdgeClusterToRoot",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 214 140",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_c",
+      "_gvid": 0,
+      "nodes": [
+        1,2,3
+      ],
+      "edges": [
+        0,2
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "p",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "q",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "r",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "y",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "minlen": "0"
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 1
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4,
+      "minlen": "0"
+    },
+    {
+      "_gvid": 3,
+      "tail": 5,
+      "head": 4
+    }
+  ]
+}

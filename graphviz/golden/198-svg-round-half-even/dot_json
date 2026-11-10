@@ -1,0 +1,56 @@
+{
+  "name": "SvgRoundHalfEven",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 166 170",
+  "label": "",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_s",
+      "label": "s",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        3,4
+      ]
+    },
+    {
+      "name": "cluster_t",
+      "label": "t",
+      "_gvid": 1,
+      "nodes": [
+        3
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "b",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4
+    }
+  ]
+}

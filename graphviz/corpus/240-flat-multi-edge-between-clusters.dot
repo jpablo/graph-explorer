@@ -1,0 +1,6 @@
+digraph "FlatMultiEdgeBetweenClusters" {
+    subgraph cluster_p { a }
+    subgraph cluster_q { b }
+    a -> b [minlen=0]
+    a -> b [minlen=0]
+}

@@ -1,0 +1,5 @@
+digraph SetCycle {
+    subgraph cluster_c { { rank=same; a; b } a -> c; c -> b }
+    x -> a
+    b -> y
+}

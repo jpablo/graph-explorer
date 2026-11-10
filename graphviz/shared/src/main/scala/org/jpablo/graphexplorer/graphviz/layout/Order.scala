@@ -15,10 +15,15 @@ import scala.collection.mutable
   * collapses each top-level cluster to a skeleton column so the top-level
   * mincross can't interleave clusters, orders each cluster's interior
   * recursively, then expands. Byte-exact for contiguity (94), multi-rank
-  * clusters with free crossing edges (95) and nesting (96).
+  * clusters with free crossing edges (95) and nesting (96, 199, 203).
   *
-  * Deferred (⬜, PORT.md §5.2): **flat edges** (`flat_reorder`/`flat_breakcycles`
-  * for same-rank adjacencies — 06's residual), and the **rank=min/sink** within-
+  * **Flat edges** (`flat_breakcycles`/`flat_reorder`/`left2right`): the
+  * graph without clusters runs them in [[runMincross]]. With clusters, the
+  * root pass runs them on the root flat edges, each `mincross_clust` runs
+  * them on its slice, and ReMincross reads the matrix of the root pass (see
+  * [[orderClustered]]).
+  *
+  * Deferred (⬜, PORT.md §5.2): the **rank=min/sink** within-
   * rank mirror (81/84: `minmax_edges` reverses the pinned node's edges in
   * `ND_in`-LIFO order, which my working-graph adjacency doesn't reproduce —
   * closing it needs decoupling the build_ranks seed order from `segOwner`).
@@ -413,29 +418,64 @@ object Order:
   private def decomposeOrder[N](
       seeds: Vector[N], others: Vector[N],
       out: collection.Map[N, mutable.ArrayBuffer[N]],
-      in:  collection.Map[N, mutable.ArrayBuffer[N]]
+      in:  collection.Map[N, mutable.ArrayBuffer[N]],
+      /** ND_flat_out / ND_flat_in. `search_component` walks them after
+        * ND_out and ND_in (the pop order is out, in, flat out, flat in). */
+      flatOut: collection.Map[N, mutable.ArrayBuffer[N]] = collection.Map.empty[N, mutable.ArrayBuffer[N]],
+      flatIn:  collection.Map[N, mutable.ArrayBuffer[N]] = collection.Map.empty[N, mutable.ArrayBuffer[N]]
   )(using CanEqual[N, N]): Vector[N] =
     val done = mutable.Set.empty[N]
     val res  = mutable.ArrayBuffer.empty[N]
+    val none = mutable.ArrayBuffer.empty[N]
     def visit(seed: N): Unit =
       val stk = mutable.Stack(seed)
       while stk.nonEmpty do
         val n = stk.pop()
         if !done(n) then
           done += n; res += n
+          flatIn.getOrElse(n, none).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+          flatOut.getOrElse(n, none).reverseIterator.foreach(w => if !done(w) then stk.push(w))
           in(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
           out(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
     seeds.foreach(s => if !done(s) then visit(s))
     (seeds ++ others).foreach(n => if !done(n) then { done += n; res += n })
     res.toVector
 
+  /** `zapinlist` (fastgr.c): remove `x` from an edge list. gv moves the LAST
+    * item into the free slot, so the list order changes. A caller that walks
+    * the list by index examines the same index again after the removal. */
+  private def zap[N](buf: mutable.ArrayBuffer[N], x: N)(using CanEqual[N, N]): Unit =
+    val i = buf.indexOf(x)
+    if i >= 0 then
+      val last = buf.length - 1
+      buf(i) = buf(last)
+      buf.remove(last)
+
+  /** The flat-edge state that the root pass of [[runMincross]] leaves for the
+    * passes after it ([[orderClustered]] only). `out`/`in`/`wt` are
+    * ND_flat_out, ND_flat_in and ED_weight after each `flat_rev`. `low` is
+    * ND_low (the `flatindex` of `flat_breakcycles`). `mx` is
+    * `GD_rank(root)[r].flat`. Each component writes its own matrices, so a
+    * rank keeps the matrix of the LAST component that made one there. */
+  private final class FlatSink[N]:
+    val out = mutable.HashMap.empty[N, mutable.ArrayBuffer[N]]
+    val in  = mutable.HashMap.empty[N, mutable.ArrayBuffer[N]]
+    val wt  = mutable.HashMap.empty[(N, N), Double]
+    val low = mutable.HashMap.empty[N, Int]
+    val mx  = mutable.HashMap.empty[Int, mutable.HashSet[(Int, Int)]]
+
   /** `dot_mincross` with clusters (mincross.c:381 + class2.c/cluster.c):
     * collapse each top-level cluster to a skeleton column so the top-level
     * mincross physically can't interleave clusters, order the collapsed graph,
-    * order each cluster's interior recursively, then expand each skeleton back
-    * into its nodes. Scoped to **single-level** clusters (the whole corpus +
-    * probes); nested clusters are a documented TODO (would recurse the collapse
-    * per level). */
+    * then expand and refine the clusters one at a time in preorder
+    * (`mincross_clust`).
+    *
+    * Nested clusters follow the same rule at each level. The root pass sees
+    * only the TOP-LEVEL clusters, and each of them is one column for all its
+    * nodes, nested ones too. When cluster K expands, each child cluster of K
+    * is a skeleton column in K's interior, and the child expands only after
+    * the refine of K. So a node outside K can never land between two child
+    * clusters of K. */
   private def orderClustered(
       g: RGraph,
       nodeOut: collection.Map[LayoutNode, mutable.ArrayBuffer[LayoutNode]],
@@ -453,9 +493,10 @@ object Order:
       segWeight: (LayoutNode, LayoutNode) => Long,
       segPorts:  (LayoutNode, LayoutNode) => SegPorts,
       hasPort:   LayoutNode => Boolean,
-      /** flat (same-rank) edge reps — a node whose ONLY neighbours share its
-        * rank has empty in/out fast lists, so `medians` gives it no median at
-        * all and `flat_mval` is the only thing that seats it. */
+      /** flat (same-rank) edge reps `(tail, head, ED_weight)` in class2
+        * order. The root pass gets the edges between two root nodes; each
+        * cluster expansion adds the edges of its cluster. They drive
+        * flat_breakcycles, flat_reorder, left2right and `flat_mval`. */
       flatPairs: Vector[(LayoutNode, LayoutNode, Double)]
   ): (Map[Int, Vector[LayoutNode]], Long, Vector[LayoutNode]) =
     val cinfos   = Cluster.clusters(g)
@@ -465,20 +506,38 @@ object Order:
     // the last cluster expanded ends up first. `flat_edges` walks this.
     val mergedNlist = mutable.ListBuffer.empty[LayoutNode]
     val clustOf  = Cluster.clustOf(g) // node NAME → innermost cluster idx
-    // A chain vnode belongs to a cluster iff its owning edge's ORIGINAL
-    // endpoints share that cluster (gv mark_clusters sets ND_clust on the
-    // vnodes of intra-cluster edges — e.g. a reversed back edge like
-    // groups.dot's a3->a0). They then live in the cluster's interior mincross,
-    // NOT as free nodes of the collapsed graph.
+    // The cluster tree. `pathOf(c)` is the list of clusters from the
+    // top-level cluster down to c (c is the last item).
+    val pathOf: Vector[Vector[Int]] = cinfos.indices.map { ci =>
+      var p = List(ci); var c = cinfos(ci).parent
+      while c >= 0 do { p = c :: p; c = cinfos(c).parent }
+      p.toVector
+    }.toVector
+    /** True when cluster `c` is cluster `k` or is nested in `k`. */
+    def inside(c: Int, k: Int): Boolean = pathOf(c).contains(k)
+    /** The child of `k` that is on the path from `k` down to `c`. */
+    def childOnPath(k: Int, c: Int): Int = pathOf(c)(pathOf(k).length)
+    // A chain vnode belongs to the DEEPEST cluster that holds both ORIGINAL
+    // endpoints of its edge. The default ranker (`node_induce`) puts each
+    // edge into every cluster that holds its two ends, and `class2` of a
+    // cluster ignores an edge whose two ends are in one child cluster. So
+    // the chain comes from the `class2` of that deepest cluster, and that
+    // cluster's interior mincross orders its vnodes (e.g. a reversed back
+    // edge like groups.dot's a3->a0). `mark_lowclusters` gives the vnodes
+    // the same cluster later, for ReMincross.
     val vOrigEnds: Vector[(String, String)] =
       g.edges.filter(e => e.tail != e.head).map(e => (e.tail, e.head))
+    /** The cluster that holds `n` as a DIRECT member: the innermost cluster
+      * of a real node, the deepest common cluster of a chain vnode's two
+      * ends. `None` is the root graph. */
     def cOf(n: LayoutNode): Option[Int] = n match
       case LayoutNode.Real(id) => clustOf.get(id)
       case LayoutNode.Virtual(idx, _) =>
         val (t, h) = vOrigEnds(idx)
         (clustOf.get(t), clustOf.get(h)) match
-          case (Some(a), Some(b)) if a == b => Some(a)
-          case _                            => None
+          case (Some(a), Some(b)) =>
+            pathOf(a).zip(pathOf(b)).takeWhile((x, y) => x == y).lastOption.map(_._1)
+          case _ => None
       // The class2 adjacency this walks is keyed by SEGMENT endpoints, so it
       // holds real nodes and chain vnodes and nothing else. The other kinds
       // arrive later or elsewhere: Slack/ClusterLn/ClusterRn are XCoord's aux
@@ -491,11 +550,31 @@ object Order:
         sys.error(s"Order.cOf: $other is not a mincross node (class2 holds Real/Virtual only)")
     val allNodes = nodeOut.keysIterator.toVector
 
-    // Each cluster's occupied rank band (over the class2 nodes actually present).
+    // Each cluster's occupied rank band (over the class2 nodes actually
+    // present). The band of a cluster covers the nodes of its nested
+    // clusters too (GD_minrank/GD_maxrank).
     val clRanks: Map[Int, (Int, Int)] =
-      allNodes.groupBy(cOf).collect { case (Some(ci), ns) =>
-        val rs = ns.map(rankOf); ci -> (rs.min, rs.max)
+      val band = mutable.HashMap.empty[Int, (Int, Int)]
+      allNodes.foreach { n =>
+        cOf(n).foreach { c =>
+          val r = rankOf(n)
+          pathOf(c).foreach { k =>
+            band(k) = band.get(k).fold((r, r)) { (lo, hi) =>
+              (math.min(lo, r), math.max(hi, r))
+            }
+          }
+        }
       }
+      band.toMap
+    /** The child clusters of `k` that have nodes, in `GD_clust` order. */
+    def childrenOf(k: Int): Vector[Int] =
+      cinfos.indices.filter(c => cinfos(c).parent == k && clRanks.contains(c)).toVector
+    def skColumn(c: Int): Vector[CNode] =
+      val (lo, hi) = clRanks(c)
+      (lo to hi).map(r => CNode.Sk(c, r): CNode).toVector
+    def rankOfC(x: CNode): Int = x match
+      case CNode.Nd(n)    => rankOf(n)
+      case CNode.Sk(_, r) => r
 
     // ── each cluster's interior INSTALL: `expand_cluster` → build_ranks(subg,
     //    0) — a single pass-0 BFS over the intra-cluster segments, roots
@@ -503,43 +582,87 @@ object Order:
     //    g != root, "to preserve input node order"). NO local iterations —
     //    the refinement happens afterwards against the GLOBAL order
     //    (`mincross(subg, 2)`), where crossings/medians see the whole graph. ──
-    def internalInstall(ci: Int): Map[Int, Vector[LayoutNode]] =
-      val members = allNodes.filter(n => cOf(n).contains(ci)).toSet
-      val iOut  = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
-      val iIn   = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
-      members.foreach { n =>
-        iOut.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
-        iIn.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
+    //
+    // `class2(subg)` collapses each CHILD cluster of subg to a skeleton
+    // column (`build_skeleton`), and `interclrep` maps an edge end in a
+    // child cluster to the child's rankleader at that rank. An edge with
+    // both ends in one child cluster is ignored here: the child's own
+    // expansion handles it later.
+    def internalInstall(ci: Int): Map[Int, Vector[CNode]] =
+      val kids = childrenOf(ci)
+      // The interior node that stands for `n`, or None if `n` is outside ci.
+      def leaderIn(n: LayoutNode): Option[CNode] = cOf(n) match
+        case Some(c) if c == ci        => Some(CNode.Nd(n))
+        case Some(c) if inside(c, ci)  => Some(CNode.Sk(childOnPath(ci, c), rankOf(n)))
+        case _                         => None
+      val iOut  = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+      val iIn   = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+      def touch(x: CNode): Unit =
+        iOut.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
+        iIn.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
+      def link(a: CNode, b: CNode): Unit =
+        touch(a); touch(b); iOut(a) += b; iIn(b) += a
+      // build_skeleton runs before the node loop of class2, so the chain
+      // edge is the first out-edge of each rankleader.
+      kids.foreach { c =>
+        val col = skColumn(c)
+        col.foreach(touch)
+        col.iterator.zip(col.iterator.drop(1)).foreach((a, b) => link(a, b))
       }
-      allNodes.foreach { t =>
-        if members.contains(t) then
-          nodeOut(t).foreach { h => if members.contains(h) then { iOut(t) += h; iIn(h) += t } }
+      allNodes.foreach(n => if cOf(n).contains(ci) then touch(CNode.Nd(n)))
+      segsInOrder.foreach { (t, h) =>
+        (leaderIn(t), leaderIn(h)) match
+          case (Some(lt), Some(lh)) =>
+            val intra = (lt, lh) match
+              case (CNode.Sk(c1, _), CNode.Sk(c2, _)) => c1 == c2
+              case _                                  => lt == lh
+            if !intra then link(lt, lh)
+          case _ => ()
       }
       val declared = cinfos(ci).nodeIds.iterator.map(id => LayoutNode.Real(id): LayoutNode)
-        .filter(members.contains).toVector
+        .filter(n => cOf(n).contains(ci)).map(n => CNode.Nd(n): CNode).toVector
       // interior chain vnodes in class2(subg) creation order: per owning edge
       // (in the per-tail, head-seq emission order the global chains used),
       // min→max rank within a chain.
-      val virtuals = members.iterator.collect { case v: LayoutNode.Virtual => v }
-        .toVector.sortBy(v => (v.edgeIdx, v.rank)).map(v => v: LayoutNode)
-      val nlist = declared ++ virtuals
-      val rows  = mutable.HashMap.empty[Int, mutable.ArrayBuffer[LayoutNode]]
-      val mark  = mutable.Set.empty[LayoutNode]
-      val q     = mutable.Queue.empty[LayoutNode]
-      def install(n: LayoutNode): Unit =
-        rows.getOrElseUpdate(rankOf(n), mutable.ArrayBuffer.empty) += n
+      val virtuals = allNodes.iterator
+        .collect { case v: LayoutNode.Virtual if cOf(v).contains(ci) => v }
+        .toVector.sortBy(v => (v.edgeIdx, v.rank)).map(v => CNode.Nd(v): CNode)
+      // build_skeleton calls virtual_node(subg) for each child before the
+      // node loop, so the rankleaders come first in creation order.
+      val nlist = kids.flatMap(skColumn) ++ declared ++ virtuals
+      val rows  = mutable.HashMap.empty[Int, mutable.ArrayBuffer[CNode]]
+      val mark  = mutable.Set.empty[CNode]
+      val q     = mutable.Queue.empty[CNode]
+      val colInstalled = mutable.Set.empty[Int] // GD_installed guard
+      def install(x: CNode): Unit =
+        rows.getOrElseUpdate(rankOfC(x), mutable.ArrayBuffer.empty) += x
+      def enq(x: CNode): Unit =
+        iOut(x).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
+      // install_cluster: a dequeued rankleader installs the whole column of
+      // its cluster once, then enqueues the neighbours of each column node.
+      def handle(x: CNode): Unit = x match
+        case CNode.Sk(c, _) =>
+          if !colInstalled(c) then
+            colInstalled += c
+            val col = skColumn(c)
+            col.foreach(install)
+            col.foreach(enq)
+        case _ => install(x); enq(x)
       // build_ranks `walkbackwards`: the cluster nlist is built by fast_node
       // PREPENDS (reverse insertion), and the backward walk restores insertion
-      // order — which is exactly this list's forward order (reals in
-      // declaration order, then chain vnodes in creation order).
+      // order — which is exactly this list's forward order (the child
+      // rankleaders, then reals in declaration order, then chain vnodes in
+      // creation order).
       nlist.foreach { root =>
         if iIn(root).isEmpty && !mark(root) then
           mark += root; q.enqueue(root)
-          while q.nonEmpty do
-            val n0 = q.dequeue(); install(n0)
-            iOut(n0).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
+          while q.nonEmpty do handle(q.dequeue())
       }
-      nlist.foreach(n => if !mark(n) then { mark += n; install(n) }) // safety net
+      nlist.foreach { n => // safety net
+        if !mark(n) then
+          mark += n; handle(n)
+          while q.nonEmpty do handle(q.dequeue())
+      }
       // NO per-rank flip reversal here. build_ranks guards it on `GD_flip(g)`
       // = `GD_rankdir(g) & 1`, and `graph_init` (input.c:586) — the only place
       // rankdir is parsed — runs on the ROOT alone, so a cluster subgraph's
@@ -548,9 +671,12 @@ object Order:
       // un-mirrored each cluster's interior relative to the rank around it.
       rows.iterator.map((r, b) => r -> b.toVector).toMap
 
-    // ── collapse: free nodes pass through, each cluster → a skeleton chain. ──
+    // ── collapse: free nodes pass through, each TOP-LEVEL cluster → a
+    //    skeleton chain. `class2(root)` collapses only the top-level clusters,
+    //    and `mark_clusters(root)` gives each node of such a cluster (nested
+    //    members too) that cluster as ND_clust. ──
     def leaderC(n: LayoutNode): CNode = cOf(n) match
-      case Some(ci) => CNode.Sk(ci, rankOf(n))
+      case Some(ci) => CNode.Sk(pathOf(ci).head, rankOf(n))
       case None     => CNode.Nd(n)
     val cOut  = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
     val cIn   = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
@@ -560,7 +686,8 @@ object Order:
       cIn.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
       cRank(x) = r
     allNodes.foreach(n => if cOf(n).isEmpty then cInit(CNode.Nd(n), rankOf(n)))
-    clRanks.foreach { case (ci, (lo, hi)) =>
+    childrenOf(-1).foreach { ci =>
+      val (lo, hi) = clRanks(ci)
       (lo to hi).foreach(r => cInit(CNode.Sk(ci, r), r))
       (lo until hi).foreach { r => // build_skeleton chain (keeps the column together)
         cOut(CNode.Sk(ci, r)) += CNode.Sk(ci, r + 1); cIn(CNode.Sk(ci, r + 1)) += CNode.Sk(ci, r)
@@ -596,7 +723,21 @@ object Order:
       .filter(rankOf.contains)
       .map(leaderC).distinct.toVector
     val cOthers = cOut.keysIterator.filterNot(cSeeds.contains).toVector
-    val cSeed   = decomposeOrder(cSeeds, cOthers, cOut, cIn)
+    // class2(root) makes a flat edge only when its two ends are root nodes.
+    // `interclrep` drops a flat edge that has an end in a cluster. The
+    // expansion of that cluster makes the edge later: `class2(subg)` when
+    // the two ends are direct members of one cluster, else `interclexp`.
+    val rootFlat: Vector[(CNode, CNode, Double)] = flatPairs.collect {
+      case (t, h, w) if cOf(t).isEmpty && cOf(h).isEmpty => (CNode.Nd(t): CNode, CNode.Nd(h): CNode, w)
+    }
+    val rootFlatOut = mutable.HashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+    val rootFlatIn  = mutable.HashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+    rootFlat.foreach { (t, h, _) =>
+      rootFlatOut.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += h
+      rootFlatIn.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += t
+    }
+    // decompose(g, 1) also follows the flat edges of the root.
+    val cSeed = decomposeOrder(cSeeds, cOthers, cOut, cIn, rootFlatOut, rootFlatIn)
     // skeleton chain edges carry ED_xpenalty = CL_CROSS (1000, build_skeleton);
     // a skeleton node stands for its whole rankleader column (install_cluster).
     val skWeight: (CNode, CNode) => Long =
@@ -608,8 +749,12 @@ object Order:
     val skColNodes: Int => Vector[CNode] = ci =>
       val (lo, hi) = clRanks(ci)
       (lo to hi).map(r => CNode.Sk(ci, r): CNode).toVector
+    // The root pass runs flat_breakcycles, flat_reorder and left2right on the
+    // root flat edges. Its flat state stays for the passes that follow.
+    val rootSink = FlatSink[CNode]()
     val (cOrder, cCross) = runMincross(cOut, cIn, cRank, cSeed, flip,
-      weight = skWeight, columnOf = skColOf, columnNodes = skColNodes)
+      weight = skWeight, columnOf = skColOf, columnNodes = skColNodes,
+      flatPairs = rootFlat, flatSink = Some(rootSink))
 
     // ── merge2 (mincross.c:1023): the component rank arrays merge into the
     //    root's, but the CLUSTERS STAY COLLAPSED — each is still one rankleader
@@ -653,9 +798,18 @@ object Order:
     val hIn     = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
     val hWeight = mutable.HashMap.empty[(CNode, CNode), Long]
     val hPorts  = mutable.HashMap.empty[(CNode, CNode), SegPorts]
+    // With nested clusters, the walk goes down the cluster path of the node:
+    // the first cluster on the path that is not expanded gives the
+    // rankleader. Its parent is the root or is expanded, so its skeleton
+    // chain is live. A deeper cluster has no skeleton yet.
     def liveNode(n: LayoutNode): CNode = cOf(n) match
-      case Some(ci) if !expanded(ci) => CNode.Sk(ci, rankOf(n))
-      case _                         => CNode.Nd(n)
+      case Some(ci) =>
+        pathOf(ci).find(c => !expanded(c)) match
+          case Some(c) => CNode.Sk(c, rankOf(n))
+          case None    => CNode.Nd(n)
+      case None => CNode.Nd(n)
+    def skeletonLive(ci: Int): Boolean =
+      !expanded(ci) && { val p = cinfos(ci).parent; p < 0 || expanded(p) }
     def rebuildAdjacency(): Unit =
       hOut.clear(); hIn.clear(); hWeight.clear(); hPorts.clear()
       def touch(x: CNode): Unit =
@@ -663,7 +817,7 @@ object Order:
         hIn.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
       rows.valuesIterator.foreach(_.foreach(touch))
       clRanks.foreach { case (ci, (lo, hi)) =>
-        if !expanded(ci) then
+        if skeletonLive(ci) then
           (lo until hi).foreach { r =>
             val a = CNode.Sk(ci, r); val b = CNode.Sk(ci, r + 1)
             touch(a); touch(b)
@@ -697,20 +851,68 @@ object Order:
     def clustOfC(x: CNode): Option[Int] = x match
       case CNode.Nd(n)     => cOf(n)
       case CNode.Sk(ci, _) => Some(ci)
+    /** True when `x` is inside cluster `k` (a rankleader of a child of `k`
+      * is inside `k`). The slice of `k` on a rank is the run of these. */
+    def insideC(x: CNode, k: Int): Boolean = clustOfC(x).exists(c => inside(c, k))
 
-    // Flat (same-rank) adjacency, in the CNode domain. A node whose only
-    // neighbours share its rank has EMPTY in/out fast lists, so `medians`
-    // records no median for it and `flat_mval` (mincross.c:1706) is the only
-    // thing that seats it — 191's PredictorView/PredictorState reach their
-    // cluster only through flat edges to ProgramPredictorsGiven.
-    val fInC  = mutable.HashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
-    val fOutC = mutable.HashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
-    flatPairs.foreach { (t, h, w) =>
-      if w != 0.0 then
-        val (ct, ch) = (CNode.Nd(t): CNode, CNode.Nd(h): CNode)
-        fOutC.getOrElseUpdate(ct, mutable.ArrayBuffer.empty) += ch
-        fInC.getOrElseUpdate(ch, mutable.ArrayBuffer.empty) += ct
-      }
+    // ── the flat (same-rank) edges, in the CNode domain ───────────────────
+    // ND_flat_out, ND_flat_in and ED_weight change during dot_mincross. The
+    // root pass starts them with the root flat edges and changes them with
+    // flat_rev. Each expand_cluster adds the edges of its cluster
+    // (class2(subg), then interclexp). The flat_breakcycles and flat_reorder
+    // of each cluster change them again with flat_rev.
+    val flOut = rootSink.out
+    val flIn  = rootSink.in
+    val flWt  = rootSink.wt
+    def fOut(n: CNode): mutable.ArrayBuffer[CNode] = flOut.getOrElse(n, emptyRow)
+    def fIn(n: CNode): mutable.ArrayBuffer[CNode]  = flIn.getOrElse(n, emptyRow)
+    /** ND_low (`flatindex`). The root pass sets it on its nodes; the
+      * flat_breakcycles of a cluster sets it again on the nodes of its slice. */
+    val ndLow = rootSink.low
+    /** GD_rank(g)[r].flat, keyed by (graph, rank). Graph -1 is the root. */
+    val flatMx = mutable.HashMap.empty[(Int, Int), mutable.HashSet[(Int, Int)]]
+    rootSink.mx.foreach((r, m) => flatMx((-1, r)) = m)
+    /** GD_has_flat_edges of each cluster: `flat_edge(subg, e)` sets it. */
+    val hasFlatEdges = mutable.Set.empty[Int]
+    // The flat edges at a node, in the cgraph order: the out-edges by head
+    // seq (the `flatPairs` order), the in-edges by tail seq.
+    val flatByTail: Map[LayoutNode, Vector[(LayoutNode, LayoutNode, Double)]] =
+      flatPairs.groupBy(_._1)
+    val flatByHead: Map[LayoutNode, Vector[(LayoutNode, LayoutNode, Double)]] =
+      val seq = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+      def seqOf(n: LayoutNode): Int = n match
+        case LayoutNode.Real(id) => seq.getOrElse(id, Int.MaxValue)
+        case _                   => Int.MaxValue
+      flatPairs.zipWithIndex.groupBy(_._1._2).view
+        .mapValues(_.sortBy((p, i) => (seqOf(p._1), i)).map(_._1)).toMap
+    /** `flat_edge(g, e)` (fastgr.c): append the edge to the two lists. The
+      * graph `g` is a cluster index, or -1 for the root. */
+    def flatEdge(gi: Int, t: CNode, h: CNode, w: Double): Unit =
+      flOut.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += h
+      flIn.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += t
+      flWt((t, h)) = w
+      if gi >= 0 then hasFlatEdges += gi
+    /** `delete_flat_edge` + `flat_rev` (mincross.c): the reversed edge merges
+      * into an edge h -> t that exists (`merge_oneway` adds the weight), else
+      * it is a new edge of graph `gi` (`new_virtual_edge` copies the weight). */
+    def flatRev(gi: Int, t: CNode, h: CNode): Unit =
+      val w = flWt.remove((t, h)).getOrElse(0.0)
+      zap(fOut(t), h); zap(fIn(h), t)
+      if fOut(h).contains(t) then flWt((h, t)) = flWt.getOrElse((h, t), 0.0) + w
+      else flatEdge(gi, h, t, w)
+    /** `inside_cluster(g, v)` for the flat machinery: a NORMAL node that
+      * `agcontains(g, v)`. A flat edge has two real ends during mincross, so
+      * the VIRTUAL branch of gv never applies here. */
+    def insideReal(x: CNode, k: Int): Boolean = x match
+      case CNode.Nd(LayoutNode.Real(_)) => insideC(x, k)
+      case _                            => false
+
+    // A node whose only neighbours share its rank has EMPTY in/out fast
+    // lists, so `medians` records no median for it and `flat_mval`
+    // (mincross.c:1706) is the only thing that seats it — 191's
+    // PredictorView/PredictorState reach their cluster only through flat
+    // edges to ProgramPredictorsGiven. `flat_mval` reads the lists as they
+    // are now, with the weight-0 edges too.
     /** `flat_mval` — seat an edgeless node beside its flat neighbour: one to
       * the RIGHT of its highest-order flat-in tail, else one to the LEFT of
       * its lowest-order flat-out head. Returns true when it could not (⇒
@@ -725,13 +927,13 @@ object Order:
       // interclexp wires a flat edge to the REAL node even while that node's
       // cluster is still collapsed, and gv just reads its stale ND_order.
       def ordOf(x: CNode): Int = gpos.getOrElse(x, 0)
-      val fin = fInC.getOrElse(n, mutable.ArrayBuffer.empty)
+      val fin = fIn(n)
       if fin.nonEmpty then
         var nn = fin(0)
         fin.foreach(t => if ordOf(t) > ordOf(nn) then nn = t)
         if mvalOf(nn) >= 0 then { mval(n) = mvalOf(nn) + 1; false } else true
       else
-        val fout = fOutC.getOrElse(n, mutable.ArrayBuffer.empty)
+        val fout = fOut(n)
         if fout.nonEmpty then
           var nn = fout(0)
           fout.foreach(h => if ordOf(h) < ordOf(nn) then nn = h)
@@ -745,13 +947,17 @@ object Order:
       val interior = internalInstall(ci)
       // merge_ranks: fast_node PREPENDS each node, walking ranks ascending and
       // each rank left-to-right, so this block lands at the head reversed.
+      // The rankleaders of the child clusters go into GD_nlist too, but
+      // `remove_rankleaders` deletes them when the child expands, so they
+      // never reach `dot_position`.
       mergedNlist.prependAll(
         (clRanks(ci)._1 to clRanks(ci)._2)
-          .flatMap(r => interior.getOrElse(r, Vector.empty)).reverse)
+          .flatMap(r => interior.getOrElse(r, Vector.empty))
+          .collect { case CNode.Nd(n) => n }.reverse)
       val (lo, hi) = clRanks(ci)
       (lo to hi).foreach { r =>
         val rb   = rows.getOrElseUpdate(r, mutable.ArrayBuffer.empty)
-        val repl = interior.getOrElse(r, Vector.empty).map(n => CNode.Nd(n): CNode)
+        val repl = interior.getOrElse(r, Vector.empty)
         val idx  = rb.indexOf(CNode.Sk(ci, r): CNode)
         if idx >= 0 then { rb.remove(idx); rb.insertAll(idx, repl) }
         else rb ++= repl
@@ -759,6 +965,29 @@ object Order:
       expanded += ci
       rebuildAdjacency()
       reindex()
+      // class2(subg): a flat edge between two DIRECT members of ci is a flat
+      // edge of ci. `flatPairs` has the class2 order (each tail in node
+      // order, its out-edges by head seq), and it merged the parallels.
+      flatPairs.foreach { (t, h, w) =>
+        if cOf(t).contains(ci) && cOf(h).contains(ci) then
+          flatEdge(ci, CNode.Nd(t), CNode.Nd(h), w)
+      }
+      // interclexp(subg): each node of ci (nested members too), in node
+      // order, walks its root edges (out-edges, then in-edges). A flat edge
+      // with one end outside ci becomes a ROOT flat edge, unless
+      // `find_flat_edge(tail, head)` finds one. An edge that a flat_rev
+      // reversed is not found, so gv makes the original edge again.
+      def insideCi(n: LayoutNode): Boolean = cOf(n).exists(c => inside(c, ci))
+      g.nodes.foreach { nn =>
+        val n: LayoutNode = LayoutNode.Real(nn.id)
+        if insideCi(n) then
+          val outs = flatByTail.getOrElse(n, Vector.empty).filter(p => !insideCi(p._2))
+          val ins  = flatByHead.getOrElse(n, Vector.empty).filter(p => !insideCi(p._1))
+          (outs ++ ins).foreach { (t, h, w) =>
+            val (ct, ch) = (CNode.Nd(t): CNode, CNode.Nd(h): CNode)
+            if !fOut(ct).contains(ch) then flatEdge(-1, ct, ch, w)
+          }
+      }
 
 
     // ── per-cluster refinement: `mincross_clust` → mincross(subg, 2). The
@@ -822,13 +1051,110 @@ object Order:
       def slice(r: Int): (Int, Int) = // [from, until) of this cluster's members
         val rb   = rows(r)
         var from = 0
-        while from < rb.length && !clustOfC(rb(from)).contains(ci) do from += 1
+        while from < rb.length && !insideC(rb(from), ci) do from += 1
         var until = from
-        while until < rb.length && clustOfC(rb(until)).contains(ci) do until += 1
+        while until < rb.length && insideC(rb(until), ci) do until += 1
         (from, until)
       def exchange(r: Int, i: Int, j: Int): Unit =
         val rb = rows(r); val a = rb(i); val b = rb(j)
         rb(i) = b; rb(j) = a; gpos(a) = j; gpos(b) = i
+
+      // ── flat_breakcycles(subg) (mincross.c) ────────────────────────────
+      // Per rank of ci: ND_low = the index in the cluster's slice, for every
+      // node. A rank gets a new matrix only when a node of the slice has a
+      // flat out-edge. `flat_search` skips an edge with an end outside ci
+      // (`hascl` is true) and an edge of weight 0.
+      def flatBreakcycles(): Unit =
+        (cLo to cHi).foreach { r =>
+          val (from, until) = slice(r)
+          val rb  = rows(r)
+          var any = false
+          (from until until).foreach { k =>
+            ndLow(rb(k)) = k - from
+            if fOut(rb(k)).nonEmpty then any = true
+          }
+          if any then
+            val m = mutable.HashSet.empty[(Int, Int)] // new_matrix
+            flatMx((ci, r)) = m
+            val mark    = mutable.Set.empty[CNode]
+            val onstack = mutable.Set.empty[CNode]
+            def search(v: CNode): Unit = // flat_search
+              mark += v; onstack += v
+              val lst = fOut(v)
+              var i = 0
+              while i < lst.length do
+                val h = lst(i)
+                if !(insideReal(v, ci) && insideReal(h, ci)) then i += 1 // agcontains
+                else if flWt.getOrElse((v, h), 0.0) == 0.0 then i += 1
+                else if onstack(h) then
+                  m += ((ndLow(h), ndLow(v)))
+                  flatRev(ci, v, h) // the last item moves to lst(i): do not advance
+                else
+                  m += ((ndLow(v), ndLow(h)))
+                  if !mark(h) then search(h)
+                  i += 1
+              onstack -= v
+            (from until until).foreach(k => if !mark(rb(k)) then search(rb(k)))
+        }
+
+      // ── flat_reorder(subg) (mincross.c) ────────────────────────────────
+      // The same reverse-topological sort as the root pass, on the slice of
+      // each rank. An edge is constraining only when its weight is not 0 and
+      // its two ends are inside ci. GD_flip(subg) is always 0 (see
+      // internalInstall), so the scan goes right to left and the result is
+      // reversed. Then each flat out-edge of the slice that points right to
+      // left gets flat_rev: the head can be outside ci, and then its order
+      // is its order in the root rank.
+      def flatReorder(): Unit =
+        if hasFlatEdges(ci) then
+          (cLo to cHi).foreach { r =>
+            val (from, until) = slice(r)
+            val n  = until - from
+            val rb = rows(r)
+            if n > 0 then
+              def constraining(t: CNode, h: CNode): Boolean =
+                flWt.getOrElse((t, h), 0.0) != 0.0 && insideReal(t, ci) && insideReal(h, ci)
+              val fmark = mutable.Set.empty[CNode]
+              val temp  = mutable.ArrayBuffer.empty[CNode]
+              def post(v: CNode): Unit = // postorder
+                fmark += v
+                fOut(v).foreach(h => if constraining(v, h) && !fmark(h) then post(h))
+                temp += v
+              var i = 0
+              while i < n do
+                val v      = rb(until - 1 - i)
+                val inCnt  = fIn(v).count(t => constraining(t, v))
+                val outCnt = fOut(v).count(h => constraining(v, h))
+                if inCnt == 0 && outCnt == 0 then temp += v
+                else if !fmark(v) && inCnt == 0 then post(v)
+                i += 1
+              if temp.length == n then
+                val sorted = temp.reverse
+                (0 until n).foreach { j => rb(from + j) = sorted(j); gpos(sorted(j)) = from + j }
+                (from until until).foreach { k =>
+                  val v   = rb(k)
+                  val lst = fOut(v)
+                  var j = 0
+                  while j < lst.length do
+                    val h = lst(j)
+                    if gpos.getOrElse(h, 0) < gpos(v) then
+                      flatRev(ci, v, h) // the last item moves to lst(j): do not advance
+                    else j += 1
+                }
+          }
+
+      /** `left2right(subg, v, w)` with ReMincross off. Two rankleaders of
+        * different child clusters may swap (the ND_clust rule gives false).
+        * Other pairs read the matrix of ci at ND_low. A rankleader has no
+        * flat edge, so the matrix never holds it. */
+      def left2right(v: CNode, w: CNode): Boolean =
+        flatMx.get((ci, rankOfC(v))) match
+          case None    => false
+          case Some(m) => m.contains((ndLow.getOrElse(v, -1), ndLow.getOrElse(w, -1)))
+
+      flatBreakcycles()
+      flatReorder()
+
       val mval = mutable.HashMap.empty[CNode, Double]
       def medians(r0: Int, r1: Int): Boolean =
         val (from, until) = slice(r0)
@@ -877,20 +1203,35 @@ object Order:
           while lp < ep do
             while lp < ep && mval.getOrElse(rb(lp), -1.0) < 0 do lp += 1
             if lp < ep then
-              // NO sawclust here. The `###` rule keys off ND_clust, and
-              // `expand_cluster` runs `class2(subg)` → `mark_clusters(subg)`,
-              // whose first loop sets `ND_clust(n) = NULL` for every node of
-              // subg (it then re-marks only subg's OWN sub-clusters). So while
-              // a cluster's interior mincross runs, its nodes carry no cluster
-              // — the rule is inert until `mark_lowclusters` re-stamps them
-              // just before ReMincross, where it DOES apply.
+              // The `###` rule keys off ND_clust, and `expand_cluster` runs
+              // `class2(subg)` → `mark_clusters(subg)`, whose first loop sets
+              // `ND_clust(n) = NULL` for every node of subg. Its second loop
+              // marks only the nodes of subg's OWN child clusters, and these
+              // are not in the slice: their rankleaders are. So in this pass
+              // ND_clust is set exactly on the child rankleaders (`Sk`), and
+              // the rule applies to them. `left2right` reads the flat matrix
+              // of ci: a constraining flat edge from lp to a scanned node
+              // pins lp (muststay).
               var rp = lp + 1
-              while rp < ep && mval.getOrElse(rb(rp), -1.0) < 0 do rp += 1
+              var muststay = false
+              var found    = false
+              var sawclust = false
+              while rp < ep && !muststay && !found do
+                val isSk = rb(rp) match
+                  case _: CNode.Sk => true
+                  case _           => false
+                if sawclust && isSk then rp += 1 // ###
+                else if left2right(rb(lp), rb(rp)) then muststay = true
+                else if mval.getOrElse(rb(rp), -1.0) >= 0 then found = true
+                else
+                  if isSk then sawclust = true // ###
+                  rp += 1
               if rp < ep then
-                val p1 = mval.getOrElse(rb(lp), -1.0)
-                val p2 = mval.getOrElse(rb(rp), -1.0)
-                val doSwap = p1 > p2 || (p1 >= p2 && reverse)
-                if doSwap then exchange(r, lp, rp)
+                if !muststay then
+                  val p1 = mval.getOrElse(rb(lp), -1.0)
+                  val p2 = mval.getOrElse(rb(rp), -1.0)
+                  val doSwap = p1 > p2 || (p1 >= p2 && reverse)
+                  if doSwap then exchange(r, lp, rp)
                 lp = rp
               else lp = ep
             else lp = ep
@@ -935,14 +1276,16 @@ object Order:
         var i = from
         while i < until - 1 do
           val v = rb(i); val w = rb(i + 1)
-          val c0 = crossIn(v, w) + (if hasBelow then crossOut(v, w) else 0L)
-          val c1 = crossIn(w, v) + (if hasBelow then crossOut(w, v) else 0L)
-          if c1 < c0 || (c0 > 0 && reverse && c1 == c0) then
-            exchange(r, i, i + 1)
-            delta += c0 - c1
-            candidate(r) = true
-            if r > cLo then candidate(r - 1) = true
-            if r < cHi then candidate(r + 1) = true
+          // a constraining flat edge v -> w pins the pair
+          if !left2right(v, w) then
+            val c0 = crossIn(v, w) + (if hasBelow then crossOut(v, w) else 0L)
+            val c1 = crossIn(w, v) + (if hasBelow then crossOut(w, v) else 0L)
+            if c1 < c0 || (c0 > 0 && reverse && c1 == c0) then
+              exchange(r, i, i + 1)
+              delta += c0 - c1
+              candidate(r) = true
+              if r > cLo then candidate(r - 1) = true
+              if r < cHi then candidate(r + 1) = true
           i += 1
         delta
       def transpose(reverse: Boolean): Unit =
@@ -1012,7 +1355,20 @@ object Order:
     //    with DIFFERING clusters (free↔cluster or two clusters), so free
     //    nodes weave between cluster columns while boundaries hold. ──
     locally {
-      def pinned(v: CNode, w: CNode): Boolean = clustOfC(v) != clustOfC(w)
+      // left2right(root, v, w) with ReMincross on. A pair in one graph reads
+      // GD_rank(root)[r].flat: the matrix of the ROOT pass, which holds only
+      // the root flat edges. gv reads it at ND_low, and the flat_breakcycles
+      // of a cluster set ND_low again on the nodes of its slice. So a pair of
+      // one cluster reads the root matrix at its slice indices: a flat edge
+      // of a cluster does not pin its ends here, and a root flat edge at the
+      // same indices pins them. An index out of range reads false.
+      def pinned(v0: CNode, w0: CNode): Boolean =
+        if clustOfC(v0) != clustOfC(w0) then true
+        else flatMx.get((-1, rankOfC(v0))) match
+          case None    => false
+          case Some(m) =>
+            val (v, w) = if flip then (w0, v0) else (v0, w0)
+            m.contains((ndLow.getOrElse(v, -1), ndLow.getOrElse(w, -1)))
       def exchange(r: Int, i: Int, j: Int): Unit =
         val rb = rows(r); val a = rb(i); val b = rb(j)
         rb(i) = b; rb(j) = a; gpos(a) = j; gpos(b) = i
@@ -1210,7 +1566,9 @@ object Order:
       hasPort:     N => Boolean = (_: N) => false,
       /** Flat (same-rank) edge reps `(tail, head, ED_weight)` in class2
         * order — drives flat_breakcycles / flat_reorder / left2right. */
-      flatPairs:   Vector[(N, N, Double)] = Vector.empty[(N, N, Double)]
+      flatPairs:   Vector[(N, N, Double)] = Vector.empty[(N, N, Double)],
+      /** When set, each component writes its final flat state here. */
+      flatSink:    Option[FlatSink[N]] = None
   )(using CanEqual[N, N]): (Map[Int, Vector[N]], Long) =
     // dot_mincross runs the FULL driver PER CONNECTED COMPONENT: decompose
     // splits the fast graph (out/in + FLAT adjacency, decomp.c) and
@@ -1268,7 +1626,7 @@ object Order:
         * existing (h,t) (merge_oneway sums weight) or appends as a new one. */
       def flatRev(t: N, h: N): Unit =
         val w = flWt.remove((t, h)).getOrElse(0.0)
-        fOut(t) -= h; fIn(h) -= t
+        zap(fOut(t), h); zap(fIn(h), t) // delete_flat_edge
         if fOut(h).contains(t) then flWt((h, t)) = flWt.getOrElse((h, t), 0.0) + w
         else
           flOut.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += t
@@ -1286,36 +1644,39 @@ object Order:
             (flatIdx.get(a), flatIdx.get(b)) match
               case (Some(ia), Some(ib)) => m.contains((ia, ib))
               case _                    => false
+      // gv sets ND_low on EVERY node of every rank, also on a rank (or in a
+      // component) with no flat edges. Only a later pass with clusters
+      // (ReMincross) reads the ND_low of such a node.
       def flatBreakcycles(): Unit =
-        if hasFlat then
-          val fmark   = mutable.Set.empty[N]
-          val onstack = mutable.Set.empty[N]
-          (minR to maxR).foreach { r =>
-            val rb  = ranks(r)
-            var any = false
-            rb.iterator.zipWithIndex.foreach { (v, i) =>
-              flatIdx(v) = i
-              if fOut(v).nonEmpty then any = true
-            }
-            if any then
-              val m = flatMx.getOrElseUpdate(r, mutable.HashSet.empty)
-              def search(v: N): Unit = // flat_search (mincross.c:1148)
-                fmark += v; onstack += v
-                val lst = fOut(v)
-                var i = 0
-                while i < lst.length do
-                  val h = lst(i)
-                  if flWt.getOrElse((v, h), 0.0) == 0.0 then i += 1
-                  else if onstack(h) then
-                    m += ((flatIdx(h), flatIdx(v)))
-                    flatRev(v, h) // removes lst(i) — do not advance
-                  else
-                    m += ((flatIdx(v), flatIdx(h)))
-                    if !fmark(h) then search(h)
-                    i += 1
-                onstack -= v
-              rb.foreach(v => if !fmark(v) then search(v))
+        val fmark   = mutable.Set.empty[N]
+        val onstack = mutable.Set.empty[N]
+        (minR to maxR).foreach { r =>
+          val rb  = ranks(r)
+          var any = false
+          rb.iterator.zipWithIndex.foreach { (v, i) =>
+            flatIdx(v) = i
+            if fOut(v).nonEmpty then any = true
           }
+          if any then
+            val m = mutable.HashSet.empty[(Int, Int)] // new_matrix
+            flatMx(r) = m
+            def search(v: N): Unit = // flat_search (mincross.c:1148)
+              fmark += v; onstack += v
+              val lst = fOut(v)
+              var i = 0
+              while i < lst.length do
+                val h = lst(i)
+                if flWt.getOrElse((v, h), 0.0) == 0.0 then i += 1
+                else if onstack(h) then
+                  m += ((flatIdx(h), flatIdx(v)))
+                  flatRev(v, h) // the last item moves to lst(i): do not advance
+                else
+                  m += ((flatIdx(v), flatIdx(h)))
+                  if !fmark(h) then search(h)
+                  i += 1
+              onstack -= v
+            rb.foreach(v => if !fmark(v) then search(v))
+        }
       /** flat_reorder (mincross.c:1420): per rank, reverse-topological sort of
         * the constraining flat DAG (postorder DFS from constraint-free seeds,
         * scanned right-to-left for TB), then the reversed result becomes the
@@ -1356,7 +1717,7 @@ object Order:
                   while j < lst.length do
                     val h = lst(j)
                     if (!flip && pos(h) < pos(v)) || (flip && pos(h) > pos(v)) then
-                      flatRev(v, h) // removes lst(j) — do not advance
+                      flatRev(v, h) // the last item moves to lst(j): do not advance
                     else j += 1
                   vi += 1
           }
@@ -1673,6 +2034,16 @@ object Order:
         pass += 1
       if cur > bestCross then restore(best)
       if bestCross > 0 then { transpose(false); bestCross = ncross }
+      // The components have no common nodes, so a union keeps each list.
+      // A matrix replaces the matrix of an earlier component on its rank,
+      // as `new_matrix` replaces the pointer in GD_rank(g)[r].flat.
+      flatSink.foreach { s =>
+        flOut.foreach((n, l) => s.out(n) = l)
+        flIn.foreach((n, l) => s.in(n) = l)
+        s.wt ++= flWt
+        s.low ++= flatIdx
+        flatMx.foreach((r, m) => s.mx(r) = m)
+      }
       (snapshot(), bestCross)
 
     if comps.length == 1 then runOne(comps.head, flatPairs)

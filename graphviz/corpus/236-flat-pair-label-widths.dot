@@ -1,0 +1,3 @@
+digraph "FlatPairLabelWidths" {
+    { rank=same; a -> b [label=long_label]; b -> a [label=s]; a -> b }
+}
