@@ -1,0 +1,141 @@
+{
+  "name": "NestedClusterInteriorSawclust",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 258 252",
+  "_subgraph_cnt": 4,
+  "objects": [
+    {
+      "name": "cluster_o",
+      "_gvid": 0,
+      "subgraphs": [
+        1,
+2,
+3
+      ],
+      "nodes": [
+        6,7,8,9,10,11
+      ],
+      "edges": [
+        2,4,6
+      ]
+    },
+    {
+      "name": "cluster_c1",
+      "_gvid": 1,
+      "nodes": [
+        6,7
+      ],
+      "edges": [
+        2
+      ]
+    },
+    {
+      "name": "cluster_c0",
+      "_gvid": 2,
+      "nodes": [
+        8,9
+      ],
+      "edges": [
+        4
+      ]
+    },
+    {
+      "name": "cluster_c2",
+      "_gvid": 3,
+      "nodes": [
+        10,11
+      ],
+      "edges": [
+        6
+      ]
+    },
+    {
+      "_gvid": 4,
+      "name": "y",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "q1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "q2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "p1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "p2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 10,
+      "name": "s1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 11,
+      "name": "s2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 12,
+      "name": "z",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 2,
+      "tail": 6,
+      "head": 7
+    },
+    {
+      "_gvid": 4,
+      "tail": 8,
+      "head": 9
+    },
+    {
+      "_gvid": 6,
+      "tail": 10,
+      "head": 11
+    },
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 6
+    },
+    {
+      "_gvid": 0,
+      "tail": 4,
+      "head": 10
+    },
+    {
+      "_gvid": 3,
+      "tail": 7,
+      "head": 12
+    },
+    {
+      "_gvid": 5,
+      "tail": 9,
+      "head": 12
+    },
+    {
+      "_gvid": 7,
+      "tail": 11,
+      "head": 12
+    }
+  ]
+}

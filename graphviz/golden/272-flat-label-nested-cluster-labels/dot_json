@@ -1,0 +1,120 @@
+{
+  "name": "FlatLabelTopRankNestedClusterLabel",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 316 331",
+  "label": "",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "cluster_p",
+      "label": "p",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        3,4,5
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "name": "cluster_pp",
+      "label": "pp",
+      "_gvid": 1,
+      "nodes": [
+        3,4
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "name": "cluster_q",
+      "label": "q",
+      "_gvid": 2,
+      "nodes": [
+        6,7,8
+      ],
+      "edges": [
+        5
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "a1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "a2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "a3",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "b1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "b2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "b3",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 3,
+      "head": 4,
+      "label": ""
+    },
+    {
+      "_gvid": 5,
+      "tail": 6,
+      "head": 7,
+      "label": ""
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 7,
+      "label": ""
+    },
+    {
+      "_gvid": 4,
+      "tail": 6,
+      "head": 4,
+      "label": ""
+    },
+    {
+      "_gvid": 3,
+      "tail": 5,
+      "head": 7,
+      "label": ""
+    },
+    {
+      "_gvid": 6,
+      "tail": 8,
+      "head": 4,
+      "label": ""
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 8,
+      "label": "x"
+    }
+  ]
+}

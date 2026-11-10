@@ -1,0 +1,8 @@
+digraph "FlatEdgesTwoClustersAndRoot" {
+    subgraph cluster_a { p1; q1; p1 -> q1 [minlen=0]; r1 -> p1 }
+    subgraph cluster_b { p2; q2; p2 -> q2 [minlen=0]; r2 -> p2 }
+    m; n
+    m -> n [minlen=0]
+    r1 -> n
+    r2 -> m
+}

@@ -1,0 +1,4 @@
+digraph "FlatPairLR" {
+    rankdir=LR
+    { rank=same; a -> b; b -> a }
+}

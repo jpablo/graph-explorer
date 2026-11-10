@@ -1,0 +1,37 @@
+digraph RootSetOverCluster {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 0 0 0 0 0 ",
+		bb="0,0,0,0",
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	subgraph cluster_k {
+		graph [_draw_="c 7 -#000000 p 4 0 0 0 0 0 0 0 0 ",
+			bb="0,0,0,0"
+		];
+		p	[_draw_="c 7 -#000000 e 0 0 27 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 0 -4.2 0 7 1 -p ",
+			height=0.5,
+			pos="0,0",
+			width=0.75];
+	}
+	{
+		graph [rank=same];
+		q	[_draw_="c 7 -#000000 e 0 0 27 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 0 -4.2 0 7 1 -q ",
+			height=0.5,
+			pos="0,0",
+			width=0.75];
+		r	[_draw_="c 7 -#000000 e 0 0 27 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 0 -4.2 0 4.66 1 -r ",
+			height=0.5,
+			pos="0,0",
+			width=0.75];
+	}
+	p -> q;
+	s	[_draw_="c 7 -#000000 e 0 0 27 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 0 -4.2 0 5.45 1 -s ",
+		height=0.5,
+		pos="0,0",
+		width=0.75];
+	s -> p;
+}

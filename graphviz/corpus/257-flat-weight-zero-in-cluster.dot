@@ -1,0 +1,3 @@
+digraph "FlatWeightZeroInCluster" {
+    subgraph cluster_c { p; q; p -> q [minlen=0 weight=0]; r -> p }
+}

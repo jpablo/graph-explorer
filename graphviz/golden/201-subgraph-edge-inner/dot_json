@@ -1,0 +1,135 @@
+{
+  "name": "SubgraphEdgeInner",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 348 258",
+  "label": "",
+  "_subgraph_cnt": 5,
+  "objects": [
+    {
+      "name": "cluster_s",
+      "label": "s",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        6,7,8
+      ],
+      "edges": [
+        3
+      ]
+    },
+    {
+      "name": "cluster_t",
+      "label": "t",
+      "_gvid": 1,
+      "nodes": [
+        6,7
+      ],
+      "edges": [
+        3
+      ]
+    },
+    {
+      "name": "cluster_p",
+      "label": "",
+      "_gvid": 2,
+      "subgraphs": [
+        3
+      ],
+      "nodes": [
+        9,10,11
+      ],
+      "edges": [
+        4,5
+      ]
+    },
+    {
+      "name": "%9",
+      "label": "",
+      "_gvid": 3,
+      "subgraphs": [
+        4
+      ],
+      "nodes": [
+        10,11
+      ]
+    },
+    {
+      "name": "%11",
+      "label": "",
+      "_gvid": 4,
+      "nodes": [
+        10
+      ]
+    },
+    {
+      "_gvid": 5,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "y",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 10,
+      "name": "d",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 11,
+      "name": "e",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 3,
+      "tail": 6,
+      "head": 7
+    },
+    {
+      "_gvid": 0,
+      "tail": 5,
+      "head": 6
+    },
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 7
+    },
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 8
+    },
+    {
+      "_gvid": 4,
+      "tail": 9,
+      "head": 10
+    },
+    {
+      "_gvid": 5,
+      "tail": 9,
+      "head": 11
+    }
+  ]
+}

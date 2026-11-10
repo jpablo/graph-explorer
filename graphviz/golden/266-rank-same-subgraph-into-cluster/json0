@@ -1,0 +1,88 @@
+{
+  "name": "SetSubgraphIntoCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,142,180",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "cluster_x",
+      "bb": "8,18,78,116",
+      "_gvid": 0,
+      "nodes": [
+        3
+      ]
+    },
+    {
+      "name": "%3",
+      "rank": "same",
+      "_gvid": 1,
+      "subgraphs": [
+        2
+      ],
+      "nodes": [
+        4,5
+      ]
+    },
+    {
+      "name": "%5",
+      "rank": "same",
+      "_gvid": 2,
+      "nodes": [
+        4
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "x1",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,90",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "x2",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,18",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "115,18",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 6,
+      "name": "s",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "79,162",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 3,
+      "head": 4,
+      "pos": "e,43,36.104 43,71.697 43,64.407 43,55.726 43,47.536"
+    },
+    {
+      "_gvid": 2,
+      "tail": 6,
+      "head": 5,
+      "pos": "e,110.64,36.189 83.342,143.87 89.424,119.88 100.55,75.993 107.86,47.158"
+    },
+    {
+      "_gvid": 1,
+      "tail": 6,
+      "head": 3,
+      "pos": "e,51.304,107.15 70.65,144.76 66.425,136.55 61.192,126.37 56.419,117.09"
+    }
+  ]
+}

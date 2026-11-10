@@ -1,0 +1,60 @@
+{
+  "name": "SetInSet",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 126 180",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%1",
+      "rank": "same",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        2,3
+      ]
+    },
+    {
+      "name": "%3",
+      "rank": "min",
+      "_gvid": 1,
+      "nodes": [
+        3
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "x",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 4
+    },
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 3
+    }
+  ]
+}

@@ -32,7 +32,7 @@ Tests:
 
 | Suite | Count | Command |
 |---|---|---|
-| Scala, all modules | 2630 | `sbt --client testFull` |
+| Scala, all modules | 2935 | `sbt --client testFull` |
 | Rust, desktop | 77 | `cd desktop/src-tauri && cargo test` |
 | Helper self-test | 33 checks | `scripts/lib/control-api-selftest.sh` |
 
@@ -108,7 +108,6 @@ Small cleanups, not defects:
 - A desktop that is starting answers `STARTING`, and `gx` gives exit 4 for it, not exit 2.
 - A write gives each subgraph `label=""` and `cluster="true"` when the source has neither. Graphviz draws the same diagram, but the diff is larger.
 - The Graphviz port does not print the warning "Duplicate cluster name" for two clusters with one name under different parents.
-- In `dot_json`, the Graphviz port does not list the edges of an inner subgraph in a plain outer subgraph. Graphviz lists them. The reader takes the innermost subgraph of each edge, so the viewer and `gx` get the same result.
 
 ## 5. Cautions
 

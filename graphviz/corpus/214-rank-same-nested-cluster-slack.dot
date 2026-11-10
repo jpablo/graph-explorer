@@ -1,0 +1,10 @@
+digraph SetSlackNested {
+    subgraph cluster_p {
+        { rank=same; a; b }
+        subgraph cluster_n { n1 -> n2 }
+        b -> n1
+        n2 -> c
+        a -> c
+    }
+    x -> a
+}

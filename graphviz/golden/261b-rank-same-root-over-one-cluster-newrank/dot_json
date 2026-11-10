@@ -1,0 +1,62 @@
+{
+  "name": "RootSetOverCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 158 196",
+  "newrank": "true",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_k",
+      "newrank": "true",
+      "_gvid": 0,
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "name": "%3",
+      "newrank": "true",
+      "rank": "same",
+      "_gvid": 1,
+      "nodes": [
+        3,4
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "p",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "q",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "r",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "s",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 2
+    }
+  ]
+}

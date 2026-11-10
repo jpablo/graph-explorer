@@ -1,0 +1,21 @@
+digraph RankSameClusterOrder {
+	graph [bb="0,0,158,140"];
+	node [label="\N"];
+	subgraph cluster_c {
+		graph [bb="8,8,150,132"];
+		{
+			graph [rank=same];
+			p	[height=0.5,
+				pos="43,34",
+				width=0.75];
+			q	[height=0.5,
+				pos="115,34",
+				width=0.75];
+			p -> q	[pos="e,87.75,34 70.281,34 72.283,34 74.284,34 76.286,34"];
+		}
+		r	[height=0.5,
+			pos="43,106",
+			width=0.75];
+		r -> p	[pos="e,43,52.104 43,87.697 43,80.407 43,71.726 43,63.536"];
+	}
+}

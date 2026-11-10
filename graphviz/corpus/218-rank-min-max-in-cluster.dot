@@ -1,0 +1,5 @@
+digraph ClusterMinMax {
+    x -> a
+    subgraph cluster_c { a -> b -> c; d -> e; { rank=min; d } { rank=max; a2; b } }
+    c -> y
+}

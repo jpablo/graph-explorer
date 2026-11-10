@@ -1,0 +1,6 @@
+digraph RootMinSlack {
+    subgraph cluster_c { a -> b }
+    b -> s
+    a -> t
+    { rank=min; s }
+}

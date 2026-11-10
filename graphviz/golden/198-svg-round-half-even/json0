@@ -1,0 +1,75 @@
+{
+  "name": "SvgRoundHalfEven",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,166,169.6",
+  "label": "",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_s",
+      "bb": "8,8,158,125.6",
+      "label": "s",
+      "lheight": "0.23",
+      "lp": "83,113.2",
+      "lwidth": "0.08",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        3,4
+      ]
+    },
+    {
+      "name": "cluster_t",
+      "bb": "16,16,86,92.8",
+      "label": "t",
+      "lheight": "0.23",
+      "lp": "51,80.4",
+      "lwidth": "0.05",
+      "_gvid": 1,
+      "nodes": [
+        3
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "x",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "87,151.6",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "51,42",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "123,42",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "pos": "e,56.704,60.05 81.375,133.79 75.754,116.99 67.014,90.864 60.349,70.944"
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4,
+      "pos": "e,117.3,60.05 92.625,133.79 98.246,116.99 106.99,90.864 113.65,70.944"
+    }
+  ]
+}

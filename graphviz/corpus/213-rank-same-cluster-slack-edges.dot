@@ -1,0 +1,8 @@
+digraph SetSlack {
+    r0 -> a
+    subgraph cluster_p { { rank=same; a; b; c } a -> d }
+    subgraph cluster_q { u -> v }
+    b -> v
+    u -> c
+    c -> r1
+}

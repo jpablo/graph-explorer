@@ -1,0 +1,20 @@
+digraph FlatWeightZeroInCluster {
+	graph [bb="0,0,158,140"];
+	node [label="\N"];
+	subgraph cluster_c {
+		graph [bb="8,8,150,132"];
+		p	[height=0.5,
+			pos="115,34",
+			width=0.75];
+		q	[height=0.5,
+			pos="43,34",
+			width=0.75];
+		p -> q	[minlen=0,
+			pos="e,70.281,34 87.75,34 85.748,34 83.746,34 81.745,34",
+			weight=0];
+		r	[height=0.5,
+			pos="115,106",
+			width=0.75];
+		r -> p	[pos="e,115,52.104 115,87.697 115,80.407 115,71.726 115,63.536"];
+	}
+}

@@ -1,0 +1,3 @@
+digraph "FlatPairNonAdjacentLabels" {
+    { rank=same; a -> m; m -> b; a -> b [label=x]; b -> a [label=y] }
+}

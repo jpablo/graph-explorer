@@ -1,0 +1,6 @@
+digraph "FlatEdgeClusterCrossing" {
+    subgraph cluster_c { { rank=same; p -> q } }
+    r -> q
+    s -> p
+    r; s
+}

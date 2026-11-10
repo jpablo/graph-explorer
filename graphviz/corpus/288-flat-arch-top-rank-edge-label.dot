@@ -1,0 +1,4 @@
+digraph G {
+  { rank=same; a -> m -> b -> n -> c; a -> b [label=L]; b -> c }
+  c -> d;
+}

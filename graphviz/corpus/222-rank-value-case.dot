@@ -1,0 +1,5 @@
+digraph RankCase {
+    { rank=Same; a; b }
+    x -> a
+    x -> c -> b
+}

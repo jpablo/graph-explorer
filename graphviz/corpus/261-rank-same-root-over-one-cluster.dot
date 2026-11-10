@@ -1,0 +1,5 @@
+digraph RootSetOverCluster {
+    subgraph cluster_k { p -> q; r }
+    { rank=same; q; r }
+    s -> p
+}

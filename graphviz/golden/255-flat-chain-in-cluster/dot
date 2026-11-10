@@ -1,0 +1,25 @@
+digraph FlatChainInCluster {
+	graph [bb="0,0,230,140"];
+	node [label="\N"];
+	subgraph cluster_c {
+		graph [bb="8,8,222,132"];
+		{
+			graph [rank=same];
+			a	[height=0.5,
+				pos="43,34",
+				width=0.75];
+			b	[height=0.5,
+				pos="115,34",
+				width=0.75];
+			a -> b	[pos="e,87.75,34 70.281,34 72.283,34 74.284,34 76.286,34"];
+			c	[height=0.5,
+				pos="187,34",
+				width=0.75];
+			b -> c	[pos="e,159.75,34 142.28,34 144.28,34 146.28,34 148.29,34"];
+		}
+		x	[height=0.5,
+			pos="187,106",
+			width=0.75];
+		x -> c	[pos="e,187,52.104 187,87.697 187,80.407 187,71.726 187,63.536"];
+	}
+}

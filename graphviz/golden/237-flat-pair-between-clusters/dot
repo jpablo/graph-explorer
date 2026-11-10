@@ -1,0 +1,20 @@
+digraph FlatPairBetweenClusters {
+	graph [bb="0,0,164,68"];
+	node [label="\N"];
+	subgraph cluster_p {
+		graph [bb="8,8,78,60"];
+		a	[height=0.5,
+			pos="43,34",
+			width=0.75];
+	}
+	subgraph cluster_q {
+		graph [bb="86,8,156,60"];
+		b	[height=0.5,
+			pos="121,34",
+			width=0.75];
+	}
+	a -> b	[minlen=0,
+		pos="e,93.735,34 70.422,34 74.429,34 78.436,34 82.443,34"];
+	b -> a	[minlen=0,
+		pos="e,70.422,34 93.735,34 89.728,34 85.721,34 81.714,34"];
+}

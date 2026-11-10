@@ -1,0 +1,4 @@
+digraph ClusterRankAttr {
+    subgraph cluster_c { rank=same; a -> b; c }
+    x -> a
+}

@@ -1,0 +1,3 @@
+digraph "RankSameClusterOrder" {
+    subgraph cluster_c { p; q; { rank=same; p -> q } r -> p }
+}

@@ -1,0 +1,9 @@
+digraph SetBeforeNested {
+    subgraph cluster_a {
+        { rank=same; a2; b1 }
+        a1 -> a2
+        subgraph cluster_b { b1 -> b2 }
+    }
+    s -> a1
+    s -> b1
+}

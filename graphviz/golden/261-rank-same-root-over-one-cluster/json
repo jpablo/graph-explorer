@@ -1,0 +1,227 @@
+{
+  "name": "RootSetOverCluster",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,0.000],[0.000,0.000],[0.000,0.000]]
+    }
+  ],
+  "bb": "0,0,0,0",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_k",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[0.000,0.000],[0.000,0.000],[0.000,0.000],[0.000,0.000]]
+        }
+      ],
+      "bb": "0,0,0,0",
+      "_gvid": 0,
+      "nodes": [
+        2
+      ]
+    },
+    {
+      "name": "%3",
+      "rank": "same",
+      "_gvid": 1,
+      "nodes": [
+        3,4
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "p",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "e",
+          "rect": [0.000,0.000,27.000,18.000]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [0.000,-4.200],
+          "align": "c",
+          "width": 7.000,
+          "text": "p"
+        }
+      ],
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "0,0",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "q",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "e",
+          "rect": [0.000,0.000,27.000,18.000]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [0.000,-4.200],
+          "align": "c",
+          "width": 7.000,
+          "text": "q"
+        }
+      ],
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "0,0",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "r",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "e",
+          "rect": [0.000,0.000,27.000,18.000]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [0.000,-4.200],
+          "align": "c",
+          "width": 4.660,
+          "text": "r"
+        }
+      ],
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "0,0",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "s",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "e",
+          "rect": [0.000,0.000,27.000,18.000]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [0.000,-4.200],
+          "align": "c",
+          "width": 5.450,
+          "text": "s"
+        }
+      ],
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "0,0",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 2
+    }
+  ]
+}

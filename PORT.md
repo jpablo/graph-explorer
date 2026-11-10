@@ -1,18 +1,19 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 171/173
-> (2026-07-28).** All milestones M0–M8 done. The viewer routes by layout
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 267/275
+> (2026-11-09).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 163/165 + shipped examples 8/8 = 171/173** — the SINGLE
-> remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
-> (its golden is gv's own default-mode cluster corruption; the file is
-> gated byte-exact against the 03b `newrank` oracle in ClusterSpec
-> instead). The `ExamplesByteExactSpec` deferred list is EMPTY. Five
+> **corpus 259/267 + shipped examples 8/8 = 267/275** — the ONLY
+> remaining diffs anywhere are 03-subgraph-cluster and 261–267, intentional
+> deferrals (their goldens are gv's own default-mode cluster corruption;
+> each file is gated byte-exact against its `newrank` twin, 03b and
+> 261b–267b, in ClusterSpec instead). The `ExamplesByteExactSpec` deferred
+> list is EMPTY. Five
 > user-reported diagrams (165–169) landed 2026-07-16 and closed FIVE
 > long-deferred subsystems: xlabels (`addXLabels`/`placeLabels`), flat-edge
 > mincross (`flat_reorder`/`flat_breakcycles`/`left2right`), per-component
@@ -102,7 +103,11 @@ enforce the deferral halves of it):
   `ClusterSpec`), fails-when-fixed guarded. The dot1 cluster-ranking port
   (169) made the exception EXPLICIT in code: a rank set spanning cluster
   boundaries keeps the correct global (newrank) semantics
-  (`Rank.rankedImpl` dispatch).
+  (`Rank.rankedImpl` dispatch). 261–267 (2026-11-09) are seven more
+  deferrals of this kind, each with its own newrank twin
+  (`OracleHarness.newrankTwins`). The rule is now wider: a rank set with
+  a member in a cluster that is not an ancestor of the set. See the §7
+  entry "261–269".
 - **191-scala-type-graph** — NEW corpus probe (2026-07-26), the one OPEN
   (non-intentional) corpus deferral. A user diagram: 10 clusters, HTML-table
   nodes with ports, `rankdir=LR`, and — the part nothing else in the corpus
@@ -645,6 +650,101 @@ enforce the deferral halves of it):
   original edge (splines.c:489/691). A merged member has no chain, so nothing
   cleared ITS port and `clip_and_install` still clips that copy against the port
   box. Sharing the rep's flag collapsed the two copies onto one endpoint.
+- **Older gaps** (found 2026-11-09 by the probes of 204–222; no corpus case
+  yet; the clean `3f78a5a5` has each of them). Item 1 (`rank=same` inside a
+  cluster) is closed: see the §7 entry "207–222".
+  2. **An unlabelled flat edge with bottom ports is not drawn.** For
+     `a2:s -> b2:s [constraint=false]` on the bottom rank, with a node
+     between them, gv routes the edge below the rank
+     (`make_flat_bottom_edges`). The port has no svg path for it, and its bb
+     is 20pt too low. Spline.scala says "unlabelled ported flat edges stay
+     deferred".
+  3. ~~**A cluster label band counts two times in the second
+     `set_ycoords`.**~~ CLOSED: see the §7 entry "270–275".
+  4. ~~**A flat edge in a cluster can give a mirror order.**~~ CLOSED: see
+     the §7 entry "245–260".
+  5. ~~**Two flat edges between one pair are straight.**~~ CLOSED: see the
+     §7 entry "223–244".
+  6. ~~**The `rank` echo of a subgraph in `dot_json`/`json0`.**~~ CLOSED:
+     see the §7 entry "261–269". The writer now prints the value that the
+     subgraph got when it was made (`RSubgraph.attrs`), with no root
+     fallback (265–267, 269). gv prints an unknown value too (268:
+     `"rank": "foo"`).
+  7. ~~**`crossClusterRankSet` misses some cases**~~ CLOSED: see the §7
+     entry "261–269". The rule is now `foreignClusterRankSet`.
+
+  The port of the flat groups (223–244) found five more gaps. Items 10–12
+  have no corpus case yet:
+  8. ~~**`splines=line`/`false` and a non-adjacent flat edge.**~~ CLOSED:
+     see the §7 entry "280–288".
+  9. ~~**The arch height with edge labels.**~~ CLOSED: see the §7 entry
+     "280–288". One case stays open, because gv has no defined behaviour
+     there: edge labels, a flat arch on rank 1, and no rank −1. Then gv
+     reads `GD_rank(g)[-1]`, out of bounds. viz-js drops the edge ("lost
+     x z edge") for `{rank=source; s} s -> t [label=L]; {rank=same; x -> y
+     -> z; x -> z}`, and a variant of that graph crashes it ("memory access
+     out of bounds"). The port uses rank r−1 there.
+  10. **An adjacent pair with a record end.** `make_flat_adj_edges` routes
+      nothing for the group and gives a warning. The port routes each edge
+      alone.
+  11. **An adjacent pair with ports.** gv lays out an auxiliary graph with
+      dot (`make_flat_adj_edges`). That is not ported: the port routes each
+      edge alone, and a merged member copies the spline of its rep. A
+      non-adjacent group that mixes ported and unported edges also keeps
+      the old one-edge behaviour.
+  12. **A labelled member under an unlabelled rep.** When class2 merges a
+      labelled non-adjacent flat edge into an unlabelled one,
+      `make_flat_labeled_edge` follows `ED_to_virt` to the rep, finds no
+      label node, and puts the label at the tail node. The port does not
+      copy this.
+
+  The flat machinery of the clustered mincross (245–260) left these open.
+  No corpus case shows any of them:
+  13. **The root flat matrix between components.** gv does not clear
+      `GD_rank(g)[r].flat` between the components of the root pass. A later
+      component can read the matrix of an earlier one, with the ND_low values
+      of the ranking step. The port gives each component its own matrix.
+      Three probes, and a variant with one shared matrix, agree with gv.
+  14. **The direction of a flat edge after `acyclic`.** The port makes the
+      flat edges from the edge direction after the ranking step. gv's
+      `flat_edge` uses the original direction. The two can differ when the
+      ranking step reverses a flat edge. This is not checked.
+  15. **Two approximations in the cluster passes.** A node outside the
+      current pass reads its median value as 0 (gv keeps the value from an
+      earlier pass). A node in a cluster that is not expanded yet reads its
+      order as 0.
+  16. **The `ordering` attribute.** `ordered_edges` is not ported. The port
+      does not read `ordering` at all.
+
+  The rank-set probes (261–269) found two gaps in the newrank path
+  (`rankedGlobal`). No corpus case has them:
+  17. **A `rank` on the root under `newrank`.** dot2 calls
+      `compile_samerank` on the root too, so a root `rank=same` puts ALL
+      nodes on one rank. A probe with `newrank=true` and a root `rank=same`
+      after two clusters gave this in gv. `rankConstraints` does not make
+      the root a set.
+  18. **Root-level min and max sets under `newrank`.** dot2 records a
+      min/max set in `GD_minrep`/`GD_maxrep` only when the set is in a
+      cluster (`if (clust != NULL)`). `rankConstraints` makes a minset and a
+      maxset at the root level too. This is not checked against gv.
+
+  The probes of 280–288 found three more gaps. No corpus case has them yet,
+  and a probe shows each of them:
+  19. **A labelled non-adjacent flat edge in line mode.** With
+      `splines=line`/`false`, `make_flat_labeled_edge` (dotsplines.c:1395)
+      makes a 7-point line from the tail through the label point to the
+      head. The port routes the label channel as a spline. Example:
+      `splines=line; t -> a [label=X]; {rank=same; a -> m -> b; a -> b
+      [label=Y]; a -> b}`.
+  20. **A `splines=polyline` arch.** `make_flat_edge` calls
+      `routepolylines` for `EDGETYPE_PLINE`. `Spline.makeFlatArch` always
+      calls `proutespline`. Example: `splines=polyline; t -> a;
+      {rank=same; a -> m -> b; a -> b}`.
+  21. **A self-loop label.** In gv, a self-loop label also sets
+      `GD_has_labels & EDGE_LABEL`, so gv doubles the ranks and halves
+      ranksep. `Rank.hasEdgeLabel` does not count self-loops. For
+      `a -> a [label=L]; a -> b`, the bb height is 109 in gv and 108 in the
+      port.
 
 ## 1. Goal & locked decisions
 
@@ -2526,7 +2626,8 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   FREE edge routing left of a cluster, gv keeps the cluster border at its raw
   solve x (18.531) and gets its bb origin 0 from the edge SPLINE (`update_bb_bz`),
   whereas my heuristic forces the border to 8. So 95 is an XCoord-anchor gap,
-  NOT a mincross one. Nested clusters also TODO (recurse the collapse per level).
+  NOT a mincross one. Nested clusters also TODO (recurse the collapse per level;
+  CLOSED 2026-11-09, see the §7 entry of that date).
   Corpus **89/95** byte-exact; graphvizJVM 520/520, JS green, gv worktree pristine.
 - **2026-07-12** — **95-cluster-chains deep-dive (instrumented gv): XCoord is
   byte-identical to gv; residual localized to Spline + Output.** Built
@@ -3044,4 +3145,265 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
     cluster `penwidth` ⇒ stroke-width.
   All suites green (graphvizJVM 708, sharedJVM/JS 172 each, viewer 52);
   gv worktree pristine after both instrumented chases.
+- **2026-11-09 (198–203)** — **Nested-cluster mincross, and four smaller
+  rules; corpus 173/174, total gate 181/182.** Each input has only explicit
+  edges. The Graphviz C source was not on the disk, so each rule comes from
+  the known 13.0.1 code and an oracle check on several probes.
+  - **198-svg-round-half-even**: C `printf` rounding. viz-js is
+    emscripten, so its libc is musl. musl rounds the EXACT binary value, and
+    an exact tie goes to the even digit: 92.625 prints as "92.62". The writers
+    took the shortest decimal string with HALF_UP and printed "92.63". One
+    helper (`Output.cFixed`) now serves each C printf emulation (`d2`, `f2`,
+    `g5`, `g6`, the `%f` of an alpha).
+  - **199-nested-cluster-mincross, 203-nested-cluster-interior-sawclust**:
+    the recursive cluster mincross (`mincross_clust`). The root pass now
+    collapses only the TOP-LEVEL clusters, and each one is one column for all
+    of its nodes. When cluster K expands, each child cluster of K is a
+    skeleton column in K's interior (`build_skeleton`, `interclrep`,
+    `install_cluster`), and the child expands only after the refine of K. A
+    node finds its rankleader through the first cluster on its path that is
+    not expanded (`map_interclust_node`). In K's interior pass, ND_clust is
+    set only on the child rankleaders, so the `###` sawclust rule of
+    `reorder` applies to them (203). A chain vnode belongs to the deepest
+    cluster that holds both ends of its edge (`node_induce`). XCoord takes
+    the slice of a cluster as the span from its leftmost to its rightmost
+    node, nested ones too (`rec_reset_vlists`/`furthestnode`). Before, the
+    port collapsed each innermost cluster as a separate root column, so a
+    vnode from outside could land between two parts of one cluster (199:
+    `a, v, b`, and gv gives `a, b, v`). Nine more nested probes (three
+    levels, sibling child clusters, `rankdir=LR`, a long edge into a child,
+    a child in a plain `{}`) agree with gv.
+  - **200-cluster-inner-subgraph-order**: `agfstnode(subg)` gives the nodes
+    of a subgraph in the GLOBAL creation order (AGSEQ), not in body order.
+    For `cluster_s { { a -> c } b }` it is `a, c, b`. `Cluster.transNodes`,
+    the dot1 `allNodes` and the rank-set members now use that order.
+  - **202-plain-subgraph-inner-edges**: cgraph `installedge` puts an edge in
+    each outer subgraph too. So a PLAIN subgraph also lists the edges of its
+    plain descendants, and each root edge that `node_induce` puts in a
+    descendant cluster. The svg cluster id is `clust<AGSEQ>`, and AGSEQ
+    counts the plain subgraphs too (`RSubgraph.seq`): in 202, `cluster_q`
+    is `clust6`.
+  - **201-subgraph-edge-inner** needs both the nested mincross and the
+    node order.
+  graphvizJVM 837/837. One older gap came out of the probes: a flat edge
+  between two clusters (closed by the next entry).
+- **2026-11-09 (204–206)** — **The root's GD_ht1/GD_ht2 stay out of the rank
+  heights; corpus 176/177, total gate 184/185.** b89058c7 (193) pushed the
+  root's ht2 into ht2(minR) and its ht1 into ht1(maxR), and said that this
+  is an identity without an `abomination` rank. That is false with clusters:
+  the root's ht2 is the cluster's ht2 + CL_OFFSET (34 against 26). gv's
+  `clust_ht` updates the global ranks only `if (g != dot_root(g))`, and only
+  `dot_compute_bb` and `translate_drawing` read the root's values. The y
+  loop never reads ht2(minR) or ht1(maxR), so the push changed only the
+  spline boxes of the top and bottom ranks.
+  - **204-flat-edge-between-clusters**: the flat arch `a1 -> b3` over `a3`
+    on rank 0 went 8pt too high (bb `0 0 308 166`; gv `0 0 308 157`).
+  - **205-flat-label-bottom-rank-clusters**: the same for ht1 on the bottom
+    rank (`make_flat_labeled_edge`'s `ydelta`).
+  - **206-flat-label-top-rank-clusters**: with an `abomination` rank, a
+    top-level cluster on the OLD top rank keeps its ht2 + CL_OFFSET in the
+    root's ht2 (the first set_ycoords pass ran before the new rank), so the
+    root-level `clust_ht` loop now reads `realMinR` too, as the node scan
+    already did.
+  193 stays byte-exact without the push: GraphBB reads the root's ht2
+  directly. Thirteen probes: the eight that the change touches agree with
+  gv; the other five fail on the clean code too, for the three older gaps in
+  §0 and for no new reason. graphvizJVM 846/846.
+- **2026-11-09 (207–222)** — **Rank sets in the dot1 ranker; corpus 192/193,
+  total gate 200/201.** `rankedDot1` (the path for graphs with clusters) had
+  no rank-set step, so each `rank=same|min|max|source|sink` subgraph was
+  lost, at the root and in each cluster (207: a, m, b on three ranks; gv
+  puts them on one). `rankedDot1` is now one level helper, `rankLevel`,
+  that runs gv's `dot1_rank` for the root and, through `collapse_cluster`,
+  for each cluster:
+  - `collapse_sets`: a cluster comes first (`is_cluster` before the `rank`
+    attr, 216), then a set (`agget(S, "rank")` with the scope defaults and
+    the exact keywords, 222). The walk goes into a plain subgraph, but not
+    into a set or a cluster (221). A set unions its members (with the nodes
+    of nested subgraphs) to its first member in AGSEQ order; min and
+    source sets join the minset of the level, max and sink sets its maxset.
+  - `class1`: the `interclust1` slack edges go to the UF roots, so the slack
+    edge of a set member goes to its set root (213, 214).
+  - `minmax_edges`, `decompose`, `acyclic` on the leader fast graph (215: a
+    cycle that only the union makes), `minmax_edges2`, then `rank1` per
+    component. `minmax_edges` also reverses a slack aux edge into the
+    minset (219).
+  - Each edge gets its orientation from the lowest level that holds both of
+    its ends.
+  The class1 fast graph is now one class, `FastGraph`, that `rankedGlobal`
+  also uses. Each graph without `newrank` and without a cross-cluster set
+  now goes to `rankedDot1`, also a graph without clusters, as in gv. The
+  corpus stayed byte-exact, and the old path gave wrong ranks for a set in
+  a set and for an unknown `rank` value. `rankedGlobal` now serves only
+  `newrank` and the 03 exception. Corpus cases 208–222 cover a set at the
+  root next to a cluster, min/max/source/sink in a cluster, a nested
+  cluster, slack edges, the leader cycle, `rankdir=LR`, and a flat cycle.
+  The probes found four older gaps that are not ranking (§0, items 4–7).
+  graphvizJVM 894/894.
+- **2026-11-09 (223–244)** — **Flat edges between one pair route as one
+  group; corpus 214/215, total gate 222/223.** The port routed each flat
+  edge alone, so `{rank=same; a -> b; b -> a}` gave two straight lines on
+  top of each other (§0 item 5). gv's `dot_splines_` gives `make_flat_edge`
+  all the edges of one main edge (`getmainedge`) at once. The local C clone
+  of §6 is not on this host, so the C came from the 13.0.1 tag on GitLab.
+  - **The main edge.** class2 merges a same-direction duplicate
+    (`merge_oneway`). The last pass of `flat_reorder` turns each flat edge
+    that points right to left (left to right under `GD_flip`), and
+    `flat_rev` merges it into the opposite edge. This pass also turns the
+    weight-0 and `constraint=false` edges, which `flat_search` skips (231,
+    233). Thus, in one graph, all edges of a pair in the two directions have
+    one main edge, in AGSEQ order. An edge between two clusters, or between
+    a cluster and the root, comes from `interclexp` after these passes, so
+    only one direction shares a main edge there (237, 238, 240).
+    `Spline.flatGroupKey` has this rule.
+  - **Adjacent ends** (`make_flat_adj_edges`): `makeSimpleFlat` puts the
+    `cnt` edges between ±ND_ht/2 (223–226, 230 in LR with ND_ht = 54, 234
+    in a cluster). `makeSimpleFlatLabels` sorts the edges with
+    `edgelblcmpfn` (musl qsort), draws the first one straight with its label
+    above, and sends the others down and up in turn round an 8-point polygon
+    (228, 229, 232, 236, 243, 244). `simpleSplineRoute` needs
+    `Pshortestpath` (pathplan/shortest.c) for a general simple polygon, now
+    ported in full: the ear-clip triangulation, the triangle strip, and the
+    funnel deque.
+  - **Non-adjacent ends**: the `make_flat_edge` box loop with
+    stepx = Multisep/(cnt+1) and stepy = vspace/(cnt+1) (227, 241). A
+    labelled edge routes alone, and its label node follows `ED_to_virt`: the
+    turned `b -> a` puts its label on the node of `a -> b` (235, 239, 242
+    in LR). Between two clusters each direction keeps its own label node
+    (191).
+  The probes found five more gaps (§0, items 8–12). graphvizJVM 960/960.
+- **2026-11-09 (245–260)** — **The clustered mincross has the flat
+  machinery; corpus 230/231, total gate 238/239.** In a graph with
+  clusters, a flat edge did not fix the order of its ends (§0 item 4). For
+  `cluster_c { p; q; p -> q [minlen=0]; r -> p }`, `build_ranks(clust)`
+  walks GD_nlist backward, seeds q before r, and gives `q, p`. gv's
+  `flat_reorder(clust)` then puts p first, but `Order.orderClustered` had
+  only `flat_mval`. Now:
+  - **The root pass** gets the flat edges whose two ends are root nodes
+    (`interclrep` drops a flat edge with an end in a cluster), so
+    `runMincross` runs `flat_breakcycles`/`flat_reorder`/`left2right` there
+    (249: `m -> n` at the root). `decomposeOrder` follows the flat lists
+    too (`search_component`).
+  - **Each cluster** (`mincross_clust`): `expandCluster` adds the flat edges
+    of the cluster (`class2(subg)`) and the flat edges across its boundary
+    as root edges (`interclexp`, with `find_flat_edge`). `refineCluster`
+    then runs `flat_breakcycles` and `flat_reorder` on the slice of each
+    rank, and `left2right` reads the matrix of the cluster in `reorder`
+    (muststay) and in `transpose_step` (245–252: nested, LR, a label, edges
+    to and from a root node).
+  - **ReMincross**: `left2right(root)` pins a pair of two clusters, and
+    reads the ROOT matrix for the other pairs. gv reads it at ND_low, which
+    the cluster's `flat_breakcycles` set again to the slice index. So a
+    root flat edge can pin two nodes of one cluster (258). This is
+    deterministic gv behaviour, so the port copies it.
+  - **`zapinlist`**: gv removes an item from an edge list by moving the last
+    item into its slot. `flat_rev` now does the same, in both paths (259,
+    260 without and with a cluster: gv gives `x, a, d, c`).
+  - `flat_mval` reads the flat lists as they are now, with the weight-0
+    edges too.
+  253–257 were green before and guard the change: a root flat pair next to
+  a cluster, crossing pressure, a flat chain, a flat cycle, and a weight-0
+  edge. Two more probes check that a flat pair across a cluster boundary
+  still routes as two groups. The probes left four gaps (§0, items 13–16).
+  graphvizJVM 1008/1008.
+- **2026-11-09 (261–269)** — **A rank set with a member in a foreign
+  cluster is the 03 case; corpus 239/247, total gate 247/255.** The 03 rule
+  of `Rank.rankedImpl` sent a graph to `rankedGlobal` only when the DIRECT
+  members of a set were in two different TOP-level clusters (§0 item 7).
+  Oracle probes showed that gv's dot1 fails in more cases:
+  - `collapse_rankset` unions ALL nodes of the set (`agfstnode`, also the
+    nodes of nested subgraphs) and gives each one a set type.
+    `mark_clusters` resets only the CLUSTER-typed nodes, so it deletes each
+    set member from a child cluster ("already in a rankset, deleted from
+    cluster"). When the set comes before the cluster, `node_induce` deletes
+    the member instead. `collapse_sets` does not go into a set, so a
+    cluster inside a set is never collapsed, and gv does not draw it.
+  - Thus gv drops the set (262, 264), deletes the member from its cluster
+    (263, 266), does not draw a cluster (265), or gives the 0×0 drawing of
+    03 (261: a root set whose members are ALL in one cluster, so "crosses a
+    boundary" was too narrow). 267 gets its `rank=same` from the cluster
+    around it: cgraph gives a new subgraph the values of its parent.
+  - The rule is now `foreignClusterRankSet`: a plain subgraph S with a
+    valid `rank` (exact keyword, from `RSubgraph.attrs`) that has a node,
+    also through a nested subgraph, in a cluster that is not an ancestor
+    of S. A cluster inside S counts. Each of 261–267 is a deferral with a
+    newrank twin (261b–267b), and `ClusterSpec` gates the verbatim file
+    against the twin, as for 03/03b (`OracleHarness.newrankTwins`).
+  - gv dot is sound for two more probes, so they are plain corpus cases:
+    268 (`rank=foo` across two clusters is not a set; the old rule took it
+    as one) and 269 (a root `rank=same` after the subgraphs does not reach
+    them: `bindattrs` declares `rank` with "" first, and the root update
+    keeps the old value in each existing subgraph; the old rule read the
+    root value).
+  - `rankConstraints` (the global path) had the same misses. It now follows
+    dot2 `compile_samerank`: the members of a set are all nodes of the
+    subgraph, the kind is an exact keyword from `RSubgraph.attrs`, and a
+    cluster can be a set. 265b–267b need this.
+  - The writer's `rank` echo now reads `RSubgraph.attrs`, with no root
+    fallback (§0 item 6): gv lists `"rank": "same"` for a cluster or a
+    plain subgraph inside a set, and nothing for 269's clusters.
+  No earlier corpus case changed. The probes found two newrank gaps (§0,
+  items 17–18). graphvizJVM 1070/1070.
+- **2026-11-09 (270–278)** — **The second `set_ycoords` pass starts from
+  the first one; corpus 248/256, total gate 256/264 (with 261–269).** gv's `dot_position`
+  runs `set_ycoords`, then `flat_edges`, and runs `set_ycoords` again when
+  `flat_edges` makes a label vnode for a labelled flat edge that is not
+  adjacent (§0 item 3). Nothing resets the height state between the two
+  passes. The port ran one pass, and copied the carry-over only for the
+  root, with two `realMinR` special cases. Now `Coord.yInfoImpl` has a local
+  function, `setYcoords`, for one pass. It runs one time, or two times when
+  `Order` gives flat label vnodes, on one shared state:
+  - **The carried state**: the rank heights `pht`/`ht1`/`ht2`, the
+    `GD_ht1`/`GD_ht2` of each cluster and of the root, and the growth that
+    `adjustRanks` gave in the first pass. The node scan uses gv's rule: when
+    `pht` grows, `ht1`/`ht2` go back to the node value (`rankHt`).
+  - **A label band counts two times.** `clust_ht` starts from the carried
+    `GD_ht2` and adds `GD_border[TOP].y` again (270: the top of cluster_p is
+    107 + 26 + 2 × 24.8 = 182.6, not 157.8). The same occurs at the bottom
+    with `labelloc=b` (271), in nested clusters (272), for clusters below
+    the top rank (274), for a flat edge in a labelled cluster (275), with
+    `rankdir=BT` (276), and with `ranksep=equally` (277).
+  - **Under flip**, `clust_ht` adds no band. But the `adjustSimple` growth of
+    the first pass stays in `GD_ht1`/`GD_ht2` and in the rank heights, and
+    the second pass spaces the ranks from these values (278: the old code
+    made the LR drawing 48pt too narrow). 273 was green before, and guards
+    this path.
+  - **The flat label vnode** has `ND_clust == NULL`, because `make_vn_slot`
+    makes it after `mark_lowclusters`. So it changes only the heights of its
+    rank, and never the `GD_ht2` of the root. The `abomination` rank starts
+    at 1 in all four heights. `flat_node` gives rank r−1 at least the label
+    half-height before the second pass.
+  - **`add_box`** (splines.c:346) adds a box only when LL < UR on both axes.
+    With two bands, the floor of the label box in `make_flat_labeled_edge`
+    is below the top of the end boxes. gv drops the inverted boxes. The port
+    kept them, `checkpath` failed, and the edge became a straight line. The
+    flat-label branch now has the same filter as the regular edges.
+  The C came from the 13.0.1 tag on GitLab. Two more probes (nested labels
+  in LR, a tall flat label without clusters) agree with gv on the old and on
+  the new code. graphvizJVM 1097/1097 (with 261–269).
+- **2026-11-09 (280–288)** — **The flat arch with edge labels, and flat
+  edges in line mode; corpus 257/265, total gate 265/273 (with
+  261–278).** Two gaps of `make_flat_edge` (dotsplines.c:1562) in
+  `Spline.scala` are closed (§0 items 8 and 9).
+  - **The arch height** (`makeFlatArch`). gv tests `r > 0`, not the lowest
+    rank. When the graph has edge labels, gv measures `vspace` to rank r−2,
+    not to r−1, because r−1 is a label rank. The port always used r−1, so
+    each arch on a rank below a labelled edge was too low (280, 281 with
+    the label two ranks up, 283 in LR, 284 with a cluster). On rank 1 with
+    a label, r−2 is the `abomination` rank −1 (282). 288 passed before and
+    guards the `r > 0` test: a rank 0 under rank −1 takes `GD_ranksep`.
+    gv has no defined behaviour on rank 1 when rank −1 does not exist (§0
+    item 9). The port uses r−1 there.
+  - **Line mode.** With `splines=line`/`false`, an unlabelled non-adjacent
+    flat edge goes to `makeSimpleFlat`, as in gv. This test comes before
+    the port test and the bottom-port test. A straight line (285), a
+    spindle of two edges (286), and compass ports (287). `makeSimpleFlat`
+    now adds the ports of `edges[ind]` to tp and hp, as gv does, also when
+    edges[ind] goes from hn to tn. Each end reads its clip flag and `bp`
+    from the port of its own edge, so a compass end stays on the port
+    point. The group follows `edgecmp`: an edge with ports compares its own
+    ports, and an edge without ports compares the ports of the main edge.
+    Without ports, `makeSimpleFlat` gives the same values as before.
+  The probes found three more gaps (§0, items 19–21). graphvizJVM
+  1124/1124 (with 261–278), all modules 2915.
 - _(append dated entries as milestones land)_

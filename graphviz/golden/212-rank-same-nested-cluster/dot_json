@@ -1,0 +1,103 @@
+{
+  "name": "NestedClusterSet",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 246 252",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "cluster_o",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        4,5,6,7
+      ],
+      "edges": [
+        2,3,1
+      ]
+    },
+    {
+      "name": "cluster_i",
+      "_gvid": 1,
+      "subgraphs": [
+        2
+      ],
+      "nodes": [
+        5,6,7
+      ],
+      "edges": [
+        2,3
+      ]
+    },
+    {
+      "name": "%1",
+      "rank": "same",
+      "_gvid": 2,
+      "nodes": [
+        5,6,7
+      ],
+      "edges": [
+        2,3
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "o1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "m",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "y",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 6
+    },
+    {
+      "_gvid": 3,
+      "tail": 6,
+      "head": 7
+    },
+    {
+      "_gvid": 0,
+      "tail": 3,
+      "head": 4
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 5
+    },
+    {
+      "_gvid": 4,
+      "tail": 7,
+      "head": 8
+    }
+  ]
+}

@@ -24,6 +24,25 @@ import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Spline, XCoord
   */
 object Output:
 
+  /** The fixed-point rounding of C `printf("%.<n>f")`, as viz-js does it.
+    * viz-js is emscripten, so its libc is musl. musl rounds the EXACT
+    * binary value to `n` decimals, and an exact tie goes to the even digit:
+    * 92.625 gives "92.62", and 1.005 (binary 1.00499…) gives "1.00".
+    * `BigDecimal(x)` starts from the shortest decimal string, so HALF_UP on
+    * it gives "92.63" and "1.01". Use this helper for each C printf
+    * emulation of the writers.
+    *
+    * The result has no exponent. A negative value that rounds to zero
+    * gives "0.00" here, but C gives "-0.00": the callers keep their own
+    * zero rules. */
+  private[output] def cFixed(x: Double, n: Int): String =
+    cFixed(new java.math.BigDecimal(x), n)
+
+  /** [[cFixed]] of a decimal value that is already exact (for example the
+    * mantissa of a `%e` conversion). */
+  private[output] def cFixed(x: java.math.BigDecimal, n: Int): String =
+    x.setScale(n, java.math.RoundingMode.HALF_EVEN).toPlainString
+
   /** Graphviz number format ≈ C `printf("%.5g")`: 5 significant digits,
     * trailing zeros and a trailing point trimmed, no exponent in our range. */
   private[output] def g5(x0: Double): String =
@@ -34,8 +53,7 @@ object Output:
       val a   = math.abs(x)
       val exp = math.floor(math.log10(a)).toInt
       val dec = math.max(0, 4 - exp) // 5 sig figs
-      val bd  = BigDecimal(a).setScale(dec, BigDecimal.RoundingMode.HALF_UP)
-      var s   = bd.bigDecimal.toPlainString
+      var s   = cFixed(a, dec)
       if s.contains('.') then
         s = s.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
       if neg && s != "0" then "-" + s else s
@@ -72,7 +90,7 @@ object Output:
     NodeSize.labelHeightPt(lbl, labelFontSize(g), g.name.getOrElse(""))
   private def gLabelPad(g: RGraph): Double = Coord.graphLabelPad(g)
   /** C `printf("%.2f")` — the `lwidth`/`lheight`/`lp`-dimension format. */
-  private def f2(x: Double): String = BigDecimal(x).setScale(2, BigDecimal.RoundingMode.HALF_UP).toString
+  private def f2(x: Double): String = cFixed(x, 2)
 
   /** Layout-independent bits shared by both formats. */
   private final case class Doc(
@@ -155,6 +173,19 @@ object Output:
       val declared = transitiveNodeIds(s)
       g.nodes.iterator.map(_.id).filter(declared).toVector
     val labelDeclared = g.graphAttrKeys.contains("label")
+    // The edges of a cluster: each edge with BOTH ends in it.
+    def clusterEdges(s: RSubgraph): Set[Int] =
+      val ids = transitiveNodeIds(s)
+      g.edges.indices.filter(ix => ids(g.edges(ix).tail) && ids(g.edges(ix).head)).toSet
+    // The edges of a plain subgraph: its declared edges, plus the edges of
+    // each descendant. cgraph `installedge` puts an edge in its subgraph and
+    // in each outer subgraph. A plain descendant gives its declared edges
+    // (and the edges of its own descendants). A cluster descendant gives
+    // each edge with both ends in it, because node_induce puts the root
+    // edges in the cluster.
+    def plainEdges(s: RSubgraph): Set[Int] =
+      s.edgeIdxs.toSet ++ s.children.flatMap(c =>
+        if c.isCluster then clusterEdges(c) else plainEdges(c))
     val subgraphs = flat.zipWithIndex.map { case (s, gv) =>
       val mem      = memberNodes(s)
       val memSet   = mem.toSet
@@ -162,8 +193,12 @@ object Output:
       // containment adds them during cluster processing) — membership, NOT the
       // declaration site: 95's `a0->a1->a2` is declared at root yet belongs to
       // cluster_0; 03b's cross-cluster `a2->b1` is excluded (b1 ∉ cluster_0). A
-      // PLAIN subgraph (`{rank=same;…}`) gets only its directly-declared edges
-      // (90's `a->b` declared at root stays OUT of its rank=same block).
+      // PLAIN subgraph (`{rank=same;…}`) gets its directly-declared edges and
+      // the edges of its descendants ([[plainEdges]]); 90's `a->b` declared
+      // at root stays OUT of its rank=same block. In 202, `subgraph s {
+      // subgraph t { a -> c } b }` lists `a -> c`; `subgraph w { subgraph
+      // cluster_q { f; g } h }` lists the root edge `f -> g`; but `subgraph
+      // p { subgraph r { k } m }` does not list the root edge `k -> m`.
       val edgeGids =
         // gv lists a subgraph's edges in EDGE DECLARATION order (the cgraph
         // edge sequence), NOT sorted by gvid — gvids are assigned by the
@@ -173,7 +208,7 @@ object Output:
           g.edges.iterator.zipWithIndex
             .collect { case (e, ix) if memSet(e.tail) && memSet(e.head) => edgeGvidByIdx(ix) }
             .toVector
-        else s.edgeIdxs.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
+        else plainEdges(s).toVector.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
       // child subgraph gvids (preorder ⇒ each child's gvid is its index in flat).
       val childGvids = s.children.map(c => flat.indexWhere(_ eq c)).filter(_ >= 0)
       Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids, childGvids, labelDeclared,
@@ -215,11 +250,13 @@ object Output:
     "    {\n" + fields.result().mkString(",\n") + "\n    }"
 
   /** A subgraph's attribute stream (gv `write_attrs`): every declared
-    * graph-attr key, with the subgraph's own value where it has one (label /
-    * rank in our model) else the root declaration's default (cgraph: setting
+    * graph-attr key, with the subgraph's own value where it has one (label
+    * in our model) else the root declaration's default (cgraph: setting
     * a graph attr on the root re-declares its default, so subgraphs echo the
-    * root's value — 03b's `newrank` appears in every cluster object). Empty
-    * values are skipped except an (always-printed) declared `label`. */
+    * root's value — 03b's `newrank` appears in every cluster object). The
+    * `rank` key has no root fallback: it is always the subgraph's value
+    * from [[RSubgraph.attrs]]. Empty values are skipped except an
+    * (always-printed) declared `label`. */
   private def sgAttrs(g: RGraph, sg: Doc.SG): Vector[(String, String)] =
     g.graphAttrKeys.iterator.map { k =>
       // A LOCALLY DECLARED value shadows the root default even when empty
@@ -230,7 +267,11 @@ object Output:
         // root's "Basic git concepts…". The merged attrs carry the
         // inherited value; a locally-declared empty label still prints "".
         case "label" => (sg.attrs.getOrElse("label", sg.label), sg.emitLabel)
-        case "rank"  => (sg.rank.getOrElse(""), sg.rank.isDefined)
+        // agxget: a subgraph's rank is the value that it got when cgraph
+        // made it (inherited, or its own). A root `rank` that comes after
+        // the subgraph does not go to it (cgraph `unviewsubgraphsattr`), so
+        // the rank has no root fallback (269).
+        case "rank"  => (sg.attrs.getOrElse("rank", ""), true)
         case _       => (sg.attrs.getOrElse(k, ""), sg.attrs.contains(k))
       k -> (if declared || own.nonEmpty then own else g.rootAttrs.getOrElse(k, ""))
     }.toVector

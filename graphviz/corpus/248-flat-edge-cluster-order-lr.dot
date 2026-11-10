@@ -1,0 +1,4 @@
+digraph "FlatEdgeClusterOrderLR" {
+    rankdir=LR
+    subgraph cluster_c { p; q; p -> q [minlen=0]; r -> p }
+}

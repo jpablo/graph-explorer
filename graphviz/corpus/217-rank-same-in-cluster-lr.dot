@@ -1,0 +1,8 @@
+digraph LRSet {
+    rankdir=LR
+    x
+    subgraph cluster_p { { rank=same; a -> m -> b } c }
+    x -> a
+    x -> c
+    b -> y
+}

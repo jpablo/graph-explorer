@@ -1,0 +1,109 @@
+{
+  "name": "FlatEdgesTwoClustersAndRoot",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 446 140",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_a",
+      "_gvid": 0,
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0,1
+      ]
+    },
+    {
+      "name": "cluster_b",
+      "_gvid": 1,
+      "nodes": [
+        5,6,7
+      ],
+      "edges": [
+        3,4
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "p1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "q1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "r1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "p2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "q2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "r2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "m",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "n",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "minlen": "0"
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 2
+    },
+    {
+      "_gvid": 3,
+      "tail": 5,
+      "head": 6,
+      "minlen": "0"
+    },
+    {
+      "_gvid": 4,
+      "tail": 7,
+      "head": 5
+    },
+    {
+      "_gvid": 6,
+      "tail": 8,
+      "head": 9,
+      "minlen": "0"
+    },
+    {
+      "_gvid": 2,
+      "tail": 4,
+      "head": 9
+    },
+    {
+      "_gvid": 5,
+      "tail": 7,
+      "head": 8
+    }
+  ]
+}

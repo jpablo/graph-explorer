@@ -1,0 +1,14 @@
+digraph "NestedClusterInteriorSawclust" {
+    y
+    x
+    subgraph cluster_o {
+        subgraph cluster_c1 { q1 -> q2 }
+        subgraph cluster_c0 { p1 -> p2 }
+        subgraph cluster_c2 { s1 -> s2 }
+    }
+    x -> q1
+    y -> s1
+    q2 -> z
+    p2 -> z
+    s2 -> z
+}

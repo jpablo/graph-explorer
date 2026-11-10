@@ -1,0 +1,3 @@
+digraph "FlatRevListOrder" {
+    { rank=same; x -> a; a -> x; a -> c; a -> d; c -> d; d -> c }
+}

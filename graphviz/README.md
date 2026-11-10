@@ -30,31 +30,20 @@ WASM blob is not.
 
 | Gate | Result |
 |---|---|
-| Corpus (`corpus/*.dot`, 137 files × 3 formats) | **136/137 byte-exact** (every file but one) |
+| Corpus (`corpus/*.dot`, 267 files × 3 formats) | **259/267 byte-exact** (every file but 03 and 261–267, 2026-11-09; each of those 8 is byte-exact against its `newrank` twin) |
 | Shape catalog (61 of 62 builtin node shapes) | byte-exact (`ShapeCatalogSpec`) |
 | Shipped viewer examples routed to the port | 5/8 byte-exact, 3 documented deferrals |
 | Full layout pipeline (rank → mincross → coords → splines) | ported |
 | Clusters, records, HTML-like labels, node images, rankdir, ports/compass, flat edges, self-loops, `rank=same` | ported, byte-exact |
 
-There are two corpus deferrals. `03-subgraph-cluster` is **intentional**: its
-golden captures Graphviz's own default-mode cluster corruption on
-cross-cluster ranksets. We lay it out correctly instead and gate it against
-the `newrank` oracle (`03b`) — see "don't port the bug" in PORT.md §7.
-`191-scala-type-graph` is **open work** (added 2026-07-26): the first corpus
-file whose clusters carry their own `fontsize`/`labeljust`/`rounded` style.
-Its cluster-label, ranking and collapsed-mincross divergences are all closed
-(2026-07-27 — label metrics, the flipped `GD_border`, `adjustRanks`,
-`place_flip_graph_label`, the rounded cluster path, the dot1 `acyclic`
-decompose seed order, the cluster-interior flip reversal, the class2
-emission-ordered skeleton adjacency, and reorder's `###` sawclust rule). All
-32 nodes land on gv's ranks, the cluster blocks land in gv's within-rank
-order, and 8 of 10 cluster boxes have the right size. Lazy cluster expansion — gv's
-one-`expand_cluster`-per-`mincross_clust` loop, the rest still collapsed — is
-ported too, and **every mincross crossing count now matches gv end to end**
-(the collapsed pass step for step, all ten cluster refines iteration for
-iteration), putting 5 of 6 ranks in gv's exact within-rank order. What still differs is a
-single +-1-crossing tie in the ReMincross tail, which permutes one cluster's
-four members on one rank. See PORT.md §0.
+All eight corpus deferrals are **intentional**. `03-subgraph-cluster` and
+261–267 have a rank set with a member in a cluster that does not hold the
+set. Graphviz's default ranker cannot lay this out: it drops the set,
+deletes the member from its cluster, does not draw a cluster, or gives a
+0×0 drawing. Their goldens capture that corruption. We lay them out
+correctly instead, and gate each one against its `newrank` oracle (`03b`,
+`261b`–`267b`). See "don't port the bug" and the entry "261–269" in
+PORT.md §7.
 
 ## Scope & limitations
 
@@ -122,7 +111,7 @@ graphviz/
     metrics/            embedded AFM font tables (transcribed textspan_lut)
     output/             Output (dot_json/json0) + Svg writers
   jvm/src/test/scala/   MUnit oracle-gated suites (JVM-only: they read files)
-  corpus/               137 hand-written + real-world DOT probes
+  corpus/               247 hand-written + real-world DOT probes
                         (plus *.images.json size sidecars for image tests)
   golden/               frozen viz-js outputs, one dir per corpus file × 8 formats
   golden-examples/      frozen goldens for the shipped viewer examples
