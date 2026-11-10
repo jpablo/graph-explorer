@@ -55,18 +55,23 @@ object MetadataMigrationExecutor:
     else
       val folder = FileOrigins.canonicalize(diagramsFolder.toAbsolutePath, diagramsFolder.toAbsolutePath)
 
+      // The plan runs outside the `try` of `execute`. Thus the two callbacks
+      // must not throw. A path that no local file can have is a missing file,
+      // and its record gets a new file.
       val plan = MetadataMigration.plan(
         old = OldRecords.fromFiles(oldRecordFiles(GxHome.libraryDir(gxHome).resolve("diagrams"))),
-        readFile = path => Documents.read(Paths.get(path)).toOption.map(_.text),
+        readFile = path => FileOrigins.toPath(path).flatMap(Documents.read(_).toOption).map(_.text),
         diagramsFolder = folder.toString,
         existingNames = namesIn(folder),
         now = now(),
         // The origin is canonical for the machine that made it. Canonicalize
         // it again here, so that the entry has the identity of the file on
         // this machine, and the separator of this platform.
-        localPath = _.filePath.map: p =>
-          val path = Paths.get(p)
-          if path.isAbsolute then FileOrigins.canonicalize(path, folder).toString else p
+        localPath = uri =>
+          for
+            p    <- uri.filePath
+            path <- FileOrigins.toPath(p)
+          yield if path.isAbsolute then FileOrigins.canonicalize(path, folder).toString else p
       )
 
       execute(plan, metadataDir, beforePublish)

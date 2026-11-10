@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.gxcore.fs
 
 import org.jpablo.graphexplorer.gxcore.model.OriginUri
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, InvalidPathException, Path, Paths}
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
@@ -68,3 +68,25 @@ object FileOrigins:
   /** The canonical origin of a local file. */
   def originOf(path: Path, cwd: Path = Paths.get("").toAbsolutePath): OriginUri =
     OriginUri.fromCanonicalPath(canonicalize(path, cwd).toString)
+
+  /** The local path of `path`, or `None` when no local file can have that
+    * path.
+    *
+    * `Paths.get` refuses such a path with `InvalidPathException`. It refuses
+    * U+0000 on each platform. On Windows, it also refuses `<`, `>`, `"`, `|`,
+    * `?`, `*`, and a `:` in the wrong place. Use this function for a string
+    * that comes from an origin, an old record, or the wire.
+    */
+  def toPath(path: String): Option[Path] =
+    try Some(Paths.get(path))
+    catch case _: InvalidPathException => None
+
+  /** The local path of a `file:` origin, or `None` when the origin names no
+    * local file.
+    *
+    * `OriginUri.filePath` is total, but it can give a path that no local file
+    * can have. An example is `%00`, which decodes to U+0000. This function
+    * gives `None` for such a path, as [[toPath]] does.
+    */
+  def pathOf(uri: OriginUri): Option[Path] =
+    uri.filePath.flatMap(toPath)

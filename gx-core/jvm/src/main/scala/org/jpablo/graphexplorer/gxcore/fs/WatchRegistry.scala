@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.gxcore.fs
 
 import org.jpablo.graphexplorer.gxcore.model.{ContentHash, OriginUri}
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 import scala.collection.mutable
 
 /** Something changed underneath a watched origin. */
@@ -65,7 +65,9 @@ final class WatchRegistry(
   def watch(uri: OriginUri): Unit =
     synchronized:
       if !entries.contains(uri) then
-        val entry = Entry(uri.filePath.map(Paths.get(_)))
+        // An origin whose path no local file can have names no local file.
+        // It stays watched, and a poll reports nothing for it.
+        val entry = Entry(FileOrigins.pathOf(uri))
         entry.notified = entry.path.flatMap(Documents.hashOf)
         entries.put(uri, entry)
         audit.record(AuditEvent.WatchAdded(uri.value))

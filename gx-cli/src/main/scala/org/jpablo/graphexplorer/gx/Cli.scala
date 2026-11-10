@@ -22,7 +22,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, Label, N
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{ArrowId, ElementId, GroupId, NodeId, ViewerGroup}
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 import scala.util.control.NonFatal
 
 /** The `gx` command surface (plan §2).
@@ -924,7 +924,7 @@ object Cli:
         env.err(s"gx: warning: the library entry ${bad.file} cannot be read (${bad.message}). It is not in the list.")
       val rows = entries
         .filter(e => args.value("tag").forall(e.metadata.tags.contains))
-        .map(e => e -> !Files.exists(Paths.get(e.path)))
+        .map(e => e -> isMissing(e))
       if args.json then
         printJson(
           rows.map((e, missing) =>
@@ -938,6 +938,14 @@ object Cli:
           val tags = Option.when(e.metadata.tags.nonEmpty)(s"tags: ${e.metadata.tags.mkString(", ")}")
           env.out((Vector(e.path) ++ tags ++ Option.when(missing)("missing")).mkString("  "))
       ExitCode.Ok
+
+  /** True when the file of the entry is missing. An entry path that no local
+    * file can have (`FileOrigins.toPath` gives `None`) is also missing. An
+    * example is an entry from a different platform. `ls` and `status` use
+    * this one function, so they agree.
+    */
+  private def isMissing(entry: LibraryEntry): Boolean =
+    FileOrigins.toPath(entry.path).forall(path => !Files.exists(path))
 
   private def add(command: Command, args: Args, env: CliEnv): Int =
     // Each file is checked before the first write, so a bad file adds nothing.
@@ -1085,21 +1093,30 @@ object Cli:
             ExitCode.Ok
 
   /** The element names of the file on the screen. `None`, and a line on
-    * stderr, when the policy refuses the path, or the file cannot be read or
-    * parsed. Then the selection stays in the ref spelling.
+    * stderr, when no local file can have the path, the policy refuses the
+    * path, or the file cannot be read or parsed. Then the selection stays in
+    * the ref spelling.
+    *
+    * The path comes from the desktop. It can be a path that no local file can
+    * have, for example a path with U+0000.
     */
   private def selectionNames(path: String, env: CliEnv): Option[ElementNames] =
-    env.policy.evaluate(Paths.get(path), env.cwd) match
-      case Left(denial) =>
-        env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
-        env.err(s"gx: gx may not read $path (${denial.reason}). The selection is in the ref spelling.")
+    FileOrigins.toPath(path) match
+      case None =>
+        env.err(s"gx: gx cannot read $path (no local file can have this path). The selection is in the ref spelling.")
         None
-      case Right(allowed) =>
-        Documents.read(allowed).left.map(describe).flatMap(doc => DiagramText.parseNamed(doc.text)) match
-          case Right(diagram) => Some(diagram.names)
-          case Left(why) =>
-            env.err(s"gx: gx cannot read $path ($why). The selection is in the ref spelling.")
+      case Some(local) =>
+        env.policy.evaluate(local, env.cwd) match
+          case Left(denial) =>
+            env.audit.record(AuditEvent.Denied(denial.path, denial.reason))
+            env.err(s"gx: gx may not read $path (${denial.reason}). The selection is in the ref spelling.")
             None
+          case Right(allowed) =>
+            Documents.read(allowed).left.map(describe).flatMap(doc => DiagramText.parseNamed(doc.text)) match
+              case Right(diagram) => Some(diagram.names)
+              case Left(why) =>
+                env.err(s"gx: gx cannot read $path ($why). The selection is in the ref spelling.")
+                None
 
   private def fit(command: Command, args: Args, env: CliEnv): Int =
     fileArg(command, args, env).flatMap(requireFile(_, env)) match
@@ -1183,7 +1200,7 @@ object Cli:
       ExitCode.Usage
     else
       val entries = env.library.list()
-      val missing = entries.count(e => !Files.exists(Paths.get(e.path)))
+      val missing = entries.count(isMissing)
 
       val desktop    = env.rpc("status", ujson.Obj()).toOption.flatMap(_.objOpt)
       val watchItems = desktop.flatMap(_.get("watches")).flatMap(_.arrOpt).toVector.flatten

@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.gxcore.fs
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+import java.nio.file.attribute.{PosixFileAttributeView, PosixFilePermission, PosixFilePermissions}
 import java.nio.file.{FileAlreadyExistsException, Files, Path, StandardCopyOption, StandardOpenOption}
 import java.util.concurrent.ThreadLocalRandom
 import scala.util.control.NonFatal
@@ -19,9 +19,11 @@ import scala.util.control.NonFatal
   *
   * Both operations write the bytes to a temp file in the SAME directory and
   * flush it before the target changes. For a new target, the temp file gets
-  * the permissions that the umask gives, as a plain new file does.
+  * the permissions that the umask gives, as a plain new file does. A caller
+  * of [[write]] can give different permissions for a new target. The library
+  * store does this, because each new entry must be owner-only.
   * `Files.createTempFile` makes `rw-------`, and with it each new file was
-  * owner-only.
+  * owner-only, also a new diagram file.
   */
 object AtomicFiles:
 
@@ -36,21 +38,36 @@ object AtomicFiles:
     * itself durable. Java exposes no portable way to do it; the residual
     * exposure is a crash between the rename and the OS flushing its metadata.
     *
-    * A new target gets the permissions that the umask gives. An existing
-    * target keeps its permissions (V-03).
+    * With no `newFileMode`, a new target gets the permissions that the umask
+    * gives. With `newFileMode`, a new target gets the permissions in it, and
+    * the umask does not remove bits from them. The temp file gets these
+    * permissions when `openTemp` makes it, not after the open.
+    *
+    * An existing target keeps its permissions (V-03). `newFileMode` does not
+    * change them. A file system with no POSIX permissions (Windows) ignores
+    * `newFileMode`, because a write must never fail because of the
+    * permissions.
     */
-  def write(path: Path, bytes: Array[Byte]): Unit =
+  def write(
+      path:        Path,
+      bytes:       Array[Byte],
+      newFileMode: Option[java.util.Set[PosixFilePermission]] = None
+  ): Unit =
     val dir  = directoryOf(path)
     Files.createDirectories(dir)
     // V-03: keep the target's bits. v1 chmod'ed every file it wrote to 0600
     // (main.rs:1076), so one save silently made a group-readable diagram
     // owner-only — a change nobody asked for and nobody would look for.
-    val kept = permissionsOf(path)
-    val temp = writeTemp(dir, path, bytes, kept)
+    // Nobody chose the bits of a new target, so `newFileMode` can set them.
+    val mode =
+      if Files.exists(path) then permissionsOf(path)
+      else newFileMode.filter(_ => hasPosixView(dir))
+    val temp = writeTemp(dir, path, bytes, mode)
     try
-      kept.foreach: perms =>
+      mode.foreach: perms =>
         // The umask can remove bits when the temp file is made. This call
-        // gives the temp file all the bits of the target.
+        // gives the temp file all the bits of `mode`. It adds only bits that
+        // are in `mode`, so the temp file is never more open than `mode`.
         try Files.setPosixFilePermissions(temp, perms)
         catch case NonFatal(_) => () // best effort; must never fail a write
 
@@ -139,9 +156,13 @@ object AtomicFiles:
     *
     * With no `perms`, the temp file gets the permissions of the umask. With
     * `perms`, the temp file gets them at the creation, less the bits that the
-    * umask removes. Thus the new bytes are never more open than the target
-    * is. A chmod after the open is too late: a different process can open the
-    * file before the chmod, and it keeps that access.
+    * umask removes. Thus the new bytes are never more open than `perms`. A
+    * chmod after the open is too late: a different process can open the file
+    * before the chmod, and it keeps that access.
+    *
+    * The caller gives `perms` only if the file system has POSIX permissions.
+    * On a different file system, `FileChannel.open` refuses a POSIX
+    * attribute with `UnsupportedOperationException`.
     */
   private def openTemp(
       dir:      Path,
@@ -178,8 +199,15 @@ object AtomicFiles:
   private def directoryOf(path: Path): Path =
     Option(path.getParent).getOrElse(path.toAbsolutePath.getParent)
 
+  /** The permissions of a file that exists. */
   private def permissionsOf(path: Path): Option[java.util.Set[PosixFilePermission]] =
-    if !Files.exists(path) then None
-    else
-      try Some(Files.getPosixFilePermissions(path))
-      catch case _: UnsupportedOperationException => None // Windows has no POSIX view
+    try Some(Files.getPosixFilePermissions(path))
+    catch case _: UnsupportedOperationException => None // Windows has no POSIX view
+
+  /** `true` if the file store of `dir` has POSIX permissions. A store that
+    * the check cannot read gets `false`, because a write must never fail
+    * because of the permissions.
+    */
+  private def hasPosixView(dir: Path): Boolean =
+    try Files.getFileStore(dir).supportsFileAttributeView(classOf[PosixFileAttributeView])
+    catch case NonFatal(_) => false

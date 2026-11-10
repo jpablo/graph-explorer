@@ -804,6 +804,32 @@ class CliSpec extends FunSuite:
     assertEquals(j.json.arr.head("missing").bool, true)
   }
 
+  /** A path that no local file can have: `Paths.get` refuses U+0000 on each
+    * platform. An entry file that a person edited by hand, or an entry from a
+    * different platform, can have such a path. Before, `ls`, `status` and
+    * `selection` gave it to `Paths.get`, and the `InvalidPathException` made
+    * the whole command fail with "unexpected failure".
+    */
+  private def UnusablePath = "/w/a\u0000b.dot"
+
+  /** Put an entry with [[UnusablePath]] into the library. `metadata/` must exist. */
+  private def putUnusable(dir: Path): Unit =
+    val entry = LibraryEntry(path = UnusablePath, metadata = DiagramMetadata(tags = List("odd")), createdAt = 1L, updatedAt = 2L)
+    Run(dir).library.put(entry).fold(err => fail(s"$err"), identity)
+
+  tmp.test("ls lists an entry whose path no file can have, and marks it missing") { dir =>
+    val f = arch(dir).toRealPath().toString
+    Run(dir)("add", "arch.dot")
+    putUnusable(dir)
+    val r = Run(dir)
+    assertEquals(r("ls"), ExitCode.Ok, r.stderr)
+    assert(r.lines.exists(l => l.startsWith(UnusablePath) && l.endsWith("missing")), r.stdout)
+    assert(r.lines.exists(l => l.startsWith(f) && !l.endsWith("missing")), r.stdout)
+    val j = Run(dir)
+    assertEquals(j("ls", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json.arr.map(e => e("path").str -> e("missing").bool).toMap, Map(f -> false, UnusablePath -> true))
+  }
+
   tmp.test("ls of an empty library says so") { dir =>
     val r = Run(dir)
     assertEquals(r("ls"), ExitCode.Ok, r.stderr)
@@ -1114,6 +1140,13 @@ class CliSpec extends FunSuite:
     assertEquals(r.json, ujson.Obj("path" -> gone, "selection" -> ujson.Arr("node:a")))
   }
 
+  tmp.test("selection gives the refs when the desktop sends a path that no file can have") { dir =>
+    val r = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(UnusablePath), UnusablePath, "node:a")))
+    assertEquals(r("selection", "--json"), ExitCode.Ok, r.stderr)
+    assert(r.stderr.contains("The selection is in the ref spelling"), r.stderr)
+    assertEquals(r.json, ujson.Obj("path" -> UnusablePath, "selection" -> ujson.Arr("node:a")))
+  }
+
   tmp.test("selection with nothing on the screen is exit 2, as before") { dir =>
     val n = Run(dir, answer = (_, _) => Left(ChannelError.Rpc("NO_LIVE_VIEW", "no diagram is open", ujson.Obj())))
     assertEquals(n("selection"), ExitCode.NeedsDesktop)
@@ -1151,6 +1184,16 @@ class CliSpec extends FunSuite:
     assertEquals(j("status", "--json"), ExitCode.Ok, j.stderr)
     assertEquals(j.json("diagrams").num.toInt, 1)
     assertEquals(j.json("desktopRunning").bool, false)
+  }
+
+  tmp.test("status counts an entry whose path no file can have as missing, and exits 0") { dir =>
+    arch(dir)
+    Run(dir)("add", "arch.dot")
+    putUnusable(dir)
+    val j = Run(dir)
+    assertEquals(j("status", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json("diagrams").num.toInt, 2)
+    assertEquals(j.json("missing").num.toInt, 1)
   }
 
   tmp.test("status says what the desktop is watching, with a plural that is a plural") { dir =>
