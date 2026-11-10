@@ -10,7 +10,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.scalajs.js
 
-/** A canvas edit keeps the title of a flowchart, and adds no title.
+/** A canvas edit keeps the title of a flowchart or a state diagram, and adds
+  * no title.
   *
   * A canvas edit prints the whole graph again, and the new text replaces the
   * source. The printer writes the front-matter `title:` from the graph label.
@@ -19,7 +20,7 @@ import scala.scalajs.js
   *
   * These tests use the real Mermaid backend in the browser.
   */
-class FlowchartTitleSpec extends FunSuite with TestHelpers:
+class MermaidTitleSpec extends FunSuite with TestHelpers:
 
   import com.raquo.laminar.api.L.unsafeWindowOwner
   given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
@@ -38,7 +39,7 @@ class FlowchartTitleSpec extends FunSuite with TestHelpers:
     */
   private def check(condition: Boolean, clue: => String): Unit =
     if !condition then
-      println(s"[FlowchartTitleSpec] $clue")
+      println(s"[MermaidTitleSpec] $clue")
       throw new AssertionError(clue)
 
   private def waitFor(condition: => Boolean, description: => String, timeoutMs: Int = 15000): Future[Unit] =
@@ -48,13 +49,13 @@ class FlowchartTitleSpec extends FunSuite with TestHelpers:
       if condition then p.trySuccess(())
       else if js.Date.now() - start >= timeoutMs then
         val message = s"Timed out after ${timeoutMs}ms waiting for $description"
-        println(s"[FlowchartTitleSpec] $message")
+        println(s"[MermaidTitleSpec] $message")
         p.tryFailure(new AssertionError(message))
       else js.timers.setTimeout(20)(loop())
     loop()
     p.future
 
-  /** The text of the title that Mermaid draws above the flowchart, or `None`
+  /** The text of the title that Mermaid draws above the diagram, or `None`
     * when Mermaid draws no title. Mermaid reads the front matter as YAML here,
     * so this shows what the front matter means, not what our scan reads.
     */
@@ -63,7 +64,7 @@ class FlowchartTitleSpec extends FunSuite with TestHelpers:
       .textToSvg(text)
       .recover { case e => throw new AssertionError(s"Mermaid cannot draw this source: ${e.getMessage}\n$text") }
       .map: drawing =>
-        Option(drawing.svg.ref.querySelector(".flowchartTitleText")).map(_.textContent.trim).filter(_.nonEmpty)
+        Option(drawing.svg.ref.querySelector(".flowchartTitleText, .statediagramTitleText")).map(_.textContent.trim).filter(_.nonEmpty)
 
   /** Parse `source` in a viewer, add a node on the canvas, and give the new source. */
   private def editOnCanvas(id: String, source: String): Future[String] =
@@ -83,9 +84,13 @@ class FlowchartTitleSpec extends FunSuite with TestHelpers:
             check(state.fullGraphNow().nodes.size == 3, s"the canvas edit did not add a node:\n$text")
             text
 
-  /** The source of a flowchart A --> B, with `title` as the front-matter line. */
+  /** The source of a flowchart A --> B, with `titleLine` as the front-matter line. */
   private def withTitleLine(titleLine: String): String =
     s"---\n$titleLine\n---\nflowchart TD\n  A --> B"
+
+  /** The source of a state diagram A --> B, with `titleLine` as the front-matter line. */
+  private def stateWithTitleLine(titleLine: String): String =
+    s"---\n$titleLine\n---\nstateDiagram-v2\n  A --> B"
 
   // ------------------------------------------------- the front-matter title
 
@@ -105,8 +110,8 @@ class FlowchartTitleSpec extends FunSuite with TestHelpers:
   /** A title with `: ` or ` #` must stay in quotes. In plain YAML, `: ` makes
     * a second mapping, and ` #` starts a comment.
     */
-  private def keepsQuotedTitle(id: String, title: String): Future[Unit] =
-    val source = withTitleLine(s"title: \"$title\"")
+  private def keepsQuotedTitle(id: String, title: String, diagram: String => String = withTitleLine): Future[Unit] =
+    val source = diagram(s"title: \"$title\"")
     drawnTitle(source)
       .map: drawn =>
         check(drawn.contains(title), s"precondition: Mermaid draws the title '$title', but draws $drawn")
@@ -120,6 +125,12 @@ class FlowchartTitleSpec extends FunSuite with TestHelpers:
 
   test("a canvas edit keeps a front-matter title that has a hash sign"):
     keepsQuotedTitle("flowchart-title-hash", "Bug #1")
+
+  test("a canvas edit on a state diagram keeps a front-matter title that has a colon"):
+    keepsQuotedTitle("state-title-colon", "Deps: v2", stateWithTitleLine)
+
+  test("a canvas edit on a state diagram keeps a front-matter title that has a hash sign"):
+    keepsQuotedTitle("state-title-hash", "Bug #1", stateWithTitleLine)
 
   // ------------------------------------------------- the accessible title
 

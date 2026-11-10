@@ -27,7 +27,7 @@ def viewerGraphToMermaidStateText(graph: ViewerGraph): String =
 
   graphAttributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty).foreach { title =>
     lines.append("---\n")
-    lines.append(s"title: $title\n")
+    lines.append(s"title: ${MermaidSourceScan.titleToYaml(title)}\n")
     lines.append("---\n")
   }
   lines.append(s"$StateDiagramHeader\n")

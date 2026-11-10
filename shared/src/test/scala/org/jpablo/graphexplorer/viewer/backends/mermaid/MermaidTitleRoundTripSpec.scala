@@ -49,6 +49,17 @@ class MermaidTitleRoundTripSpec extends FunSuite:
       assertEquals(twice, once, s"the title changed on the second print")
       assertEquals(titleOf(once), Some(title), s"printed:\n$once")
 
+  test("the state-diagram printer writes the title in the same form"):
+    for title <- titles do
+      val diagram = MermaidStateGraph.fromLayout(
+        nodes = Seq(MermaidStateGraph.LayoutNode("A", "A"), MermaidStateGraph.LayoutNode("B", "B")),
+        edges = Seq(MermaidStateGraph.LayoutEdge("edge0", "A", "B")),
+        title = Some(title)
+      )
+      val printed = viewerGraphToMermaidText(stateDiagramToViewerGraph(diagram))
+      assert(printed.startsWith(s"---\ntitle: ${MermaidSourceScan.titleToYaml(title)}\n---\n"), printed)
+      assertEquals(MermaidSourceScan.frontmatterTitle(printed), Some(title), s"printed:\n$printed")
+
   test("an accTitle is not the title, and not a node"):
     val text  = "flowchart TD\n  accTitle: Service map\n  A --> B\n"
     val graph = parse(text)
