@@ -842,15 +842,39 @@ object Spline:
     // dedges that a flat group has routed already
     val flatDone = mutable.HashSet.empty[Int]
 
-    /** makeSimpleFlat (dotsplines.c:1140): `cnt` edges between the adjacent
-      * nodes tn (left) and hn (right), without ports and labels. The edges
-      * make a spindle. The middle control points of edge i are at
+    /** flat_reorder keeps a flat edge that goes from left to right (from
+      * right to left under a flipped rankdir). It turns the other edges. */
+    def flatKept(x: REdge): Boolean =
+      (orderIdx.getOrElse(x.tail, 0) < orderIdx.getOrElse(x.head, 0)) != flip
+
+    /** The tail, head and ports of `edges[ind]`, the first edge of a flat
+      * group, as gv has it after flat_reorder. flat_rev turns a wrong-way
+      * edge of one cluster: if the pair has no edge in the kept direction,
+      * a new virtual edge goes in the kept direction, with the ports of its
+      * own ends. Else the wrong-way edge stays as it is (in ND_other). */
+    def flatIndEdge(d: Int): (String, String, Option[org.jpablo.graphexplorer.graphviz.dotlang.Port],
+                              Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]) =
+      val e = flatDedges(d)
+      val turned = !flatKept(e) && flatSameClust(e.tail, e.head) &&
+        !pairOf(d).exists(k => flatDedges(k).tail == e.head && flatKept(flatDedges(k)))
+      if turned then (e.head, e.tail, e.headPort, e.tailPort)
+      else (e.tail, e.head, e.tailPort, e.headPort)
+
+    /** makeSimpleFlat (dotsplines.c:1137): `cnt` edges between the nodes tn
+      * (left) and hn (right), without labels. The edges make a spindle. The
+      * middle control points of edge i are at
       * y = tp.y - ND_ht(tn)/2 + i·ND_ht(tn)/(cnt-1). ND_ht is the height in
       * the layout frame. Each edge goes through clip_and_install from left to
       * right, and swap_spline turns a right-to-left edge at install. */
     def makeSimpleFlat(tn: String, hn: String, group: Vector[Int]): Unit =
-      val tp    = XY(cx(tn), cy(tn))
-      val hp    = XY(cx(hn), cy(hn))
+      // tp and hp add the ports of `edges[ind]` (dotsplines.c:1142), not the
+      // ports of its forward copy. When edges[ind] goes from hn to tn, gv
+      // thus puts the port of hn at tn. Without ports, p is (0, 0).
+      val (eT, eH, eTPort, eHPort) = flatIndEdge(group.head)
+      val tpp   = rawPort(eT, eTPort).getOrElse(PortAnchor.GvPort.center)
+      val hpp   = rawPort(eH, eHPort).getOrElse(PortAnchor.GvPort.center)
+      val tp    = XY(cx(tn) + tpp.px, cy(tn) + tpp.py)
+      val hp    = XY(cx(hn) + hpp.px, cy(hn) + hpp.py)
       val cnt   = group.length
       val ht    = 2.0 * halfH(tn)
       val stepy = if cnt > 1 then ht / (cnt - 1).toDouble else 0.0
@@ -865,7 +889,18 @@ object Spline:
                    XY(bx, dy), XY(bx, dy), XY(bx, dy), hp, hp)
           else Vector(tp, XY(ax, dy), XY(bx, dy), hp)
         dy += stepy
-        out(dedgeOrigIdx(k)) = clipInstall(g, ctrl, ek, byId, centerOf, reversedWork = ek.tail != tn)
+        // clip_and_install (splines.c:249) reads the clip flag and the bp
+        // of each end from the port of the original edge at that node. A
+        // compass port has clip = false: the edge starts at the port point.
+        val (wtPort, whPort) =
+          if ek.tail == tn then (ek.tailPort, ek.headPort) else (ek.headPort, ek.tailPort)
+        val wt = rawPort(tn, wtPort)
+        val wh = rawPort(hn, whPort)
+        out(dedgeOrigIdx(k)) = clipInstall(g, ctrl, ek, byId, centerOf,
+          tailClip = wt.forall(_.clip), headClip = wh.forall(_.clip),
+          reversedWork = ek.tail != tn,
+          tailBp = wt.filter(_.defined).flatMap(_.bp),
+          headBp = wh.filter(_.defined).flatMap(_.bp))
       }
 
     /** simpleSplineRoute (routespl.c:173): the shortest path from tp to hp in
@@ -961,10 +996,19 @@ object Spline:
       val hend    = Box(hmb.llx, cy(hn), hmb.urx, hmb.ury)
       val cnt     = run.length
       val stepx   = NodeSep / (cnt + 1) // sp->Multisep / (cnt + 1)
-      val topRank = ranksSorted.head
+      // dotsplines.c:1610. gv tests `r > 0`, not the lowest rank: a rank 0
+      // under the `abomination` rank −1 also takes GD_ranksep (288). With
+      // edge labels, gv measures vspace to rank r−2 (prevr), not to r−1.
       val vspace  =
-        if rt == topRank then Coord.flatVspaceTopRank(g)
-        else (yOf(rt - 1).value - ht1(rt - 1)) - (yOf(rt).value + ht2(rt))
+        if rt > 0 then
+          val pr0 = if Rank.hasEdgeLabel(g) then rt - 2 else rt - 1
+          // For r = 1 with edge labels, gv reads GD_rank(g)[-1]. That rank
+          // exists only after `abomination` (282). Without it, gv reads out
+          // of bounds: viz-js drops the edge or stops with "memory access
+          // out of bounds". No golden can pin that value, so keep rank r−1.
+          val pr = if orderByRank.contains(pr0) then pr0 else rt - 1
+          (yOf(pr).value - ht1(pr)) - (yOf(rt).value + ht2(rt))
+        else Coord.flatVspaceTopRank(g)
       val stepy = vspace / (cnt + 1)
       run.iterator.zipWithIndex.foreach { (k, i) =>
         val ek  = flatDedges(k)
@@ -1292,6 +1336,26 @@ object Spline:
           flatDone ++= pair
           if pair.exists(k => hasLabel(flatDedges(k))) then makeSimpleFlatLabels(ln, rn, pair)
           else makeSimpleFlat(ln, rn, pair)
+        else if lineMode && !adjacent && !labelled then
+          // make_flat_edge (dotsplines.c:1599): EDGETYPE_LINE makes a
+          // straight spindle (makeSimpleFlat), not an arch. This test comes
+          // before the bottom-port test (make_flat_bottom_edges).
+          //
+          // The group (dotsplines.c:370): class2 merges all the flat edges
+          // of the pair into one main edge (merge_oneway, flat_rev). An
+          // edge with ports compares its own ports, an edge without ports
+          // compares the ports of the main edge (portcmp after MAKEFWDEDGE).
+          // edgecmp sorts by these ports and then by AGSEQ, and the group
+          // stops at a different label pointer.
+          def portsLR(k: Int) =
+            val ek = flatDedges(k)
+            if ek.tail == ln then (ek.tailPort, ek.headPort) else (ek.headPort, ek.tailPort)
+          val main =
+            pair.find(k => flatKept(flatDedges(k)) || !flatSameClust(ln, rn)).getOrElse(pair.head)
+          def cmpPorts(k: Int) = if hasPorts(flatDedges(k)) then portsLR(k) else portsLR(main)
+          val run = unlabelledRun(i, pair.filter(k => cmpPorts(k) == cmpPorts(i)))
+          flatDone ++= run
+          makeSimpleFlat(ln, rn, run)
         else if !adjacent && !pairPorts && !labelled then
           // ── non-adjacent flat edges (make_flat_edge): up-and-over arches ──
           // They skip ≥1 node in the rank, so they cannot run straight. gv

@@ -1,0 +1,4 @@
+digraph G {
+  splines=false;
+  { rank=same; a -> m -> b; a -> b; a -> b }
+}

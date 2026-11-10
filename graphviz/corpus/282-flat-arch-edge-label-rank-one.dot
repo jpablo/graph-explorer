@@ -1,0 +1,5 @@
+digraph G {
+  { rank=source; s -> m0 -> s3; s -> s3 [label=L] }
+  s -> t;
+  { rank=same; x -> y -> z; x -> z }
+}
