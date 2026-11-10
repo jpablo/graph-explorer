@@ -1,0 +1,9 @@
+digraph RootSetIntoNested {
+    subgraph cluster_a {
+        a1 -> a2
+        subgraph cluster_b { b1 -> b2 }
+    }
+    { rank=same; a2; b1 }
+    s -> a1
+    s -> b1
+}

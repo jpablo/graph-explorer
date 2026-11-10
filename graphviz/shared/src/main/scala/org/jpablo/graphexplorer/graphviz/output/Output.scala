@@ -250,11 +250,13 @@ object Output:
     "    {\n" + fields.result().mkString(",\n") + "\n    }"
 
   /** A subgraph's attribute stream (gv `write_attrs`): every declared
-    * graph-attr key, with the subgraph's own value where it has one (label /
-    * rank in our model) else the root declaration's default (cgraph: setting
+    * graph-attr key, with the subgraph's own value where it has one (label
+    * in our model) else the root declaration's default (cgraph: setting
     * a graph attr on the root re-declares its default, so subgraphs echo the
-    * root's value — 03b's `newrank` appears in every cluster object). Empty
-    * values are skipped except an (always-printed) declared `label`. */
+    * root's value — 03b's `newrank` appears in every cluster object). The
+    * `rank` key has no root fallback: it is always the subgraph's value
+    * from [[RSubgraph.attrs]]. Empty values are skipped except an
+    * (always-printed) declared `label`. */
   private def sgAttrs(g: RGraph, sg: Doc.SG): Vector[(String, String)] =
     g.graphAttrKeys.iterator.map { k =>
       // A LOCALLY DECLARED value shadows the root default even when empty
@@ -265,7 +267,11 @@ object Output:
         // root's "Basic git concepts…". The merged attrs carry the
         // inherited value; a locally-declared empty label still prints "".
         case "label" => (sg.attrs.getOrElse("label", sg.label), sg.emitLabel)
-        case "rank"  => (sg.rank.getOrElse(""), sg.rank.isDefined)
+        // agxget: a subgraph's rank is the value that it got when cgraph
+        // made it (inherited, or its own). A root `rank` that comes after
+        // the subgraph does not go to it (cgraph `unviewsubgraphsattr`), so
+        // the rank has no root fallback (269).
+        case "rank"  => (sg.attrs.getOrElse("rank", ""), true)
         case _       => (sg.attrs.getOrElse(k, ""), sg.attrs.contains(k))
       k -> (if declared || own.nonEmpty then own else g.rootAttrs.getOrElse(k, ""))
     }.toVector

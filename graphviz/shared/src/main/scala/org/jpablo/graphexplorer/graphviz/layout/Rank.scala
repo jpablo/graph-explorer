@@ -85,19 +85,39 @@ object Rank:
       if reversed(i) then DEdge(e.head, e.tail, ml) else DEdge(e.tail, e.head, ml)
     }
 
-  /** `collapse_sets` (class1.c) + `GD_minset`/`GD_maxset` (rank.c
-    * `build_ranksets`): union-find leaders for every `rank=same/min/max/
-    * source/sink` subgraph (members merged to one representative so the rank
-    * solve pins them to a single rank), plus the extreme sets — all
-    * `min`/`source` members collapse into one `minset`, all `max`/`sink`
-    * into one `maxset`. `slenX`/`slenY` are 1 for `source`/`sink` (strict
-    * extreme, `minmax_edges` slen) else 0. Identity when no rank constraints
-    * exist ⇒ additive (unconstrained corpus unchanged).
+  /** The rank kind of a subgraph: rank_set_class and rankset_kind (rank.c).
+    * Both read `agget(S, "rank")` and accept only an exact match of same,
+    * min, source, max or sink. Any other value is not a rank set.
+    *
+    * The value is [[RSubgraph.attrs]]: the value that the subgraph got when
+    * cgraph made it (from the root or a parent subgraph), or its own value.
+    * A root `rank` that comes after a subgraph does not go to that subgraph
+    * (cgraph `unviewsubgraphsattr`). Thus [[RSubgraph.rank]] and the root
+    * value are not the correct source here. */
+  private def rankKind(s: RSubgraph): Option[String] =
+    s.attrs.get("rank").filter(Set("same", "min", "source", "max", "sink"))
+
+  /** The nodes of a subgraph and of all its nested subgraphs. */
+  private def transNodes(s: RSubgraph): Set[String] =
+    s.nodeIds.toSet ++ s.children.flatMap(transNodes)
+
+  /** The rank sets of the global level: union-find leaders for every rank
+    * set (the solve puts all members of a set on one rank), plus the
+    * extreme sets. All min and source members collapse into one `minset`,
+    * all max and sink members into one `maxset`. `slenX` (`slenY`) is 1 when
+    * a source (sink) set exists, else 0 (the `minmax_edges` slen). With no
+    * rank set, each node is its own leader.
     *
     * Only [[rankedGlobal]] (newrank, and the 03 exception) uses this walk.
-    * It goes into each subgraph, also into a set or a cluster, as dot2's
-    * compile_samerank does. dot1 graphs use the collapse_sets walk of
-    * [[rankedDot1]]. */
+    * It follows dot2 `compile_samerank`:
+    *   - It goes into each subgraph, also into a set or a cluster.
+    *   - A cluster can be a set too (`rankset_kind` does not exclude it).
+    *   - The kind comes from [[rankKind]]. An unknown value is not a set.
+    *   - The members of a set are ALL nodes of the subgraph (`union_all`
+    *     with `agfstnode`), also the nodes of its nested subgraphs, in the
+    *     global node order.
+    *   - The root is not a set.
+    * dot1 graphs use the collapse_sets walk of [[rankedDot1]]. */
   final case class RankSets(
       leader:  String => String,
       minset:  Option[String], // leader of the min/source union
@@ -117,16 +137,16 @@ object Rank:
     val minMembers = mutable.ArrayBuffer.empty[String] // min + source
     val maxMembers = mutable.ArrayBuffer.empty[String] // max + sink
     var slenX = 0; var slenY = 0
-    // rank_set_class reads agget(subg, "rank") — which resolves through
-    // cgraph DEFAULTS: `graph [rank=same]` declared at ROOT level makes
-    // every subgraph a rank set by inheritance (the 167 grid). The root
-    // itself is never collapsed (collapse_sets only walks SUBgraphs).
-    val defaultRank = g.rootAttrs.get("rank").filter(_.nonEmpty)
+    // A `rank` of the root or of a parent subgraph goes to each subgraph
+    // that cgraph makes after it (RSubgraph.attrs): a root `graph
+    // [rank=same]` before the subgraphs makes each of them a set (the 167
+    // grid). The root itself is not a set here.
     def walk(subs: Vector[RSubgraph]): Unit = subs.foreach { s =>
-      s.rank.orElse(defaultRank).foreach { rt =>
-        // union_all walks agfstnode(subg): the GLOBAL node order (AGSEQ),
-        // not the body order.
-        val own     = s.nodeIds.toSet
+      rankKind(s).foreach { rt =>
+        // union_all walks agfstnode(subg): all nodes of the subgraph, also
+        // the nodes of its nested subgraphs, in the GLOBAL node order
+        // (AGSEQ), not in the body order.
+        val own     = transNodes(s)
         val members = g.nodes.iterator.map(_.id).filter(own).toVector
         members.reduceLeftOption { (a, b) => union(a, b); b } // collapse this set
         rt match
@@ -165,27 +185,39 @@ object Rank:
     * for a graph with or without clusters. Clusters rank RECURSIVELY
     * (interior solve + collapse to a leader + interclust1 slack edges).
     *
-    * EXCEPTION (don't-port-the-bug, 03): a rank set SPANNING cluster
-    * boundaries corrupts gv's dot1 (13.0.1 emits a 0×0 sentinel drawing) —
-    * for those inputs we keep the correct global (newrank) semantics,
-    * byte-gated against the 03b newrank oracle in ClusterSpec. */
+    * EXCEPTION (don't-port-the-bug, 03): gv's dot1 cannot lay out a rank
+    * set S that has a member in a FOREIGN cluster C. S is a plain subgraph
+    * with a [[rankKind]], a member is a node of S or of a nested subgraph
+    * of S, and C is foreign when C is not an ancestor of S in the subgraph
+    * tree. A cluster inside S is foreign too. For such a graph, gv 13.0.1
+    * drops the set, deletes the member from C, does not draw C, or gives
+    * the 0×0 drawing of 03 (PORT.md §0 item 7). The port then uses the
+    * global (newrank) ranking. ClusterSpec gates each such case against its
+    * newrank twin (03b, 261b–267b). */
   private def rankedImpl(g: RGraph): (Map[String, Int], Vector[DEdge]) =
-    def topClusters(subs: Vector[RSubgraph]): Vector[RSubgraph] =
-      subs.flatMap(s => if s.isCluster then Vector(s) else topClusters(s.children))
-    val tops = topClusters(g.subgraphs)
-    def crossClusterRankSet: Boolean =
-      val clOf = mutable.HashMap.empty[String, Int]
-      def mark(s: RSubgraph, ci: Int): Unit =
-        s.nodeIds.foreach(n => clOf(n) = ci); s.children.foreach(mark(_, ci))
-      tops.zipWithIndex.foreach((c, i) => mark(c, i))
-      val defaultRank = g.rootAttrs.get("rank").filter(_.nonEmpty)
-      def walk(subs: Vector[RSubgraph]): Boolean = subs.exists { s =>
-        (s.rank.orElse(defaultRank).isDefined && !s.isCluster &&
-          s.nodeIds.map(clOf.get).distinct.length > 1) || walk(s.children)
-      }
-      walk(g.subgraphs)
-    if mapbool(g.rootAttrs.get("newrank")) || crossClusterRankSet then rankedGlobal(g)
+    if mapbool(g.rootAttrs.get("newrank")) || foreignClusterRankSet(g) then rankedGlobal(g)
     else rankedDot1(g)
+
+  /** True when a plain subgraph S with a [[rankKind]] has a node in a
+    * cluster that is not an ancestor of S (see [[rankedImpl]]). The
+    * ancestor test uses reference identity, because [[RSubgraph]] has
+    * structural equality. */
+  private def foreignClusterRankSet(g: RGraph): Boolean =
+    val clusters = Vector.newBuilder[RSubgraph]
+    def collect(s: RSubgraph): Unit =
+      if s.isCluster then clusters += s
+      s.children.foreach(collect)
+    g.subgraphs.foreach(collect)
+    val clusterNodes = clusters.result().map(c => (c, transNodes(c)))
+    def walk(s: RSubgraph, ancestors: List[RSubgraph]): Boolean =
+      val foreign = !s.isCluster && rankKind(s).isDefined && {
+        val members = transNodes(s)
+        clusterNodes.exists { (c, inC) =>
+          !ancestors.exists(_ eq c) && members.exists(inC)
+        }
+      }
+      foreign || s.children.exists(walk(_, s :: ancestors))
+    g.subgraphs.exists(walk(_, Nil))
 
   // ED_weight = late_int(weight, default 1, FLOOR 0) — atoi truncates
   // fractions. Shared by the dot1 interclust weights and the global
@@ -407,20 +439,13 @@ object Rank:
     // AGSEQ), as cgraph `agfstnode(subg)` gives them, not in body order.
     // This order is the dot1 nlist: it sets the decompose seeds, the
     // acyclic order and the cluster leader.
-    def transSet(s: RSubgraph): Set[String] =
-      s.nodeIds.toSet ++ s.children.flatMap(transSet)
+    def transSet(s: RSubgraph): Set[String] = transNodes(s)
     def allNodes(s: RSubgraph): Vector[String] =
       val set = transSet(s)
       g.nodes.iterator.map(_.id).filter(set).toVector
 
-    // rank_set_class (rank.c): maptoken of agget(S, "rank"). The value comes
-    // through the defaults of the scope: a `rank` of the root or of a
-    // parent subgraph goes to each subgraph that is made after it
-    // (RSubgraph.attrs). An unknown value is not a set.
-    def rankKind(s: RSubgraph): Option[String] =
-      s.attrs.get("rank").filter(Set("same", "min", "source", "max", "sink"))
-
     // collapse_sets(L): the child clusters and the rank sets of a level.
+    // rank_set_class (rank.c) gives the kind of a set (see rankKind).
     def collapseSets(subs: Vector[RSubgraph]): (Vector[RSubgraph], Vector[(RSubgraph, String)]) =
       val clusters = Vector.newBuilder[RSubgraph]
       val sets     = Vector.newBuilder[(RSubgraph, String)]
@@ -459,8 +484,8 @@ object Rank:
       // collapse_rankset: UF_union(u, v) keeps the root of u, so the root of
       // a set is its first member, and the minset (maxset) root is the first
       // member of the first min (max) set. A member of a child cluster stays
-      // in the cluster: a set that crosses a cluster boundary is the 03 case
-      // (see rankedImpl).
+      // in the cluster: a set with a member in a foreign cluster is the 03
+      // case (see rankedImpl).
       val parent = mutable.HashMap.empty[String, String]
       def find(x: String): String =
         val p = parent.getOrElse(x, x)

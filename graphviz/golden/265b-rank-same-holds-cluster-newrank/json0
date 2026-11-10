@@ -1,0 +1,84 @@
+{
+  "name": "SetHoldsCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,142,196",
+  "newrank": "true",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%7",
+      "newrank": "true",
+      "rank": "same",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        3,5
+      ]
+    },
+    {
+      "name": "cluster_x",
+      "bb": "64,8,134,60",
+      "newrank": "true",
+      "rank": "same",
+      "_gvid": 1,
+      "nodes": [
+        5
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "s",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "54,178",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "c",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "90,106",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,34",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "pos": "e,30.268,52.189 50.743,159.87 46.182,135.88 37.837,91.993 32.354,63.158"
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4,
+      "pos": "e,81.696,123.15 62.35,160.76 66.575,152.55 71.808,142.37 76.581,133.09"
+    },
+    {
+      "_gvid": 2,
+      "tail": 4,
+      "head": 5,
+      "pos": "e,96.801,52.104 92.225,87.697 93.173,80.322 94.304,71.524 95.368,63.25"
+    }
+  ]
+}

@@ -1,18 +1,19 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 238/239
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 247/255
 > (2026-11-09).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 230/231 + shipped examples 8/8 = 238/239** — the SINGLE
-> remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
-> (its golden is gv's own default-mode cluster corruption; the file is
-> gated byte-exact against the 03b `newrank` oracle in ClusterSpec
-> instead). The `ExamplesByteExactSpec` deferred list is EMPTY. Five
+> **corpus 239/247 + shipped examples 8/8 = 247/255** — the ONLY
+> remaining diffs anywhere are 03-subgraph-cluster and 261–267, intentional
+> deferrals (their goldens are gv's own default-mode cluster corruption;
+> each file is gated byte-exact against its `newrank` twin, 03b and
+> 261b–267b, in ClusterSpec instead). The `ExamplesByteExactSpec` deferred
+> list is EMPTY. Five
 > user-reported diagrams (165–169) landed 2026-07-16 and closed FIVE
 > long-deferred subsystems: xlabels (`addXLabels`/`placeLabels`), flat-edge
 > mincross (`flat_reorder`/`flat_breakcycles`/`left2right`), per-component
@@ -102,7 +103,11 @@ enforce the deferral halves of it):
   `ClusterSpec`), fails-when-fixed guarded. The dot1 cluster-ranking port
   (169) made the exception EXPLICIT in code: a rank set spanning cluster
   boundaries keeps the correct global (newrank) semantics
-  (`Rank.rankedImpl` dispatch).
+  (`Rank.rankedImpl` dispatch). 261–267 (2026-11-09) are seven more
+  deferrals of this kind, each with its own newrank twin
+  (`OracleHarness.newrankTwins`). The rule is now wider: a rank set with
+  a member in a cluster that is not an ancestor of the set. See the §7
+  entry "261–269".
 - **191-scala-type-graph** — NEW corpus probe (2026-07-26), the one OPEN
   (non-intentional) corpus deferral. A user diagram: 10 clusters, HTML-table
   nodes with ports, `rankdir=LR`, and — the part nothing else in the corpus
@@ -664,17 +669,13 @@ enforce the deferral halves of it):
      the §7 entry "245–260".
   5. ~~**Two flat edges between one pair are straight.**~~ CLOSED: see the
      §7 entry "223–244".
-  6. **The `rank` echo of a subgraph in `dot_json`/`json0`.** The writer
-     reads only the local `rank`. gv prints the value that the subgraph got
-     when it was made, also from the scope: an inner subgraph of a set lists
-     `"rank": "same"`, and a subgraph with an unknown value does not.
-  7. **`crossClusterRankSet` misses some cases** (`Rank.rankedImpl`, the 03
-     rule). It marks only the TOP-level clusters, so a set that crosses a
-     NESTED cluster boundary goes to dot1, where the member stays in its
-     cluster and is not in the set. It reads only the direct `nodeIds` of a
-     set, so `{rank=same; a; subgraph cluster_x {b}}` is not found. It reads
-     `s.rank.orElse(defaultRank)`, not the value from when the subgraph was
-     made.
+  6. ~~**The `rank` echo of a subgraph in `dot_json`/`json0`.**~~ CLOSED:
+     see the §7 entry "261–269". The writer now prints the value that the
+     subgraph got when it was made (`RSubgraph.attrs`), with no root
+     fallback (265–267, 269). gv prints an unknown value too (268:
+     `"rank": "foo"`).
+  7. ~~**`crossClusterRankSet` misses some cases**~~ CLOSED: see the §7
+     entry "261–269". The rule is now `foreignClusterRankSet`.
 
   The port of the flat groups (223–244) found five more gaps. No corpus case
   has them yet:
@@ -716,6 +717,18 @@ enforce the deferral halves of it):
       order as 0.
   16. **The `ordering` attribute.** `ordered_edges` is not ported. The port
       does not read `ordering` at all.
+
+  The rank-set probes (261–269) found two gaps in the newrank path
+  (`rankedGlobal`). No corpus case has them:
+  17. **A `rank` on the root under `newrank`.** dot2 calls
+      `compile_samerank` on the root too, so a root `rank=same` puts ALL
+      nodes on one rank. A probe with `newrank=true` and a root `rank=same`
+      after two clusters gave this in gv. `rankConstraints` does not make
+      the root a set.
+  18. **Root-level min and max sets under `newrank`.** dot2 records a
+      min/max set in `GD_minrep`/`GD_maxrep` only when the set is in a
+      cluster (`if (clust != NULL)`). `rankConstraints` makes a minset and a
+      maxset at the root level too. This is not checked against gv.
 
 ## 1. Goal & locked decisions
 
@@ -3277,4 +3290,42 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   edge. Two more probes check that a flat pair across a cluster boundary
   still routes as two groups. The probes left four gaps (§0, items 13–16).
   graphvizJVM 1008/1008.
+- **2026-11-09 (261–269)** — **A rank set with a member in a foreign
+  cluster is the 03 case; corpus 239/247, total gate 247/255.** The 03 rule
+  of `Rank.rankedImpl` sent a graph to `rankedGlobal` only when the DIRECT
+  members of a set were in two different TOP-level clusters (§0 item 7).
+  Oracle probes showed that gv's dot1 fails in more cases:
+  - `collapse_rankset` unions ALL nodes of the set (`agfstnode`, also the
+    nodes of nested subgraphs) and gives each one a set type.
+    `mark_clusters` resets only the CLUSTER-typed nodes, so it deletes each
+    set member from a child cluster ("already in a rankset, deleted from
+    cluster"). When the set comes before the cluster, `node_induce` deletes
+    the member instead. `collapse_sets` does not go into a set, so a
+    cluster inside a set is never collapsed, and gv does not draw it.
+  - Thus gv drops the set (262, 264), deletes the member from its cluster
+    (263, 266), does not draw a cluster (265), or gives the 0×0 drawing of
+    03 (261: a root set whose members are ALL in one cluster, so "crosses a
+    boundary" was too narrow). 267 gets its `rank=same` from the cluster
+    around it: cgraph gives a new subgraph the values of its parent.
+  - The rule is now `foreignClusterRankSet`: a plain subgraph S with a
+    valid `rank` (exact keyword, from `RSubgraph.attrs`) that has a node,
+    also through a nested subgraph, in a cluster that is not an ancestor
+    of S. A cluster inside S counts. Each of 261–267 is a deferral with a
+    newrank twin (261b–267b), and `ClusterSpec` gates the verbatim file
+    against the twin, as for 03/03b (`OracleHarness.newrankTwins`).
+  - gv dot is sound for two more probes, so they are plain corpus cases:
+    268 (`rank=foo` across two clusters is not a set; the old rule took it
+    as one) and 269 (a root `rank=same` after the subgraphs does not reach
+    them: `bindattrs` declares `rank` with "" first, and the root update
+    keeps the old value in each existing subgraph; the old rule read the
+    root value).
+  - `rankConstraints` (the global path) had the same misses. It now follows
+    dot2 `compile_samerank`: the members of a set are all nodes of the
+    subgraph, the kind is an exact keyword from `RSubgraph.attrs`, and a
+    cluster can be a set. 265b–267b need this.
+  - The writer's `rank` echo now reads `RSubgraph.attrs`, with no root
+    fallback (§0 item 6): gv lists `"rank": "same"` for a cluster or a
+    plain subgraph inside a set, and nothing for 269's clusters.
+  No earlier corpus case changed. The probes found two newrank gaps (§0,
+  items 17–18). graphvizJVM 1070/1070.
 - _(append dated entries as milestones land)_

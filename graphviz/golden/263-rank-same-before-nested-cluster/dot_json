@@ -1,0 +1,85 @@
+{
+  "name": "SetBeforeNested",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 158 276",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "cluster_a",
+      "_gvid": 0,
+      "subgraphs": [
+        1,
+2
+      ],
+      "nodes": [
+        3,4,5,6
+      ],
+      "edges": [
+        1,0
+      ]
+    },
+    {
+      "name": "%1",
+      "rank": "same",
+      "_gvid": 1,
+      "nodes": [
+        3,4
+      ]
+    },
+    {
+      "name": "cluster_b",
+      "_gvid": 2,
+      "nodes": [
+        6
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "a2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "b1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "a1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "b2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "s",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 3
+    },
+    {
+      "_gvid": 0,
+      "tail": 4,
+      "head": 6
+    },
+    {
+      "_gvid": 3,
+      "tail": 7,
+      "head": 5
+    },
+    {
+      "_gvid": 2,
+      "tail": 7,
+      "head": 4
+    }
+  ]
+}

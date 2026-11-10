@@ -1,0 +1,7 @@
+digraph SetSubgraphIntoCluster {
+    newrank = true;
+    subgraph cluster_x { x1 -> x2 }
+    { rank=same; a; subgraph { x2 } }
+    s -> a
+    s -> x1
+}

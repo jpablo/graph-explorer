@@ -84,7 +84,27 @@ object OracleHarness:
     *     merged-multi-edge widths/weights, then the per-PASS merge accounting,
     *     the penwidth outline, and the dyna-port side.
     */
-  val deferredCorpus: Set[String] = Set("03-subgraph-cluster")
+  lazy val deferredCorpus: Set[String] = Set("03-subgraph-cluster") ++ newrankTwins.keySet
+
+  /** The 03 cases: a verbatim corpus file whose own goldens are gv's
+    * default-mode corruption, and the `newrank` twin that is its oracle.
+    * Each twin is the verbatim file plus `newrank = true;` on its second
+    * line. [[ClusterSpec]] gates each verbatim file against its twin, and
+    * [[CorpusByteExactSpec]] gates each twin against its own goldens.
+    *   - 261–267 (2026-11-09, PORT.md §0 item 7): a rank set with a member
+    *     inside a cluster that does not hold the set. gv's dot1 then drops
+    *     the set, evicts the member from its cluster, drops the cluster, or
+    *     gives the 0×0 drawing of 03.
+    */
+  val newrankTwins: Map[String, String] = Map(
+    "261-rank-same-root-over-one-cluster"    -> "261b-rank-same-root-over-one-cluster-newrank",
+    "262-rank-same-crosses-nested-cluster"   -> "262b-rank-same-crosses-nested-cluster-newrank",
+    "263-rank-same-before-nested-cluster"    -> "263b-rank-same-before-nested-cluster-newrank",
+    "264-rank-same-root-into-nested-cluster" -> "264b-rank-same-root-into-nested-cluster-newrank",
+    "265-rank-same-holds-cluster"            -> "265b-rank-same-holds-cluster-newrank",
+    "266-rank-same-subgraph-into-cluster"    -> "266b-rank-same-subgraph-into-cluster-newrank",
+    "267-rank-inherited-from-cluster"        -> "267b-rank-inherited-from-cluster-newrank"
+  )
 
   /** Image-dimension sidecar for a corpus file (`<name>.images.json`), mirroring
     * the `images` option passed to viz-js at capture time. Returns natural sizes
