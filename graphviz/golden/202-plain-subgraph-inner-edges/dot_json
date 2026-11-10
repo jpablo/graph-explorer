@@ -1,0 +1,181 @@
+{
+  "name": "PlainSubgraphInnerEdges",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 380 196",
+  "_subgraph_cnt": 8,
+  "objects": [
+    {
+      "name": "s",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        9,10,11
+      ],
+      "edges": [
+        4
+      ]
+    },
+    {
+      "name": "t",
+      "_gvid": 1,
+      "nodes": [
+        9,10
+      ],
+      "edges": [
+        4
+      ]
+    },
+    {
+      "name": "u",
+      "_gvid": 2,
+      "subgraphs": [
+        3
+      ],
+      "nodes": [
+        12
+      ]
+    },
+    {
+      "name": "v",
+      "_gvid": 3,
+      "nodes": [
+        12
+      ]
+    },
+    {
+      "name": "w",
+      "_gvid": 4,
+      "subgraphs": [
+        5
+      ],
+      "nodes": [
+        13,14,15
+      ],
+      "edges": [
+        6
+      ]
+    },
+    {
+      "name": "cluster_q",
+      "_gvid": 5,
+      "nodes": [
+        13,14
+      ],
+      "edges": [
+        6
+      ]
+    },
+    {
+      "name": "p",
+      "_gvid": 6,
+      "subgraphs": [
+        7
+      ],
+      "nodes": [
+        16,17
+      ]
+    },
+    {
+      "name": "r",
+      "_gvid": 7,
+      "nodes": [
+        16
+      ]
+    },
+    {
+      "_gvid": 8,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 10,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 11,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 12,
+      "name": "d",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 13,
+      "name": "f",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 14,
+      "name": "g",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 15,
+      "name": "h",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 16,
+      "name": "k",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 17,
+      "name": "m",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 4,
+      "tail": 9,
+      "head": 10
+    },
+    {
+      "_gvid": 0,
+      "tail": 8,
+      "head": 9
+    },
+    {
+      "_gvid": 1,
+      "tail": 8,
+      "head": 10
+    },
+    {
+      "_gvid": 2,
+      "tail": 8,
+      "head": 11
+    },
+    {
+      "_gvid": 5,
+      "tail": 12,
+      "head": 11
+    },
+    {
+      "_gvid": 6,
+      "tail": 13,
+      "head": 14
+    },
+    {
+      "_gvid": 3,
+      "tail": 8,
+      "head": 13
+    },
+    {
+      "_gvid": 7,
+      "tail": 16,
+      "head": 17
+    }
+  ]
+}

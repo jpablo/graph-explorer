@@ -1,0 +1,7 @@
+digraph "FlatLabelBottomRankClusters" {
+    subgraph cluster_p { a1 -> a2 }
+    subgraph cluster_q { b1 -> b2 }
+    a1 -> m
+    b1 -> m
+    a2 -> b2 [constraint=false, label="x"]
+}

@@ -1,0 +1,5 @@
+digraph FlatThreeCycle {
+    { rank=same; a -> b -> c -> a }
+    x -> b
+    c -> y
+}

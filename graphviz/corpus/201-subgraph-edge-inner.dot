@@ -1,0 +1,8 @@
+digraph "SubgraphEdgeInner" {
+    x
+    subgraph cluster_s { label="s"; subgraph cluster_t { label="t"; a -> c } b }
+    x -> a
+    x -> c
+    x -> b
+    subgraph cluster_p { y; { { d } e } y -> d; y -> e }
+}

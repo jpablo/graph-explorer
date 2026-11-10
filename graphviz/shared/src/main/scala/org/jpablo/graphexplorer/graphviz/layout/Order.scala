@@ -15,7 +15,7 @@ import scala.collection.mutable
   * collapses each top-level cluster to a skeleton column so the top-level
   * mincross can't interleave clusters, orders each cluster's interior
   * recursively, then expands. Byte-exact for contiguity (94), multi-rank
-  * clusters with free crossing edges (95) and nesting (96).
+  * clusters with free crossing edges (95) and nesting (96, 199, 203).
   *
   * Deferred (⬜, PORT.md §5.2): **flat edges** (`flat_reorder`/`flat_breakcycles`
   * for same-rank adjacencies — 06's residual), and the **rank=min/sink** within-
@@ -432,10 +432,15 @@ object Order:
   /** `dot_mincross` with clusters (mincross.c:381 + class2.c/cluster.c):
     * collapse each top-level cluster to a skeleton column so the top-level
     * mincross physically can't interleave clusters, order the collapsed graph,
-    * order each cluster's interior recursively, then expand each skeleton back
-    * into its nodes. Scoped to **single-level** clusters (the whole corpus +
-    * probes); nested clusters are a documented TODO (would recurse the collapse
-    * per level). */
+    * then expand and refine the clusters one at a time in preorder
+    * (`mincross_clust`).
+    *
+    * Nested clusters follow the same rule at each level. The root pass sees
+    * only the TOP-LEVEL clusters, and each of them is one column for all its
+    * nodes, nested ones too. When cluster K expands, each child cluster of K
+    * is a skeleton column in K's interior, and the child expands only after
+    * the refine of K. So a node outside K can never land between two child
+    * clusters of K. */
   private def orderClustered(
       g: RGraph,
       nodeOut: collection.Map[LayoutNode, mutable.ArrayBuffer[LayoutNode]],
@@ -465,20 +470,38 @@ object Order:
     // the last cluster expanded ends up first. `flat_edges` walks this.
     val mergedNlist = mutable.ListBuffer.empty[LayoutNode]
     val clustOf  = Cluster.clustOf(g) // node NAME → innermost cluster idx
-    // A chain vnode belongs to a cluster iff its owning edge's ORIGINAL
-    // endpoints share that cluster (gv mark_clusters sets ND_clust on the
-    // vnodes of intra-cluster edges — e.g. a reversed back edge like
-    // groups.dot's a3->a0). They then live in the cluster's interior mincross,
-    // NOT as free nodes of the collapsed graph.
+    // The cluster tree. `pathOf(c)` is the list of clusters from the
+    // top-level cluster down to c (c is the last item).
+    val pathOf: Vector[Vector[Int]] = cinfos.indices.map { ci =>
+      var p = List(ci); var c = cinfos(ci).parent
+      while c >= 0 do { p = c :: p; c = cinfos(c).parent }
+      p.toVector
+    }.toVector
+    /** True when cluster `c` is cluster `k` or is nested in `k`. */
+    def inside(c: Int, k: Int): Boolean = pathOf(c).contains(k)
+    /** The child of `k` that is on the path from `k` down to `c`. */
+    def childOnPath(k: Int, c: Int): Int = pathOf(c)(pathOf(k).length)
+    // A chain vnode belongs to the DEEPEST cluster that holds both ORIGINAL
+    // endpoints of its edge. The default ranker (`node_induce`) puts each
+    // edge into every cluster that holds its two ends, and `class2` of a
+    // cluster ignores an edge whose two ends are in one child cluster. So
+    // the chain comes from the `class2` of that deepest cluster, and that
+    // cluster's interior mincross orders its vnodes (e.g. a reversed back
+    // edge like groups.dot's a3->a0). `mark_lowclusters` gives the vnodes
+    // the same cluster later, for ReMincross.
     val vOrigEnds: Vector[(String, String)] =
       g.edges.filter(e => e.tail != e.head).map(e => (e.tail, e.head))
+    /** The cluster that holds `n` as a DIRECT member: the innermost cluster
+      * of a real node, the deepest common cluster of a chain vnode's two
+      * ends. `None` is the root graph. */
     def cOf(n: LayoutNode): Option[Int] = n match
       case LayoutNode.Real(id) => clustOf.get(id)
       case LayoutNode.Virtual(idx, _) =>
         val (t, h) = vOrigEnds(idx)
         (clustOf.get(t), clustOf.get(h)) match
-          case (Some(a), Some(b)) if a == b => Some(a)
-          case _                            => None
+          case (Some(a), Some(b)) =>
+            pathOf(a).zip(pathOf(b)).takeWhile((x, y) => x == y).lastOption.map(_._1)
+          case _ => None
       // The class2 adjacency this walks is keyed by SEGMENT endpoints, so it
       // holds real nodes and chain vnodes and nothing else. The other kinds
       // arrive later or elsewhere: Slack/ClusterLn/ClusterRn are XCoord's aux
@@ -491,11 +514,31 @@ object Order:
         sys.error(s"Order.cOf: $other is not a mincross node (class2 holds Real/Virtual only)")
     val allNodes = nodeOut.keysIterator.toVector
 
-    // Each cluster's occupied rank band (over the class2 nodes actually present).
+    // Each cluster's occupied rank band (over the class2 nodes actually
+    // present). The band of a cluster covers the nodes of its nested
+    // clusters too (GD_minrank/GD_maxrank).
     val clRanks: Map[Int, (Int, Int)] =
-      allNodes.groupBy(cOf).collect { case (Some(ci), ns) =>
-        val rs = ns.map(rankOf); ci -> (rs.min, rs.max)
+      val band = mutable.HashMap.empty[Int, (Int, Int)]
+      allNodes.foreach { n =>
+        cOf(n).foreach { c =>
+          val r = rankOf(n)
+          pathOf(c).foreach { k =>
+            band(k) = band.get(k).fold((r, r)) { (lo, hi) =>
+              (math.min(lo, r), math.max(hi, r))
+            }
+          }
+        }
       }
+      band.toMap
+    /** The child clusters of `k` that have nodes, in `GD_clust` order. */
+    def childrenOf(k: Int): Vector[Int] =
+      cinfos.indices.filter(c => cinfos(c).parent == k && clRanks.contains(c)).toVector
+    def skColumn(c: Int): Vector[CNode] =
+      val (lo, hi) = clRanks(c)
+      (lo to hi).map(r => CNode.Sk(c, r): CNode).toVector
+    def rankOfC(x: CNode): Int = x match
+      case CNode.Nd(n)    => rankOf(n)
+      case CNode.Sk(_, r) => r
 
     // ── each cluster's interior INSTALL: `expand_cluster` → build_ranks(subg,
     //    0) — a single pass-0 BFS over the intra-cluster segments, roots
@@ -503,43 +546,87 @@ object Order:
     //    g != root, "to preserve input node order"). NO local iterations —
     //    the refinement happens afterwards against the GLOBAL order
     //    (`mincross(subg, 2)`), where crossings/medians see the whole graph. ──
-    def internalInstall(ci: Int): Map[Int, Vector[LayoutNode]] =
-      val members = allNodes.filter(n => cOf(n).contains(ci)).toSet
-      val iOut  = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
-      val iIn   = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
-      members.foreach { n =>
-        iOut.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
-        iIn.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
+    //
+    // `class2(subg)` collapses each CHILD cluster of subg to a skeleton
+    // column (`build_skeleton`), and `interclrep` maps an edge end in a
+    // child cluster to the child's rankleader at that rank. An edge with
+    // both ends in one child cluster is ignored here: the child's own
+    // expansion handles it later.
+    def internalInstall(ci: Int): Map[Int, Vector[CNode]] =
+      val kids = childrenOf(ci)
+      // The interior node that stands for `n`, or None if `n` is outside ci.
+      def leaderIn(n: LayoutNode): Option[CNode] = cOf(n) match
+        case Some(c) if c == ci        => Some(CNode.Nd(n))
+        case Some(c) if inside(c, ci)  => Some(CNode.Sk(childOnPath(ci, c), rankOf(n)))
+        case _                         => None
+      val iOut  = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+      val iIn   = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+      def touch(x: CNode): Unit =
+        iOut.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
+        iIn.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
+      def link(a: CNode, b: CNode): Unit =
+        touch(a); touch(b); iOut(a) += b; iIn(b) += a
+      // build_skeleton runs before the node loop of class2, so the chain
+      // edge is the first out-edge of each rankleader.
+      kids.foreach { c =>
+        val col = skColumn(c)
+        col.foreach(touch)
+        col.iterator.zip(col.iterator.drop(1)).foreach((a, b) => link(a, b))
       }
-      allNodes.foreach { t =>
-        if members.contains(t) then
-          nodeOut(t).foreach { h => if members.contains(h) then { iOut(t) += h; iIn(h) += t } }
+      allNodes.foreach(n => if cOf(n).contains(ci) then touch(CNode.Nd(n)))
+      segsInOrder.foreach { (t, h) =>
+        (leaderIn(t), leaderIn(h)) match
+          case (Some(lt), Some(lh)) =>
+            val intra = (lt, lh) match
+              case (CNode.Sk(c1, _), CNode.Sk(c2, _)) => c1 == c2
+              case _                                  => lt == lh
+            if !intra then link(lt, lh)
+          case _ => ()
       }
       val declared = cinfos(ci).nodeIds.iterator.map(id => LayoutNode.Real(id): LayoutNode)
-        .filter(members.contains).toVector
+        .filter(n => cOf(n).contains(ci)).map(n => CNode.Nd(n): CNode).toVector
       // interior chain vnodes in class2(subg) creation order: per owning edge
       // (in the per-tail, head-seq emission order the global chains used),
       // min→max rank within a chain.
-      val virtuals = members.iterator.collect { case v: LayoutNode.Virtual => v }
-        .toVector.sortBy(v => (v.edgeIdx, v.rank)).map(v => v: LayoutNode)
-      val nlist = declared ++ virtuals
-      val rows  = mutable.HashMap.empty[Int, mutable.ArrayBuffer[LayoutNode]]
-      val mark  = mutable.Set.empty[LayoutNode]
-      val q     = mutable.Queue.empty[LayoutNode]
-      def install(n: LayoutNode): Unit =
-        rows.getOrElseUpdate(rankOf(n), mutable.ArrayBuffer.empty) += n
+      val virtuals = allNodes.iterator
+        .collect { case v: LayoutNode.Virtual if cOf(v).contains(ci) => v }
+        .toVector.sortBy(v => (v.edgeIdx, v.rank)).map(v => CNode.Nd(v): CNode)
+      // build_skeleton calls virtual_node(subg) for each child before the
+      // node loop, so the rankleaders come first in creation order.
+      val nlist = kids.flatMap(skColumn) ++ declared ++ virtuals
+      val rows  = mutable.HashMap.empty[Int, mutable.ArrayBuffer[CNode]]
+      val mark  = mutable.Set.empty[CNode]
+      val q     = mutable.Queue.empty[CNode]
+      val colInstalled = mutable.Set.empty[Int] // GD_installed guard
+      def install(x: CNode): Unit =
+        rows.getOrElseUpdate(rankOfC(x), mutable.ArrayBuffer.empty) += x
+      def enq(x: CNode): Unit =
+        iOut(x).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
+      // install_cluster: a dequeued rankleader installs the whole column of
+      // its cluster once, then enqueues the neighbours of each column node.
+      def handle(x: CNode): Unit = x match
+        case CNode.Sk(c, _) =>
+          if !colInstalled(c) then
+            colInstalled += c
+            val col = skColumn(c)
+            col.foreach(install)
+            col.foreach(enq)
+        case _ => install(x); enq(x)
       // build_ranks `walkbackwards`: the cluster nlist is built by fast_node
       // PREPENDS (reverse insertion), and the backward walk restores insertion
-      // order — which is exactly this list's forward order (reals in
-      // declaration order, then chain vnodes in creation order).
+      // order — which is exactly this list's forward order (the child
+      // rankleaders, then reals in declaration order, then chain vnodes in
+      // creation order).
       nlist.foreach { root =>
         if iIn(root).isEmpty && !mark(root) then
           mark += root; q.enqueue(root)
-          while q.nonEmpty do
-            val n0 = q.dequeue(); install(n0)
-            iOut(n0).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
+          while q.nonEmpty do handle(q.dequeue())
       }
-      nlist.foreach(n => if !mark(n) then { mark += n; install(n) }) // safety net
+      nlist.foreach { n => // safety net
+        if !mark(n) then
+          mark += n; handle(n)
+          while q.nonEmpty do handle(q.dequeue())
+      }
       // NO per-rank flip reversal here. build_ranks guards it on `GD_flip(g)`
       // = `GD_rankdir(g) & 1`, and `graph_init` (input.c:586) — the only place
       // rankdir is parsed — runs on the ROOT alone, so a cluster subgraph's
@@ -548,9 +635,12 @@ object Order:
       // un-mirrored each cluster's interior relative to the rank around it.
       rows.iterator.map((r, b) => r -> b.toVector).toMap
 
-    // ── collapse: free nodes pass through, each cluster → a skeleton chain. ──
+    // ── collapse: free nodes pass through, each TOP-LEVEL cluster → a
+    //    skeleton chain. `class2(root)` collapses only the top-level clusters,
+    //    and `mark_clusters(root)` gives each node of such a cluster (nested
+    //    members too) that cluster as ND_clust. ──
     def leaderC(n: LayoutNode): CNode = cOf(n) match
-      case Some(ci) => CNode.Sk(ci, rankOf(n))
+      case Some(ci) => CNode.Sk(pathOf(ci).head, rankOf(n))
       case None     => CNode.Nd(n)
     val cOut  = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
     val cIn   = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
@@ -560,7 +650,8 @@ object Order:
       cIn.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
       cRank(x) = r
     allNodes.foreach(n => if cOf(n).isEmpty then cInit(CNode.Nd(n), rankOf(n)))
-    clRanks.foreach { case (ci, (lo, hi)) =>
+    childrenOf(-1).foreach { ci =>
+      val (lo, hi) = clRanks(ci)
       (lo to hi).foreach(r => cInit(CNode.Sk(ci, r), r))
       (lo until hi).foreach { r => // build_skeleton chain (keeps the column together)
         cOut(CNode.Sk(ci, r)) += CNode.Sk(ci, r + 1); cIn(CNode.Sk(ci, r + 1)) += CNode.Sk(ci, r)
@@ -653,9 +744,18 @@ object Order:
     val hIn     = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
     val hWeight = mutable.HashMap.empty[(CNode, CNode), Long]
     val hPorts  = mutable.HashMap.empty[(CNode, CNode), SegPorts]
+    // With nested clusters, the walk goes down the cluster path of the node:
+    // the first cluster on the path that is not expanded gives the
+    // rankleader. Its parent is the root or is expanded, so its skeleton
+    // chain is live. A deeper cluster has no skeleton yet.
     def liveNode(n: LayoutNode): CNode = cOf(n) match
-      case Some(ci) if !expanded(ci) => CNode.Sk(ci, rankOf(n))
-      case _                         => CNode.Nd(n)
+      case Some(ci) =>
+        pathOf(ci).find(c => !expanded(c)) match
+          case Some(c) => CNode.Sk(c, rankOf(n))
+          case None    => CNode.Nd(n)
+      case None => CNode.Nd(n)
+    def skeletonLive(ci: Int): Boolean =
+      !expanded(ci) && { val p = cinfos(ci).parent; p < 0 || expanded(p) }
     def rebuildAdjacency(): Unit =
       hOut.clear(); hIn.clear(); hWeight.clear(); hPorts.clear()
       def touch(x: CNode): Unit =
@@ -663,7 +763,7 @@ object Order:
         hIn.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
       rows.valuesIterator.foreach(_.foreach(touch))
       clRanks.foreach { case (ci, (lo, hi)) =>
-        if !expanded(ci) then
+        if skeletonLive(ci) then
           (lo until hi).foreach { r =>
             val a = CNode.Sk(ci, r); val b = CNode.Sk(ci, r + 1)
             touch(a); touch(b)
@@ -697,6 +797,9 @@ object Order:
     def clustOfC(x: CNode): Option[Int] = x match
       case CNode.Nd(n)     => cOf(n)
       case CNode.Sk(ci, _) => Some(ci)
+    /** True when `x` is inside cluster `k` (a rankleader of a child of `k`
+      * is inside `k`). The slice of `k` on a rank is the run of these. */
+    def insideC(x: CNode, k: Int): Boolean = clustOfC(x).exists(c => inside(c, k))
 
     // Flat (same-rank) adjacency, in the CNode domain. A node whose only
     // neighbours share its rank has EMPTY in/out fast lists, so `medians`
@@ -745,13 +848,17 @@ object Order:
       val interior = internalInstall(ci)
       // merge_ranks: fast_node PREPENDS each node, walking ranks ascending and
       // each rank left-to-right, so this block lands at the head reversed.
+      // The rankleaders of the child clusters go into GD_nlist too, but
+      // `remove_rankleaders` deletes them when the child expands, so they
+      // never reach `dot_position`.
       mergedNlist.prependAll(
         (clRanks(ci)._1 to clRanks(ci)._2)
-          .flatMap(r => interior.getOrElse(r, Vector.empty)).reverse)
+          .flatMap(r => interior.getOrElse(r, Vector.empty))
+          .collect { case CNode.Nd(n) => n }.reverse)
       val (lo, hi) = clRanks(ci)
       (lo to hi).foreach { r =>
         val rb   = rows.getOrElseUpdate(r, mutable.ArrayBuffer.empty)
-        val repl = interior.getOrElse(r, Vector.empty).map(n => CNode.Nd(n): CNode)
+        val repl = interior.getOrElse(r, Vector.empty)
         val idx  = rb.indexOf(CNode.Sk(ci, r): CNode)
         if idx >= 0 then { rb.remove(idx); rb.insertAll(idx, repl) }
         else rb ++= repl
@@ -822,9 +929,9 @@ object Order:
       def slice(r: Int): (Int, Int) = // [from, until) of this cluster's members
         val rb   = rows(r)
         var from = 0
-        while from < rb.length && !clustOfC(rb(from)).contains(ci) do from += 1
+        while from < rb.length && !insideC(rb(from), ci) do from += 1
         var until = from
-        while until < rb.length && clustOfC(rb(until)).contains(ci) do until += 1
+        while until < rb.length && insideC(rb(until), ci) do until += 1
         (from, until)
       def exchange(r: Int, i: Int, j: Int): Unit =
         val rb = rows(r); val a = rb(i); val b = rb(j)
@@ -877,15 +984,27 @@ object Order:
           while lp < ep do
             while lp < ep && mval.getOrElse(rb(lp), -1.0) < 0 do lp += 1
             if lp < ep then
-              // NO sawclust here. The `###` rule keys off ND_clust, and
-              // `expand_cluster` runs `class2(subg)` → `mark_clusters(subg)`,
-              // whose first loop sets `ND_clust(n) = NULL` for every node of
-              // subg (it then re-marks only subg's OWN sub-clusters). So while
-              // a cluster's interior mincross runs, its nodes carry no cluster
-              // — the rule is inert until `mark_lowclusters` re-stamps them
-              // just before ReMincross, where it DOES apply.
+              // The `###` rule keys off ND_clust, and `expand_cluster` runs
+              // `class2(subg)` → `mark_clusters(subg)`, whose first loop sets
+              // `ND_clust(n) = NULL` for every node of subg. Its second loop
+              // marks only the nodes of subg's OWN child clusters, and these
+              // are not in the slice: their rankleaders are. So in this pass
+              // ND_clust is set exactly on the child rankleaders (`Sk`), and
+              // the rule applies to them. `left2right` is always false here:
+              // ReMincross is off, and two nodes with different ND_clust are
+              // both rankleaders, which may swap.
               var rp = lp + 1
-              while rp < ep && mval.getOrElse(rb(rp), -1.0) < 0 do rp += 1
+              var found    = false
+              var sawclust = false
+              while rp < ep && !found do
+                val isSk = rb(rp) match
+                  case _: CNode.Sk => true
+                  case _           => false
+                if sawclust && isSk then rp += 1 // ###
+                else if mval.getOrElse(rb(rp), -1.0) >= 0 then found = true
+                else
+                  if isSk then sawclust = true // ###
+                  rp += 1
               if rp < ep then
                 val p1 = mval.getOrElse(rb(lp), -1.0)
                 val p2 = mval.getOrElse(rb(rp), -1.0)

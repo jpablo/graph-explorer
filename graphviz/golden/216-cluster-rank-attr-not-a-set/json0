@@ -1,0 +1,67 @@
+{
+  "name": "ClusterRankAttr",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,158,196",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_c",
+      "bb": "8,8,150,132",
+      "rank": "same",
+      "_gvid": 0,
+      "nodes": [
+        1,2,3
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,106",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "c",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "115,106",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "x",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,178",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "pos": "e,43,52.104 43,87.697 43,80.407 43,71.726 43,63.536"
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 1,
+      "pos": "e,43,124.1 43,159.7 43,152.41 43,143.73 43,135.54"
+    }
+  ]
+}

@@ -92,7 +92,12 @@ object Rank:
     * `min`/`source` members collapse into one `minset`, all `max`/`sink`
     * into one `maxset`. `slenX`/`slenY` are 1 for `source`/`sink` (strict
     * extreme, `minmax_edges` slen) else 0. Identity when no rank constraints
-    * exist ⇒ additive (unconstrained corpus unchanged). */
+    * exist ⇒ additive (unconstrained corpus unchanged).
+    *
+    * Only [[rankedGlobal]] (newrank, and the 03 exception) uses this walk.
+    * It goes into each subgraph, also into a set or a cluster, as dot2's
+    * compile_samerank does. dot1 graphs use the collapse_sets walk of
+    * [[rankedDot1]]. */
   final case class RankSets(
       leader:  String => String,
       minset:  Option[String], // leader of the min/source union
@@ -109,7 +114,6 @@ object Rank:
     def union(a: String, b: String): Unit =
       val (ra, rb) = (find(a), find(b))
       if ra != rb then parent(ra) = rb
-    val nodeSet  = g.nodes.iterator.map(_.id).toSet
     val minMembers = mutable.ArrayBuffer.empty[String] // min + source
     val maxMembers = mutable.ArrayBuffer.empty[String] // max + sink
     var slenX = 0; var slenY = 0
@@ -120,7 +124,10 @@ object Rank:
     val defaultRank = g.rootAttrs.get("rank").filter(_.nonEmpty)
     def walk(subs: Vector[RSubgraph]): Unit = subs.foreach { s =>
       s.rank.orElse(defaultRank).foreach { rt =>
-        val members = s.nodeIds.filter(nodeSet)
+        // union_all walks agfstnode(subg): the GLOBAL node order (AGSEQ),
+        // not the body order.
+        val own     = s.nodeIds.toSet
+        val members = g.nodes.iterator.map(_.id).filter(own).toVector
         members.reduceLeftOption { (a, b) => union(a, b); b } // collapse this set
         rt match
           case "min"                => minMembers ++= members
@@ -153,9 +160,10 @@ object Rank:
       case other          => other.toIntOption.exists(_ > 0)
   }
 
-  /** dot_rank (rank.c:449): `newrank` ⇒ dot2 (global ranking — our native
-    * path); otherwise clusters rank RECURSIVELY (dot1: interior solve +
-    * collapse to a leader + interclust1 slack constraints at the root).
+  /** dot_rank (rank.c:449): `newrank` ⇒ dot2, which the port gives as one
+    * global level ([[rankedGlobal]]); otherwise dot1_rank ([[rankedDot1]]),
+    * for a graph with or without clusters. Clusters rank RECURSIVELY
+    * (interior solve + collapse to a leader + interclust1 slack edges).
     *
     * EXCEPTION (don't-port-the-bug, 03): a rank set SPANNING cluster
     * boundaries corrupts gv's dot1 (13.0.1 emits a 0×0 sentinel drawing) —
@@ -176,19 +184,9 @@ object Rank:
           s.nodeIds.map(clOf.get).distinct.length > 1) || walk(s.children)
       }
       walk(g.subgraphs)
-    if tops.nonEmpty && !mapbool(g.rootAttrs.get("newrank")) && !crossClusterRankSet then
-      rankedDot1(g, tops)
-    else rankedGlobal(g)
+    if mapbool(g.rootAttrs.get("newrank")) || crossClusterRankSet then rankedGlobal(g)
+    else rankedDot1(g)
 
-  // ── dot1_rank (rank.c:429): recursive cluster ranking ─────────────────────
-  // collapse_cluster: each cluster's interior is ranked with its OWN solve
-  // (nested clusters first), then collapses to a leader (the LAST rank-0
-  // fast node in list order); class1 turns every inter-cluster edge into a
-  // SLACK virtual node with two aux edges (interclust1, class1.c:31):
-  // v→tail (minlen t_len, weight CL_BACK·w) + v→head (h_len, w), offset =
-  // minlen + t_local − h_local — a SOFT constraint, absent from acyclic.
-  // rank1 runs UNBALANCED when clusters exist; expand_ranksets adds each
-  // member's local offset to its leader's root rank.
   // ED_weight = late_int(weight, default 1, FLOOR 0) — atoi truncates
   // fractions. Shared by the dot1 interclust weights and the global
   // ranking edges (TB_balance's inweight==outweight test reads it).
@@ -236,218 +234,332 @@ object Rank:
       }
       out.result()
 
-  private def rankedDot1(g: RGraph, tops: Vector[RSubgraph]): (Map[String, Int], Vector[DEdge]) =
-    val minlenScale = if hasEdgeLabel(g) then 2 else 1
-    val realEdges   = g.edges.filter(e => e.tail != e.head)
-    val nodeSeq     = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+  /** The class1 fast graph of one ranking level (fastgr.c). It has one fast
+    * edge for each (tail, head) pair: `make` is `virtual_edge`, or
+    * `merge_oneway` when the pair has an edge (minlen max, weight sum, the
+    * edge keeps its position). The out and in lists keep the gv order, also
+    * after `reverse`. [[rankedGlobal]] and each level of [[rankedDot1]] use
+    * it. */
+  private final class FastGraph:
+    val tail   = mutable.ArrayBuffer.empty[String]
+    val head   = mutable.ArrayBuffer.empty[String]
+    val minlen = mutable.ArrayBuffer.empty[Int]
+    val weight = mutable.ArrayBuffer.empty[Int]
+    val alive  = mutable.ArrayBuffer.empty[Boolean]
+    private val outL   = mutable.HashMap.empty[String, mutable.ArrayBuffer[Int]]
+    private val inL    = mutable.HashMap.empty[String, mutable.ArrayBuffer[Int]]
+    private val byPair = mutable.HashMap.empty[(String, String), Int]
 
-    // dotgen acyclic scoped to an edge subset: DFS seeds in `order`,
-    // out-edges by (head seq, idx); returns the reversed edge indices.
-    def acyclicScoped(order: Vector[String], edgeIdxs: Vector[Int]): Set[Int] =
-      val outIdx = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[Int]]
-      order.foreach(n => outIdx(n) = mutable.ArrayBuffer.empty)
-      edgeIdxs.foreach(i => outIdx.getOrElseUpdate(realEdges(i).tail, mutable.ArrayBuffer.empty) += i)
-      outIdx.values.foreach { buf =>
-        val sorted = buf.sortBy(i => (nodeSeq.getOrElse(realEdges(i).head, Int.MaxValue), i))
-        buf.clear(); buf ++= sorted
+    def out(n: String): mutable.ArrayBuffer[Int] =
+      outL.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
+    def in(n: String): mutable.ArrayBuffer[Int] =
+      inL.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
+    def has(t: String, h: String): Boolean = byPair.contains((t, h))
+
+    def make(t: String, h: String, ml: Int, w: Int): Unit =
+      byPair.get((t, h)) match
+        case Some(i) => minlen(i) = math.max(minlen(i), ml); weight(i) += w
+        case None    => add(t, h, ml, w)
+
+    /** `virtual_edge` with no merge: the edge is always new. */
+    def add(t: String, h: String, ml: Int, w: Int): Unit =
+      val i = tail.length
+      tail += t; head += h; minlen += ml; weight += w; alive += true
+      out(t) += i; in(h) += i
+      byPair((t, h)) = i
+
+    // zapinlist (fastgr.c): swap-remove. The LAST member fills the hole.
+    private def zap(buf: mutable.ArrayBuffer[Int], e: Int): Unit =
+      val j = buf.indexOf(e)
+      if j >= 0 then { buf(j) = buf(buf.length - 1); buf.remove(buf.length - 1) }
+
+    /** reverse_edge (acyclic.c:20): delete the fast edge, then merge it into
+      * the opposite fast edge, or make that edge. A new edge goes to the END
+      * of the lists of its ends and of the creation order. */
+    def reverse(e: Int): Unit =
+      alive(e) = false
+      zap(out(tail(e)), e)
+      zap(in(head(e)), e)
+      byPair.remove((tail(e), head(e)))
+      make(head(e), tail(e), minlen(e), weight(e))
+
+    /** minmax_edges (rank.c:316): reverse each fast out-edge of maxset (it
+      * becomes a sink) and each fast in-edge of minset (it becomes a
+      * source), always `list[0]` until the list is empty. */
+    def minmax(minset: Option[String], maxset: Option[String]): Unit =
+      maxset.foreach { mx => val o = out(mx); while o.nonEmpty do reverse(o(0)) }
+      minset.foreach { mn => val i = in(mn); while i.nonEmpty do reverse(i(0)) }
+
+    /** decompose(g, 0) (decomp.c): the connected components, each in the
+      * order of `search_component`. The seeds come in the given order. The
+      * walk takes the OUT-edges before the IN-edges, each list in its own
+      * order. */
+    def decompose(seeds: Iterable[String]): Vector[Vector[String]] =
+      val done  = mutable.Set.empty[String]
+      val comps = Vector.newBuilder[Vector[String]]
+      seeds.foreach { s =>
+        if !done(s) then
+          val comp = Vector.newBuilder[String]
+          val stk  = mutable.Stack(s)
+          while stk.nonEmpty do
+            val n = stk.pop()
+            if !done(n) then
+              done += n; comp += n
+              in(n).reverseIterator.foreach(e => if !done(tail(e)) then stk.push(tail(e)))
+              out(n).reverseIterator.foreach(e => if !done(head(e)) then stk.push(head(e)))
+          comps += comp.result()
       }
-      val reversed = mutable.Set.empty[Int]
-      val mark = mutable.Set.empty[String]; val onStack = mutable.Set.empty[String]
+      comps.result()
+
+    /** acyclic (acyclic.c:32) on the fast graph, with DFS seeds in `order`.
+      * An out-edge to a head on the stack is reversed in place. The swap
+      * puts the LAST edge in that slot, and gv's `i--` examines the slot
+      * again. */
+    def acyclic(order: Iterable[String]): Unit =
+      val mark    = mutable.Set.empty[String]
+      val onStack = mutable.Set.empty[String]
       def dfs(n: String): Unit =
         if !mark(n) then
           mark += n; onStack += n
-          outIdx.getOrElse(n, mutable.ArrayBuffer.empty).foreach { i =>
-            val w = realEdges(i).head
-            if onStack(w) then reversed += i
-            else if !mark(w) then dfs(w)
-          }
+          val o = out(n)
+          var i = 0
+          while i < o.length do
+            val e = o(i)
+            val w = head(e)
+            if onStack(w) then reverse(e) // examine slot i again
+            else
+              if !mark(w) then dfs(w)
+              i += 1
           onStack -= n
       order.foreach(dfs)
-      reversed.toSet
 
+    /** minmax_edges2 (rank.c): for each root `n` in `roots` order, an edge
+      * `n → maxset` (minlen slenY) when n has no out-edge, and an edge
+      * `minset → n` (minlen slenX) when n has no in-edge. Both have weight
+      * 0. The test reads the lists as they are at that time, so an edge
+      * that an earlier node added counts. True when it adds an edge. */
+    def minmax2(roots: Iterable[String], minset: Option[String], maxset: Option[String],
+                slenX: Int, slenY: Int): Boolean =
+      var added = false
+      if minset.isDefined || maxset.isDefined then
+        roots.foreach { n =>
+          maxset.foreach { mx =>
+            if out(n).isEmpty && n != mx then { add(n, mx, slenY, 0); added = true }
+          }
+          minset.foreach { mn =>
+            if in(n).isEmpty && n != mn then { add(mn, n, slenX, 0); added = true }
+          }
+        }
+      added
+
+    /** The live fast edges in creation order: the NS builds each node's
+      * ND_out and ND_in from this order. */
+    def nsEdges: Vector[NetworkSimplex.NSEdge] =
+      tail.indices.iterator.filter(alive)
+        .map(i => NetworkSimplex.NSEdge(tail(i), head(i), minlen(i), weight(i)))
+        .toVector
+  end FastGraph
+
+  /** dot1_rank (rank.c:429) for the root and, through collapse_cluster, for
+    * each cluster. Each level L does:
+    *
+    *   1. collapse_sets(L): walk the subgraphs of L in order. A cluster
+    *      (is_cluster comes first) gets its own dot1_rank, then its members
+    *      union to its leader. A rank set (`agget(S, "rank")` is same, min,
+    *      max, source or sink) unions its members to its first member (in
+    *      cgraph AGSEQ, with the nodes of nested subgraphs). min and source
+    *      sets union into the minset of L, max and sink sets into the maxset
+    *      of L. The walk goes into a plain subgraph, but not into a set or a
+    *      cluster.
+    *   2. class1(L): for each edge of L, t and h are the UF roots of its
+    *      ends. An edge with t == h is skipped (it is flat, or it is inside
+    *      a child cluster). An edge with an end in a child cluster becomes a
+    *      SLACK node v with two aux edges (interclust1, class1.c:31):
+    *      v → t (minlen t_len, weight CL_BACK·w) and v → h (h_len, w), with
+    *      offset = minlen + t_local − h_local. The aux edges go to the UF
+    *      ROOTS, so the slack edge of a set member goes to the set root.
+    *      Each other edge merges into the fast edge of (t, h).
+    *   3. minmax_edges, decompose, acyclic on the fast graph in decompose
+    *      order, minmax_edges2 (decompose again when it adds an edge).
+    *   4. rank1: the NS for each connected component. TB balance only when
+    *      L has no child cluster (rank.c:382).
+    *   5. expand_ranksets: each member's rank is its root's rank plus its
+    *      local rank in its child cluster.
+    *   6. cluster_leader: the LAST normal node with rank 0 in GD_nlist(L).
+    *      GD_nlist is the list of the last component, and only UF roots are
+    *      in it.
+    *
+    * The working edges stay on the original nodes (Order makes its virtual
+    * chains from them). The lowest level that has both ends of an edge sets
+    * the orientation of the edge. */
+  private def rankedDot1(g: RGraph): (Map[String, Int], Vector[DEdge]) =
+    val minlenScale = if hasEdgeLabel(g) then 2 else 1
+    val realEdges   = g.edges.filter(e => e.tail != e.head)
+    val nodeSeq     = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+    // agfstout order (cgraph agedgeseqcmpf): the out-edges of a node by
+    // (head seq, edge seq).
+    val outEdges: Map[String, Vector[Int]] =
+      realEdges.indices.toVector.groupBy(i => realEdges(i).tail).map { (t, is) =>
+        t -> is.sortBy(i => (nodeSeq.getOrElse(realEdges(i).head, Int.MaxValue), i))
+      }
+
+    // The transitive nodes of a subgraph, in the GLOBAL node order (=
+    // AGSEQ), as cgraph `agfstnode(subg)` gives them, not in body order.
+    // This order is the dot1 nlist: it sets the decompose seeds, the
+    // acyclic order and the cluster leader.
+    def transSet(s: RSubgraph): Set[String] =
+      s.nodeIds.toSet ++ s.children.flatMap(transSet)
     def allNodes(s: RSubgraph): Vector[String] =
-      s.nodeIds ++ s.children.flatMap(allNodes)
-    def subClusters(s: RSubgraph): Vector[RSubgraph] =
-      s.children.flatMap(c => if c.isCluster then Vector(c) else subClusters(c))
+      val set = transSet(s)
+      g.nodes.iterator.map(_.id).filter(set).toVector
 
-    val interiorRev = mutable.Set.empty[Int] // intra-cluster acyclic reversals
-    val slackWasUsed = mutable.Set.empty[Int] // edges turned into slack pairs somewhere
+    // rank_set_class (rank.c): maptoken of agget(S, "rank"). The value comes
+    // through the defaults of the scope: a `rank` of the root or of a
+    // parent subgraph goes to each subgraph that is made after it
+    // (RSubgraph.attrs). An unknown value is not a set.
+    def rankKind(s: RSubgraph): Option[String] =
+      s.attrs.get("rank").filter(Set("same", "min", "source", "max", "sink"))
 
-    /** dot1_rank(subg): (leader, member → local rank). */
-    def solveCluster(cl: RSubgraph): (String, Map[String, Int]) =
-      val nested       = subClusters(cl)
-      val nestedSolved = nested.map(solveCluster)
-      val nestedLeader = mutable.HashMap.empty[String, String]
-      val nestedLocal  = mutable.HashMap.empty[String, Int]
-      nested.zip(nestedSolved).foreach { case (nc, (ld, loc)) =>
-        allNodes(nc).foreach(m => nestedLeader(m) = ld)
-        loc.foreach((m, r) => nestedLocal(m) = r)
+    // collapse_sets(L): the child clusters and the rank sets of a level.
+    def collapseSets(subs: Vector[RSubgraph]): (Vector[RSubgraph], Vector[(RSubgraph, String)]) =
+      val clusters = Vector.newBuilder[RSubgraph]
+      val sets     = Vector.newBuilder[(RSubgraph, String)]
+      def walk(ss: Vector[RSubgraph]): Unit = ss.foreach { s =>
+        if s.isCluster then clusters += s
+        else rankKind(s) match
+          case Some(k) => sets += ((s, k))
+          case None    => walk(s.children)
       }
-      val memberVec = allNodes(cl).distinct
-      val memberSet = memberVec.toSet
-      val inNested  = nestedLeader.keySet
-      def lead(n: String): String = nestedLeader.getOrElse(n, n)
-      // fast universe (nlist): un-nested members + nested leaders, decl order
-      val fastNodes = memberVec.filter(n => lead(n) == n)
-      val induced = realEdges.indices.filter { i =>
-        val e = realEdges(i)
-        memberSet(e.tail) && memberSet(e.head) && constrained(e.attrs)
-      }.toVector
-      val plain = induced.filter { i =>
-        val e = realEdges(i); !inNested(e.tail) && !inNested(e.head)
+      walk(subs)
+      (clusters.result(), sets.result())
+
+    // The orientation of each edge for Order/Spline. The level that ranks
+    // the edge sets it: Reversed (acyclic or minmax_edges reversed the
+    // fast edge) or Slack (the edge goes in or out of a child cluster).
+    // Other edges keep the declared direction.
+    val Reversed = 1; val Slack = 2
+    val orient = mutable.HashMap.empty[Int, Int]
+
+    /** dot1_rank(L): (the cluster leader, member → local rank). */
+    def rankLevel(
+        levelId: String, nodes: Vector[String], subs: Vector[RSubgraph]
+    ): (String, Map[String, Int]) =
+      val inLevel = nodes.toSet
+      val (clusters, sets) = collapseSets(subs)
+      // collapse_cluster returns at once for a cluster with no nodes.
+      val kids = clusters.filter(c => transSet(c).exists(inLevel))
+      val childLeader = mutable.HashMap.empty[String, String]
+      val childLocal  = mutable.HashMap.empty[String, Int]
+      kids.foreach { c =>
+        val (ld, loc) = rankLevel(c.id, allNodes(c), c.children)
+        allNodes(c).foreach(m => childLeader(m) = ld)
+        childLocal ++= loc
       }
-      // dot1_rank(subg) = class1 → minmax_edges → **decompose** → acyclic:
-      // the DFS seeds walk GD_nlist AFTER decompose has reordered it into
-      // per-component DFS order, NOT declaration order. Which back edge of a
-      // cycle gets reversed depends entirely on that seed order (191's
-      // SignatureLayoutType ⇄ FieldSpecType ⇄ SignatureLayoutCompanion
-      // triangle: declaration order enters at FieldSpecType and reverses the
-      // three SLT→FST edges; gv's decompose order enters at the *Companion*
-      // and reverses FST→SLC instead). The global ranking path already seeds
-      // from its decompose order — this level had been left on declaration
-      // order. `decomposeOrderOf` ignores reversals by design: gv decomposes
-      // the ORIGINAL orientation, before any edge is flipped.
-      val rev = acyclicScoped(decomposeOrderOf(fastNodes, plain, Set.empty), plain)
-      interiorRev ++= rev
-      // NS edges: plain (class1 merge) + nested-crossing (interclust1 slack)
-      val byPair = mutable.LinkedHashMap.empty[(String, String), NetworkSimplex.NSEdge]
-      val extra  = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
-      val slackNames = mutable.ArrayBuffer.empty[String]
-      induced.foreach { i =>
-        val e  = realEdges(i)
-        val lt = lead(e.tail); val lh = lead(e.head)
-        if lt != lh then
-          val ml = minlenOf(e.attrs) * minlenScale
-          if inNested(e.tail) || inNested(e.head) then
-            slackWasUsed += i
-            val off = ml + nestedLocal.getOrElse(e.tail, 0) - nestedLocal.getOrElse(e.head, 0)
-            val (tLen, hLen) = if off > 0 then (0, off) else (-off, 0)
-            val v = s"%slack:${cl.id}:${slackNames.length}"
-            slackNames += v
-            val w = weightOf(e.attrs)
-            extra += NetworkSimplex.NSEdge(v, lt, tLen, 10 * w) // CL_BACK
-            extra += NetworkSimplex.NSEdge(v, lh, hLen, w)
-          else
-            val (t, h) = if rev(i) then (lh, lt) else (lt, lh)
-            // class1 merge: ED_weight starts at the edge's `weight` ATTR
-            // and SUMS across merged duplicates (pprof's weight=94 edges).
-            val w = weightOf(e.attrs)
-            byPair.get((t, h)) match
-              case Some(r) => byPair((t, h)) =
-                NetworkSimplex.NSEdge(t, h, math.max(r.minlen, ml), r.weight + w)
-              case None => byPair((t, h)) = NetworkSimplex.NSEdge(t, h, ml, w)
+
+      // collapse_rankset: UF_union(u, v) keeps the root of u, so the root of
+      // a set is its first member, and the minset (maxset) root is the first
+      // member of the first min (max) set. A member of a child cluster stays
+      // in the cluster: a set that crosses a cluster boundary is the 03 case
+      // (see rankedImpl).
+      val parent = mutable.HashMap.empty[String, String]
+      def find(x: String): String =
+        val p = parent.getOrElse(x, x)
+        if p == x then x else { val r = find(p); parent(x) = r; r }
+      def union(u: String, v: String): Unit =
+        val (ru, rv) = (find(u), find(v))
+        if ru != rv then parent(rv) = ru
+      var minset = Option.empty[String]; var maxset = Option.empty[String]
+      var slenX  = 0; var slenY = 0 // source ⇒ 1, sink ⇒ 1 (strict extreme)
+      sets.foreach { (s, kind) =>
+        val members = allNodes(s).filter(n => inLevel(n) && !childLeader.contains(n))
+        members.headOption.foreach { u =>
+          members.iterator.drop(1).foreach(union(u, _))
+          kind match
+            case "min" | "source" => minset = Some(minset.fold(u) { m => union(m, u); m })
+            case "max" | "sink"   => maxset = Some(maxset.fold(u) { m => union(m, u); m })
+            case _                => ()
+          if kind == "source" then slenX = 1
+          if kind == "sink" then slenY = 1
+        }
       }
-      val nse = byPair.values.toVector ++ extra
-      // rank1: TB balance only when this level has NO nested clusters.
-      val (bal, tbo) =
-        if nested.isEmpty then
-          (NSBalance.TopBottom, decomposeOrderOf(fastNodes, plain, rev))
-        else (NSBalance.None, Vector.empty[String])
-      val solved = solvePerComponent(fastNodes ++ slackNames, nse, balance = bal, tbOrder = tbo)
-      val local = memberVec.iterator.map { m =>
-        m -> (solved.getOrElse(lead(m), 0) + nestedLocal.getOrElse(m, 0))
+      // mark_clusters: UF_setname makes the child leader the root.
+      def lead(n: String): String = childLeader.getOrElse(n, find(n))
+
+      // class1 (class1.c): the tails in agfstnode(L) order, the out-edges in
+      // agfstout order. The aux edges of a slack node are fast edges too.
+      val fg        = FastGraph()
+      val slack     = mutable.ArrayBuffer.empty[String]
+      val pairOf    = mutable.ArrayBuffer.empty[(Int, String, String)]
+      nodes.foreach { n =>
+        outEdges.getOrElse(n, Vector.empty).foreach { i =>
+          val e = realEdges(i)
+          if inLevel(e.head) && constrained(e.attrs) then
+            val t = lead(e.tail); val h = lead(e.head)
+            if t != h then
+              val ml = minlenOf(e.attrs) * minlenScale
+              // class1 merge: ED_weight starts at the `weight` ATTR and the
+              // merge adds the weights of duplicates (pprof's weight=94).
+              val w  = weightOf(e.attrs)
+              if childLeader.contains(e.tail) || childLeader.contains(e.head) then
+                orient(i) = Slack
+                val off = ml + childLocal.getOrElse(e.tail, 0) - childLocal.getOrElse(e.head, 0)
+                val (tLen, hLen) = if off > 0 then (0, off) else (-off, 0)
+                val v = s"%slack:$levelId:${slack.length}"
+                slack += v
+                fg.make(v, t, tLen, 10 * w) // CL_BACK
+                fg.make(v, h, hLen, w)
+              else
+                fg.make(t, h, ml, w)
+                pairOf += ((i, t, h))
+        }
+      }
+
+      val mn = minset.map(find); val mx = maxset.map(find)
+      fg.minmax(mn, mx)
+      // decompose(L, 0): the seeds are the UF roots in agfstnode(L) order.
+      // acyclic walks GD_nlist AFTER decompose put it in component DFS
+      // order. The seed order decides which back edge of a cycle is
+      // reversed: in 191 the SignatureLayoutType ⇄ FieldSpecType ⇄
+      // SignatureLayoutCompanion triangle, gv enters at the Companion and
+      // reverses FST→SLC.
+      val roots = nodes.filter(n => lead(n) == n)
+      var comps = fg.decompose(roots)
+      fg.acyclic(comps.flatten)
+      pairOf.foreach((i, t, h) => if !fg.has(t, h) then orient(i) = Reversed)
+      if fg.minmax2(roots, mn, mx, slenX, slenY) then comps = fg.decompose(roots)
+
+      val balanced = kids.isEmpty
+      val solved = solvePerComponent(roots ++ slack, fg.nsEdges,
+        balance = if balanced then NSBalance.TopBottom else NSBalance.None,
+        tbOrder = if balanced then comps.flatten else Vector.empty)
+      val local = nodes.iterator.map { m =>
+        m -> (solved.getOrElse(lead(m), 0) + childLocal.getOrElse(m, 0))
       }.toMap
-      // cluster_leader: the LAST fast NORMAL node in nlist order with rank 0
-      val leader = fastNodes.filter(n => solved.getOrElse(n, 0) == 0).lastOption.getOrElse(memberVec.head)
+      // An empty level is only the root of an empty graph: it has no leader.
+      val leader = comps.lastOption.getOrElse(roots)
+        .filter(n => !isSlackNode(n) && solved.getOrElse(n, 0) == 0)
+        .lastOption.orElse(nodes.headOption).getOrElse("")
       (leader, local)
 
-    // TB_balance Tree_node order for a scoped solve (decompose over the
-    // class1 fast graph — same construction as the global path's tbOrder).
-    def decomposeOrderOf(fastNodes: Vector[String], plain: Vector[Int], rev: Set[Int]): Vector[String] =
-      val outAdjR = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
-      val inAdjR  = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
-      fastNodes.foreach { n => outAdjR(n) = mutable.ArrayBuffer.empty; inAdjR(n) = mutable.ArrayBuffer.empty }
-      val seen   = mutable.Set.empty[(String, String)]
-      val byTail = plain.groupBy(i => realEdges(i).tail)
-      fastNodes.foreach { n =>
-        byTail.getOrElse(n, Vector.empty)
-          .sortBy(i => (nodeSeq.getOrElse(realEdges(i).head, Int.MaxValue), i))
-          .foreach { i =>
-            val e = realEdges(i)
-            if !seen((e.tail, e.head)) then
-              seen += ((e.tail, e.head))
-              outAdjR(e.tail) += e.head
-              inAdjR(e.head) += e.tail
-          }
-      }
-      val done = mutable.Set.empty[String]
-      val res  = mutable.ArrayBuffer.empty[String]
-      def visit(seed: String): Unit =
-        val stk = mutable.Stack(seed)
-        while stk.nonEmpty do
-          val n = stk.pop()
-          if !done(n) then
-            done += n; res += n
-            inAdjR(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
-            outAdjR(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
-      fastNodes.foreach(s => if !done(s) then visit(s))
-      res.toVector
+    val (_, ranks) = rankLevel("$root", g.nodes.map(_.id), g.subgraphs)
 
-    val topSolved = tops.map(solveCluster)
-    val leaderOf  = mutable.HashMap.empty[String, String]
-    val localOf   = mutable.HashMap.empty[String, Int]
-    tops.zip(topSolved).foreach { case (cl, (ld, loc)) =>
-      allNodes(cl).foreach(m => leaderOf(m) = ld)
-      loc.foreach((m, r) => localOf(m) = r)
-    }
-    val clustered = leaderOf.keySet
-    def lead(n: String): String = leaderOf.getOrElse(n, n)
-
-    // root acyclic: only edges with NEITHER endpoint clustered (intra edges
-    // were handled by the interior solves; inter-cluster edges are slack).
-    val rootIdxs  = realEdges.indices.filter(i => constrained(realEdges(i).attrs)).toVector
-    val plainRoot = rootIdxs.filter { i =>
-      val e = realEdges(i); !clustered(e.tail) && !clustered(e.head)
-    }
-    val rootRev = acyclicScoped(g.nodes.map(_.id), plainRoot)
-
-    val byPair = mutable.LinkedHashMap.empty[(String, String), NetworkSimplex.NSEdge]
-    val extra  = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
-    val slackNames = mutable.ArrayBuffer.empty[String]
-    rootIdxs.foreach { i =>
-      val e  = realEdges(i)
-      val lt = lead(e.tail); val lh = lead(e.head)
-      if lt != lh then
-        val ml = minlenOf(e.attrs) * minlenScale
-        if clustered(e.tail) || clustered(e.head) then
-          slackWasUsed += i
-          val off = ml + localOf.getOrElse(e.tail, 0) - localOf.getOrElse(e.head, 0)
-          val (tLen, hLen) = if off > 0 then (0, off) else (-off, 0)
-          val v = s"%slack:$$root:${slackNames.length}"
-
-          slackNames += v
-          val w = weightOf(e.attrs)
-          extra += NetworkSimplex.NSEdge(v, lt, tLen, 10 * w) // CL_BACK * weight
-          extra += NetworkSimplex.NSEdge(v, lh, hLen, w)
-        else
-          val (t, h) = if rootRev(i) then (lh, lt) else (lt, lh)
-          // class1 merge: ED_weight = weight ATTR, summed across duplicates.
-          val w = weightOf(e.attrs)
-          byPair.get((t, h)) match
-            case Some(r) => byPair((t, h)) =
-              NetworkSimplex.NSEdge(t, h, math.max(r.minlen, ml), r.weight + w)
-            case None => byPair((t, h)) = NetworkSimplex.NSEdge(t, h, ml, w)
-    }
-    val rootNodes = g.nodes.iterator.map(n => lead(n.id)).distinct.toVector ++ slackNames
-    // rank1 with clusters present: NO TB balance (rank.c:382); per-component.
-    val solved = solvePerComponent(rootNodes, byPair.values.toVector ++ extra.toVector,
-      balance = NSBalance.None)
-    val ranks = g.nodes.iterator.map { n =>
-      n.id -> (solved.getOrElse(lead(n.id), 0) + localOf.getOrElse(n.id, 0))
-    }.toMap
-
-    // working orientations for Order/Spline: plain edges follow their acyclic
-    // pass; slack (cluster-crossing) edges follow the FINAL rank comparison
-    // (class2's backward-edge handling); flat stays declared.
+    // Slack (cluster-crossing) edges follow the FINAL rank comparison
+    // (class2's backward-edge handling). Flat edges keep the declared
+    // direction.
     val wedges = realEdges.zipWithIndex.map { (e, i) =>
       val ml = minlenOf(e.attrs) * minlenScale
-      if slackWasUsed(i) then
-        if ranks(e.tail) > ranks(e.head) then DEdge(e.head, e.tail, ml) else DEdge(e.tail, e.head, ml)
-      else if interiorRev(i) || rootRev(i) then DEdge(e.head, e.tail, ml)
-      else DEdge(e.tail, e.head, ml)
+      orient.get(i) match
+        case Some(Slack) if ranks(e.tail) > ranks(e.head) => DEdge(e.head, e.tail, ml)
+        case Some(Reversed)                               => DEdge(e.head, e.tail, ml)
+        case _                                            => DEdge(e.tail, e.head, ml)
     }
     (ranks, wedges)
 
+  /** The global ranking for `newrank` graphs and for the 03 exception (see
+    * [[rankedImpl]]): one level, with clusters as plain subgraphs. It keeps
+    * the older order rules (decompose before minmax_edges, a minmax_edges2
+    * test on the edges before the additions), because the 03b newrank gate
+    * is byte-exact with them. */
   private def rankedGlobal(g: RGraph): (Map[String, Int], Vector[DEdge]) =
     val wedges0 = acyclic(g, if hasEdgeLabel(g) then 2 else 1)
     val rs      = rankConstraints(g)
@@ -482,38 +594,7 @@ object Rank:
     // atoi truncation). It reaches TB_balance's inweight==outweight test —
     // lion_share's weight=2 marriage edges keep spouses' children OFF the
     // balance path; a hardcoded 1 let 018 drift to the emptier marr rank.
-    val fTail = mutable.ArrayBuffer.empty[String]
-    val fHead = mutable.ArrayBuffer.empty[String]
-    val fMinlen = mutable.ArrayBuffer.empty[Int]
-    val fWeight = mutable.ArrayBuffer.empty[Int]
-    val fAlive = mutable.ArrayBuffer.empty[Boolean]
-    val fOut = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[Int]]
-    val fIn  = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[Int]]
-    val fastByPair = mutable.HashMap.empty[(String, String), Int]
-    def fastMake(t: String, h: String, ml: Int, w: Int): Unit =
-      fastByPair.get((t, h)) match
-        case Some(i) => // merge_oneway: minlen max, weight sum, position kept
-          fMinlen(i) = math.max(fMinlen(i), ml); fWeight(i) += w
-        case None =>
-          val i = fTail.length
-          fTail += t; fHead += h; fMinlen += ml; fWeight += w; fAlive += true
-          fOut.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += i
-          fIn.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += i
-          fastByPair((t, h)) = i
-    // zapinlist (fastgr.c): swap-remove — the hole is filled with the LAST
-    // member. delete_fast_edge = zap from tail-out + head-in.
-    def zap(buf: mutable.ArrayBuffer[Int], e: Int): Unit =
-      val j = buf.indexOf(e)
-      if j >= 0 then { buf(j) = buf(buf.length - 1); buf.remove(buf.length - 1) }
-    // reverse_edge (acyclic.c:20): delete the fast edge; merge into the
-    // opposite fast edge when one exists, else create it (appended at the
-    // END of the new endpoints' lists AND of the global creation order).
-    def fastReverse(e: Int): Unit =
-      fAlive(e) = false
-      zap(fOut.getOrElseUpdate(fTail(e), mutable.ArrayBuffer.empty), e)
-      zap(fIn.getOrElseUpdate(fHead(e), mutable.ArrayBuffer.empty), e)
-      fastByPair.remove((fTail(e), fHead(e)))
-      fastMake(fHead(e), fTail(e), fMinlen(e), fWeight(e))
+    val fg = FastGraph()
     locally {
       val nodeSeqC = g.nodes.iterator.map(_.id).zipWithIndex.toMap
       val eByTail = realEdges.indices.groupBy(i => realEdges(i).tail)
@@ -524,18 +605,8 @@ object Rank:
             val e = realEdges(i)
             val (t, h) = (leader(e.tail), leader(e.head))
             if t != h && constrained(e.attrs) then
-              fastMake(t, h, minlenOf(e.attrs) * minlenScaleG, weightOf(e.attrs))
+              fg.make(t, h, minlenOf(e.attrs) * minlenScaleG, weightOf(e.attrs))
           }
-      }
-      // minmax_edges (rank.c:316): make maxset a sink / minset a source by
-      // reverse_edge'ing every fast out-/in-edge (list[0] until empty).
-      rs.maxset.foreach { mx =>
-        val out = fOut.getOrElseUpdate(mx, mutable.ArrayBuffer.empty)
-        while out.nonEmpty do fastReverse(out(0))
-      }
-      rs.minset.foreach { mn =>
-        val in = fIn.getOrElseUpdate(mn, mutable.ArrayBuffer.empty)
-        while in.nonEmpty do fastReverse(in(0))
       }
     }
     val leaderNodes = g.nodes.iterator.map(n => leader(n.id)).distinct.toVector
@@ -543,64 +614,16 @@ object Rank:
     // decompose (decomp.c) DFS over the class1 fast graph: declaration-order
     // seeds, OUT-edges before IN-edges, adjacency in class1's creation order
     // (per tail in decl order, out-edges by (head seq, idx), first occurrence
-    // of each merged (t,h) pair — ORIGINAL orientation; acyclic runs later).
-    val tbOrder: Vector[String] =
-      val nodeSeqR = g.nodes.iterator.map(_.id).zipWithIndex.toMap
-      val outAdjR  = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
-      val inAdjR   = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
-      leaderNodes.foreach { n => outAdjR(n) = mutable.ArrayBuffer.empty; inAdjR(n) = mutable.ArrayBuffer.empty }
-      val seen   = mutable.Set.empty[(String, String)]
-      val byTail = g.edges.iterator.zipWithIndex.filter((e, _) => constrained(e.attrs))
-        .toVector.groupBy(_._1.tail)
-      g.nodes.foreach { n =>
-        byTail.getOrElse(n.id, Vector.empty)
-          .sortBy((e, i) => (nodeSeqR.getOrElse(e.head, Int.MaxValue), i))
-          .foreach { (e, _) =>
-            val lt = leader(e.tail); val lh = leader(e.head)
-            if lt != lh && !seen((lt, lh)) then
-              seen += ((lt, lh))
-              outAdjR(lt) += lh
-              inAdjR(lh) += lt
-          }
-      }
-      val done2 = mutable.Set.empty[String]
-      val res   = mutable.ArrayBuffer.empty[String]
-      def visit(seed: String): Unit =
-        val stk = mutable.Stack(seed)
-        while stk.nonEmpty do
-          val n = stk.pop()
-          if !done2(n) then
-            done2 += n; res += n
-            inAdjR(n).reverseIterator.foreach(w => if !done2(w) then stk.push(w))
-            outAdjR(n).reverseIterator.foreach(w => if !done2(w) then stk.push(w))
-      leaderNodes.foreach(s => if !done2(s) then visit(s))
-      res.toVector
+    // of each merged (t,h) pair — ORIGINAL orientation: this path takes it
+    // before minmax_edges, and acyclic runs later).
+    val tbOrder: Vector[String] = fg.decompose(leaderNodes).flatten
+    // minmax_edges (rank.c:316): make maxset a sink / minset a source.
+    fg.minmax(rs.minset, rs.maxset)
     // acyclic (acyclic.c:32) ON THE FAST GRAPH, per component in nlist
-    // (decompose) order: an out-edge to an on-stack head is reverse_edge'd
-    // in place; gv's `i--` after the swap-remove re-examines the same slot
-    // (now holding the swapped-in LAST edge).
-    locally {
-      val mark = mutable.Set.empty[String]
-      val onStack = mutable.Set.empty[String]
-      def dfs(n: String): Unit =
-        if !mark(n) then
-          mark += n; onStack += n
-          val out = fOut.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
-          var i = 0
-          while i < out.length do
-            val e = out(i)
-            val w = fHead(e)
-            if onStack(w) then fastReverse(e) // slot i re-examined next pass
-            else
-              if !mark(w) then dfs(w)
-              i += 1
-          onStack -= n
-      tbOrder.foreach(dfs)
-      leaderNodes.foreach(dfs) // any leader outside the fast graph (isolated)
-    }
-    var nse = fTail.indices.iterator.filter(fAlive)
-      .map(i => NetworkSimplex.NSEdge(fTail(i), fHead(i), fMinlen(i), fWeight(i)))
-      .toVector
+    // (decompose) order. The leaders follow for any leader outside the
+    // fast graph (isolated).
+    fg.acyclic(tbOrder ++ leaderNodes)
+    var nse = fg.nsEdges
     // minmax_edges2 (rank.c): for every leader with no out-edge add `n→maxset`
     // (minlen slenY), and no in-edge add `minset→n` (minlen slenX), weight 0.
     if rs.minset.isDefined || rs.maxset.isDefined then

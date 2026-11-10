@@ -1,0 +1,8 @@
+digraph RootSet {
+    s -> t -> v
+    s -> w
+    subgraph cluster_k { p -> q -> r }
+    w -> p
+    v -> r
+    { rank=same; v; w }
+}

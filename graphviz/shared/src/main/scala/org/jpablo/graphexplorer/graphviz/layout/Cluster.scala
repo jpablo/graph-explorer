@@ -29,7 +29,8 @@ object Cluster:
     *
     * @param parent   index (into [[clusters]]) of the innermost enclosing
     *                 cluster, -1 = root.
-    * @param nodeIds  transitive real-node members (declaration order).
+    * @param nodeIds  transitive real-node members, in the global node order
+    *                 (`agfstnode(subg)` = AGSEQ), not the body order.
     * @param members  layout-node *names* inside: real ids + `__v` chain names.
     * @param minRank / maxRank — rank band (over real members).
     * @param lwidthPt / lheightPt — label box (0 if no label), measured in the
@@ -145,8 +146,15 @@ object Cluster:
     val ranks = Rank.assign(g)
 
     // Transitive node/edge membership per cluster (all descendant levels).
+    // The node list is in the GLOBAL node order (`g.nodes`, = AGSEQ), as
+    // cgraph `agfstnode(subg)` gives it. It is not the order of the
+    // subgraph bodies: for `cluster_s { { a -> c } b }` the list is
+    // a, c, b. Order's cluster nlist reads this order (200).
+    def transSet(s: RSubgraph): Set[String] =
+      s.nodeIds.toSet ++ s.children.flatMap(transSet)
     def transNodes(s: RSubgraph): Vector[String] =
-      (s.nodeIds ++ s.children.flatMap(transNodes)).distinct
+      val set = transSet(s)
+      g.nodes.iterator.map(_.id).filter(set).toVector
     def transEdges(s: RSubgraph): Vector[Int] =
       (s.edgeIdxs ++ s.children.flatMap(transEdges)).distinct
 

@@ -776,20 +776,226 @@ object Spline:
     // — which for a merged member lands on the REP. So every member of a flat
     // class labels the rep's vnode and they share an `lp`.
     val flatDedges = g.edges.filter(e => e.tail != e.head)
-    def isLabelledFlat(e: REdge): Boolean =
-      e.tail != e.head && e.attrs.get("label").exists(_.nonEmpty) &&
-        rankOf.get(e.tail).exists(rt => rankOf.get(e.head).contains(rt))
+    def hasLabel(e: REdge): Boolean = e.attrs.get("label").exists(_.nonEmpty)
+    def hasPorts(e: REdge): Boolean = e.tailPort.isDefined || e.headPort.isDefined
+    def isFlatE(e: REdge): Boolean =
+      e.tail != e.head && rankOf.get(e.tail).exists(rt => rankOf.get(e.head).contains(rt))
+    def isLabelledFlat(e: REdge): Boolean = hasLabel(e) && isFlatE(e)
+    // flat_rev merges a flat edge into the opposite edge of its pair only
+    // when the two ends have the same innermost cluster (no cluster is also
+    // the same). class2 of that graph makes both edges, and its
+    // flat_breakcycles/flat_reorder turn one of them. An edge between two
+    // different clusters (or a cluster and the root) is made by interclexp
+    // when the cluster expands, after these passes, so the two directions
+    // stay apart (237, 238, 191). interclexp still merges a same-direction
+    // duplicate into the first edge (240).
+    val flatClustOf = Cluster.clustOf(g)
+    def flatSameClust(a: String, b: String): Boolean = flatClustOf.get(a) == flatClustOf.get(b)
+
+    // The label node of a labelled non-adjacent flat edge. class2 merges each
+    // parallel flat edge into the first one of its direction (merge_oneway).
+    // The last pass of flat_reorder turns each flat edge that points the
+    // wrong way (right to left, or left to right under a flipped rankdir),
+    // and flat_rev merges it into the first edge of the pair in the other
+    // direction, if one exists. make_flat_labeled_edge follows ED_to_virt
+    // from the edge, so the label goes on the node of that rep (235 and 239:
+    // b -> a uses the label node of a -> b).
     val flatLabelRep: Int => Int =
       val byPair = flatDedges.indices.groupBy(k => (flatDedges(k).tail, flatDedges(k).head))
-      (d: Int) => byPair((flatDedges(d).tail, flatDedges(d).head)).min
+      (d: Int) =>
+        val e   = flatDedges(d)
+        val own = byPair((e.tail, e.head)).min
+        val keptWay = (orderIdx.getOrElse(e.tail, 0) < orderIdx.getOrElse(e.head, 0)) != flip
+        if keptWay || !flatSameClust(e.tail, e.head) then own
+        else byPair.get((e.head, e.tail)).map(_.min).getOrElse(own)
+
+    // ── flat edge groups (the dot_splines_ group loop) ──────────────────────
+    // The flat edges of one main edge (getmainedge) are one group. If the
+    // two ends have the same innermost cluster, all flat edges between them
+    // in the two directions have one main edge: the class2 merge and
+    // flat_rev fold them into the first edge of the kept direction. Else
+    // only the edges of one direction share a main edge. edgecmp sorts the
+    // edges of one main edge by AGSEQ (its label test compares the graph
+    // type with FLATEDGE, so it has no effect). Thus a group is a set of
+    // edges of one pair in declaration order.
+    def flatGroupKey(d: Int): (String, String, Boolean) =
+      val e = flatDedges(d)
+      if !flatSameClust(e.tail, e.head) then (e.tail, e.head, true)
+      else if e.tail < e.head then (e.tail, e.head, false)
+      else (e.head, e.tail, false)
+    val flatByPair: Map[(String, String, Boolean), Vector[Int]] =
+      flatDedges.indices.toVector.groupBy(flatGroupKey).view.mapValues(_.sorted).toMap
+    def pairOf(d: Int): Vector[Int] = flatByPair(flatGroupKey(d))
+    // A non-adjacent group stops at an edge with a different label pointer.
+    // Each labelled edge is alone, and each run of unlabelled edges is one
+    // group.
+    def unlabelledRun(d: Int, pair: Vector[Int]): Vector[Int] =
+      val pos = pair.indexOf(d)
+      var a = pos
+      while a > 0 && !hasLabel(flatDedges(pair(a - 1))) do a -= 1
+      var b = pos
+      while b + 1 < pair.length && !hasLabel(flatDedges(pair(b + 1))) do b += 1
+      pair.slice(a, b + 1)
+    def isRecordShape(id: String): Boolean =
+      byId.get(id).exists(n =>
+        Set("record", "mrecord").contains(n.attrs.get("shape").getOrElse("").toLowerCase))
+    // dedges that a flat group has routed already
+    val flatDone = mutable.HashSet.empty[Int]
+
+    /** makeSimpleFlat (dotsplines.c:1140): `cnt` edges between the adjacent
+      * nodes tn (left) and hn (right), without ports and labels. The edges
+      * make a spindle. The middle control points of edge i are at
+      * y = tp.y - ND_ht(tn)/2 + i·ND_ht(tn)/(cnt-1). ND_ht is the height in
+      * the layout frame. Each edge goes through clip_and_install from left to
+      * right, and swap_spline turns a right-to-left edge at install. */
+    def makeSimpleFlat(tn: String, hn: String, group: Vector[Int]): Unit =
+      val tp    = XY(cx(tn), cy(tn))
+      val hp    = XY(cx(hn), cy(hn))
+      val cnt   = group.length
+      val ht    = 2.0 * halfH(tn)
+      val stepy = if cnt > 1 then ht / (cnt - 1).toDouble else 0.0
+      var dy    = tp.y - (if cnt > 1 then ht / 2.0 else 0.0)
+      group.foreach { k =>
+        val ek = flatDedges(k)
+        val ax = (2 * tp.x + hp.x) / 3
+        val bx = (2 * hp.x + tp.x) / 3
+        val ctrl =
+          if polylineMode then
+            Vector(tp, tp, XY(ax, dy), XY(ax, dy), XY(ax, dy),
+                   XY(bx, dy), XY(bx, dy), XY(bx, dy), hp, hp)
+          else Vector(tp, XY(ax, dy), XY(bx, dy), hp)
+        dy += stepy
+        out(dedgeOrigIdx(k)) = clipInstall(g, ctrl, ek, byId, centerOf, reversedWork = ek.tail != tn)
+      }
+
+    /** simpleSplineRoute (routespl.c:173): the shortest path from tp to hp in
+      * the polygon, then Proutespline with free end slopes over the polygon
+      * edges. None when Pshortestpath fails. */
+    def simpleSplineRoute(tp: XY, hp: XY, poly: Array[XY]): Option[Vector[XY]] =
+      pshortestpath(poly, tp, hp).map(pl =>
+        if polylineMode then makePolyline(pl) else proutespline(poly, pl))
+
+    /** makeSimpleFlatLabels (dotsplines.c:1012): adjacent edges without ports,
+      * one or more with a label. edgelblcmpfn sorts the edges (the widest
+      * label first, the unlabelled edges last) with musl qsort. The first edge
+      * is straight with its label above it. Then the edges go down and up in
+      * turn: each one goes round the labels that are already placed (an
+      * 8-point polygon with a notch) and puts its own label on the far side. */
+    def makeSimpleFlatLabels(tn: String, hn: String, group: Vector[Int]): Unit =
+      val LblSpace = 6.0 // LBL_SPACE
+      def dim(k: Int): Option[(Double, Double)] =
+        val ek = flatDedges(k)
+        if hasLabel(ek) then Some(Coord.edgeLabelDim(ek, g)) else None
+      val earr = group.toArray
+      MuslSort.sort(earr, (x, y) =>
+        (dim(x), dim(y)) match
+          case (Some((x0, y0)), Some((x1, y1))) =>
+            if x0 > x1 then -1 else if x0 < x1 then 1
+            else if y0 > y1 then -1 else if y0 < y1 then 1 else 0
+          case (Some(_), None) => -1
+          case (None, Some(_)) => 1
+          case _               => 0)
+      val cnt      = earr.length
+      val nLbls    = earr.count(k => dim(k).isDefined)
+      val tp       = XY(cx(tn), cy(tn))
+      val hp       = XY(cx(hn), cy(hn))
+      val leftend  = tp.x + rw(tn)
+      val rightend = hp.x - lw(hn)
+      val ctrx     = (leftend + rightend) / 2.0
+      def install(k: Int, pts: Vector[XY]): Unit =
+        val ek = flatDedges(k)
+        out(dedgeOrigIdx(k)) = clipInstall(g, pts, ek, byId, centerOf, reversedWork = ek.tail != tn)
+      val (w0, h0) = dim(earr(0)).getOrElse((0.0, 0.0))
+      install(earr(0), Vector(tp, tp, hp, hp))
+      labelPos(dedgeOrigIdx(earr(0))) = XY(ctrx, tp.y + (h0 + LblSpace) / 2.0)
+      var miny  = tp.y + LblSpace / 2.0
+      var maxy  = miny + h0
+      val uminx = ctrx - w0 / 2.0
+      val umaxx = ctrx + w0 / 2.0
+      var lminx = 0.0
+      var lmaxx = 0.0
+      var i      = 1
+      var failed = false
+      while !failed && i < cnt do
+        val k        = earr(i)
+        val labelled = i < nLbls
+        val (wk, hk) = dim(k).getOrElse((0.0, 0.0))
+        val (poly, ctry) =
+          if i % 2 == 1 then // down
+            if i == 1 then
+              if labelled then
+                lminx = ctrx - wk / 2.0; lmaxx = ctrx + wk / 2.0
+              else
+                lminx = (2 * leftend + rightend) / 3.0; lmaxx = (leftend + 2 * rightend) / 3.0
+            miny -= (if labelled then LblSpace + hk else LblSpace)
+            val p = Array(tp, XY(tp.x, miny - LblSpace), XY(hp.x, miny - LblSpace), hp,
+                          XY(lmaxx, hp.y), XY(lmaxx, miny), XY(lminx, miny), XY(lminx, tp.y))
+            (p, miny + hk / 2.0)
+          else // up
+            val p = Array(tp, XY(uminx, tp.y), XY(uminx, maxy), XY(umaxx, maxy),
+                          XY(umaxx, hp.y), hp, XY(hp.x, maxy + LblSpace), XY(tp.x, maxy + LblSpace))
+            val c = maxy + hk / 2.0 + LblSpace
+            maxy += (if labelled then hk + LblSpace else LblSpace)
+            (p, c)
+        simpleSplineRoute(tp, hp, poly) match
+          case None => failed = true // gv routes none of the remaining edges
+          case Some(ps) =>
+            if labelled then labelPos(dedgeOrigIdx(k)) = XY(ctrx, ctry)
+            install(k, ps)
+        i += 1
+
+    /** make_flat_edge (dotsplines.c:1567), the box loop: `cnt` unlabelled
+      * edges without ports between the non-adjacent nodes tn (left) and hn
+      * (right). Each edge arches over the nodes between them. Edge i gets
+      * the boxes of the two ends plus three boxes. The side boxes widen by
+      * (i+1)·Multisep/(cnt+1), and the top box rises by
+      * (i+1)·vspace/(cnt+1). */
+    def makeFlatArch(tn: String, hn: String, run: Vector[Int], rt: Int): Unit =
+      val tmb = maximalBbox(tn, Set(tn))
+      val hmb = maximalBbox(hn, Set(hn))
+      // makeFlatEnd: the flat-end box is `maximal_bbox` with LL.y pulled up
+      // to node.y (its `makeregularend` extension to node.y+ht2 comes out
+      // degenerate and is dropped), so a single box per end. UR.y already
+      // equals node.y+ht2 from maximal_bbox.
+      val tend    = Box(tmb.llx, cy(tn), tmb.urx, tmb.ury)
+      val hend    = Box(hmb.llx, cy(hn), hmb.urx, hmb.ury)
+      val cnt     = run.length
+      val stepx   = NodeSep / (cnt + 1) // sp->Multisep / (cnt + 1)
+      val topRank = ranksSorted.head
+      val vspace  =
+        if rt == topRank then Coord.flatVspaceTopRank(g)
+        else (yOf(rt - 1).value - ht1(rt - 1)) - (yOf(rt).value + ht2(rt))
+      val stepy = vspace / (cnt + 1)
+      run.iterator.zipWithIndex.foreach { (k, i) =>
+        val ek  = flatDedges(k)
+        val cb0 = Box(tend.llx, tend.ury, tend.urx + (i + 1) * stepx, tend.ury + (i + 1) * stepy)
+        val cb1 = Box(tend.llx, cb0.ury, hend.urx, cb0.ury + stepy)
+        val cb2 = Box(hend.llx - (i + 1) * stepx, hend.ury, hend.urx, cb1.lly)
+        // add_box copies each box, so checkpath does not change tend/hend
+        // for the next edge.
+        val boxes = mutable.ArrayBuffer(tend.copy(), cb0, cb1, cb2, hend.copy())
+        val st    = Array(cx(tn), cy(tn))
+        val en    = Array(cx(hn), cy(hn))
+        val ctrl  =
+          if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
+          else
+            val poly = buildPolygon(boxes)
+            val sp   = funnelGeneral(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
+            proutespline(poly, sp)
+        // gv routes AND clips tn→hn (left→right, the working direction) and
+        // swap_spline's at install — clipInstall(reversedWork) does both.
+        out(dedgeOrigIdx(k)) = clipInstall(g, ctrl, ek, byId, centerOf, reversedWork = ek.tail != tn)
+      }
+
     g.edges.zipWithIndex.filter { case (e, _) => e.tail != e.head }
       .zipWithIndex
-      // "edges with labels aren't multi-edges" (make_flat_edge, dotsplines.c:1594)
-      // — a LABELLED FLAT edge routes on its own even when class2 folded it
-      // onto a rep, because its ports and its label vnode are its own. 191's
-      // two ProgramPredictorsGiven→PredictorView edges are the case.
+      // A class2-merged member has no chain, so only the rep routes. A FLAT
+      // member stays in the list: the flat groups below route all the edges
+      // of one pair together, and "edges with labels aren't multi-edges"
+      // (make_flat_edge) — a labelled flat edge routes on its own. 191's two
+      // ProgramPredictorsGiven→PredictorView edges are that case.
       .filter { case (e, i) =>
-        res.mergedInto.lift(i).forall(_ == i) || isLabelledFlat(e._1) }
+        res.mergedInto.lift(i).forall(_ == i) || isFlatE(e._1) }
       .map { case ((e, origIdx), i) => (e, origIdx, i) }
       .sortBy { (e, _, i) =>
         val rt = rankOf.getOrElse(e.tail, 0); val rh = rankOf.getOrElse(e.head, 0)
@@ -1051,12 +1257,11 @@ object Spline:
               }
       else
         // ── flat edge (rt == rh): same-rank edge (rank=same / minlen=0) ─────
-        // dotsplines.c: `makeSimpleFlat` (unlabeled) routes a 4-point Bezier
-        // [tp, (2tp+hp)/3, (2hp+tp)/3, hp] at y=tp.y; `makeSimpleFlatLabels`
-        // (labeled) routes the degenerate line [tp,tp,hp,hp] and places the
-        // label above the edge at (ctrx, tp.y+(dimen.y+LBL_SPACE)/2). Both
-        // then clip_and_install (clip to node boundaries + arrow). Scoped to
-        // the adjacent, portless case; non-adjacent/ported flat edges deferred.
+        // make_flat_edge gets a group of edges of one pair. Adjacent nodes
+        // without ports: makeSimpleFlat (no labels) or makeSimpleFlatLabels.
+        // Non-adjacent nodes: an arch per unlabelled edge, or
+        // make_flat_labeled_edge for a labelled edge. The port has no
+        // auxiliary graph (adjacent with ports) and no make_flat_bottom_edges.
         val row      = orderByRank.getOrElse(rt, Vector.empty)
         // checkFlatAdjacent (flat.c:209): the endpoints count as ADJACENT
         // when every node strictly between them in the rank order is a
@@ -1067,70 +1272,44 @@ object Spline:
           val ti = row.indexOf(e.tail); val hi = row.indexOf(e.head)
           val (lo, hi2) = if ti < hi then (ti, hi) else (hi, ti)
           lo >= 0 && (lo + 1 until hi2).forall(k => isV(row(k)) && !isLabelV(row(k)))
-        val ports    = e.tailPort.isDefined || e.headPort.isDefined
-        val labelled = e.attrs.get("label").exists(_.nonEmpty)
-        if adjacent && !ports then
-          // make_flat_edge forward-normalizes by within-rank ORDER (the
-          // swap_ends_p tie-break for equal ranks): the WORKING direction is
-          // left→right; the clip runs in it and swap_spline restores the
-          // declared direction at install. bezier_clip is not direction-
-          // symmetric, so clipping tail→head put the two cuts on the wrong
-          // ends (logo's b->h was off ±0.14pt, mirrored).
-          val flatRev = row.indexOf(e.head) < row.indexOf(e.tail)
-          val (wt, wh) = if flatRev then (e.head, e.tail) else (e.tail, e.head)
-          val tp   = XY(cx(wt), cy(wt))
-          val hp   = XY(cx(wh), cy(wh))
-          val ctrl =
-            if labelled then Vector(tp, tp, hp, hp)
-            else Vector(tp, XY((2 * tp.x + hp.x) / 3.0, tp.y),
-                            XY((2 * hp.x + tp.x) / 3.0, tp.y), hp)
-          out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf, reversedWork = flatRev)
-          if labelled then
-            // place_flat_label: centred between the facing node edges
-            // (leftend = left.x+rw, rightend = right.x−lw), one
-            // (dimen.y + LBL_SPACE)/2 above the rank line. LBL_SPACE = 6.
-            val (_, dh)  = Coord.edgeLabelDim(e, g)
-            val (ln, rn) = if cx(e.tail) <= cx(e.head) then (e.tail, e.head) else (e.head, e.tail)
-            val ctrx     = (cx(ln) + rw(ln) + cx(rn) - lw(rn)) / 2.0
-            labelPos(origIdx) = XY(ctrx, tp.y + (dh + 6.0) / 2.0)
+        val ports     = hasPorts(e)
+        val labelled  = hasLabel(e)
+        val pair      = pairOf(i)
+        val pairPorts = pair.exists(k => hasPorts(flatDedges(k)))
+        // make_flat_edge forward-normalizes by within-rank ORDER (the
+        // swap_ends_p tie-break for equal ranks): the WORKING direction is
+        // left→right; the clip runs in it and swap_spline restores the
+        // declared direction at install. bezier_clip is not direction-
+        // symmetric, so clipping tail→head put the two cuts on the wrong
+        // ends (logo's b->h was off ±0.14pt, mirrored).
+        val (ln, rn) =
+          if row.indexOf(e.tail) < row.indexOf(e.head) then (e.tail, e.head) else (e.head, e.tail)
+        val member = res.mergedInto.lift(i).exists(_ != i)
+        if flatDone(i) then () // its group routed it
+        else if adjacent && !pairPorts && !isRecordShape(ln) && !isRecordShape(rn) then
+          // make_flat_adj_edges: "all flat adjacent edges at once" — every
+          // edge of the main edge (see flatGroupKey) is one group.
+          flatDone ++= pair
+          if pair.exists(k => hasLabel(flatDedges(k))) then makeSimpleFlatLabels(ln, rn, pair)
+          else makeSimpleFlat(ln, rn, pair)
+        else if !adjacent && !pairPorts && !labelled then
+          // ── non-adjacent flat edges (make_flat_edge): up-and-over arches ──
+          // They skip ≥1 node in the rank, so they cannot run straight. gv
+          // arches them over the nodes between, one widened channel per edge
+          // of the group.
+          val run = unlabelledRun(i, pair)
+          flatDone ++= run
+          makeFlatArch(ln, rn, run, rt)
+        else if member && !labelled then
+          () // the post-pass gives it the spline of its rep (no corpus)
+        else if adjacent && !ports then
+          // A record end (gv routes nothing for the group) or a sibling
+          // with ports (gv lays out an auxiliary graph): neither is ported,
+          // so the edge routes alone.
+          if labelled then makeSimpleFlatLabels(ln, rn, Vector(i))
+          else makeSimpleFlat(ln, rn, Vector(i))
         else if !ports && !labelled then
-          // ── non-adjacent flat edge (make_flat_edge): an up-and-over arch ──
-          // Skips ≥1 node in the rank, so it can't run straight — gv arches it
-          // over the intervening nodes. Normalise the edge left→right, build
-          // the tail/head flat-end boxes + a 3-box channel, then route the
-          // geodesic through it. Single-edge scope (cnt = 1); parallel
-          // non-adjacent flats would share one widened channel (no corpus).
-          val (tn, hn) = if cx(e.tail) <= cx(e.head) then (e.tail, e.head) else (e.head, e.tail)
-          val tmb = maximalBbox(tn, Set(tn))
-          val hmb = maximalBbox(hn, Set(hn))
-          // makeFlatEnd: the flat-end box is `maximal_bbox` with LL.y pulled up
-          // to node.y (its `makeregularend` extension to node.y+ht2 comes out
-          // degenerate and is dropped), so a single box per end. UR.y already
-          // equals node.y+ht2 from maximal_bbox.
-          val tend = Box(tmb.llx, cy(tn), tmb.urx, tmb.ury)
-          val hend = Box(hmb.llx, cy(hn), hmb.urx, hmb.ury)
-          val stepx   = NodeSep / 2.0 // sp->Multisep / (cnt + 1), cnt = 1
-          val topRank = ranksSorted.head
-          val vspace  =
-            if rt == topRank then Coord.flatVspaceTopRank(g)
-            else (yOf(rt - 1).value - ht1(rt - 1)) - (yOf(rt).value + ht2(rt))
-          val stepy = vspace / 2.0
-          // channel (make_flat_edge): step up by stepy, widen by stepx.
-          val cb0   = Box(tend.llx, tend.ury, tend.urx + stepx, tend.ury + stepy)
-          val cb1   = Box(tend.llx, cb0.ury, hend.urx, cb0.ury + stepy)
-          val cb2   = Box(hend.llx - stepx, hend.ury, hend.urx, cb1.lly)
-          val boxes = mutable.ArrayBuffer(tend, cb0, cb1, cb2, hend)
-          val st    = Array(cx(tn), cy(tn))
-          val en    = Array(cx(hn), cy(hn))
-          val ctrl  =
-            if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
-            else
-              val poly = buildPolygon(boxes)
-              val sp   = funnelGeneral(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
-              proutespline(poly, sp)
-          // gv routes AND clips tn→hn (left→right, the working direction) and
-          // swap_spline's at install — clipInstall(reversedWork) does both.
-          out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf, reversedWork = e.tail != tn)
+          makeFlatArch(ln, rn, Vector(i), rt) // a sibling has ports
         else if labelled then
           // ── labelled non-adjacent flat edge (make_flat_labeled_edge) ──────
           // The label already has a node: `flat_node` seated a vnode for it in
@@ -1586,6 +1765,231 @@ object Spline:
         if !restart then i += 1
     if pts.isEmpty || !eq(pts.last, e) then pts += e
     pts.toVector
+
+  // ───────────────────── Pshortestpath (pathplan/shortest.c) ─────────────────
+  // The shortest path between two points in a simple polygon: an ear-clip
+  // triangulation, the strip of triangles from the source to the target, and
+  // a funnel over the strip. simpleSplineRoute uses it for the 8-point
+  // polygons of makeSimpleFlatLabels. The two end points are new links, also
+  // when they are equal to a polygon vertex (tp and hp are vertices there),
+  // and the funnel compares links by identity, as the C compares pointers.
+
+  /** `pointnlink_t`: a point and the link to the previous point of the
+    * shortest path. `id` is the polygon index, or < 0 for an end point. */
+  private final class PLink(val p: XY, val id: Int):
+    var link: PLink = null // the C NULL ends the path
+  /** `tedge_t`: a triangle side and the index of the triangle on the other
+    * side of it (-1 for none). */
+  private final class TEdge(val a: PLink, val b: PLink):
+    var right: Int = -1
+  private final class Tri(val e: Array[TEdge]):
+    var mark: Int = 0
+
+  private val IsCcw = 1
+  private val IsCw  = 2
+  private val IsOn  = 3
+
+  /** `ccw` (triang.c): the turn of p1 → p2 → p3. */
+  private def ccw(p1: XY, p2: XY, p3: XY): Int =
+    val d = (p1.y - p2.y) * (p3.x - p2.x) - (p3.y - p2.y) * (p1.x - p2.x)
+    if d > 0 then IsCw else if d < 0 then IsCcw else IsOn
+
+  /** `between` (triang.c): is pc on the segment pa-pb? */
+  private def between(pa: XY, pb: XY, pc: XY): Boolean =
+    val bax = pb.x - pa.x; val bay = pb.y - pa.y
+    val cax = pc.x - pa.x; val cay = pc.y - pa.y
+    ccw(pa, pb, pc) == IsOn &&
+      cax * bax + cay * bay >= 0 && cax * cax + cay * cay <= bax * bax + bay * bay
+
+  /** `intersects` (triang.c): do the segments pa-pb and pc-pd touch? */
+  private def intersects(pa: XY, pb: XY, pc: XY, pd: XY): Boolean =
+    if ccw(pa, pb, pc) == IsOn || ccw(pa, pb, pd) == IsOn ||
+       ccw(pc, pd, pa) == IsOn || ccw(pc, pd, pb) == IsOn then
+      between(pa, pb, pc) || between(pa, pb, pd) || between(pc, pd, pa) || between(pc, pd, pb)
+    else
+      val c1 = ccw(pa, pb, pc) == IsCcw; val c2 = ccw(pa, pb, pd) == IsCcw
+      val c3 = ccw(pc, pd, pa) == IsCcw; val c4 = ccw(pc, pd, pb) == IsCcw
+      (c1 ^ c2) && (c3 ^ c4)
+
+  /** `isdiagonal` (triang.c): is i-ip2 a diagonal of the polygon `pts`? */
+  private def isDiagonal(i: Int, ip2: Int, pts: IndexedSeq[XY]): Boolean =
+    val n   = pts.length
+    val ip1 = (i + 1) % n
+    val im1 = (i + n - 1) % n
+    val res =
+      if ccw(pts(im1), pts(i), pts(ip1)) == IsCcw then
+        ccw(pts(i), pts(ip2), pts(im1)) == IsCcw && ccw(pts(ip2), pts(i), pts(ip1)) == IsCcw
+      else ccw(pts(i), pts(ip2), pts(ip1)) == IsCw
+    res && (0 until n).forall { j =>
+      val jp1 = (j + 1) % n
+      j == i || jp1 == i || j == ip2 || jp1 == ip2 ||
+        !intersects(pts(i), pts(ip2), pts(j), pts(jp1))
+    }
+
+  /** `Pshortestpath` (shortest.c:83). None for the C's -1 (an end point in
+    * no triangle). */
+  private[layout] def pshortestpath(poly: Array[XY], s: XY, t: XY): Option[Vector[XY]] =
+    val pn = poly.length
+    def same(a: XY, b: XY): Boolean = a.x == b.x && a.y == b.y
+    // make the polygon CCW, and skip a vertex equal to the one before it
+    var minx  = Double.PositiveInfinity
+    var minpi = -1
+    var pi    = 0
+    while pi < pn do
+      if minx > poly(pi).x then { minx = poly(pi).x; minpi = pi }
+      pi += 1
+    val p2 = poly(minpi)
+    val p1 = poly(if minpi == 0 then pn - 1 else minpi - 1)
+    val p3 = poly(if minpi == pn - 1 then 0 else minpi + 1)
+    val links = mutable.ArrayBuffer.empty[PLink]
+    if (p1.x == p2.x && p2.x == p3.x && p3.y > p2.y) || ccw(p1, p2, p3) != IsCcw then
+      pi = pn - 1
+      while pi >= 0 do
+        if !(pi < pn - 1 && same(poly(pi), poly(pi + 1))) then links += PLink(poly(pi), pi)
+        pi -= 1
+    else
+      pi = 0
+      while pi < pn do
+        if !(pi > 0 && same(poly(pi), poly(pi - 1))) then links += PLink(poly(pi), pi)
+        pi += 1
+
+    // triangulate (shortest.c:313): clip the first ear, then recurse on the
+    // rest. On failure the C prints an error and keeps the triangles so far.
+    val tris = mutable.ArrayBuffer.empty[Tri]
+    def loadTriangle(a: PLink, b: PLink, c: PLink): Unit =
+      tris += Tri(Array(TEdge(a, b), TEdge(b, c), TEdge(c, a)))
+    val work = links.clone()
+    var go   = true
+    while go do
+      val count = work.length
+      if count > 3 then
+        val pts = work.map(_.p).toIndexedSeq
+        var k = 0
+        var found = false
+        while !found && k < count do
+          val k1 = (k + 1) % count
+          val k2 = (k + 2) % count
+          if isDiagonal(k, k2, pts) then
+            loadTriangle(work(k), work(k1), work(k2))
+            work.remove(k1)
+            found = true
+          k += 1
+        if !found then go = false // "triangulation failed"
+      else
+        loadTriangle(work(0), work(1), work(2))
+        go = false
+
+    // connecttris: join the triangles that share a side
+    var ti = 0
+    while ti < tris.length do
+      var tj = ti + 1
+      while tj < tris.length do
+        for ei <- 0 until 3; ej <- 0 until 3 do
+          val x = tris(ti).e(ei); val y = tris(tj).e(ej)
+          if (x.a eq y.a) && (x.b eq y.b) || (x.a eq y.b) && (x.b eq y.a) then
+            x.right = tj; y.right = ti
+        tj += 1
+      ti += 1
+
+    def pointInTri(k: Int, p: XY): Boolean =
+      var sum = 0
+      for ei <- 0 until 3 do
+        if ccw(tris(k).e(ei).a.p, tris(k).e(ei).b.p, p) != IsCw then sum += 1
+      sum == 3 || sum == 0
+    val ftrii = tris.indices.find(pointInTri(_, s))
+    val ltrii = tris.indices.find(pointInTri(_, t))
+    if ftrii.isEmpty || ltrii.isEmpty then return None
+
+    def markTriPath(a: Int, b: Int): Boolean =
+      if tris(a).mark != 0 then false
+      else
+        tris(a).mark = 1
+        if a == b then true
+        else
+          var found = false
+          var ei = 0
+          while !found && ei < 3 do
+            val r = tris(a).e(ei).right
+            if r != -1 && markTriPath(r, b) then found = true
+            ei += 1
+          if !found then tris(a).mark = 0
+          found
+    // "a straight line is better than failing", and one triangle is a line
+    if !markTriPath(ftrii.get, ltrii.get) || ftrii.get == ltrii.get then
+      return Some(Vector(s, t))
+
+    // the funnel: a deque of links with an apex
+    val epS = PLink(s, -1)
+    val epT = PLink(t, -2)
+    val dq  = new Array[PLink](pn * 2)
+    var fp  = pn     // dq.fpnlpi
+    var lp  = pn - 1 // dq.lpnlpi
+    var apex = 0
+    def add2dq(front: Boolean, q: PLink): Unit =
+      if front then
+        if lp >= fp then q.link = dq(fp)
+        fp -= 1; dq(fp) = q
+      else
+        if lp >= fp then q.link = dq(lp)
+        lp += 1; dq(lp) = q
+    def findDqSplit(q: PLink): Int =
+      var index = fp
+      var res   = -1
+      while res < 0 && index < apex do
+        if ccw(dq(index + 1).p, dq(index).p, q.p) == IsCcw then res = index
+        index += 1
+      index = lp
+      while res < 0 && index > apex do
+        if ccw(dq(index - 1).p, dq(index).p, q.p) == IsCw then res = index
+        index -= 1
+      if res < 0 then apex else res
+    def nextMarked(tr: Tri): Int =
+      var ei = 0
+      var r  = -1
+      while r < 0 && ei < 3 do
+        val x = tr.e(ei).right
+        if x != -1 && tris(x).mark == 1 then r = x
+        ei += 1
+      r
+    add2dq(front = true, epS)
+    apex = fp
+    var trii = ftrii.get
+    while trii != -1 do
+      val trip = tris(trii)
+      trip.mark = 2
+      // the left and right points of the side to the next triangle
+      var ei = 0
+      while ei < 3 && !(trip.e(ei).right != -1 && tris(trip.e(ei).right).mark == 1) do ei += 1
+      val (lpl, rpl) =
+        if ei == 3 then // the last triangle
+          if ccw(t, dq(fp).p, dq(lp).p) == IsCcw then (dq(lp), epT) else (epT, dq(lp))
+        else
+          val opp = trip.e((ei + 1) % 3).b
+          if ccw(trip.e(ei).a.p, opp.p, trip.e(ei).b.p) == IsCcw then (trip.e(ei).b, trip.e(ei).a)
+          else (trip.e(ei).a, trip.e(ei).b)
+      if trii == ftrii.get then
+        add2dq(front = false, lpl)
+        add2dq(front = true, rpl)
+      else if !(dq(fp) eq rpl) && !(dq(lp) eq rpl) then
+        // add the right point
+        val si = findDqSplit(rpl)
+        fp = si
+        add2dq(front = true, rpl)
+        if si > apex then apex = si
+      else
+        // add the left point
+        val si = findDqSplit(lpl)
+        lp = si
+        add2dq(front = false, lpl)
+        if si < apex then apex = si
+      trii = nextMarked(trip)
+
+    val path = mutable.ArrayBuffer.empty[XY]
+    var q = epT
+    while q ne null do
+      path += q.p
+      q = q.link
+    Some(path.reverseIterator.toVector)
 
   // ───────────────────────── Proutespline (route.c) ────────────────────────
   private def proutespline(poly: Array[XY], pl: Vector[XY]): Vector[XY] =

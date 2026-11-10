@@ -1,0 +1,6 @@
+digraph "SvgRoundHalfEven" {
+    x
+    subgraph cluster_s { label="s"; subgraph cluster_t { label="t"; a } b }
+    x -> a
+    x -> b
+}

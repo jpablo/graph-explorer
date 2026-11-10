@@ -137,7 +137,9 @@ object GraphBB:
     // the node scan above, since rootHt1/rootHt2 come from the same extremes.
     // The span is the one yInfo actually LAID OUT: an `abomination` rank sits
     // below ranks.values.min, and its carried-over headroom (the old top
-    // rank's ht2, position.c:670) is exactly what tops gv's bb there.
+    // rank's ht2, which stays in the root's GD_ht2 from the first
+    // set_ycoords pass) is exactly what tops gv's bb there. Only the bb
+    // reads it: it never goes into the rank heights (Coord.yInfo).
     if ranks.nonEmpty then
       val yi      = Coord.yInfo(g)
       val spanMin = yi.yOf.keys.min

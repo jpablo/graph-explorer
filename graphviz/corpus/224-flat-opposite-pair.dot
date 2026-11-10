@@ -1,0 +1,3 @@
+digraph "FlatOppositePair" {
+    { rank=same; a -> b; b -> a }
+}

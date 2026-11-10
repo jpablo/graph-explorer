@@ -639,20 +639,30 @@ object XCoord:
       def ln(i: Int) = LayoutNode.ClusterLn(i)
       def rn(i: Int) = LayoutNode.ClusterRn(i)
       val lrvnMade = mutable.Set.empty[Int]
-      // GD_rank(cluster): the cluster's slice of the global order (real
-      // members + chain vnodes of INTRA-cluster edges — gv mark_clusters puts
-      // those vnodes in the cluster, so contain_nodes holds them inside the
-      // borders and the box reserves their width; e.g. groups.dot's reversed
-      // a3->a0 chain), preserving mincross order.
+      // GD_rank(cluster): the cluster's slice of the global order, as
+      // `rec_reset_vlists` (mincross.c, from `cleanup2`) leaves it. It is the
+      // span from the leftmost to the rightmost node of the cluster on the
+      // rank (`furthestnode`). A node of the cluster is a real node that the
+      // cluster holds, nested clusters too, or a chain vnode whose original
+      // edge the cluster holds: both ends are inside, and `node_induce` puts
+      // that edge into the cluster. So contain_nodes holds those vnodes
+      // inside the borders and the box reserves their width (e.g.
+      // groups.dot's reversed a3->a0 chain).
+      val clustOfN = Cluster.clustOf(g)
+      def under(c: Int, k: Int): Boolean = // cluster c is k or nested in k
+        c == k || { val p = cluInfos(c).parent; p >= 0 && under(p, k) }
+      def holds(ci: Int, id: String): Boolean = clustOfN.get(id).exists(under(_, ci))
       def inClust(ci: Int, n: LayoutNode): Boolean = n match
-        case LayoutNode.Real(id) => cluInfos(ci).members(id)
+        case LayoutNode.Real(id) => holds(ci, id)
         case LayoutNode.Virtual(d, _) =>
-          realEdges.lift(d).exists(re =>
-            cluInfos(ci).members(re.tail) && cluInfos(ci).members(re.head))
+          realEdges.lift(d).exists(re => holds(ci, re.tail) && holds(ci, re.head))
         case _ => false
-      def slice(ci: Int, r: Int): Vector[LayoutNode] =
-        res.order.getOrElse(r, Vector.empty).filter(inClust(ci, _)).toVector
       def gRow(r: Int): Vector[LayoutNode] = res.order.getOrElse(r, Vector.empty).toVector
+      def slice(ci: Int, r: Int): Vector[LayoutNode] =
+        val row = gRow(r)
+        val from = row.indexWhere(inClust(ci, _))
+        if from < 0 then Vector.empty
+        else row.slice(from, row.lastIndexWhere(inClust(ci, _)) + 1)
       // make_lrvn: create the border pair; a TB cluster label forces the box
       // at least as wide as the padded label (ln→rn aux edge, weight 0).
       def makeLrvn(ci: Int): Unit =

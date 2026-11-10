@@ -1,0 +1,7 @@
+digraph "NestedClusterMincross" {
+    x
+    subgraph cluster_s { subgraph cluster_t { a -> c } b }
+    x -> a
+    x -> c
+    x -> b
+}

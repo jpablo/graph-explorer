@@ -1,0 +1,3 @@
+digraph "FlatPairConstraintFalse" {
+    { rank=same; a -> b [constraint=false]; b -> a [constraint=false] }
+}

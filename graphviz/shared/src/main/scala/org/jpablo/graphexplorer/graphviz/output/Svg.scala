@@ -90,7 +90,8 @@ object Svg:
   /** C `printf("%g")` with the default precision 6 (used for `<image>` attrs —
     * `gvloadimage_core.c` prints them raw, not through `gvprintdouble`). Chooses
     * `%f`-style for exponent ∈ [−4, 6) and strips trailing zeros; `%e`-style
-    * otherwise. Rounds half-to-even, matching the C library's default. */
+    * otherwise. Rounds the exact binary value half-to-even, as musl does
+    * ([[Output.cFixed]]). */
   private[output] def g6(x: Double): String =
     if x == 0.0 || (x > -1e-11 && x < 1e-11) then "0"
     else
@@ -100,14 +101,15 @@ object Svg:
       if math.pow(10, exp + 1) <= a then exp += 1
       if exp < -4 || exp >= 6 then
         // %e style: mantissa to 5 decimals, strip zeros, e±NN (rare here).
-        val m  = x / math.pow(10, exp)
-        val ms = stripZeros(BigDecimal(m).setScale(5, BigDecimal.RoundingMode.HALF_EVEN).bigDecimal.toPlainString)
+        // The decimal point move is exact, so C's rounding of the exact
+        // value stays correct.
+        val m  = new java.math.BigDecimal(x).movePointLeft(exp)
+        val ms = stripZeros(Output.cFixed(m, 5))
         val es = (if exp < 0 then "-" else "+") + f"${math.abs(exp)}%02d"
         s"${ms}e$es"
       else
         val frac = math.max(0, 5 - exp)                   // 6 sig figs ⇒ 5−exp decimals
-        val s    = BigDecimal(x).setScale(frac, BigDecimal.RoundingMode.HALF_EVEN).bigDecimal.toPlainString
-        stripZeros(s)
+        stripZeros(Output.cFixed(x, frac))
 
   /** `gvrender_usershape` (gvrender.c): place an image inside a target box
     * `[bllx,burx]×[blly,bury]` (world y-up), scaled per the `SCALE`/`imagescale`
@@ -154,12 +156,13 @@ object Svg:
       val r = s.substring(0, e)
       if r == "-0" || r.isEmpty then "0" else r
 
-  /** gvprintdouble: %.2f, trim trailing zeros & point, snap near-zero to 0. */
+  /** gvprintdouble: %.2f, trim trailing zeros & point, snap near-zero to 0.
+    * The %.2f rounds as musl does ([[Output.cFixed]]): 92.625 gives
+    * "92.62". */
   private[output] def d2(x: Double): String =
     if x > -0.005 && x < 0.005 then "0"
     else
-      val bd = BigDecimal(x).setScale(2, BigDecimal.RoundingMode.HALF_UP)
-      var s  = bd.bigDecimal.toPlainString
+      var s = Output.cFixed(x, 2)
       if s.contains('.') then
         s = s.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
       if s == "-0" then "0" else s
@@ -211,8 +214,7 @@ object Svg:
     pt2
 
   /** Fixed "%.2f" (svg font-size — gv does NOT gvprintdouble-trim it). */
-  private[output] def f2(x: Double): String =
-    BigDecimal(x).setScale(2, BigDecimal.RoundingMode.HALF_UP).bigDecimal.toPlainString
+  private[output] def f2(x: Double): String = Output.cFixed(x, 2)
 
   /** `gvputs_xml` = gv_xml_escape with `{dash, nbsp}` (xml.c `xml_core`):
     * & < > " ' escaped (' → `&#39;`, siblings' De'Armond), `-` → `&#45;`
@@ -469,6 +471,15 @@ object Svg:
             b += s.id -> s; s.children.foreach(walk)
           g.subgraphs.foreach(walk)
           b.result()
+        // The cluster subgraphs in the order of Cluster.clusters (preorder,
+        // also through plain subgraphs), for the AGSEQ of each cluster.
+        val clusterSubs =
+          val b = Vector.newBuilder[org.jpablo.graphexplorer.graphviz.model.RSubgraph]
+          def walk(s: org.jpablo.graphexplorer.graphviz.model.RSubgraph): Unit =
+            if s.isCluster then b += s
+            s.children.foreach(walk)
+          g.subgraphs.foreach(walk)
+          b.result()
         cls.zipWithIndex.foreach { (c, i) =>
           // translate_bb: the CANONICAL cluster box maps corner-wise through
           // the rankdir transform (identity+offset for TB).
@@ -476,9 +487,12 @@ object Svg:
           val llx = cb.llx; val urx = cb.urx
           val lly = cb.lly; val ury = cb.ury
           // getObjId: an explicit `id` graph attr on the cluster replaces the
-          // clust{seq} default (the viewer's `id="group:…"` injection).
+          // clust{seq} default (the viewer's `id="group:…"` injection). The
+          // seq is the AGSEQ of the subgraph, so the plain subgraphs count
+          // too (202: `cluster_q` is `clust6`).
+          val seq = clusterSubs.lift(i).map(_.seq).filter(_ > 0).getOrElse(i + 1)
           val clustObjId = sgByName.get(c.name).flatMap(_.attrs.get("id"))
-            .filter(_.nonEmpty).getOrElse(s"clust${i + 1}")
+            .filter(_.nonEmpty).getOrElse(s"clust$seq")
           sb ++= s"""<g id="${xml(clustObjId)}" class="cluster">\n"""
           sb ++= s"<title>${xml(c.name)}</title>\n"
           // emit_clusters (emit.c): `style=filled` ⇒ FILL; `color` sets BOTH
@@ -546,8 +560,7 @@ object Svg:
         else
           // C "%f" (6 decimals) of the FLOAT a/255, via BigDecimal —
           // String.format(Locale, …) links java.text and breaks Scala.js.
-          val v = BigDecimal((a.toFloat / 255.0f).toDouble)
-            .setScale(6, BigDecimal.RoundingMode.HALF_UP).bigDecimal.toPlainString
+          val v = Output.cFixed((a.toFloat / 255.0f).toDouble, 6)
           (t.substring(0, 7), Some(v))
       else (t, None)
     /** Fill paint with gv's in-stream `" fill-opacity="` injection (the
@@ -632,7 +645,7 @@ object Svg:
           val ty    = -(baseline + yoffC)
           // svg_textspan: html spans escape with {raw, dash, nbsp} too
           // (' → &#39;, 2nd+ space of a run → &#160; — psg's quoted tokens).
-          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}"${svgFontAttrs(nm)}$wgt$sty$bsh font-size="${f"$fs%.2f"}"$f$dec>${xmlTooltip(it.str)}</text>\n"""
+          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}"${svgFontAttrs(nm)}$wgt$sty$bsh font-size="${f2(fs)}"$f$dec>${xmlTooltip(it.str)}</text>\n"""
           xi += w
         }
       }

@@ -1,0 +1,3 @@
+digraph "FlatPairNonAdjacentThree" {
+    { rank=same; a -> m; m -> b; a -> b; b -> a; a -> b }
+}

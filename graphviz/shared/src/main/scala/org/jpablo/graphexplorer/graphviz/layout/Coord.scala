@@ -177,9 +177,10 @@ object Coord:
     * half-heights **after** cluster inflation (`clust_ht` — label band +
     * CL_OFFSET margins); `pht` is the primitive node-scan value. `rootHt1`/
     * `rootHt2` are the root graph's `GD_ht1`/`GD_ht2` (they set the bbox
-    * bottom/top); `clHt1`/`clHt2` index [[Cluster.clusters]]. `yOf` is the
-    * FINAL rank-centre y: gv assigns bottom-up then `translate_drawing`
-    * shifts by −bb.LL — the shift is baked in here (`rootHt1 − ht1(maxR)`).
+    * bottom/top, and never go into `ht1`/`ht2`); `clHt1`/`clHt2` index
+    * [[Cluster.clusters]]. `yOf` is the FINAL rank-centre y: gv assigns
+    * bottom-up then `translate_drawing` shifts by −bb.LL — the shift is
+    * baked in here (`rootHt1 − ht1(maxR)`).
     */
   final case class YInfo(
       ranks:   Map[String, Int],
@@ -238,8 +239,9 @@ object Coord:
           // `realMinR` too: set_ycoords runs TWICE (before and after
           // flat_edges), and the second pass STARTS from the first pass's
           // GD_ht1/GD_ht2 (position.c:642) — so when `abomination` prepends a
-          // rank, the OLD top rank's half-height survives as the root's ht2
-          // and (:670) is pushed back into the new minrank.
+          // rank, the OLD top rank's half-height stays in the root's ht2.
+          // Only the bb reads it (GraphBB: y(minrank) + GD_ht2), so it tops
+          // the drawing above the label band. It does not go into ht2(minR).
           if (r == minR || r == realMinR) && h > rootHt2 then rootHt2 = h
           if r == maxR && h > rootHt1 then rootHt1 = h
     g.nodes.foreach { n =>
@@ -318,17 +320,24 @@ object Coord:
       }
       // root level (clust_ht(root)): top-level clusters at the graph
       // extremes push GD_ht1/GD_ht2 of the root (margin = CL_OFFSET).
+      // `realMinR` too, for the same reason as in `scanNode`: the first
+      // pass ran before `abomination`, when a cluster on the old top rank
+      // was at the root's minrank. Its ht2 + CL_OFFSET stays in the root's
+      // ht2 and tops the bb above the label band (206).
       Cluster.childrenOf(g, -1).foreach { cc =>
+        val atTop = cls(cc).minRank == minR || cls(cc).minRank == realMinR
         if cls(cc).maxRank == maxR && clHt1(cc) + ClOffset > rootHt1 then rootHt1 = clHt1(cc) + ClOffset
-        if cls(cc).minRank == minR && clHt2(cc) + ClOffset > rootHt2 then rootHt2 = clHt2(cc) + ClOffset
+        if atTop && clHt2(cc) + ClOffset > rootHt2 then rootHt2 = clHt2(cc) + ClOffset
       }
 
-    // set_ycoords:670: the root's carried-over ht2 is pushed back into the
-    // minrank (and ht1 into the maxrank). Identity in the normal case; with an
-    // `abomination` rank it is what keeps the OLD top rank's headroom above
-    // the label band (gv's bb is `y(minrank) + GD_ht2`).
-    if rootHt2 > ht2(minR) then ht2(minR) = rootHt2
-    if rootHt1 > ht1(maxR) then ht1(maxR) = rootHt1
+    // The root's GD_ht1/GD_ht2 stay out of the per-rank ht1/ht2: clust_ht
+    // updates the global ranks only `if (g != dot_root(g))`. So ht2(minR)
+    // and ht1(maxR) hold only node and cluster values. The spline boxes of
+    // the top and bottom ranks read them (maximal_bbox, rank_box, the flat
+    // edge boxes). Only dot_compute_bb (GraphBB) and translate_drawing
+    // (`shiftY` below) read the root's values. 204: the flat arch over a
+    // rank-0 cluster needs ht2 = 26 (cluster), not 34 (root). 205: the
+    // same for ht1 on the bottom rank (make_flat_labeled_edge's ydelta).
 
     val gLabelPad = graphLabelPad(g)
     val labelTop  = graphLabelTop(g)
@@ -420,8 +429,9 @@ object Coord:
       while r >= minR do { yOf(r) = yOf(r + 1) + maxht; r -= 1 }
 
     // translate_drawing (postproc.c): the drawing shifts by −bb.LL, where
-    // bb.LL.y = y(maxR) − GD_ht1(root). Bake the shift in (0 without
-    // clusters: rootHt1 == ht1(maxR) by construction).
+    // bb.LL.y = y(maxR) − GD_ht1(root). Bake the shift in. It is 0 without
+    // clusters (rootHt1 == ht1(maxR)), and CL_OFFSET when a top-level
+    // cluster gives the bottom rank its ht1.
     val shiftY = rootHt1 - ht1(maxR)
     (YInfo(
       ranks,

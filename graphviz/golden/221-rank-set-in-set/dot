@@ -1,0 +1,24 @@
+digraph SetInSet {
+	graph [bb="0,0,126,180"];
+	node [label="\N"];
+	{
+		graph [rank=same];
+		{
+			graph [rank=min];
+			b	[height=0.5,
+				pos="99,90",
+				width=0.75];
+		}
+		a	[height=0.5,
+			pos="27,90",
+			width=0.75];
+	}
+	c	[height=0.5,
+		pos="27,18",
+		width=0.75];
+	a -> c	[pos="e,27,36.104 27,71.697 27,64.407 27,55.726 27,47.536"];
+	x	[height=0.5,
+		pos="99,162",
+		width=0.75];
+	x -> b	[pos="e,99,108.1 99,143.7 99,136.41 99,127.73 99,119.54"];
+}

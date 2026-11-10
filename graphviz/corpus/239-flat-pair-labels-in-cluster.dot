@@ -1,0 +1,3 @@
+digraph "FlatPairLabelsInCluster" {
+    subgraph cluster_c { { rank=same; a -> m; m -> b; a -> b [label=x]; b -> a [label=y] } }
+}

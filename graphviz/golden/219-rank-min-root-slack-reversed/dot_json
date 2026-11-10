@@ -1,0 +1,64 @@
+{
+  "name": "RootMinSlack",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 181 233",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_c",
+      "_gvid": 0,
+      "nodes": [
+        2,3
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "name": "%7",
+      "rank": "min",
+      "_gvid": 1,
+      "nodes": [
+        4
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "s",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "t",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 4
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 5
+    }
+  ]
+}

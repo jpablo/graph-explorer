@@ -1,0 +1,4 @@
+digraph "FlatPairInCluster" {
+    subgraph cluster_x { { rank=same; a -> b; b -> a } }
+    x -> a
+}

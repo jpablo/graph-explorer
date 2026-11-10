@@ -1,0 +1,23 @@
+digraph ClusterRankAttr {
+	graph [bb="0,0,158,196"];
+	node [label="\N"];
+	subgraph cluster_c {
+		graph [bb="8,8,150,132",
+			rank=same
+		];
+		a	[height=0.5,
+			pos="43,106",
+			width=0.75];
+		b	[height=0.5,
+			pos="43,34",
+			width=0.75];
+		a -> b	[pos="e,43,52.104 43,87.697 43,80.407 43,71.726 43,63.536"];
+		c	[height=0.5,
+			pos="115,106",
+			width=0.75];
+	}
+	x	[height=0.5,
+		pos="43,178",
+		width=0.75];
+	x -> a	[pos="e,43,124.1 43,159.7 43,152.41 43,143.73 43,135.54"];
+}

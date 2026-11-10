@@ -1,0 +1,3 @@
+digraph "FlatPairThreeLabels" {
+    { rank=same; a -> b [label=x]; a -> b [label=y]; b -> a [label=z] }
+}
