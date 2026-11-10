@@ -685,13 +685,38 @@ object MermaidBackend:
       else currentColor
     }
 
-  /** Mermaid derives the id of the scratch element it appends to `<body>` while
-    * rendering by prefixing this with `d`. style.scss neutralizes that element via
-    * `body > div[id^="dmermaid-render-"]` — keep the two in step, or the layout it
-    * causes (a one-frame document scrollbar) comes back.
+  /** A token that is new for each page load. Each render id holds it.
+    *
+    * Mermaid finds the element that it draws into by its id, and it looks in the
+    * whole document. The library page shows thumbnails from the disk cache, and
+    * those SVGs keep the ids of earlier sessions. A counter alone starts at 1 in
+    * each session. Thus a stored SVG can have the id of a new render, and Mermaid
+    * then removes that SVG or draws into it (see RenderIdClashSpec).
+    *
+    * The token is the start time of the page load in base 36, then a random part of
+    * six base-36 digits. Two page loads get the same token only if they start in
+    * the same millisecond and also get the same random part.
+    */
+  private val sessionToken: String =
+    val time   = java.lang.Long.toString(js.Date.now().toLong, 36)
+    val random = Integer.toString((js.Math.random() * Int.MaxValue).toInt, 36)
+    time + "0" * (6 - random.length) + random
+
+  /** The id of the next Mermaid render: `mermaid-render-<token>-<n>`.
+    *
+    * The token makes the id unique across page loads, and `n` makes it unique in
+    * one page load. The id starts with a letter and holds only `[a-z0-9-]`. Thus
+    * `getElementById` and the CSS `#id` selectors in the `<style>` of Mermaid
+    * accept it. An earlier version wrote `mermaid-render-<n>`, with no token. That
+    * id has one `-` less, so it never equals a new id.
+    *
+    * During a render, Mermaid adds a scratch element at the end of `<body>`. Its id
+    * is `d` and then this id. style.scss neutralizes that element with
+    * `body > div[id^="dmermaid-render-"]`. Keep the prefix `mermaid-render-`, or a
+    * document scrollbar shows for one frame at each render.
     */
   def nextRenderId(): String =
-    val id = renderCounter.incrementAndGet()
-    s"mermaid-render-$id"
+    val n = renderCounter.incrementAndGet()
+    s"mermaid-render-$sessionToken-$n"
 
   def apply()(using ExecutionContext): MermaidBackend = new MermaidBackend()
