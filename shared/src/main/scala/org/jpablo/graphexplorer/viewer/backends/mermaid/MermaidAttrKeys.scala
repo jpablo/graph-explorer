@@ -26,6 +26,25 @@ object MermaidAttrKeys:
   val MermaidEdgeTypeAttr               = AttributeId("mermaid_edgeType")
   val MermaidDomIdAttr                  = AttributeId("mermaid_domId")
 
+  /** A graph attribute: the kind of Mermaid diagram when it is not a flowchart.
+    * The printer reads it to write the same kind of diagram back.
+    */
+  val MermaidDiagramAttr = AttributeId("mermaid_diagram")
+
+  /** The value of [[MermaidDiagramAttr]] for a state diagram, and its header. */
+  val StateDiagramHeader = "stateDiagram-v2"
+
+  /** A node attribute of a state diagram: `start`, `end`, `fork`, `join` or
+    * `choice`. A plain state does not have it.
+    */
+  val MermaidStateTypeAttr = AttributeId("mermaid_stateType")
+
+  /** A node attribute of a state diagram: the description lines of a state
+    * after the first one. The first one is the label. Each line of the value is
+    * one description.
+    */
+  val MermaidStateDescriptionsAttr = AttributeId("mermaid_stateDescriptions")
+
   /** Tokenizes a `mermaid_class` attribute value (a list of class names) — the one
     * parser for this format, shared by the exporter and the style resolver.
     */

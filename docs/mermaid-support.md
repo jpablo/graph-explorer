@@ -154,7 +154,7 @@ Current Mermaid support has some limitations compared to DOT:
 1. **Read-only**: Mermaid diagrams cannot be edited graphically (no drag-and-drop node creation or edge manipulation)
 2. **No hidden elements**: The visibility toggle feature is not yet implemented for Mermaid
 3. **Limited selection**: Edge selection may not work reliably due to Mermaid's SVG structure
-4. **Flowcharts only**: Only flowchart/graph diagrams are fully supported (sequence diagrams, etc. will render but may not be interactive)
+4. **Flowcharts and state diagrams only**: Only flowchart/graph diagrams and `stateDiagram-v2` state diagrams are fully supported. Other kinds (sequence diagrams, the older `stateDiagram` header, etc.) render, but they are view-only. A canvas edit on a state diagram writes `stateDiagram-v2` text, and it does not keep notes or concurrent regions (`--`).
 
 ## Example: Software Architecture
 

@@ -88,6 +88,51 @@ trait DiagramYY extends js.Object:
   /** Get all class definitions (classDef) in the diagram. */
   def getClasses(): js.Dictionary[MermaidClassDefJS] = js.native
 
+/** The database of a `stateDiagram-v2` diagram (Mermaid's StateDB).
+  *
+  * Note: This is an internal Mermaid API (checked against Mermaid 11.12). The
+  * parse fills the layout data, which is what the renderer draws.
+  */
+@js.native
+trait StateDiagramDB extends js.Object:
+  /** The layout data: each drawn state and transition. */
+  def getData(): StateLayoutJS = js.native
+
+  /** The `classDef` declarations. Mermaid 11 returns a JS `Map`. */
+  def getClasses(): js.Dictionary[MermaidClassDefJS] = js.native
+
+  /** The diagram title from front matter. */
+  def getDiagramTitle(): js.UndefOr[String] = js.native
+
+@js.native
+trait StateLayoutJS extends js.Object:
+  val nodes: js.Array[StateNodeJS] = js.native
+  val edges: js.Array[StateEdgeJS] = js.native
+
+/** A node of the state layout data: a state, a composite state, a note, or a
+  * concurrent region.
+  */
+@js.native
+trait StateNodeJS extends js.Object:
+  val id: String                               = js.native
+  val label: js.UndefOr[js.Any]                = js.native // a string; an array only before the parse ends
+  val description: js.UndefOr[js.Array[String]] = js.native // the descriptions after the first
+  val shape: js.UndefOr[String]                = js.native
+  val parentId: js.UndefOr[String]             = js.native
+  val isGroup: js.UndefOr[Boolean]             = js.native
+  val domId: js.UndefOr[String]                = js.native
+  val cssClasses: js.UndefOr[String]           = js.native
+  val cssStyles: js.UndefOr[js.Array[String]]  = js.native
+
+/** An edge of the state layout data: a transition, or the line to a note. */
+@js.native
+trait StateEdgeJS extends js.Object:
+  val id: String                  = js.native // edge<N>, in the order of the source
+  val start: String               = js.native
+  val end: String                 = js.native
+  val label: js.UndefOr[String]   = js.native
+  val classes: js.UndefOr[String] = js.native
+
 /** A vertex (node) as returned by Mermaid's parser. */
 @js.native
 trait MermaidVertexJS extends js.Object:
