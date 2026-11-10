@@ -1,0 +1,73 @@
+{
+  "name": "FlatEdgeNestedClusterOrder",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,174,156",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_o",
+      "bb": "8,8,166,148",
+      "_gvid": 0,
+      "subgraphs": [
+        1
+      ],
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0,1
+      ]
+    },
+    {
+      "name": "cluster_i",
+      "bb": "16,16,158,140",
+      "_gvid": 1,
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0,1
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "p",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "51,42",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "q",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "123,42",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "r",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "51,114",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "minlen": "0",
+      "pos": "e,95.75,42 78.281,42 80.283,42 82.284,42 84.286,42"
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 2,
+      "pos": "e,51,60.104 51,95.697 51,88.407 51,79.726 51,71.536"
+    }
+  ]
+}

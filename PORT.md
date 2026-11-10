@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 222/223
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 238/239
 > (2026-11-09).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 214/215 + shipped examples 8/8 = 222/223** — the SINGLE
+> **corpus 230/231 + shipped examples 8/8 = 238/239** — the SINGLE
 > remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
 > (its golden is gv's own default-mode cluster corruption; the file is
 > gated byte-exact against the 03b `newrank` oracle in ClusterSpec
@@ -660,11 +660,8 @@ enforce the deferral halves of it):
      `GD_ht2` of the cluster and adds `GD_border[TOP].y` again. Thus, with
      206's graph and `label="p"` on cluster_p, gv's cluster top is
      107 + 26 + 2 × 24.8 = 182.6, and the port gives one band (157.8).
-  4. **A flat edge in a cluster can give a mirror order.** For `digraph {
-     subgraph cluster_c { p; q; p -> q [minlen=0]; r -> p } }`, the ranks
-     match, but gv puts p at x=43 and q at x=115, and the port puts them the
-     other way round (r goes with p). The cause is in `Order`: the tail of
-     the flat edge comes before an in-neighbour of it in the cluster.
+  4. ~~**A flat edge in a cluster can give a mirror order.**~~ CLOSED: see
+     the §7 entry "245–260".
   5. ~~**Two flat edges between one pair are straight.**~~ CLOSED: see the
      §7 entry "223–244".
   6. **The `rank` echo of a subgraph in `dot_json`/`json0`.** The writer
@@ -701,6 +698,24 @@ enforce the deferral halves of it):
       `make_flat_labeled_edge` follows `ED_to_virt` to the rep, finds no
       label node, and puts the label at the tail node. The port does not
       copy this.
+
+  The flat machinery of the clustered mincross (245–260) left these open.
+  No corpus case shows any of them:
+  13. **The root flat matrix between components.** gv does not clear
+      `GD_rank(g)[r].flat` between the components of the root pass. A later
+      component can read the matrix of an earlier one, with the ND_low values
+      of the ranking step. The port gives each component its own matrix.
+      Three probes, and a variant with one shared matrix, agree with gv.
+  14. **The direction of a flat edge after `acyclic`.** The port makes the
+      flat edges from the edge direction after the ranking step. gv's
+      `flat_edge` uses the original direction. The two can differ when the
+      ranking step reverses a flat edge. This is not checked.
+  15. **Two approximations in the cluster passes.** A node outside the
+      current pass reads its median value as 0 (gv keeps the value from an
+      earlier pass). A node in a cluster that is not expanded yet reads its
+      order as 0.
+  16. **The `ordering` attribute.** `ordered_edges` is not ported. The port
+      does not read `ordering` at all.
 
 ## 1. Goal & locked decisions
 
@@ -3228,4 +3243,38 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
     in LR). Between two clusters each direction keeps its own label node
     (191).
   The probes found five more gaps (§0, items 8–12). graphvizJVM 960/960.
+- **2026-11-09 (245–260)** — **The clustered mincross has the flat
+  machinery; corpus 230/231, total gate 238/239.** In a graph with
+  clusters, a flat edge did not fix the order of its ends (§0 item 4). For
+  `cluster_c { p; q; p -> q [minlen=0]; r -> p }`, `build_ranks(clust)`
+  walks GD_nlist backward, seeds q before r, and gives `q, p`. gv's
+  `flat_reorder(clust)` then puts p first, but `Order.orderClustered` had
+  only `flat_mval`. Now:
+  - **The root pass** gets the flat edges whose two ends are root nodes
+    (`interclrep` drops a flat edge with an end in a cluster), so
+    `runMincross` runs `flat_breakcycles`/`flat_reorder`/`left2right` there
+    (249: `m -> n` at the root). `decomposeOrder` follows the flat lists
+    too (`search_component`).
+  - **Each cluster** (`mincross_clust`): `expandCluster` adds the flat edges
+    of the cluster (`class2(subg)`) and the flat edges across its boundary
+    as root edges (`interclexp`, with `find_flat_edge`). `refineCluster`
+    then runs `flat_breakcycles` and `flat_reorder` on the slice of each
+    rank, and `left2right` reads the matrix of the cluster in `reorder`
+    (muststay) and in `transpose_step` (245–252: nested, LR, a label, edges
+    to and from a root node).
+  - **ReMincross**: `left2right(root)` pins a pair of two clusters, and
+    reads the ROOT matrix for the other pairs. gv reads it at ND_low, which
+    the cluster's `flat_breakcycles` set again to the slice index. So a
+    root flat edge can pin two nodes of one cluster (258). This is
+    deterministic gv behaviour, so the port copies it.
+  - **`zapinlist`**: gv removes an item from an edge list by moving the last
+    item into its slot. `flat_rev` now does the same, in both paths (259,
+    260 without and with a cluster: gv gives `x, a, d, c`).
+  - `flat_mval` reads the flat lists as they are now, with the weight-0
+    edges too.
+  253–257 were green before and guard the change: a root flat pair next to
+  a cluster, crossing pressure, a flat chain, a flat cycle, and a weight-0
+  edge. Two more probes check that a flat pair across a cluster boundary
+  still routes as two groups. The probes left four gaps (§0, items 13–16).
+  graphvizJVM 1008/1008.
 - _(append dated entries as milestones land)_

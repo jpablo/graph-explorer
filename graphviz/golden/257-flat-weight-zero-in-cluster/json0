@@ -1,0 +1,60 @@
+{
+  "name": "FlatWeightZeroInCluster",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,158,140",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_c",
+      "bb": "8,8,150,132",
+      "_gvid": 0,
+      "nodes": [
+        1,2,3
+      ],
+      "edges": [
+        0,1
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "p",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "115,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "q",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "r",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "115,106",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "minlen": "0",
+      "pos": "e,70.281,34 87.75,34 85.748,34 83.746,34 81.745,34",
+      "weight": "0"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 1,
+      "pos": "e,115,52.104 115,87.697 115,80.407 115,71.726 115,63.536"
+    }
+  ]
+}

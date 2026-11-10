@@ -1,0 +1,8 @@
+digraph "RemincrossRootFlatMatrix" {
+    subgraph cluster_c { { rank=same; p -> q } }
+    r -> q
+    s -> p
+    r; s
+    t -> m
+    m -> n [minlen=0]
+}

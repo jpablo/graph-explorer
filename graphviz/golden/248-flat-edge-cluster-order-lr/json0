@@ -1,0 +1,61 @@
+{
+  "name": "FlatEdgeClusterOrderLR",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,176,122",
+  "rankdir": "LR",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_c",
+      "bb": "8,8,168,114",
+      "rankdir": "LR",
+      "_gvid": 0,
+      "nodes": [
+        1,2,3
+      ],
+      "edges": [
+        0,1
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "p",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "133,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "q",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "133,88",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "r",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,34",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "minlen": "0",
+      "pos": "e,133,69.51 133,52.141 133,54.131 133,56.121 133,58.111"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 1,
+      "pos": "e,105.62,34 70.403,34 77.886,34 86.183,34 94.199,34"
+    }
+  ]
+}

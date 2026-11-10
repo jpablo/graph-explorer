@@ -1,0 +1,21 @@
+digraph FlatEdgeClusterOrderLR {
+	graph [bb="0,0,176,122",
+		rankdir=LR
+	];
+	node [label="\N"];
+	subgraph cluster_c {
+		graph [bb="8,8,168,114"];
+		p	[height=0.5,
+			pos="133,34",
+			width=0.75];
+		q	[height=0.5,
+			pos="133,88",
+			width=0.75];
+		p -> q	[minlen=0,
+			pos="e,133,69.51 133,52.141 133,54.131 133,56.121 133,58.111"];
+		r	[height=0.5,
+			pos="43,34",
+			width=0.75];
+		r -> p	[pos="e,105.62,34 70.403,34 77.886,34 86.183,34 94.199,34"];
+	}
+}

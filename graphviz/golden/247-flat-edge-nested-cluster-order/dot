@@ -1,0 +1,22 @@
+digraph FlatEdgeNestedClusterOrder {
+	graph [bb="0,0,174,156"];
+	node [label="\N"];
+	subgraph cluster_o {
+		graph [bb="8,8,166,148"];
+		subgraph cluster_i {
+			graph [bb="16,16,158,140"];
+			p	[height=0.5,
+				pos="51,42",
+				width=0.75];
+			q	[height=0.5,
+				pos="123,42",
+				width=0.75];
+			p -> q	[minlen=0,
+				pos="e,95.75,42 78.281,42 80.283,42 82.284,42 84.286,42"];
+			r	[height=0.5,
+				pos="51,114",
+				width=0.75];
+			r -> p	[pos="e,51,60.104 51,95.697 51,88.407 51,79.726 51,71.536"];
+		}
+	}
+}
