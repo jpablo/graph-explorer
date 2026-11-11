@@ -13,11 +13,12 @@ import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionSt
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
-import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.Try
 
 class InternalPhasesSpec extends FunSuite with TestHelpers:
 
@@ -581,6 +582,56 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
         assertEquals(fullGraph.now(), edited, "the edit did not apply")
         assert(phases.sourceText.now().startsWith("FAKE:"), s"the edit did not print the graph: ${phases.sourceText.now()}")
         assertEquals(messages.size, 2, s"an edit that applies sends no message: $messages")
+      }
+    }
+
+  test("A graph edit whose text cannot be written is refused, and the state does not fail"):
+    // Bug: the setter of `fullGraphV` printed the new graph with no guard. A
+    // membership for a node that `nodes` does not have makes the DOT printer
+    // throw. Then the root state Var was a Failure, and each later edit failed
+    // with "Unable to update a failed Var" until a reload.
+    def check(condition: Boolean, clue: => String): Unit =
+      // In the Playwright runner a failure can arrive with an empty message. The console does reach the log.
+      if !condition then println(s"[InternalPhasesSpec] $clue")
+      assert(condition, clue)
+    withGraphvizAsync { graphviz =>
+      val languages = DefaultDiagramLanguages(graphviz)
+      var messages  = List.empty[String]
+      val phases = new InternalPhases(
+        languages,
+        initialSource = Some("digraph G { subgraph cluster_x { a } }"),
+        hiddenNodes = Val(ElementIds()),
+        pace = identity,
+        refusedEdits = Observer(message => messages = messages :+ message)
+      )
+      // A read of `fullGraphV` is current only while its signal has a subscriber.
+      val fullGraph = phases.fullGraph.observe
+
+      afterMicrotasks {
+        val before     = fullGraph.now()
+        val textBefore = phases.sourceText.now()
+        check(before.groupIds.contains(GroupId("x")), s"precondition: the graph has the group x: ${before.groupIds}")
+        check(phases.graphEditApplies, "precondition: a graph edit applies")
+        // The graph of the old bug: the node `ghost` is a member of x, but it is not in `nodes`.
+        val broken = before.moveToGroup(GroupId("x"), Seq(NodeId("ghost")))
+        check(
+          Try(languages.forFormat(DiagramFormat.DOT).graphToText(broken, omitInternal = true)).isFailure,
+          "precondition: the DOT printer throws for the broken graph"
+        )
+
+        phases.fullGraphV.update(_ => broken)
+
+        val state = phases.fullGraphV.tryNow()
+        check(state.isSuccess, s"the root state is failed: ${state.failed.map(_.getMessage)}")
+        check(phases.sourceText.tryNow().toOption.contains(textBefore), s"the refused edit changed the text: ${phases.sourceText.tryNow()}")
+        check(fullGraph.tryNow().toOption.contains(before), "the refused edit changed the graph")
+        check(messages.size == 1, s"one refused edit must send one message: $messages")
+
+        // A later normal edit still applies.
+        phases.fullGraphV.update(_.addNodeWithId(NodeId("later")))
+        val text = phases.sourceText.tryNow()
+        check(text.toOption.exists(_.contains("\"later\"")), s"a later edit did not apply: $text")
+        check(messages.size == 1, s"an edit that applies sends no message: $messages")
       }
     }
 

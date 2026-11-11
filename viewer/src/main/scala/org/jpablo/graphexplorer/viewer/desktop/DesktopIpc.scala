@@ -35,6 +35,7 @@ object DesktopIpc:
   val RenameDocument         = "rename_document"
   val DiagramsFolderCommand  = "diagrams_folder"
   val LibraryList            = "library_list"
+  val LibraryRead            = "library_read"
   val LibraryWrite           = "library_write"
   val LibraryDelete          = "library_delete"
   val LibraryLegacyList      = "library_legacy_list"
@@ -47,6 +48,10 @@ object DesktopIpc:
   enum SaveOutcome derives CanEqual:
     case Saved(path: String, revision: String)
     case Conflict(currentRevision: Option[String])
+    /** The shell has no watch for the path (`DOCUMENT_NOT_WATCHED`). The
+      * save wrote nothing.
+      */
+    case NotWatched(message: String)
     case Failed(message: String)
     case Unavailable
 
@@ -172,11 +177,38 @@ object DesktopIpc:
   def libraryList()(using ExecutionContext): Future[Vector[StoredFile]] =
     call(LibraryList, js.Dynamic.literal()).map(storedFiles)
 
+  /** What the page saw of an entry before it made a write over it. */
+  enum EntryBase derives CanEqual:
+    /** The page saw no entry. */
+    case Absent
+
+    /** The page saw an entry with exactly this text. */
+    case Present(json: String)
+
+  /** Read one entry of the metadata store (`library_read`). `None` when the
+    * entry does not exist (`LIBRARY_ENTRY_MISSING`).
+    */
+  def libraryRead(name: String)(using ExecutionContext): Future[Option[String]] =
+    call(LibraryRead, js.Dynamic.literal(name = name))
+      .map: value =>
+        if js.typeOf(value) == "string" then Some(value.asInstanceOf[String])
+        else throw IpcFailure("LIBRARY_READ_FAILED", s"the shell gave no text for $name")
+      .recover:
+        case IpcFailure("LIBRARY_ENTRY_MISSING", _) => None
+
   /** Write one entry of the metadata store. The shell refuses a write before
     * the migration made the store, with `LIBRARY_NOT_MIGRATED`.
+    *
+    * With a `base`, the write is a compare-and-swap: the shell refuses it
+    * with `LIBRARY_CONFLICT` when the entry on the disk is not the base, and
+    * the disk does not change. With no base, the shell does not check.
     */
-  def libraryWrite(name: String, json: String)(using ExecutionContext): Future[Unit] =
-    call(LibraryWrite, js.Dynamic.literal(name = name, json = json)).map(_ => ())
+  def libraryWrite(name: String, json: String, base: Option[EntryBase] = None)(using ExecutionContext): Future[Unit] =
+    val args = js.Dynamic.literal(name = name, json = json)
+    base.foreach:
+      case EntryBase.Absent        => args.updateDynamic("base")(js.Dynamic.literal(state = "absent"))
+      case EntryBase.Present(seen) => args.updateDynamic("base")(js.Dynamic.literal(state = "present", json = seen))
+    call(LibraryWrite, args).map(_ => ())
 
   /** Delete one entry of the metadata store. The diagram file does not change. */
   def libraryDelete(name: String)(using ExecutionContext): Future[Boolean] =
@@ -284,6 +316,8 @@ object DesktopIpc:
       asString(obj, "code") match
         case Some("DOCUMENT_CONFLICT") =>
           SaveOutcome.Conflict(asString(obj, "currentRevision"))
+        case Some("DOCUMENT_NOT_WATCHED") =>
+          SaveOutcome.NotWatched(asString(obj, "message").getOrElse(String.valueOf(rejection)))
         case _ =>
           SaveOutcome.Failed(asString(obj, "message").getOrElse(String.valueOf(rejection)))
     else SaveOutcome.Failed(String.valueOf(rejection))

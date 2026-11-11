@@ -33,10 +33,12 @@ class PersistenceSpec extends FunSuite with TestHelpers:
         viewerState.storedName.set(diagramName)
         viewerState.addNodeWithSmartConnection()
 
+        // Only the payload. The library index has no entry for this id, so the
+        // index does not change, and `updateIndex` does not write it.
         assertEquals(
           obtained = dom.window.localStorage.length,
-          expected = 2,
-          "Should have two items in localStorage: one for the diagram and one for the graph explorer version"
+          expected = 1,
+          "Should have one item in localStorage: the payload of the diagram"
         )
 
         val storedDiagramStr = dom.window.localStorage.getItem(storedDiagramKey(diagramId))

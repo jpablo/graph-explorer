@@ -179,6 +179,9 @@ fn save_document(
             current_revision: Some(current_revision),
             attempted_base_revision: Some(attempted_base_revision),
         },
+        // A separate code, so the page can tell a lost watch from a failed
+        // write without a match on the message.
+        PutDocumentError::NotWatched(err) => IpcError::new("DOCUMENT_NOT_WATCHED", err),
         PutDocumentError::Other(err) => IpcError::new("DOCUMENT_WRITE_FAILED", err),
     })
 }
@@ -1483,7 +1486,9 @@ fn dispatch_method(
                     current_revision,
                     attempted_base_revision,
                 }) => RpcResponse::conflict(id, current_revision, attempted_base_revision),
-                Err(PutDocumentError::Other(err)) => {
+                // The socket keeps one code for both: its callers know only
+                // DOCUMENT_WRITE_FAILED.
+                Err(PutDocumentError::NotWatched(err)) | Err(PutDocumentError::Other(err)) => {
                     RpcResponse::failure(id, "DOCUMENT_WRITE_FAILED", err)
                 }
             }
@@ -1747,13 +1752,7 @@ fn await_open(
             Ok(outcome.view.unwrap_or(serde_json::Value::Null))
         }
         Ok(outcome) => {
-            let code = match outcome.code.as_deref() {
-                Some("DOCUMENT_NOT_FOUND") => "DOCUMENT_NOT_FOUND",
-                Some("OPEN_DENIED") => "OPEN_DENIED",
-                Some("PARSE_FAILED") => "PARSE_FAILED",
-                Some("ACTIVATION_REFUSED") => "ACTIVATION_REFUSED",
-                _ => "VIEW_REJECTED",
-            };
+            let code = open_failure_code(outcome.code.as_deref());
             Err((
                 code,
                 outcome
@@ -1766,6 +1765,35 @@ fn await_open(
             format!("the page did not acknowledge {audit_subject} within {OPEN_TIMEOUT:?}"),
         )),
     }
+}
+
+/// The code that `gx open` gets for a refusal of the page.
+///
+/// This is an ALLOWLIST, as [`live_view_failure_code`] is. Each other code of
+/// the page, and a refusal with no code, is `VIEW_REJECTED`.
+/// `OPEN_SUPERSEDED` tells the caller that the window went to a different
+/// view before it showed the file.
+fn open_failure_code(code: Option<&str>) -> &'static str {
+    match code {
+        Some("DOCUMENT_NOT_FOUND") => "DOCUMENT_NOT_FOUND",
+        Some("OPEN_DENIED") => "OPEN_DENIED",
+        Some("PARSE_FAILED") => "PARSE_FAILED",
+        Some("ACTIVATION_REFUSED") => "ACTIVATION_REFUSED",
+        Some("OPEN_SUPERSEDED") => "OPEN_SUPERSEDED",
+        _ => "VIEW_REJECTED",
+    }
+}
+
+/// True when a failed open must keep a watch that it made, because the page
+/// holds the file.
+///
+/// `PARSE_FAILED`: the page shows the text with an error. `ACTIVATION_REFUSED`:
+/// the page holds the document, and the unsaved-changes dialog can show it
+/// after Save or Discard. A file on the screen needs its watch: a save needs
+/// it, and the page gets an outside change only through it. For each other
+/// refusal the page does not show the file.
+fn failed_open_keeps_watch(code: &str) -> bool {
+    matches!(code, "PARSE_FAILED" | "ACTIVATION_REFUSED")
 }
 
 /// Block until the webview has registered itself, or the open budget runs out.
@@ -2027,6 +2055,9 @@ enum PutDocumentError {
         current_revision: String,
         attempted_base_revision: String,
     },
+    /// The registry of the watches has no entry for the path. The page can
+    /// register the watch again and retry the save (`DOCUMENT_NOT_WATCHED`).
+    NotWatched(anyhow::Error),
     Other(anyhow::Error),
 }
 
@@ -2047,7 +2078,7 @@ fn put_document_snapshot(
     })?;
 
     let watch = registry.get_mut(&normalized).ok_or_else(|| {
-        PutDocumentError::Other(anyhow::anyhow!(
+        PutDocumentError::NotWatched(anyhow::anyhow!(
             "path is not currently watched: {}",
             normalized
         ))
@@ -2701,8 +2732,12 @@ fn show_file(
                     // The watch is needed before activation because its event gives the
                     // page the bytes to parse. Roll back only a watch that this failed
                     // request created. A shared watch has another owner and must remain.
+                    // A file that the page holds keeps its watch too: a file that does
+                    // not parse is on the screen, and a refused activation can show the
+                    // file after the dialog. The answer to the caller stays the same.
                     if let Err(rollback_err) = rollback_failed_open(
                         &outcome,
+                        code,
                         &context.watch_registry,
                         &context.watch_controllers,
                         &context.audit_logger,
@@ -2742,14 +2777,16 @@ fn show_file(
     }
 }
 
-/// Remove only the watch that a failed open created.
+/// Remove only the watch that a failed open created, and only when the page
+/// does not hold the file (`failed_open_keeps_watch`).
 fn rollback_failed_open(
     outcome: &WatchOutcome,
+    code: &str,
     watch_registry: &WatchRegistry,
     watch_controllers: &WatchControllers,
     audit_logger: &AuditLogger,
 ) -> Result<()> {
-    if outcome.created {
+    if outcome.created && !failed_open_keeps_watch(code) {
         remove_watch(
             watch_registry,
             watch_controllers,
@@ -3172,8 +3209,15 @@ fn read_library_entry(
     audit_logger: &AuditLogger,
 ) -> std::result::Result<String, IpcError> {
     let path = library_entry_path(dir, name)?;
-    let json = fs::read_to_string(&path)
-        .map_err(|err| IpcError::new("LIBRARY_READ_FAILED", format!("{name}: {err}")))?;
+    // An entry that does not exist has its own code. The page reads an entry
+    // again after a refused write, and "no entry" is then a valid answer.
+    let json = fs::read_to_string(&path).map_err(|err| {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            IpcError::new("LIBRARY_ENTRY_MISSING", format!("{name} does not exist"))
+        } else {
+            IpcError::new("LIBRARY_READ_FAILED", format!("{name}: {err}"))
+        }
+    })?;
     audit_logger.log_event(
         "library.read",
         Some(&path.to_string_lossy()),
@@ -3185,6 +3229,18 @@ fn read_library_entry(
     Ok(json)
 }
 
+/// What the page saw of an entry before it made a write over it.
+///
+/// On the wire: `{"state": "absent"}` or `{"state": "present", "json": "..."}`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(tag = "state", rename_all = "camelCase")]
+enum LibraryBase {
+    /// The page saw no entry.
+    Absent,
+    /// The page saw an entry with exactly this text.
+    Present { json: String },
+}
+
 /// Write one entry into the metadata directory.
 ///
 /// The write refuses a directory that does not exist, and it does NOT make
@@ -3192,10 +3248,16 @@ fn read_library_entry(
 /// the directory does not exist. If a write made it, the migration would
 /// never run, and the old records would stay out of the library.
 /// `MetadataStore.put` refuses in the same way on the JVM.
+///
+/// `base` is what the page saw of the entry before it merged its change onto
+/// it. When the disk does not hold that, the write is refused with
+/// `LIBRARY_CONFLICT`, and the disk does not change. With no base, the write
+/// does not check.
 fn write_library_entry(
     dir: &Path,
     name: &str,
     json: &str,
+    base: Option<&LibraryBase>,
     recent_write_hashes: &RecentWriteHashes,
     audit_logger: &AuditLogger,
 ) -> std::result::Result<(), IpcError> {
@@ -3208,6 +3270,31 @@ fn write_library_entry(
                 dir.display()
             ),
         ));
+    }
+
+    // The compare-and-swap. `gx` writes the same directory, so the entry can
+    // change after the page read it. A write with a base that is not on the
+    // disk is refused, and the page reads the entry again. The check comes
+    // BEFORE the record of the hash below, so a refusal leaves no record.
+    // A different process can write between this read and the rename. That
+    // window is small, and a full lock of the directory would need `gx` too.
+    if let Some(base) = base {
+        let on_disk = match fs::read(&path) {
+            Ok(bytes) => Some(bytes),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
+            Err(err) => return Err(IpcError::new("LIBRARY_WRITE_FAILED", format!("{name}: {err}"))),
+        };
+        let holds = match (base, &on_disk) {
+            (LibraryBase::Absent, None) => true,
+            (LibraryBase::Present { json: seen }, Some(bytes)) => seen.as_bytes() == bytes.as_slice(),
+            _ => false,
+        };
+        if !holds {
+            return Err(IpcError::new(
+                "LIBRARY_CONFLICT",
+                format!("{name} changed after the page read it"),
+            ));
+        }
     }
 
     let existed = path.exists();
@@ -3324,9 +3411,10 @@ fn library_write(
     state: tauri::State<'_, IpcState>,
     name: String,
     json: String,
+    base: Option<LibraryBase>,
 ) -> std::result::Result<(), IpcError> {
     let dir = metadata_dir_path().map_err(|err| IpcError::new("LIBRARY_UNAVAILABLE", err))?;
-    write_library_entry(&dir, &name, &json, &state.recent_write_hashes, &state.audit_logger)
+    write_library_entry(&dir, &name, &json, base.as_ref(), &state.recent_write_hashes, &state.audit_logger)
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -4370,6 +4458,7 @@ mod tests {
                 watch: descriptor.clone(),
                 created: true,
             },
+            "DOCUMENT_NOT_FOUND",
             &registry,
             &controllers,
             &audit,
@@ -4383,6 +4472,7 @@ mod tests {
                 watch: descriptor,
                 created: false,
             },
+            "DOCUMENT_NOT_FOUND",
             &registry,
             &controllers,
             &audit,
@@ -4391,6 +4481,81 @@ mod tests {
         assert!(registry.lock().unwrap().contains_key(&path), "shared watch was removed");
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Finding 9. The rollback is for an open that the page does not show. For
+    /// `PARSE_FAILED`, the page shows the text with an error. For
+    /// `ACTIVATION_REFUSED`, the page holds the document, and it shows the file
+    /// after the person answers the unsaved-changes dialog. A rollback for
+    /// these two codes removes the watch of a file on the screen. Then a save
+    /// fails with "path is not currently watched", and the page gets no
+    /// outside change. Each other refusal removes the watch as before.
+    #[test]
+    fn a_failed_open_keeps_its_new_watch_when_the_page_holds_the_file() {
+        let dir = temp_dir_for("failed-open-keeps-watch");
+        let file = dir.join("diagram.dot");
+        fs::write(&file, "digraph G {").expect("seed file");
+        let path = normalize_path(&file.to_string_lossy()).expect("normal path");
+        let descriptor = WatchDescriptor {
+            path: path.clone(),
+            format: "dot".to_string(),
+            revision: content_hash(b"digraph G {"),
+        };
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        let controllers: WatchControllers = Arc::new(Mutex::new(HashMap::new()));
+        let audit = AuditLogger {
+            file_path: dir.join("audit.jsonl"),
+            write_lock: Arc::new(Mutex::new(())),
+        };
+        let created = WatchOutcome {
+            watch: descriptor.clone(),
+            created: true,
+        };
+
+        for code in ["PARSE_FAILED", "ACTIVATION_REFUSED"] {
+            registry.lock().unwrap().insert(path.clone(), descriptor.clone());
+            rollback_failed_open(&created, code, &registry, &controllers, &audit).expect("rollback");
+            assert!(
+                registry.lock().unwrap().contains_key(&path),
+                "{code}: the page holds the file, and the open removed its watch"
+            );
+        }
+
+        for code in [
+            "DOCUMENT_NOT_FOUND",
+            "VIEW_REJECTED",
+            "OPEN_SUPERSEDED",
+            "OPEN_TIMEOUT",
+            "NO_WINDOW",
+        ] {
+            registry.lock().unwrap().insert(path.clone(), descriptor.clone());
+            rollback_failed_open(&created, code, &registry, &controllers, &audit).expect("rollback");
+            assert!(
+                registry.lock().unwrap().is_empty(),
+                "{code}: the page does not show the file, and the open kept its watch"
+            );
+        }
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Related 2. The page answers `OPEN_SUPERSEDED` when the screen goes to a
+    /// different view before it shows the file. The relay must keep the code,
+    /// so `gx open` says why it did not show the file.
+    #[test]
+    fn an_open_refusal_keeps_the_codes_of_the_page_that_gx_prints() {
+        for code in [
+            "DOCUMENT_NOT_FOUND",
+            "OPEN_DENIED",
+            "PARSE_FAILED",
+            "ACTIVATION_REFUSED",
+            "OPEN_SUPERSEDED",
+        ] {
+            assert_eq!(open_failure_code(Some(code)), code, "the relay changed {code}");
+        }
+        for code in [None, Some(""), Some("SOMETHING_NEW"), Some("open_superseded")] {
+            assert_eq!(open_failure_code(code), "VIEW_REJECTED", "the relay kept {code:?}");
+        }
     }
 
     /// The paths that broke v1, now crossing the boundary they actually cross.
@@ -5065,6 +5230,40 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    /// A save of a path with no watch is `NotWatched`, and not a failed write.
+    /// The page registers the watch again and retries the save one time.
+    #[test]
+    fn a_save_of_a_path_with_no_watch_is_not_watched_and_writes_nothing() {
+        let dir = temp_dir_for("save-not-watched");
+        let file = dir.join("diagram.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        let path = file.to_string_lossy().to_string();
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        let recent_writes: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let audit = test_audit(&dir);
+
+        let result = put_document_snapshot(
+            &registry,
+            &recent_writes,
+            &audit,
+            &|_| Ok(()),
+            PutDocumentRequest {
+                path,
+                text: "digraph { b }".to_string(),
+                base_revision: content_hash(b"digraph { a }"),
+                source: Some("ui".to_string()),
+            },
+        );
+
+        assert!(
+            matches!(result, Err(PutDocumentError::NotWatched(_))),
+            "a save with no watch is not NotWatched"
+        );
+        assert_eq!(fs::read_to_string(&file).expect("readable"), "digraph { a }");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     // ------------------------------------------------------- the library
 
     /// The hex key of an entry, as `MetadataStore.fileNameOf` gives it.
@@ -5142,7 +5341,7 @@ mod tests {
         let metadata = metadata_dir_in(&root);
         let recent: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
 
-        let err = write_library_entry(&metadata, &key_name("a"), "{}", &recent, &test_audit(&root))
+        let err = write_library_entry(&metadata, &key_name("a"), "{}", None, &recent, &test_audit(&root))
             .expect_err("a write before the migration must be refused");
         assert_eq!(err.code, "LIBRARY_NOT_MIGRATED");
         assert!(!metadata.exists(), "the write made metadata/");
@@ -5163,7 +5362,7 @@ mod tests {
         let name = key_name("a");
         let json = "{\"path\":\"/tmp/a.dot\"}";
 
-        write_library_entry(&metadata, &name, json, &recent, &test_audit(&root)).expect("write");
+        write_library_entry(&metadata, &name, json, None, &recent, &test_audit(&root)).expect("write");
         let path = metadata.join(&name);
         assert_eq!(fs::read_to_string(&path).expect("read"), json);
         assert_eq!(
@@ -5180,7 +5379,7 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             assert_eq!(mode_of(&path), 0o600, "a new entry must be owner-only");
             fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).expect("chmod");
-            write_library_entry(&metadata, &name, "{}", &recent, &test_audit(&root)).expect("rewrite");
+            write_library_entry(&metadata, &name, "{}", None, &recent, &test_audit(&root)).expect("rewrite");
             assert_eq!(mode_of(&path), 0o640, "an entry that exists keeps its bits");
             // Spend the recorded hash of the rewrite.
             assert!(!library_change_is_news(&metadata, &[name.clone()], &recent));
@@ -6616,7 +6815,7 @@ mod tests {
 
         // Our write of B has its record. `gx` writes C before the watcher
         // looks at the library.
-        write_library_entry(&metadata, &name, "{\"v\":\"B\"}", &recent, &test_audit(&root))
+        write_library_entry(&metadata, &name, "{\"v\":\"B\"}", None, &recent, &test_audit(&root))
             .expect("our write");
         fs::write(&path, "{\"v\":\"C\"}").expect("gx writes C");
         assert!(
@@ -6684,7 +6883,7 @@ mod tests {
 
         // A directory at the entry path makes the rename fail.
         fs::create_dir_all(&path).expect("a directory at the entry path");
-        let err = write_library_entry(&metadata, &name, "{}", &recent, &test_audit(&root))
+        let err = write_library_entry(&metadata, &name, "{}", None, &recent, &test_audit(&root))
             .expect_err("a write onto a directory must fail");
         assert_eq!(err.code, "LIBRARY_WRITE_FAILED");
         assert!(path.is_dir(), "the write replaced the directory");
@@ -6696,6 +6895,105 @@ mod tests {
         assert_eq!(err.code, "LIBRARY_DELETE_FAILED");
         assert!(recent.lock().expect("lock").is_empty(), "a failed delete left a record");
 
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Review finding 11. A write of the page merged its fields onto an entry
+    /// that `gx` changed after the page read it. The write had no base check,
+    /// so it replaced the bytes of `gx`, and the tag of `gx` went away. A write
+    /// with a base that is not on the disk must be refused, the bytes of the
+    /// other writer must stay, and the refusal must leave no record of a write.
+    #[test]
+    fn a_library_write_with_a_stale_base_is_refused_and_keeps_the_bytes_on_disk() {
+        let root = fresh_dir("library-stale-base");
+        let metadata = metadata_dir_in(&root);
+        fs::create_dir_all(&metadata).expect("metadata");
+        let recent: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let name = key_name("a");
+        let path = metadata.join(&name);
+
+        // The page read A. `gx` then wrote C.
+        fs::write(&path, "{\"v\":\"C\"}").expect("gx writes C");
+        let stale = LibraryBase::Present { json: "{\"v\":\"A\"}".to_string() };
+        let err = write_library_entry(&metadata, &name, "{\"v\":\"B\"}", Some(&stale), &recent, &test_audit(&root))
+            .expect_err("a write with a stale base must be refused");
+        assert_eq!(err.code, "LIBRARY_CONFLICT");
+        assert_eq!(fs::read_to_string(&path).expect("read"), "{\"v\":\"C\"}", "the write replaced the bytes of gx");
+        assert!(recent.lock().expect("lock").is_empty(), "a refused write left a record");
+
+        // The page saw no entry, but `gx` made one.
+        let err = write_library_entry(&metadata, &name, "{\"v\":\"B\"}", Some(&LibraryBase::Absent), &recent, &test_audit(&root))
+            .expect_err("a write that expects no entry must be refused when the entry exists");
+        assert_eq!(err.code, "LIBRARY_CONFLICT");
+        assert_eq!(fs::read_to_string(&path).expect("read"), "{\"v\":\"C\"}");
+        assert!(recent.lock().expect("lock").is_empty(), "a refused write left a record");
+
+        // The page saw an entry, but `gx` removed it.
+        fs::remove_file(&path).expect("gx removes the entry");
+        let err = write_library_entry(&metadata, &name, "{\"v\":\"B\"}", Some(&stale), &recent, &test_audit(&root))
+            .expect_err("a write that expects an entry must be refused when the entry does not exist");
+        assert_eq!(err.code, "LIBRARY_CONFLICT");
+        assert!(!path.exists(), "the refused write made the entry");
+        assert!(recent.lock().expect("lock").is_empty(), "a refused write left a record");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// The control of the test above: a write with the base that is on the
+    /// disk, or with no base, writes as before, and records its hash.
+    #[test]
+    fn a_library_write_with_the_right_base_or_with_no_base_writes() {
+        let root = fresh_dir("library-right-base");
+        let metadata = metadata_dir_in(&root);
+        fs::create_dir_all(&metadata).expect("metadata");
+        let recent: RecentWriteHashes = Arc::new(Mutex::new(HashMap::new()));
+        let name = key_name("a");
+        let path = metadata.join(&name);
+
+        write_library_entry(&metadata, &name, "{\"v\":\"A\"}", Some(&LibraryBase::Absent), &recent, &test_audit(&root))
+            .expect("a new entry with the base absent");
+        assert_eq!(fs::read_to_string(&path).expect("read"), "{\"v\":\"A\"}");
+        assert!(!library_change_is_news(&metadata, &[name.clone()], &recent), "the page heard its own write");
+
+        let base = LibraryBase::Present { json: "{\"v\":\"A\"}".to_string() };
+        write_library_entry(&metadata, &name, "{\"v\":\"B\"}", Some(&base), &recent, &test_audit(&root))
+            .expect("a write with the base on the disk");
+        assert_eq!(fs::read_to_string(&path).expect("read"), "{\"v\":\"B\"}");
+        assert!(!library_change_is_news(&metadata, &[name.clone()], &recent), "the page heard its own write");
+
+        fs::write(&path, "{\"v\":\"C\"}").expect("gx writes C");
+        write_library_entry(&metadata, &name, "{\"v\":\"D\"}", None, &recent, &test_audit(&root))
+            .expect("a write with no base does not check");
+        assert_eq!(fs::read_to_string(&path).expect("read"), "{\"v\":\"D\"}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// The form of the base on the wire, as the page sends it.
+    #[test]
+    fn a_library_base_reads_from_the_form_that_the_page_sends() {
+        assert_eq!(
+            serde_json::from_str::<LibraryBase>("{\"state\":\"absent\"}").expect("absent"),
+            LibraryBase::Absent
+        );
+        assert_eq!(
+            serde_json::from_str::<LibraryBase>("{\"state\":\"present\",\"json\":\"{}\"}").expect("present"),
+            LibraryBase::Present { json: "{}".to_string() }
+        );
+        assert!(serde_json::from_str::<LibraryBase>("{\"state\":\"other\"}").is_err());
+    }
+
+    /// The page reads an entry again after a refused write. An entry that does
+    /// not exist has its own code, so that the page can tell "no entry" from a
+    /// read that failed.
+    #[test]
+    fn a_library_read_of_an_entry_that_does_not_exist_says_so() {
+        let root = fresh_dir("library-read-missing");
+        let metadata = metadata_dir_in(&root);
+        fs::create_dir_all(&metadata).expect("metadata");
+        let err = read_library_entry(&metadata, &key_name("a"), &test_audit(&root))
+            .expect_err("no entry to read");
+        assert_eq!(err.code, "LIBRARY_ENTRY_MISSING");
         let _ = fs::remove_dir_all(&root);
     }
 }

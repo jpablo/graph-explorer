@@ -7,12 +7,31 @@ import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ViewerSettings}
 import upickle.default.*
 
+import scala.collection.mutable
+import scala.scalajs.js
+import scala.util.{Success, Try}
+
+/** One entry of the library index.
+  *
+  * @param createdAt
+  *   the creation time, or 0 when it is unknown. The default must be a
+  *   constant. upickle omits a field that has the value of its default, and it
+  *   fills a missing field from the default. A default of "now" thus put no
+  *   `createdAt` into the index, because the create writes in the millisecond
+  *   of the creation. Each later read then gave the time of that read. An
+  *   entry from that time has no `createdAt`, and it reads as 0.
+  */
 case class DiagramSummary(
     id:           DiagramId,
     name:         String,
     lastModified: Long,
-    createdAt:    Long = System.currentTimeMillis()
-) derives ReadWriter
+    createdAt:    Long = 0L
+) derives ReadWriter:
+
+  /** The time for the "Created" date and for the sort by creation. When the
+    * creation time is unknown (0), it is `lastModified`.
+    */
+  def creationTime: Long = if createdAt > 0 then createdAt else lastModified
 
 /** The list of the diagrams in the library.
   *
@@ -47,31 +66,54 @@ object BrowserLibrary extends DiagramLibrary:
   private val IndexKey    = "graph-explorer.projects"
   private val SettingsKey = "graph-explorer.settings"
 
-  private lazy val indexStorage =
-    storedString(IndexKey, write(LibraryIndex()))
+  private lazy val indexStorage = StoredKey(IndexKey, write(LibraryIndex()))
 
-  private lazy val settingsStorage =
-    storedString(SettingsKey, write(ViewerSettings.empty))
+  private lazy val settingsStorage = StoredKey(SettingsKey, write(ViewerSettings.empty))
 
-  // ONE permanent observation per storage instance: observing the signal is what keeps
-  // laminext's localStorage sync alive, and `.observe.now()` per call allocated a
-  // permanent subscription each time (updateIndex runs per keystroke, so these
-  // accumulated by the thousands). Read via these handles instead.
-  private lazy val indexStorageNow    = indexStorage.signal.observe
-  private lazy val settingsStorageNow = settingsStorage.signal.observe
+  /** One `localStorage` key, with its value in memory.
+    *
+    * The writes do not use laminext `storedString`. It calls `setItem` in an
+    * Airstream `scanLeft`, and the state of that fold is a `Try`. After one
+    * refused write (for example, a QuotaExceededError), the fold stays failed.
+    * Then no later write occurs, also after the person frees space, and each
+    * read throws. Here, the value in memory is the state, and each write goes
+    * to `localStorage` in a `try`. A refused write thus changes only the copy
+    * in storage, and the next write tries again.
+    *
+    * `now()` reads a plain field, not the `Var`. A `Var.set` in a running
+    * transaction occurs later, and a read in the same transaction must see the
+    * new value.
+    */
+  private final class StoredKey(key: String, default: => String):
+    private var current: String =
+      try readLocalStorage(key, default)
+      catch case _: Throwable => default
+    private val value = Var(current)
+
+    val signal: Signal[String] = value.signal
+
+    def now(): String = current
+
+    /** Keep `next`, and write it to `localStorage`. A failure is the refusal of
+      * the storage.
+      */
+    def set(next: String): Try[Unit] =
+      current = next
+      value.set(next)
+      Try(writeLocalStorage(key, next))
 
   // laminext's storedString namespaces its keys with a "[StoredString]" prefix
-  // (PersistenceSpec pins this); every raw localStorage access must go through rawKey
-  // so the key format cannot drift between read, remove and scan sites.
+  // (PersistenceSpec pins this). The stored data keeps that prefix, so every raw
+  // localStorage access must go through rawKey: then the key format cannot drift
+  // between read, write, remove and scan sites.
   private def rawKey(key: String): String = s"[StoredString]$key"
 
-  // One-shot read for probe-only lookups (no writes on these keys from here).
+  // One read of a key. `default` is for a key that the storage does not have.
   private def readLocalStorage(key: String, default: => String): String =
     Option(dom.window.localStorage.getItem(rawKey(key))).getOrElse(default)
 
-  /** Physically write a key, for the same reason [[removeLocalStorage]] exists:
-    * laminext only syncs an OBSERVED storedString, so a throwaway instance
-    * created just to write would store nothing at all.
+  /** Physically write a key. It throws when the storage refuses the write (for
+    * example, a QuotaExceededError).
     */
   private def writeLocalStorage(key: String, value: String): Unit =
     dom.window.localStorage.setItem(rawKey(key), value)
@@ -92,53 +134,125 @@ object BrowserLibrary extends DiagramLibrary:
   /** Give the stored state of one diagram as a `Var`, and keep the `Var` and
     * `localStorage` in sync.
     *
-    * The `Var` starts with the value in `localStorage`. Each change to the
-    * `Var` goes to `localStorage`. Each change also writes the time and the
-    * name into the entry of the diagram in the library index.
+    * The `Var` starts with the payload in `localStorage`. Each change to the
+    * `Var` goes to `localStorage` through [[storeDiagram]]: the payload, and
+    * the time and the name in the entry of the diagram in the library index.
     *
     * @param id
     *   the id of the diagram.
     * @param initialSource
-    *   the source to use when `localStorage` has no state for the diagram.
+    *   the source for a diagram that has no payload in `localStorage` yet (a
+    *   new diagram). A stored payload always has priority over it.
     * @return
     *   a `Var` that holds the `DiagramSnapshot` and saves each change.
     */
   def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
-    val initialState   = DiagramSnapshot.minimal(initialSource)
-    val diagramStorage = storedString(diagramKey(id), initial = write(initialState))
-    // One observation for the storage of each diagram. It starts the
-    // `localStorage` sync, and the reads below use it.
-    val diagramStorageNow = diagramStorage.signal.observe
+    val initialState = DiagramSnapshot.minimal(initialSource)
     // Initialize storage ~> DiagramSnapshot
     val diagramSnapshot: Var[DiagramSnapshot] =
-      try
-        Var(read[DiagramSnapshot](diagramStorageNow.now()))
-      catch
-        case e: Throwable =>
-          dom.console.error(s"Error reading state: $e, defaulting to initial state")
-          Var(initialState)
-
-    // The stored name for the guard below, parsed only when needed: this sync
-    // runs per keystroke, and only a blank incoming name (the accident path)
-    // has to look at the old payload.
-    def storedPayloadName: String =
-      try read[DiagramSnapshot](diagramStorageNow.now()).name
-      catch case _: Throwable => ""
-
+      storedPayload(id) match
+        case None => Var(initialState)
+        case Some(json) =>
+          try Var(read[DiagramSnapshot](json))
+          catch
+            case e: Throwable =>
+              dom.console.error(s"Error reading state: $e, defaulting to initial state")
+              Var(initialState)
     // synchronize DiagramSnapshot ~> storage
-    diagramSnapshot.signal.distinct.changes.foreach: state =>
-      val guarded = state.copy(name = guardedDiagramName(state.name, storedPayloadName))
-      // Write the payload of the diagram.
-      diagramStorage.set(write(guarded))
-      // Write the time and the name into the entry in the library index.
-      updateIndex: current =>
-        current.modify(_.diagrams.eachWhere(_.id == id))
-          .using: entry =>
-            entry.copy(
-              lastModified = System.currentTimeMillis(),
-              name = guardedDiagramName(guarded.name, entry.name)
-            )
+    diagramSnapshot.signal.distinct.changes.foreach(storeDiagram(id, _))
     diagramSnapshot
+
+  /** Write one diagram: its payload, and the time and the name in its entry in
+    * the library index.
+    *
+    * A refused write does not stop the next write: each call tries again. The
+    * refusal stays in [[refusedWrite]] until a write of the diagram succeeds,
+    * and it goes to [[refusedWrites]], so that the view tells the person. When
+    * the storage refuses the payload, the index entry stays as it is. Thus
+    * "Last modified" does not show a change that the storage does not have.
+    *
+    * @return
+    *   the message for the person when the storage refuses a write.
+    */
+  def storeDiagram(id: DiagramId, state: DiagramSnapshot): Option[String] =
+    val guarded = state.copy(name = guardedDiagramName(state.name, storedPayloadName(id)))
+    // Write the payload of the diagram.
+    val payload = Try(writeLocalStorage(diagramKey(id), write(guarded)))
+    // Write the time and the name into the entry in the library index.
+    val entry =
+      if payload.isFailure then payload
+      else
+        updateIndex: current =>
+          current.modify(_.diagrams.eachWhere(_.id == id))
+            .using: entry =>
+              entry.copy(
+                lastModified = System.currentTimeMillis(),
+                name = guardedDiagramName(guarded.name, entry.name)
+              )
+    val refusal = entry.failed.toOption.map(refusalMessage(_, "the last change of this diagram"))
+    refusal match
+      case Some(message) =>
+        dom.console.error(s"The browser refused a write of the diagram ${id.value}: $message")
+        refusedDiagrams(id) = message
+        refusedWriteBus.emit(id -> message)
+      case None =>
+        refusedDiagrams -= id
+    refusal
+
+  /** The message of the last write of a diagram, when the storage refused it.
+    * `None` when the last write succeeded.
+    */
+  def refusedWrite(id: DiagramId): Option[String] = refusedDiagrams.get(id)
+
+  /** The message for the person, each time the storage refuses a write of the
+    * diagram.
+    */
+  def refusedWrites(id: DiagramId): EventStream[String] =
+    refusedWriteBus.events.filter(_._1 == id).map(_._2)
+
+  private val refusedDiagrams = mutable.Map.empty[DiagramId, String]
+  private val refusedWriteBus = EventBus[(DiagramId, String)]()
+
+  /** The text for the person when the storage refuses a write of `what`. */
+  private def refusalMessage(error: Throwable, what: String): String =
+    if isQuotaError(error) then
+      s"The browser storage is full, so $what is not saved. " +
+        "Delete diagrams that you do not need, and then save again."
+    else s"The browser did not save $what: ${error.getMessage}"
+
+  /** True for the error of a full storage. Firefox used a different name. */
+  private def isQuotaError(error: Throwable): Boolean =
+    error match
+      case js.JavaScriptException(e) if js.typeOf(e) == "object" && (e.asInstanceOf[AnyRef] ne null) =>
+        val name = e.asInstanceOf[js.Dynamic].name
+        js.typeOf(name) == "string" &&
+        (name.asInstanceOf[String] == "QuotaExceededError" || name.asInstanceOf[String] == "NS_ERROR_DOM_QUOTA_REACHED")
+      case _ => false
+
+  /** Tell the person about a refused write that no open diagram shows: the
+    * notice of the home page.
+    */
+  private def reportRefusal(what: String)(error: Throwable): Unit =
+    val message = refusalMessage(error, what)
+    dom.console.error(message)
+    Library.showNotice(Vector(message))
+
+  /** The payload of a diagram, as `localStorage` has it. */
+  private def storedPayload(id: DiagramId): Option[String] =
+    try Option(dom.window.localStorage.getItem(rawKey(diagramKey(id))))
+    catch case _: Throwable => None
+
+  /** The stored name for the guard of [[storeDiagram]]. It is parsed only when
+    * needed: the sync runs for each keystroke, and only a blank incoming name
+    * (the accident path) has to look at the old payload. A diagram with no
+    * payload has the name of `DiagramSnapshot.minimal`.
+    */
+  private def storedPayloadName(id: DiagramId): String =
+    storedPayload(id) match
+      case None => DiagramSnapshot.defaultDiagramName
+      case Some(json) =>
+        try read[DiagramSnapshot](json).name
+        catch case _: Throwable => ""
 
   /** Retrieves the persisted viewer settings.
     *
@@ -152,14 +266,15 @@ object BrowserLibrary extends DiagramLibrary:
     // Initialize storage ~> ViewerSettings Var
     val viewerSettings =
       try
-        Var(read[ViewerSettings](settingsStorageNow.now()))
+        Var(read[ViewerSettings](settingsStorage.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading viewer settings: $e")
           Var(ViewerSettings.empty)
     // synchronize ViewerSettings Var ~> storage
     viewerSettings.signal.distinct.changes.foreach: settings =>
-      settingsStorage.set(write(settings))
+      settingsStorage.set(write(settings)).failed.foreach: e =>
+        dom.console.error(s"The browser refused a write of the viewer settings: $e")
     viewerSettings
 
   /** One-shot read of the persisted viewer settings — no new storage
@@ -170,7 +285,7 @@ object BrowserLibrary extends DiagramLibrary:
     * them.
     */
   def readViewerSettings(): ViewerSettings =
-    try read[ViewerSettings](settingsStorageNow.now())
+    try read[ViewerSettings](settingsStorage.now())
     catch
       case e: Throwable =>
         dom.console.error(s"Error reading viewer settings: $e")
@@ -179,7 +294,7 @@ object BrowserLibrary extends DiagramLibrary:
   def createEmptyDiagram(name: String): DiagramId =
     val now     = System.currentTimeMillis()
     val summary = DiagramSummary(DiagramId.random, name, lastModified = now, createdAt = now)
-    updateIndex(_.modify(_.diagrams).using(summary :: _))
+    updateIndex(_.modify(_.diagrams).using(summary :: _)).failed.foreach(reportRefusal("the new diagram"))
     summary.id
 
   /** Make a new diagram, and write its name and its source into the payload
@@ -193,19 +308,23 @@ object BrowserLibrary extends DiagramLibrary:
     * from the start. The diagram page then restores the payload, because
     * `createDiagramPersistence` uses its `initialState` only when no payload
     * is in storage.
+    *
+    * A visit with no edit writes nothing. Thus a source that only the route
+    * has is not stored until the first edit. A source that must stay (the
+    * text of a share link) comes through this method.
     */
   def createDiagram(name: String, source: String): DiagramId =
     val id = createEmptyDiagram(name)
-    writeLocalStorage(
-      diagramKey(id),
-      write(DiagramSnapshot.minimal(Some(source)).copy(name = name))
-    )
+    Try(writeLocalStorage(diagramKey(id), write(DiagramSnapshot.minimal(Some(source)).copy(name = name))))
+      .failed.foreach(reportRefusal("the new diagram"))
     id
 
   def deleteDiagram(id: DiagramId): Unit =
     removeLocalStorage(diagramKey(id)) // Remove the payload of the diagram.
+    refusedDiagrams -= id
     updateIndex: current =>
       current.copy(diagrams = current.diagrams.filterNot(_.id == id))
+    .failed.foreach(reportRefusal("the removal of the diagram"))
 
   /** The source of a diagram, as a Signal.
     *
@@ -226,8 +345,14 @@ object BrowserLibrary extends DiagramLibrary:
 
   // ----------------- Private methods -----------------
 
-  private def updateIndex(f: LibraryIndex => LibraryIndex): Unit =
-    val currentIndex = read[LibraryIndex](indexStorageNow.now())
+  /** Change the library index, in memory and in `localStorage`.
+    *
+    * @return
+    *   a failure when the storage refuses the write. The index in memory has
+    *   the change also then, and the next write tries again.
+    */
+  private def updateIndex(f: LibraryIndex => LibraryIndex): Try[Unit] =
+    val currentIndex = read[LibraryIndex](indexStorage.now())
     val updated      = f(currentIndex)
     // This GUARD prevents the loss of the whole index. The accident is a BAD
     // READ. `currentIndex` is empty when the library is not empty (for example,
@@ -248,8 +373,14 @@ object BrowserLibrary extends DiagramLibrary:
             "No write was needed, but if the library looks empty in the UI this is the bug to chase. " +
             "(Reported once per session.)"
         )
+      Success(())
     else
-      indexStorage.set(write(updated))
+      val json = write(updated)
+      // A write that changes nothing does not occur. The sync of a diagram
+      // that has no index entry calls this for each change, and a full write
+      // of the index each time has no use.
+      if json == indexStorage.now() then Success(())
+      else indexStorage.set(json)
 
   /** The condition above re-occurs on every state change while it holds; logging it
     * each time trains the reader to ignore it (it fired on every viewer test). */
@@ -318,7 +449,7 @@ object BrowserLibrary extends DiagramLibrary:
 
   /** The library index as it is in storage now. */
   def indexNow(): LibraryIndex =
-    read[LibraryIndex](indexStorageNow.now())
+    read[LibraryIndex](indexStorage.now())
 
   /** The facts that the card of a diagram shows, from its payload.
     *

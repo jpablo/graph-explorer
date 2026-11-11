@@ -106,6 +106,22 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
           same(saved.metadata.hiddenElements, Set("node:b"), "the hide of the viewer was not saved")
           same(saved.metadata.tags, List("infra"), "the hide of the viewer erased the tag from gx")
 
+  // Finding 11. `gx tag` writes the entry on the disk, and the mirror does not
+  // know it yet: the shell polls each 400 ms, and the refresh needs one more
+  // round trip. A hide in the viewer in that window merges onto the OLD entry
+  // of the mirror, and `library_write` writes the whole entry. The tag from
+  // gx goes away with no message.
+  test("a tag from gx that the mirror does not know yet survives the next hide in the viewer"):
+    onOpenFile(): (shell, _, state) =>
+      val current = shell.entryOf(path).getOrElse(fail("precondition: the file has an entry"))
+      // `gx tag` writes the disk. No refresh follows: the poll did not see it.
+      shell.putEntry(current.copy(metadata = current.metadata.copy(tags = List("infra")), updatedAt = 2))
+      state.hiddenElements.add(Set(NodeId("b")))
+      afterMicrotasks(()).flatMap(_ => afterMicrotasks(())).map: _ =>
+        val saved = shell.entryOf(path).getOrElse(fail("no entry"))
+        same(saved.metadata.hiddenElements, Set("node:b"), "the hide of the viewer was not saved")
+        same(saved.metadata.tags, List("infra"), "the hide of the viewer erased the tag that gx wrote on the disk")
+
   test("control: a hide in the viewer with no change from gx writes the entry"):
     // Proof that the tests above do not pass because the viewer writes nothing.
     onOpenFile(): (shell, _, state) =>
@@ -126,6 +142,66 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
         .map: _ =>
           same(shell.entryOf(path).map(_.metadata.hiddenElements), Some(Set("node:b")), "the first change did not make the entry")
           check(library.diagramExists(DiagramId(shell.keyOf(path))), "the file is not in the library after its first change")
+
+  // Finding 10. `gx remove` of a file that is open. The mirror drops the
+  // entry, and `external` sends nothing (it takes only `Some`), so the viewer
+  // keeps its hidden set. The next keystroke goes through the sync to
+  // `writeMetadata`. `putMetadata` finds no entry and a hidden set that is not
+  // empty, and it writes a new entry: the file is in the library again.
+  test("a gx remove of an open file is not undone by the next edit of the source"):
+    onOpenFile(DiagramMetadata(hiddenElements = Set("node:a"))): (shell, library, state) =>
+      // `gx remove` deletes the entry, and the poll of the shell sees it.
+      shell.entries.remove(shell.entryNameOf(path))
+      library
+        .refresh()
+        .flatMap(_ => afterMicrotasks(()))
+        .flatMap: _ =>
+          check(!library.diagramExists(DiagramId(shell.keyOf(path))), "precondition: the mirror dropped the entry")
+          state.replaceSourceDetectingFormat("digraph G {\n  a -> b -> c\n}")
+          afterMicrotasks(()).flatMap(_ => afterMicrotasks(()))
+        .map: _ =>
+          same(shell.entryOf(path).map(_.metadata.hiddenElements), None, "an edit of the source put the removed file back in the library")
+          same(writesOf(shell), 0, "an edit of the source wrote an entry")
+
+  // Related to finding 12. An old entry has a path that is not canonical:
+  // `/tmp/...`, which macOS spells `/private/tmp/...`. The session of the file
+  // has the canonical path, and `openPath` gave that path the key of the OLD
+  // path in the `keys` cache. The viewer then writes its metadata to the old
+  // entry, and not to the entry that gx uses for the file.
+  test("a viewer of an entry with a non-canonical path writes to the key of the canonical path"):
+    val shell = FakeDesktopShell()
+    shell.install()
+    shell.canonical = p => if p.startsWith("/tmp/") then "/private" + p else p
+    val oldPath   = "/tmp/w/a.dot"
+    val canonical = "/private/tmp/w/a.dot"
+    shell.files(canonical) = text
+    shell.putEntry(LibraryEntry(oldPath, DiagramMetadata(tags = List("infra"), hiddenElements = Set("node:a")), createdAt = 1, updatedAt = 1))
+    DesktopLibrary
+      .load()
+      .flatMap: library =>
+        Library.install(library)
+        library.open(DiagramId(shell.keyOf(oldPath))).flatMap: _ =>
+          val session = DesktopDocumentRegistry.find(canonical).getOrElse(fail("no session for the canonical path"))
+          withGraphvizAsync: graphviz =>
+            val state = ViewerState(ViewTarget.File(session.id), graphviz)
+            afterMicrotasks(())
+              .flatMap: _ =>
+                same(state.hiddenElements.now().nodeIds, Set(NodeId("a")), "the viewer did not get the metadata of the old entry")
+                state.hiddenElements.add(Set(NodeId("b")))
+                afterMicrotasks(()).flatMap(_ => afterMicrotasks(()))
+              .map: _ =>
+                val saved = shell.entryOf(canonical)
+                same(
+                  saved.map(_.metadata.hiddenElements),
+                  Some(Set("node:a", "node:b")),
+                  s"the hide of the viewer did not go to the key of the canonical path. The old entry: ${shell.entryOf(oldPath)}"
+                )
+                same(saved.map(_.metadata.tags), Some(List("infra")), "the entry of the canonical path lost the tag of the old entry")
+                same(shell.entryOf(oldPath), None, "the old entry is still there")
+      .transform: result =>
+        Library.restoreDefault()
+        shell.uninstall()
+        result
 
   // ------------------------------------------------------------- rename
 

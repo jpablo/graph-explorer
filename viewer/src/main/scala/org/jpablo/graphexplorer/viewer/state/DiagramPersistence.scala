@@ -54,6 +54,13 @@ trait DiagramPersistence:
   /** Save now, because the person asked (§11). */
   def saveNow(state: DiagramSnapshot)(using ExecutionContext): Future[SaveResult]
 
+  /** The message for the person, each time the store refuses a write that
+    * [[update]] started. Only the browser library can refuse a write in this
+    * way (a full `localStorage`). A file reports its failures through
+    * [[saveNow]], so the other stores give an empty stream.
+    */
+  def refusedWrites: EventStream[String] = EventStream.empty
+
   /** Release what the store holds. Called when the view unmounts. */
   def close(): Unit
 
@@ -90,6 +97,9 @@ object DiagramPersistence:
   * `Library.createDiagramPersistence` gives a `Var`, and each change to it goes
   * to storage. Thus `update` is a `set`, and this class opens and closes
   * nothing.
+  *
+  * `initialSource` is only for a diagram with no payload yet (a new diagram).
+  * A stored payload has priority, also when a route gives a source.
   */
 final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) extends DiagramPersistence:
 
@@ -103,14 +113,22 @@ final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) ext
     */
   def external: EventStream[DiagramMetadata] = EventStream.empty
 
+  override def refusedWrites: EventStream[String] = Library.refusedWrites(id)
+
   def update(next: DiagramSnapshot): Unit = state.set(next)
 
-  /** §11: a browser diagram already saves on each change, so ⌘S has nothing
-    * left to write.
+  /** §11: a browser diagram already saves on each change, so ⌘S makes one
+    * write at most. A change goes through the usual sync. With no change, ⌘S
+    * writes again only when the storage refused the last write. The result is
+    * `Failed` while the last write of the diagram is refused.
     */
   def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
+    val unchanged = state.now() == next
     update(next)
-    Future.successful(SaveResult.Saved)
+    val refusal =
+      if unchanged then Library.refusedWrite(id).flatMap(_ => Library.storeDiagram(id, next))
+      else Library.refusedWrite(id)
+    Future.successful(refusal.fold(SaveResult.Saved)(SaveResult.Failed(_)))
 
   /** This releases nothing. The storage handle belongs to the library, and it
     * lives longer than this view. A different view of the same diagram must

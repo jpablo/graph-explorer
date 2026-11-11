@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
-import org.jpablo.graphexplorer.viewer.state.DocumentSessionId
 import org.scalajs.dom
 
 import scala.scalajs.js
@@ -17,9 +16,15 @@ object DesktopBridge:
 
   case class DesktopMessage(text: String, path: Option[String], revision: Option[String]) derives CanEqual
 
-  private var installed = false
+  /** Kept so [[reset]] can REMOVE it, as in `DesktopClose`. Without the
+    * removal, an install after a reset adds a second listener, and each
+    * document event is recorded two times.
+    */
+  private var listener: Option[js.Function1[dom.Event, Unit]] = None
 
-  private[desktop] def reset(): Unit = installed = false
+  private[desktop] def reset(): Unit =
+    listener.foreach(dom.window.removeEventListener(DocumentChangedEventName, _))
+    listener = None
 
   /** Listen for document events, for the life of the window.
     *
@@ -38,7 +43,7 @@ object DesktopBridge:
     * signal — including the document events they depend on.
     */
   def install(): Unit =
-    if !installed then
+    if listener.isEmpty then
       val handler: js.Function1[dom.Event, Unit] = event =>
         extractMessage(event).foreach(routeDocumentChange)
 
@@ -48,7 +53,7 @@ object DesktopBridge:
       // namespaced name as well, so nothing that matters loses a listener.
       dom.window.addEventListener(DocumentChangedEventName, handler)
 
-      installed = true
+      listener = Some(handler)
       dom.console.info("Desktop bridge listener installed.")
 
   /** The desktop dispatches a `CustomEvent`; some wrappers put the same object
@@ -92,9 +97,11 @@ object DesktopBridge:
     * one file could go into the view of a different diagram (§1).
     *
     * Now the module only writes down the event that arrived. The file goes
-    * into the registry, and the viewer that shows that session gets its
-    * changes through an owner-scoped signal (§10). Each diagram on the desktop
-    * is a file (ADR 0001), so no event goes to a library copy.
+    * into the registry. The registry gives the text only to an editor of THAT
+    * session, and only to a clean one (`DesktopDocumentRegistry.receive`).
+    * The view gives its editor for the life of its owner, and it follows the
+    * rest of the session through an owner-scoped signal (§10). Each diagram
+    * on the desktop is a file (ADR 0001), so no event goes to a library copy.
     */
   private[desktop] def routeDocumentChange(message: DesktopMessage): Unit =
     // `record` is idempotent per path, and a message with no path records
@@ -105,29 +112,17 @@ object DesktopBridge:
     *
     * A document event is the only place the page learns a path, a revision and
     * the text together. `record` is idempotent per path: a second open of one
-    * file keeps the first id, and so keeps the route that names it.
+    * file keeps the first id, and so keeps the route that names it. For a file
+    * that the page holds, the registry applies the §7.3 rule
+    * (`DesktopDocumentRegistry.receive`): it decides if the base moves, and if
+    * a clean editor takes the text.
     *
     * A message with no path is a text push (`/v1/push-text`), and it records
     * nothing. The text still reaches the viewer above, where it reads as an
     * unsaved edit — which is what it is.
     */
   private[desktop] def recordSession(message: DesktopMessage): Unit =
-    recordedSession(message)
-
-  /** The session this message belongs to, and what it held BEFORE the message.
-    *
-    * The previous state is returned because the conflict decision needs it: the
-    * question is whether the file moved away from the base the editor started
-    * from, and `record` has already overwritten that base by the time a caller
-    * could look it up again.
-    */
-  private def recordedSession(
-      message: DesktopMessage
-  ): Option[(DocumentSessionId, Option[DesktopDocumentRegistry.Session])] =
     for
       path <- message.path
       revision <- message.revision
-    yield
-      val previous = DesktopDocumentRegistry.find(path)
-      val current  = DesktopDocumentRegistry.record(path, revision, message.text)
-      (current.id, previous)
+    do DesktopDocumentRegistry.record(path, revision, message.text)

@@ -87,7 +87,15 @@ trait DiagramSelectionOps:
     def clearEditing(): Unit =
       editingElementV.set(None)
 
+    /** The ids of the CANVAS: a collapsed group is its box, a proxy NodeId.
+      * The view reads these. A graph edit reads [[targets]].
+      */
     def now(): Selection = selectionV.now()
+
+    /** The selection as the ids of a graph edit (see `ViewerState.editTargets`):
+      * a box is its group, and an id that the full graph does not have is gone.
+      */
+    def targets(): Selection = editTargets(now())
 
     def size(): Int = now().size
 
@@ -181,7 +189,7 @@ trait DiagramSelectionOps:
     def selectDirectPredecessors() = selectRelated(outgoing = false, transitive = false)
 
     def addToGroup() =
-      val classified = now().classify
+      val classified = targets().classify
       for groupNodeId <- classified.groups.headOption do
         phases.fullGraphV.update(_.moveToGroup(groupNodeId, classified.nodes.toSeq))
 
@@ -192,10 +200,10 @@ trait DiagramSelectionOps:
     // item does and what a socket client's `ungroup` does are now the same
     // code path, which is the only way they stay the same operation.
     def ungroup() =
-      runSourceCommand(SourceCommand.Ungroup(now().ids.toSet))
+      runSourceCommand(SourceCommand.Ungroup(targets().ids.toSet))
 
     def combineIntoRecord() =
-      val nodeIds = now().nodeIds
+      val nodeIds = targets().nodeIds
       if nodeIds.nonEmpty then
         // Selecting what the command created is a VIEW concern, so it stays
         // here rather than in the command — the same operation run headless by
@@ -206,7 +214,7 @@ trait DiagramSelectionOps:
         )
 
     def splitRecord() =
-      val nodeIds = now().nodeIds
+      val nodeIds = targets().nodeIds
       if nodeIds.size == 1 then
         // The `isRecordNode` guard moved INTO the command, where a headless
         // caller can also be told no. Here it comes back as a message rather
@@ -217,7 +225,7 @@ trait DiagramSelectionOps:
         )
 
     def transposeRecord() =
-      val nodeIds = now().nodeIds
+      val nodeIds = targets().nodeIds
       if nodeIds.size == 1 then
         runSourceCommand(SourceCommand.TransposeRecord(nodeIds.head))
 
@@ -235,7 +243,9 @@ trait DiagramSelectionOps:
       val mermaidMode = currentFormatNow() == DiagramFormat.Mermaid
       val applies     = phases.graphEditApplies
       phases.fullGraphV.update { graph =>
+        // The edit reads the targets. The selection afterwards keeps the ids of the canvas.
         val classified = now().classify
+        val arrowIds   = targets().classify.arrows
         // Mermaid has no tail-only link form: swapping the markers of an end-only
         // arrow would make the serializer render it endpoint-swapped, desyncing the
         // in-memory arrow id from the DOM (selection invisible, edge unclickable).
@@ -243,13 +253,13 @@ trait DiagramSelectionOps:
         // endpoints themselves; marker swaps stay marker swaps everywhere else.
         val (toReverse, toSwap) =
           if mermaidMode then
-            classified.arrows.partition { id =>
+            arrowIds.partition { id =>
               graph.arrows.get(id).exists { a =>
                 val markers = effectiveEdgeMarkers(a.attributes)
                 markers.end && !markers.start
               }
             }
-          else (Set.empty[ArrowId], classified.arrows)
+          else (Set.empty[ArrowId], arrowIds)
         val newGraph = graph.reverseArrowsStyle(ElementIds(toSwap)).reverseArrows(ElementIds(toReverse))
         if applies then followNewArrows(graph, newGraph, classified.nodes ++ classified.groups ++ toSwap)
         newGraph
@@ -258,8 +268,9 @@ trait DiagramSelectionOps:
     def reverseArrows() =
       val applies = phases.graphEditApplies
       phases.fullGraphV.update { graph =>
+        // The edit reads the targets. The selection afterwards keeps the ids of the canvas.
         val classified = now().classify
-        val newGraph   = graph.reverseArrows(now())
+        val newGraph   = graph.reverseArrows(targets())
         if applies then followNewArrows(graph, newGraph, classified.nodes ++ classified.groups)
         newGraph
       }
@@ -297,8 +308,8 @@ trait DiagramSelectionOps:
 
     def deleteSelection() =
       // Deleting a collapsed box deletes the GROUP it stands for, not a
-      // phantom node with the same id (see ViewerState.resolveCollapsed).
-      val toRemove = resolveCollapsed(now())
+      // phantom node with the same id (see ViewerState.editTargets).
+      val toRemove = targets()
       val applies  = phases.graphEditApplies
       phases.fullGraphV.update(_.removeElements(toRemove))
       // Nothing left to keep folded once the group itself is gone. A refused
@@ -312,7 +323,8 @@ trait DiagramSelectionOps:
     def duplicateSelection() =
       val applies = phases.graphEditApplies
       phases.fullGraphV.update: graph =>
-        val currentSelection = now()
+        // A box gives its group, so the copy is the copy of the expanded group.
+        val currentSelection = targets()
         if currentSelection.isEmpty then
           graph
         else
@@ -322,11 +334,14 @@ trait DiagramSelectionOps:
           newGraph
 
     /** Removes all attributes except 'label' from the selected elements.
+      *
+      * A box gives its group, so the reset is the reset of the expanded group.
+      * The edit goes through the command vocabulary, as `ungroup` does.
       */
     def resetAttributes(): Unit =
-      val selection = now()
+      val selection = targets()
       if selection.nonEmpty then
-        phases.fullGraphV.update(_.resetAttributes(selection))
+        runSourceCommand(SourceCommand.ResetAttributes(selection.ids.toSet))
 
     /** Resets the layout-related attributes for the selected elements. Placeholder implementation.
       */

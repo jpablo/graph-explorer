@@ -203,6 +203,31 @@ class DesktopLibrarySpec extends FunSuite with TestHelpers with LoggedChecks:
           same(DesktopDocumentRegistry.find("/w/a.dot"), None)
           same(library.fileState(idOf(shell, "/w/a.dot")), Some(FileState.Missing))
 
+  // Related to finding 12. An old entry has a path that is not canonical: here
+  // `/tmp/...`, which macOS spells `/private/tmp/...`. `openPath` then gives
+  // the canonical path the key of the OLD path in the `keys` cache. `gx` later
+  // writes a correct entry for the canonical path, but `loadEntries` computes
+  // its key from the cache, finds that the name is not that key, and skips the
+  // entry with a warning.
+  test("open of an entry with a non-canonical path does not hide a later entry for the canonical path"):
+    withShell: shell =>
+      shell.canonical = p => if p.startsWith("/tmp/") then "/private" + p else p
+      val oldPath   = "/tmp/w/a.dot"
+      val canonical = "/private/tmp/w/a.dot"
+      shell.files(canonical) = "digraph { a }"
+      shell.putEntry(entry(oldPath, hidden = Set("node:a")))
+      DesktopLibrary.load().flatMap: library =>
+        library.open(idOf(shell, oldPath)).flatMap: result =>
+          check(result.isRight, s"precondition: the old entry opens: $result")
+          same(DesktopDocumentRegistry.find(canonical).map(_.path), Some(canonical), "precondition: the session has the canonical path")
+          // `gx tag` of the file writes the entry of the canonical path.
+          shell.putEntry(entry(canonical, tags = List("infra"), at = 2))
+          library.refresh().map: _ =>
+            check(
+              library.diagramExists(idOf(shell, canonical)),
+              s"the entry that gx wrote for $canonical is not in the list: ${library.indexNow().diagrams.map(_.id.value)}"
+            )
+
   // ----------------------------------------------------------- new diagram
 
   test("New diagram creates Untitled.dot in the folder for new diagrams, adds an entry, and opens it"):
@@ -292,6 +317,28 @@ class DesktopLibrarySpec extends FunSuite with TestHelpers with LoggedChecks:
             same(shell.files.get("/w/b.dot"), Some("digraph { b }"))
             same(shell.entryOf("/w/a.dot").map(_.metadata.tags), Some(List("t")))
             same(DesktopDocumentRegistry.get(session.id).map(_.path), Some("/w/a.dot"))
+
+  // Finding 5. The rename dialog starts with the full file name, and Enter
+  // sends it. The shell gives Ok with the same path, so the old key and the
+  // new key are one key. `moveEntry` writes the entry and then removes it: the
+  // diagram leaves the library with its tags and its hidden set, and the
+  // result is `Done` with no message.
+  test("Rename to the same name keeps the file and its entry"):
+    withShell: shell =>
+      shell.files("/w/a.dot") = "digraph { a }"
+      shell.putEntry(entry("/w/a.dot", tags = List("infra"), hidden = Set("node:a")))
+      DesktopLibrary.load().flatMap: library =>
+        openFile(library, shell, "/w/a.dot").flatMap: session =>
+          library.renameFile(session.id, session.baseName).map: result =>
+            same(session.baseName, "a.dot", "precondition: the dialog sends the full file name")
+            same(result, FileRename.Done("/w/a.dot"))
+            same(shell.files.get("/w/a.dot"), Some("digraph { a }"), "the file changed")
+            same(
+              shell.entryOf("/w/a.dot").map(e => (e.metadata.tags, e.metadata.hiddenElements)),
+              Some((List("infra"), Set("node:a"))),
+              "a rename to the same name removed the entry from the disk"
+            )
+            check(library.diagramExists(idOf(shell, "/w/a.dot")), "a rename to the same name removed the diagram from the list")
 
   test("Rename of a file with no entry renames only the file"):
     withShell: shell =>

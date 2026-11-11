@@ -135,6 +135,18 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
     DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", "beef").map: outcome =>
       assertEquals(outcome, DesktopIpc.SaveOutcome.Conflict(Some("dead")))
 
+  test("a rejected save carrying DOCUMENT_NOT_WATCHED becomes NotWatched, so the page can watch the file again"):
+    stubTauri(
+      """
+        window.__TAURI__ = { core: { invoke: function() {
+          return Promise.reject({ code: 'DOCUMENT_NOT_WATCHED', message: 'path is not currently watched: /tmp/a.dot' });
+        } } };
+      """
+    )
+
+    DesktopIpc.saveDocument("/tmp/a.dot", "digraph {}", "a1a1").map: outcome =>
+      assertEquals(outcome, DesktopIpc.SaveOutcome.NotWatched("path is not currently watched: /tmp/a.dot"))
+
   test("any other rejection surfaces its message rather than vanishing"):
     stubTauri(
       """
@@ -339,8 +351,9 @@ class DesktopIpcSpec extends FunSuite with TestHelpers:
   // --------------------------------- the tiers that still have a target
   //
   // `DesktopBridge` no longer has a target to release. A document event goes
-  // to a diagram or to a session. The viewer that shows that session gets its
-  // changes through an owner-scoped signal. Thus there is no process-global
+  // to a diagram or to a session. The viewer that shows that session gives
+  // its editor to the session for the life of its owner, and it follows the
+  // session through an owner-scoped signal. Thus there is no process-global
   // "current viewer" that an unmounted view can continue to hold.
   //
   // Two tiers still name a target, because their questions are ABOUT the view

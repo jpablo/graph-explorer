@@ -97,8 +97,12 @@ trait AddNewArrowOps:
         case a: AddNewArrowAction => a.rect.isEmpty
         case _                    => false
 
+    // A box is a collapsed group. An expanded group has no new-arrow control,
+    // and an arrow cannot end on a group. Thus a box has no control either.
+    val isBox = selectedElem.nodeId.exists(id => visibleGraphNow().proxyOrigin(id).isDefined)
+
     selectedElem match
-      case elem: NodeElement if showControl =>
+      case elem: NodeElement if showControl && !isBox =>
         val parentCtm = Option(parent.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
         // (successors, predecessors): the successor count badges the RIGHT
         // edge and the predecessor count the LEFT, whatever the rankdir —

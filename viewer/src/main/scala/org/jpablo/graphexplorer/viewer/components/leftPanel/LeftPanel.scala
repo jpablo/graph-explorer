@@ -74,7 +74,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
             cls := "menu menu-sm w-full",
             children <-- Library.index.combineWithFn(displayNames(state), state.displayTitle, openId(state)):
               (index, names, openTitle, open) =>
-                index.diagrams.sortBy(-_.createdAt).map { diagram =>
+                index.diagrams.sortBy(-_.creationTime).map { diagram =>
                   val isOpen = open.contains(diagram.id)
                   // The title of the open diagram can change while a person types, so
                   // the list reads it live. The other titles come from the snapshot of

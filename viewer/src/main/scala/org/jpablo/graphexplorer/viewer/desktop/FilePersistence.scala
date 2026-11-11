@@ -4,6 +4,7 @@ import com.raquo.airstream.core.{EventStream, Signal}
 import org.jpablo.graphexplorer.gxcore.fs.LineEnding
 import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.library.DesktopLibrary
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.{DiagramPersistence, DiagramSnapshot, DocumentSessionId, SaveResult}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -28,15 +29,20 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 final class FilePersistence(session: DocumentSessionId, library: Option[DesktopLibrary]) extends DiagramPersistence:
 
-  /** The text that the shell read, and the metadata of the entry. A file with
-    * no entry starts with empty metadata.
+  /** The text that the shell read, its language, and the metadata of the
+    * entry. A file with no entry starts with empty metadata.
+    *
+    * The language is the language that the text declares, or else the
+    * language of the extension ([[FilePersistence.formatOf]]). Before, the
+    * format was `None`, and the viewer took `DiagramFormat.detect`, which
+    * falls back to DOT. A `.mmd` file with no header line opened as DOT.
     */
   lazy val initial: DiagramSnapshot =
     DesktopDocumentRegistry.get(session) match
       case Some(open) =>
         DiagramSnapshot(
           source = open.sourceText,
-          format = None,
+          format = FilePersistence.formatOf(open.path, open.sourceText).map(_.toString),
           metadata = library.flatMap(_.metadataOf(open.path)).getOrElse(DiagramMetadata.empty)
         )
       case None =>
@@ -56,7 +62,7 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
     * already holds what the adoption gives (`DesktopLibrary.writeMetadata`).
     *
     * The source does NOT come through here. The file follows its SESSION
-    * (§7.3, `Persistence.followDocumentSession`), which has the rule that an
+    * (§7.3, `DesktopDocumentRegistry.receive`), which has the rule that an
     * outside change must not replace a dirty editor silently.
     */
   def external: EventStream[DiagramMetadata] =
@@ -73,16 +79,17 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
           .changes
           .collect { case Some(entry) => entry.metadata }
 
-  /** Keep the edit in memory, and give the metadata to the library. The
-    * library writes only a change to the entry, so an edit of the source
-    * alone writes nothing.
+  /** Keep the edit in memory, and give the metadata to the library, with the
+    * metadata from before this edit. The library writes only a change of the
+    * metadata of the viewer, so an edit of the source alone writes nothing.
     */
   def update(next: DiagramSnapshot): Unit =
+    val before = current
     current = next
     for
       lib  <- library
       open <- DesktopDocumentRegistry.get(session)
-    do lib.writeMetadata(open.path, next.metadata)
+    do lib.writeMetadata(open.path, before.metadata, next.metadata)
 
   /** §7.1: a compare-and-swap write of this session's path.
     *
@@ -90,6 +97,13 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
     * because a save advances it and an external change replaces it. A copy held
     * here would go stale, and a stale base revision turns every second save
     * into a conflict.
+    *
+    * The registry knows that the save is in flight (`beginSave`). The shell
+    * sends the event of the save BEFORE its reply, and the person can type
+    * between the two. The event then moves the base, and the editor keeps the
+    * new keys. Before, the page saw the event as a write of a different tool,
+    * and it showed a conflict with its own save. The reply moves the base only
+    * when no version of the file came after the save started (`endSave`).
     *
     * V-04: the save keeps the line endings of the file and its end (a final
     * newline, or none), as `gx` does (`LineEnding.savedOver`). A canvas edit
@@ -104,21 +118,55 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
         Future.successful(SaveResult.Failed("this document session is no longer open"))
       case Some(open) =>
         val text = LineEnding.savedOver(open.sourceText, next.source)
+        DesktopDocumentRegistry.beginSave(session, text)
         DesktopIpc
           .saveDocument(open.path, text, open.revision)
+          .flatMap:
+            case DesktopIpc.SaveOutcome.NotWatched(_) => saveWithNewWatch(open, text)
+            case outcome                              => Future.successful(outcome)
           .map:
-            case DesktopIpc.SaveOutcome.Saved(path, revision) =>
-              // The registry advances, so the NEXT save compares against what
-              // this one wrote. It holds the text that is in the file, so the
-              // next save keeps the same line endings.
-              DesktopDocumentRegistry.record(path, revision, text)
+            case DesktopIpc.SaveOutcome.Saved(_, revision) =>
+              // The base advances, so the NEXT save compares against what this
+              // one wrote. It holds the text that is in the file, so the next
+              // save keeps the same line endings.
+              DesktopDocumentRegistry.endSave(session, text, Some(revision))
               SaveResult.Saved
             case DesktopIpc.SaveOutcome.Conflict(_) =>
+              DesktopDocumentRegistry.endSave(session, text, None)
               SaveResult.Conflict("The file changed on disk. Reload it and try again.")
+            case DesktopIpc.SaveOutcome.NotWatched(message) =>
+              DesktopDocumentRegistry.endSave(session, text, None)
+              SaveResult.Failed(message)
             case DesktopIpc.SaveOutcome.Failed(message) =>
+              DesktopDocumentRegistry.endSave(session, text, None)
               SaveResult.Failed(message)
             case DesktopIpc.SaveOutcome.Unavailable =>
+              DesktopDocumentRegistry.endSave(session, text, None)
               SaveResult.Unsupported("Saving a file needs the desktop app")
+
+  /** The shell lost the watch of the file, so the save wrote nothing. Register
+    * the watch again (`open_document`), and retry the save one time.
+    *
+    * A watch can go for many causes: `gx unwatch`, or an open that the screen
+    * left before it showed the file. Without a watch, each save of the view
+    * fails with "path is not currently watched".
+    *
+    * The retry sends the SAME base revision. The shell compares it with the
+    * file on disk, so an outside change before the retry comes back as a
+    * conflict and not as a write over that change. The new watch sends a
+    * document event, and that event can end the wait for this save. Thus
+    * `beginSave` comes again before the retry.
+    */
+  private def saveWithNewWatch(open: DesktopDocumentRegistry.Session, text: String)(using
+      ExecutionContext
+  ): Future[DesktopIpc.SaveOutcome] =
+    DesktopIpc
+      .openFile(open.path)
+      .flatMap: _ =>
+        DesktopDocumentRegistry.beginSave(session, text)
+        DesktopIpc.saveDocument(open.path, text, open.revision)
+      .recover:
+        case error => DesktopIpc.SaveOutcome.Failed(s"the file has no watch, and a new watch failed: ${error.getMessage}")
 
   /** The session stays. A person can navigate to Home and back, and §12 keeps
     * the watch separate from the view, so closing a view must not end a session
@@ -127,3 +175,24 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
   def close(): Unit = ()
 
   private[desktop] def latest: DiagramSnapshot = current
+
+object FilePersistence:
+
+  /** The language of a file: the language that its text declares, or else the
+    * language of its extension. `None` when neither tells.
+    *
+    * The text comes first, because a header line is evidence and an extension
+    * is a name. A Mermaid diagram with no header line, in a `.mmd` file, is
+    * Mermaid.
+    */
+  def formatOf(path: String, text: String): Option[DiagramFormat] =
+    DiagramFormat.declared(text).orElse(formatOfPath(path))
+
+  /** The language of an extension: `.mmd` and `.mermaid` are Mermaid, `.dot`
+    * and `.gv` are DOT.
+    */
+  def formatOfPath(path: String): Option[DiagramFormat] =
+    val name = path.toLowerCase
+    if name.endsWith(".mmd") || name.endsWith(".mermaid") then Some(DiagramFormat.Mermaid)
+    else if name.endsWith(".dot") || name.endsWith(".gv") then Some(DiagramFormat.DOT)
+    else None

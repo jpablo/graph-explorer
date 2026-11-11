@@ -27,6 +27,13 @@ def UnsavedChangesDialog(state: ViewerState, router: Router): Div =
       case LeaveIntent.Navigate(route) => router.forceNavigateTo(route)
       case LeaveIntent.CloseWindow     => DesktopClose.confirm()
 
+  // Discard drops the edit: the editor takes the file, and a conflict ends.
+  // Before, the session kept its conflict, and a return to the file showed
+  // the banner "Your edit is still here" with no edit.
+  def discard(intent: LeaveIntent): Unit =
+    state.discardEdit()
+    leave(intent)
+
   div(
     child <-- state.pendingLeave.signal.map:
       case None => emptyNode
@@ -40,7 +47,7 @@ def UnsavedChangesDialog(state: ViewerState, router: Router): Div =
           div(
             cls := "flex gap-2",
             QuietAction("Cancel", onClick --> state.pendingLeave.set(None)),
-            Action("Discard", onClick --> leave(intent)),
+            Action("Discard", onClick --> discard(intent)),
             PrimaryAction(
               "Save",
               onClick --> state

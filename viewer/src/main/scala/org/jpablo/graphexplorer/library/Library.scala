@@ -62,6 +62,11 @@ object Library:
   def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
     BrowserLibrary.createDiagramPersistence(id, initialSource)
 
+  /** Write a diagram again. ⌘S uses this after a refused write. */
+  def storeDiagram(id: DiagramId, state: DiagramSnapshot): Option[String] = BrowserLibrary.storeDiagram(id, state)
+  def refusedWrite(id: DiagramId): Option[String]                         = BrowserLibrary.refusedWrite(id)
+  def refusedWrites(id: DiagramId): EventStream[String]                   = BrowserLibrary.refusedWrites(id)
+
   def createEmptyDiagram(name: String): DiagramId            = BrowserLibrary.createEmptyDiagram(name)
   def createDiagram(name: String, source: String): DiagramId = BrowserLibrary.createDiagram(name, source)
   def findDiagramBySource(dot: String): Option[DiagramId]    = BrowserLibrary.findDiagramBySource(dot)
