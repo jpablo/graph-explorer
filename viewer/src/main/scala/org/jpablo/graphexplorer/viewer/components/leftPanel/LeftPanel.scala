@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.library.{DiagramSummary, Library, LibraryNavigation}
+import org.jpablo.graphexplorer.library.{DiagramSummary, Library, LibraryIndex, LibraryNavigation}
 import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.models.DiagramId
@@ -15,10 +15,10 @@ import org.jpablo.graphexplorer.viewer.widgets.IconButton
   * The key is the SET of diagram ids, not the value of the library index. Each keystroke
   * writes the index again (a new lastModified). Each name costs a payload read and a title
   * scan. Only the title of the open diagram can change while a person types, and the row
-  * of the open diagram (`libraryRow`) reads that title directly from `state.displayTitle`.
+  * of the open diagram reads that title directly from `state.displayTitle`.
   */
-private def displayNames(state: ViewerState): Signal[Map[DiagramId, String]] =
-  Library.index
+private def displayNames(state: ViewerState, index: Signal[LibraryIndex]): Signal[Map[DiagramId, String]] =
+  index
     .map(_.diagrams.map(_.id))
     .distinct
     .map: ids =>
@@ -27,17 +27,41 @@ private def displayNames(state: ViewerState): Signal[Map[DiagramId, String]] =
 /** The diagram of the library that the view shows. On the desktop, the view
   * shows a file, and the library knows the file by its path.
   */
-private def openId(state: ViewerState): Signal[Option[DiagramId]] =
+private def openId(state: ViewerState, index: Signal[LibraryIndex]): Signal[Option[DiagramId]] =
   state.target match
     case ViewTarget.File(_) =>
-      state.documentSession.combineWith(Library.index).map: (session, _) =>
+      state.documentSession.combineWith(index).map: (session, _) =>
         session.flatMap(s => Library.desktop.flatMap(_.idOfPath(s.path)))
     case _ => Signal.fromValue(Some(state.diagramId))
 
 def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
-  // One signal of each for all the rows, so each name is read one time for each change.
-  val names = displayNames(state)
-  val open  = openId(state)
+  // One signal of each for all the rows. On the desktop, `Library.index` makes a new
+  // signal for each call, and each one builds the index again.
+  val index = Library.index
+  val names = displayNames(state, index)
+  val open  = openId(state, index).distinct
+
+  /** One row of the library list. The title and the mark of the row follow the signals,
+    * so a change does not make the row again.
+    *
+    * The title of the open diagram can change while a person types, so the open row reads
+    * it live from `state.displayTitle`. The other rows read the snapshot of `displayNames`.
+    */
+  def libraryRow(id: DiagramId, diagram: Signal[DiagramSummary]): HtmlElement =
+    val isOpen = open.map(_.contains(id)).distinct
+    val shown = isOpen.combineWithFn(state.displayTitle, names, diagram): (isOpen, title, names, diagram) =>
+      if isOpen then title else names.getOrElse(id, diagram.name)
+    li(
+      a(
+        cls := "flex items-center gap-2",
+        // Not daisyUI's `menu-active`: that inverts the row to near-black, which
+        // shouts where the rest of the chrome marks "current" with a quiet tint.
+        cls("gx-row-active") <-- isOpen,
+        div(cls := "truncate", text <-- shown.distinct),
+        onClick --> LibraryNavigation.open(router, id, state.errorBus.emit)
+      )
+    )
+
   div(
     cls := "border-r border-base-300",
     // Panel content
@@ -77,42 +101,15 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
             // The split keys the rows by the diagram id. A row keeps its DOM node while its
             // diagram stays in the list. Each keystroke writes the index again (a new
             // lastModified), and before the split, each write made all the rows again.
-            children <-- Library.index
+            // A row shows only the id and the name, so a change of the order, the ids or
+            // the names is the only change that gets to the split.
+            children <-- index
               .map(_.diagrams.sortBy(-_.creationTime))
+              .distinctBy(_.map(d => (d.id, d.name)))
               .split(_.id): (id, _, diagram) =>
-                libraryRow(state, router, id, diagram, names, open)
+                libraryRow(id, diagram)
           )
         )
       )
-    )
-  )
-
-/** One row of the library list. The title and the mark of the row follow the signals,
-  * so a change does not make the row again.
-  *
-  * The title of the open diagram can change while a person types, so the open row reads
-  * it live from `state.displayTitle`. The other rows read the snapshot of `displayNames`.
-  */
-private def libraryRow(
-    state:   ViewerState,
-    router:  Router,
-    id:      DiagramId,
-    diagram: Signal[DiagramSummary],
-    names:   Signal[Map[DiagramId, String]],
-    open:    Signal[Option[DiagramId]]
-): HtmlElement =
-  val isOpen = open.map(_.contains(id)).distinct
-  val shown =
-    isOpen.flatMapSwitch: isOpen =>
-      if isOpen then state.displayTitle
-      else names.combineWithFn(diagram)((names, diagram) => names.getOrElse(id, diagram.name))
-  li(
-    a(
-      cls := "flex items-center gap-2",
-      // Not daisyUI's `menu-active`: that inverts the row to near-black, which
-      // shouts where the rest of the chrome marks "current" with a quiet tint.
-      cls("gx-row-active") <-- isOpen,
-      div(cls := "truncate", text <-- shown.distinct),
-      onClick --> LibraryNavigation.open(router, id, state.errorBus.emit)
     )
   )

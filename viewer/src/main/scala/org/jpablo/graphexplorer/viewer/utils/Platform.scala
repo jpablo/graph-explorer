@@ -1,16 +1,13 @@
 package org.jpablo.graphexplorer.viewer.utils
 
-import scala.scalajs.js
-import scala.util.control.NonFatal
+import org.scalajs.dom
 
 /** The platform of the browser, for the keys that differ between platforms. */
 object Platform:
 
-  /** True when the platform name is the name of an Apple platform. These
-    * platforms use ⌘ for the command key.
-    *
-    * The name can be `navigator.userAgentData.platform` ("macOS"),
-    * `navigator.platform` ("MacIntel", "iPad") or `navigator.userAgent`.
+  /** True when the name is the name of an Apple platform, for example a user
+    * agent with "Macintosh" or "iPad". These platforms use ⌘ for the command
+    * key.
     */
   def isAppleName(name: String): Boolean =
     val lower = name.toLowerCase
@@ -27,26 +24,9 @@ object Platform:
   def commandKey(metaKey: Boolean, ctrlKey: Boolean, isMac: Boolean): Boolean =
     if isMac then metaKey else ctrlKey
 
-  /** The name of the platform, or "" when no browser gives one.
-    *
-    * `typeof` comes first, so a page with no `navigator` gives "". A read of
-    * an undeclared global name throws ReferenceError.
+  /** True when the browser runs on an Apple platform. Each target has a user
+    * agent: the browser, the desktop webview and the test browser. The
+    * platform does not change while the page runs, so the value is read one
+    * time.
     */
-  private def platformName(): String =
-    def text(value: js.Dynamic): Option[String] =
-      if js.typeOf(value) == "string" && value.asInstanceOf[String].nonEmpty then Some(value.asInstanceOf[String])
-      else None
-    try
-      if js.typeOf(js.Dynamic.global.navigator) == "undefined" then ""
-      else
-        val navigator = js.Dynamic.global.navigator
-        val agentData = navigator.userAgentData
-        val fromAgentData =
-          if js.isUndefined(agentData) || agentData == null then None else text(agentData.platform)
-        fromAgentData.orElse(text(navigator.platform)).orElse(text(navigator.userAgent)).getOrElse("")
-    catch case NonFatal(_) => ""
-
-  /** True when the browser runs on an Apple platform. The platform does not
-    * change while the page runs, so the value is read one time.
-    */
-  lazy val isMac: Boolean = isAppleName(platformName())
+  lazy val isMac: Boolean = isAppleName(dom.window.navigator.userAgent)

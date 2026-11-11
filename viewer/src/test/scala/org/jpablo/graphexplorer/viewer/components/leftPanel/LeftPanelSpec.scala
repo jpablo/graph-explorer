@@ -9,11 +9,11 @@ import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, DiagramSnapshot, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
+import org.jpablo.graphexplorer.viewer.utils.Waits.{after, settle}
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, Promise}
-import scala.scalajs.js
+import scala.concurrent.Future
 
 /** The library list of the left panel in the web app: one row for each
   * diagram of the browser library.
@@ -23,23 +23,6 @@ class LeftPanelSpec extends FunSuite with TestHelpers with LoggedChecks:
   def checkPrefix = "LeftPanelSpec"
 
   override def munitFixtures = List(mockStorageFixture())
-
-  private def after(ms: Int): Future[Unit] =
-    val p = Promise[Unit]()
-    js.timers.setTimeout(ms.toDouble)(p.success(()))
-    p.future
-
-  /** Wait until `condition` is true, or until the time ends. The future does
-    * not fail at the end of the time. The checks after it tell what is wrong.
-    */
-  private def settle(condition: => Boolean, timeoutMs: Int = 5000): Future[Unit] =
-    val p     = Promise[Unit]()
-    val start = js.Date.now()
-    def loop(): Unit =
-      if condition || js.Date.now() - start >= timeoutMs then p.trySuccess(())
-      else js.timers.setTimeout(20)(loop())
-    loop()
-    p.future
 
   /** The source of the open diagram. The diagram has the default name, so its
     * row shows the title that the source declares.

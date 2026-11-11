@@ -59,12 +59,7 @@ class Router:
   currentRoute.foreach: route =>
     val path = buildPath(route)
     Telemetry.log("router.routeChanged", "path" -> path, "route" -> route.toString)
-    // call the gtag function if available (avoid ReferenceError in tests / SSR)
-    try
-      val gtag = js.Dynamic.global.selectDynamic("gtag")
-      if js.typeOf(gtag) == "function" then
-        gtag("event", "page_view", js.Dictionary("page_path" -> path))
-    catch case _: Throwable => () // ignore in test/SSR environments
+    Telemetry.gaEvent("page_view", js.Dictionary("page_path" -> path))
 
   /** A view can refuse to be left (§7.4).
     *

@@ -43,11 +43,9 @@ object CountBadges:
   private val layerClass = "gx-badge-layer"
   private val gidAttr    = "data-gid"
 
-  /** Install-once marker for the delegated hover listener, and the group the
-    * pointer is currently over — both parked on the svg rather than in object
-    * state, so nothing survives a diagram switch that shouldn't. */
-  private val hoverInstalledAttr = "data-gx-fold-hover"
-  private val hoveredAttr        = "data-gx-fold-hovered"
+  /** The group the pointer is over now. It is parked on the svg rather than in
+    * object state, so nothing survives a diagram switch that shouldn't. */
+  private val hoveredAttr = "data-gx-fold-hovered"
 
   private val SvgNS = "http://www.w3.org/2000/svg"
 
@@ -158,22 +156,21 @@ object CountBadges:
     * Delegated from the svg rather than a listener per cluster: `decorate` runs
     * once per layout and the cluster elements it walks are replaced wholesale by
     * the next render, so per-element listeners would need tracking and removal.
-    * One listener on the svg outlives every re-render — hence the install-once
-    * flag rather than an add/remove dance.
+    * One listener on the svg outlives every re-render. The caller installs it
+    * one time for each svg element (SvgCanvas does it when it builds the
+    * canvas).
     */
   def installHover(mainGroup: dom.Element, strategy: SelectableElementStrategy): Unit =
     val root = Option(mainGroup.closest("svg")).getOrElse(mainGroup)
-    if root.getAttribute(hoverInstalledAttr) == null then
-      root.setAttribute(hoverInstalledAttr, "1")
-      // `mouseover` bubbles and re-fires on every boundary crossing, so entering
-      // ANY element reports the new target — including the empty canvas, which
-      // is how the badge learns to hide again. `mouseleave` covers the pointer
-      // leaving the svg altogether, where no further mouseover ever arrives.
-      root.addEventListener(
-        "mouseover",
-        ((e: dom.Event) => setHovered(root, groupUnder(e.target.asInstanceOf[dom.Element], strategy))): js.Function1[dom.Event, Unit]
-      )
-      root.addEventListener("mouseleave", ((_: dom.Event) => setHovered(root, None)): js.Function1[dom.Event, Unit])
+    // `mouseover` bubbles and re-fires on every boundary crossing, so entering
+    // ANY element reports the new target — including the empty canvas, which
+    // is how the badge learns to hide again. `mouseleave` covers the pointer
+    // leaving the svg altogether, where no further mouseover ever arrives.
+    root.addEventListener(
+      "mouseover",
+      ((e: dom.Event) => setHovered(root, groupUnder(e.target.asInstanceOf[dom.Element], strategy))): js.Function1[dom.Event, Unit]
+    )
+    root.addEventListener("mouseleave", ((_: dom.Event) => setHovered(root, None)): js.Function1[dom.Event, Unit])
 
   /** Which group the pointer counts as being over.
     *

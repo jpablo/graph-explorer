@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, NavDirection, RightPanelSection, SaveResult, ViewerState}
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
+import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.scalajs.dom.KeyValue
 import org.scalajs.dom
 
@@ -60,7 +61,12 @@ enum CmdAction[-A]:
       case _                    => throw new IllegalArgumentException("argument required")
 
 object CmdAction:
-  given Conversion[() => Unit, CmdAction[Nothing]] = NoArg(_)
+  // `Any`, not `Nothing`: `Command` is contravariant, so a command with no
+  // argument is then a `Command[Any]`, and it fits each `Command[A]`. A list of
+  // `Command[Any]` (the palette, the menus, the shortcuts) can hold only such
+  // commands, because they run with no argument. A one-argument command there
+  // is a compile error, not the runtime throw "argument required".
+  given Conversion[() => Unit, CmdAction[Any]] = NoArg(_)
   given [A] => Conversion[A => Unit, CmdAction[A]] = OneArg(_)
 
 case class Command[-A](
@@ -76,16 +82,16 @@ case class Command[-A](
   def execute(arg: Option[A] = None, logEvent: Boolean = true): Unit =
     // Log to GA — unless the caller marks this as a repeat (a held-down arrow
     // key auto-repeats ~30×/s; streaming one GA event per repeat is noise).
-    // `typeof gtag` comes first: a read of `gtag` on a page that does not
-    // declare it throws ReferenceError, and the command then does not run.
-    if logEvent && js.typeOf(js.Dynamic.global.gtag) == "function" then
+    if logEvent then
       val commandIdentifier = description.getOrElse(shortLabel)
-      val p = js.Dynamic.literal(
-        "command_label"  -> commandIdentifier,
-        "event_category" -> "Command",
-        "event_label"    -> commandIdentifier
+      Telemetry.gaEvent(
+        "command_executed",
+        js.Dynamic.literal(
+          "command_label"  -> commandIdentifier,
+          "event_category" -> "Command",
+          "event_label"    -> commandIdentifier
+        )
       )
-      js.Dynamic.global.gtag("event", "command_executed", p)
     action.execute(arg)
 
 /** The commands that change the route.
@@ -107,11 +113,7 @@ class RouterCommands(router: Router, reportError: String => Unit = message => Li
     Library.desktop match
       case Some(desktop) =>
         navigateWhenReady(
-          desktop.newDiagram(
-            DiagramSnapshot.defaultDiagramName,
-            minimalGraphText,
-            DiagramFormat.detect(minimalGraphText).fileExtension
-          )
+          desktop.newDiagram(DiagramSnapshot.defaultDiagramName, minimalGraphText, DiagramFormat.DOT.fileExtension)
         )
       case None =>
         val id = Library.createEmptyDiagram(DiagramSnapshot.defaultDiagramName)
@@ -810,7 +812,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
   import headers.*
 
-  val byHeader: VectorMap[String, List[Command[?]]] = VectorMap(
+  val byHeader: VectorMap[String, List[Command[Any]]] = VectorMap(
     common -> List(
       all.newNode,
       all.newBackwardsNode,
@@ -953,7 +955,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val isSymbol = sh.key.length == 1 && !sh.key.head.isLetterOrDigit
     if isSymbol then sh.copy(key = keyLower, shift = false) else sh.copy(key = keyLower)
 
-  val byShortcut: Map[Shortcut, Command[?]] =
+  val byShortcut: Map[Shortcut, Command[Any]] =
     byHeader.values.flatten
       .collect { case c @ Command(shortcut = Some(sh)) => normalizeShortcut(sh) -> c }
       .toMap

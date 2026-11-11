@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
 import org.jpablo.graphexplorer.viewer.utils.{Platform, TestHelpers}
+import org.jpablo.graphexplorer.viewer.utils.KeyEvents.keyDown
 import org.scalajs.dom
 
 import scala.collection.mutable
@@ -57,23 +58,6 @@ class CommandsPanelSpec extends FunSuite with TestHelpers with LoggedChecks:
     /** The keys that the search box shows for the palette shortcut. */
     def hint: String =
       input.parentElement.querySelectorAll(":scope > kbd").toSeq.map(_.textContent).mkString(" ")
-
-  private def keyDown(
-      key:   String,
-      meta:  Boolean = false,
-      ctrl:  Boolean = false,
-      shift: Boolean = false,
-      alt:   Boolean = false
-  ): dom.KeyboardEvent =
-    val init = new dom.KeyboardEventInit {}
-    init.key = key
-    init.metaKey = meta
-    init.ctrlKey = ctrl
-    init.shiftKey = shift
-    init.altKey = alt
-    init.bubbles = true
-    init.cancelable = true
-    dom.KeyboardEvent("keydown", init)
 
   /** Catch the errors that the listeners of the page throw, until `restore`.
     *

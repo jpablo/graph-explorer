@@ -9,11 +9,13 @@ import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, Uns
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry.{Conflict, Session}
 import org.jpablo.graphexplorer.viewer.state.{LeaveIntent, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
+import org.jpablo.graphexplorer.viewer.utils.KeyEvents.keyDown
+import org.jpablo.graphexplorer.viewer.utils.Waits.after
 import org.scalajs.dom
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 import scala.scalajs.js
 
 /** A second save of a file while the first save is in flight.
@@ -82,11 +84,6 @@ class SaveInFlightSpec extends FunSuite with TestHelpers with LoggedChecks:
         )
     js.Dynamic.global.window.__TAURI__ = js.Dynamic.literal(core = js.Dynamic.literal(invoke = later))
 
-  private def after(ms: Int): Future[Unit] =
-    val p = Promise[Unit]()
-    js.timers.setTimeout(ms.toDouble)(p.success(()))
-    p.future
-
   /** The time for each save of a test to get its reply. */
   private def settle(): Future[Unit] = after(100)
 
@@ -124,26 +121,12 @@ class SaveInFlightSpec extends FunSuite with TestHelpers with LoggedChecks:
           owner.killSubscriptions()
           outcome
 
-  /** A ⌘S keydown. `prevented` tells if the page took the key from the browser. */
-  private final class SaveKey(repeat: Boolean):
-    var prevented = false
-    val event: dom.KeyboardEvent = js.Dynamic
-      .literal(
-        key = "s",
-        code = "KeyS",
-        metaKey = true,
-        ctrlKey = false,
-        altKey = false,
-        shiftKey = false,
-        repeat = repeat,
-        preventDefault = (() => prevented = true): js.Function0[Unit],
-        stopPropagation = (() => ()): js.Function0[Unit]
-      )
-      .asInstanceOf[dom.KeyboardEvent]
-
-  private def pressSave(view: FileView, repeat: Boolean = false): SaveKey =
-    val key = SaveKey(repeat)
-    view.commands.handleKeyDown(key.event)
+  /** Press ⌘S on the canvas of `view`. `defaultPrevented` of the result tells
+    * if the page took the key from the browser.
+    */
+  private def pressSave(view: FileView, repeat: Boolean = false): dom.KeyboardEvent =
+    val key = keyDown("s", meta = true, repeat = repeat)
+    view.commands.handleKeyDown(key)
     key
 
   private val base   = "digraph G {\n  a\n}\n"
@@ -229,7 +212,7 @@ class SaveInFlightSpec extends FunSuite with TestHelpers with LoggedChecks:
         settle().map: _ =>
           same(saveCalls, 1, "a ⌘S keydown with repeat = true started another save")
           same(view.errors.toList, Nil, "a repeat of ⌘S ended in an error")
-          check(repeats.forall(_.prevented), "a repeat of ⌘S went to the browser, which opens its own save dialog")
+          check(repeats.forall(_.defaultPrevented), "a repeat of ⌘S went to the browser, which opens its own save dialog")
 
   // The Save button of the "Save this file?" dialog has the same gap. A
   // second click before the reply of the first save starts a second save

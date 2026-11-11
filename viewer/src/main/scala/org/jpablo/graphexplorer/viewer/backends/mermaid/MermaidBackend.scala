@@ -639,8 +639,7 @@ object MermaidBackend:
     else None
 
   private def queryById(svg: dom.svg.SVG, id: String): Option[dom.Element] =
-    val escaped = id.replace("\\", "\\\\").replace("\"", "\\\"")
-    Option(svg.querySelector(s"""[id="$escaped"]"""))
+    Option(svg.querySelector(SelectableElement.idSelector(id)))
 
   private def normalizeCssValue(value: String): Option[String] =
     Option(value.replace("!important", "").trim).filter(_.nonEmpty)

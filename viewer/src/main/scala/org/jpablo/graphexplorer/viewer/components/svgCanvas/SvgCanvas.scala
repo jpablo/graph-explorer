@@ -132,12 +132,15 @@ def SvgCanvas(
   // rebuilt from the settled geometry.
   val layoutSettled = EventBus[Unit]()
 
-  // The listener lives as long as the svg element, so it is added here, one
-  // time, and not on mount. The same svg element can mount again: after the
-  // 3D view, CanvasContainer shows it again. A listener for each mount gave
-  // one more `layoutSettled` emission for each transition end. The listener
-  // also exists before onRendered starts a transition.
+  // The listeners on the svg element live as long as the element, so they are
+  // added here, one time, and not on mount. The same svg element can mount
+  // again: after the 3D view, CanvasContainer shows it again. A listener for
+  // each mount gave one more `layoutSettled` emission for each transition
+  // end. The transition listener also exists before onRendered starts a
+  // transition. The hover of the fold badges is delegated from the svg, so it
+  // covers each layout that renders under it.
   rawSvg.ref.addEventListener(LayoutTransition.transitionEndEvent, (_: dom.Event) => layoutSettled.emit(()))
+  CountBadges.installHover(mainGroup, strategy)
 
   def refreshOverlayControls(elem: Option[SelectableElement], action: MouseAction): Unit =
     viewerOps.handleNewArrowControls(mainGroup, elem, action)
@@ -174,9 +177,6 @@ def SvgCanvas(
         // are garbage until the pan/zoom transform has been applied.
         onMountCallback { _ =>
           CountBadges.decorate(mainGroup, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
-          // Delegated from the svg, so once is enough however often the layout
-          // re-renders underneath it.
-          CountBadges.installHover(mainGroup, strategy)
           onRendered(rawSvg.ref)
         },
         // --------------------------------------------------------

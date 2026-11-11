@@ -27,16 +27,21 @@ def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platf
   def shouldShowCommand(term: String, selection: Selection)(cmd: Command[?]) =
     cmd.shortLabel.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
 
-  /** The sections that have a visible command, in the order of `byHeader`.
-    *
-    * The rows and the keys read this one list. The index of a command is its
-    * position in the flat list of these sections: the highlight shows on the
-    * row at that index, and Enter runs the command at that index.
-    */
+  /** The sections that have a visible command, in the order of `byHeader`. */
   def visibleSections(term: String, selection: Selection): Seq[(String, List[Command[?]])] =
     commands.byHeader.toSeq
       .map((title, cmds) => title -> cmds.filter(shouldShowCommand(term, selection)))
       .filter((_, cmds) => cmds.nonEmpty)
+
+  /** The visible sections now. The rows and the keys read this one value.
+    * The index of a command is its position in the flat list of these
+    * sections: the highlight shows on the row at that index, and Enter runs
+    * the command at that index. A second computation in the key handler could
+    * disagree with the rows, because some commands read more state than the
+    * term and the selection (for example the selected record cell).
+    */
+  val sections: Signal[Seq[(String, List[Command[?]])]] =
+    searchTerm.signal.combineWithFn(state.selection.signal)(visibleSections)
 
   def commandRow(cmd: Command[?], cmdIndex: Int): LI =
     val isActive = highlightedIndex.signal.map(_ == cmdIndex)
@@ -64,8 +69,7 @@ def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platf
     )
 
   val rows: Signal[Seq[LI]] =
-    searchTerm.signal.combineWithFn(state.selection.signal): (term, selection) =>
-      val sections = visibleSections(term, selection)
+    sections.map: sections =>
       // The index of the first row of each section. A command in two sections
       // has two rows, and each row has its own index. Before, a row found its
       // index by its label, so each copy had the index of the first copy.
@@ -112,9 +116,8 @@ def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platf
           onInput.mapToValue --> searchTerm,
           focus <-- focusSearch.events,
           // Handle keyboard navigation directly in the input
-          onKeyDown --> { e =>
-            val term        = searchTerm.now()
-            val visibleCmds = visibleSections(term, state.selection.now()).flatMap(_._2)
+          onKeyDown.compose(_.withCurrentValueOf(sections)) --> { (e, sections) =>
+            val visibleCmds = sections.flatMap(_._2)
             val cmdCount    = visibleCmds.size
 
             if cmdCount > 0 then

@@ -88,6 +88,8 @@ class EditorView(config: EditorViewConfig) extends js.Object:
 object EditorView extends js.Object:
   def lineWrapping: Extension             = js.native
   val updateListener: UpdateListenerFacet = js.native
+  /** The EditorView of a `.cm-editor` element, or null. */
+  def findFromDOM(element: dom.Element): EditorView = js.native
 
 @js.native
 @JSImport("@codemirror/view", "keymap")
