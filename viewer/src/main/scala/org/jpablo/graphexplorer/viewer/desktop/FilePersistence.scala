@@ -33,7 +33,7 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
     * entry. A file with no entry starts with empty metadata.
     *
     * The language is the language that the text declares, or else the
-    * language of the extension ([[FilePersistence.formatOf]]). Before, the
+    * language of the extension (`DiagramFormat.ofFile`). Before, the
     * format was `None`, and the viewer took `DiagramFormat.detect`, which
     * falls back to DOT. A `.mmd` file with no header line opened as DOT.
     */
@@ -42,7 +42,7 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
       case Some(open) =>
         DiagramSnapshot(
           source = open.sourceText,
-          format = FilePersistence.formatOf(open.path, open.sourceText).map(_.toString),
+          format = DiagramFormat.ofFile(open.path, open.sourceText).map(_.toString),
           metadata = library.flatMap(_.metadataOf(open.path)).getOrElse(DiagramMetadata.empty)
         )
       case None =>
@@ -124,25 +124,22 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
           .flatMap:
             case DesktopIpc.SaveOutcome.NotWatched(_) => saveWithNewWatch(open, text)
             case outcome                              => Future.successful(outcome)
-          .map:
-            case DesktopIpc.SaveOutcome.Saved(_, revision) =>
-              // The base advances, so the NEXT save compares against what this
-              // one wrote. It holds the text that is in the file, so the next
-              // save keeps the same line endings.
-              DesktopDocumentRegistry.endSave(session, text, Some(revision))
-              SaveResult.Saved
-            case DesktopIpc.SaveOutcome.Conflict(_) =>
-              DesktopDocumentRegistry.endSave(session, text, None)
-              SaveResult.Conflict("The file changed on disk. Reload it and try again.")
-            case DesktopIpc.SaveOutcome.NotWatched(message) =>
-              DesktopDocumentRegistry.endSave(session, text, None)
-              SaveResult.Failed(message)
-            case DesktopIpc.SaveOutcome.Failed(message) =>
-              DesktopDocumentRegistry.endSave(session, text, None)
-              SaveResult.Failed(message)
-            case DesktopIpc.SaveOutcome.Unavailable =>
-              DesktopDocumentRegistry.endSave(session, text, None)
-              SaveResult.Unsupported("Saving a file needs the desktop app")
+          .map: outcome =>
+            // Each outcome ends the save. Only a write moves the base, so the
+            // NEXT save compares against what this one wrote. The base holds
+            // the text that is in the file, so the next save keeps the same
+            // line endings.
+            val written = outcome match
+              case DesktopIpc.SaveOutcome.Saved(_, revision) => Some(revision)
+              case _                                         => None
+            DesktopDocumentRegistry.endSave(session, text, written)
+            outcome match
+              case DesktopIpc.SaveOutcome.Saved(_, _)         => SaveResult.Saved
+              case DesktopIpc.SaveOutcome.Conflict(_)         =>
+                SaveResult.Conflict("The file changed on disk. Reload it and try again.")
+              case DesktopIpc.SaveOutcome.NotWatched(message) => SaveResult.Failed(message)
+              case DesktopIpc.SaveOutcome.Failed(message)     => SaveResult.Failed(message)
+              case DesktopIpc.SaveOutcome.Unavailable         => SaveResult.Unsupported("Saving a file needs the desktop app")
 
   /** The shell lost the watch of the file, so the save wrote nothing. Register
     * the watch again (`open_document`), and retry the save one time.
@@ -175,24 +172,3 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
   def close(): Unit = ()
 
   private[desktop] def latest: DiagramSnapshot = current
-
-object FilePersistence:
-
-  /** The language of a file: the language that its text declares, or else the
-    * language of its extension. `None` when neither tells.
-    *
-    * The text comes first, because a header line is evidence and an extension
-    * is a name. A Mermaid diagram with no header line, in a `.mmd` file, is
-    * Mermaid.
-    */
-  def formatOf(path: String, text: String): Option[DiagramFormat] =
-    DiagramFormat.declared(text).orElse(formatOfPath(path))
-
-  /** The language of an extension: `.mmd` and `.mermaid` are Mermaid, `.dot`
-    * and `.gv` are DOT.
-    */
-  def formatOfPath(path: String): Option[DiagramFormat] =
-    val name = path.toLowerCase
-    if name.endsWith(".mmd") || name.endsWith(".mermaid") then Some(DiagramFormat.Mermaid)
-    else if name.endsWith(".dot") || name.endsWith(".gv") then Some(DiagramFormat.DOT)
-    else None

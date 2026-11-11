@@ -25,7 +25,7 @@ case class GraphState(
     // keystroke or a format change until the parse of that text lands, and after a failed
     // parse. While out of sync, graph edits are ignored: a serialization of a graph that does
     // not model the text would overwrite the document in the editor AND in storage.
-    graphInSync: Boolean = true
+    graphInSync: Boolean
 ) derives CanEqual
 
 /** Whether the current source has become a usable live diagram. */
@@ -66,7 +66,7 @@ class InternalPhases(
       * Injected so tests can pass `identity` and keep asserting synchronously:
       * what they are pinning is the text <-> graph contract, not the schedule
       * on which typing reaches it. */
-    pace: EventStream[(String, DiagramFormat, ChangeOrigin)] => EventStream[(String, DiagramFormat, ChangeOrigin)] =
+    pace: EventStream[Unit] => EventStream[Unit] =
       EditorPacing.pace(_),
     /** True when a graph edit must keep the whole text, because a file is
       * behind the document. The setter of [[fullGraphV]] reads it at each
@@ -171,10 +171,11 @@ class InternalPhases(
     * therefore persistence) on every keystroke, and only the parse that follows
     * it waits. See [[EditorPacing]] for why the other order loses data.
     *
-    * The event is only a trigger. When it fires, the parse reads the text and
-    * the format of the state at that time, not the values in the event. In the
+    * The event is only a trigger, so it carries no value. When it fires, the
+    * parse reads the text and the format of the state at that time. In the
     * wait, a different path can change the format (auto-detect, a
-    * `replaceDocument`). Before, the paced parse used the format in the event.
+    * `replaceDocument`). Before, the event held the text and the format of
+    * the keystroke, and the paced parse used that format.
     * That parse replaced the correct parse in `flatMapSwitch`, and its result
     * failed the guard. Thus `loadStatus` stayed Loading, and the graph did not
     * land.
@@ -182,12 +183,12 @@ class InternalPhases(
     * When the graph is already the parse of the current text, the paced parse
     * has nothing to do, and it does not start.
     */
-  private val pacedParse = EventBus[(String, DiagramFormat, ChangeOrigin)]()
+  private val pacedParse = EventBus[Unit]()
 
-  pace(pacedParse.events).foreach { case (_, _, origin) =>
+  pace(pacedParse.events).foreach { _ =>
     val current = state.now()
     if !current.graphInSync then
-      EditorPacing.timing(() => parseTextToGraphAsync(current.text, current.format, origin))
+      EditorPacing.timing(() => parseTextToGraphAsync(current.text, current.format, ChangeOrigin.CodeMirror))
   }
 
   // Trigger initial async parsing (must be after subscription is set up)
@@ -208,7 +209,7 @@ class InternalPhases(
           val selectedFormat = formatSelection.now()
           // The text lands NOW (this is what persistence observes); the parse
           // it implies is paced.
-          pacedParse.emit((newText, selectedFormat, ChangeOrigin.CodeMirror))
+          pacedParse.emit(())
           // The graph is still the parse of the OLD text. Until the paced parse
           // lands, the state is out of sync, so a canvas edit in the gap does not
           // print the old graph over the typed text.
@@ -249,8 +250,7 @@ class InternalPhases(
             case Success(next) => next
             case Failure(error) =>
               dom.console.error("[InternalPhases] A graph edit threw in the setter of fullGraphV:", error.asInstanceOf[js.Any])
-              val message = "The viewer did not apply the canvas edit, because the graph could not be written as text."
-              Transaction(_ => refusedEdits.onNext(message))
+              refuse("The viewer did not apply the canvas edit, because the graph could not be written as text.")
               currentState
       }
     ).distinct // TODO: consider using distinctByRef
@@ -263,9 +263,7 @@ class InternalPhases(
           // The text would lose content that the graph does not model, and a
           // file would take that text. Keep the text, and tell the person.
           simpleLog(s"Refusing a lossy graph edit: $message", logLevel)
-          // This setter runs inside the transaction of the update. The new
-          // transaction sends the message after that transaction ends.
-          Transaction(_ => refusedEdits.onNext(message))
+          refuse(message)
           currentState
         case None =>
           val serializedText =
@@ -280,6 +278,15 @@ class InternalPhases(
           )
     else
       currentState
+
+  /** Tell the person that a graph edit did not apply.
+    *
+    * The setter of [[fullGraphV]] runs inside the transaction of the update.
+    * The new transaction sends the message after that transaction ends.
+    */
+  private def refuse(message: String): Unit =
+    Transaction(_ => refusedEdits.onNext(message))
+    ()
 
   /** True when the setter of [[fullGraphV]] applies a graph edit now.
     *

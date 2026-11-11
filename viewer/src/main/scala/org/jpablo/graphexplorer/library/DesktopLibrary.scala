@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.gxcore.store.{MetadataMigration, SafeFileName}
 import org.jpablo.graphexplorer.router.Route
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, SourceTitle}
-import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopIpc, FilePersistence}
+import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopIpc}
 import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc.{DiagramsFolder, EntryBase, FileSnapshot, IpcFailure}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, DocumentSessionId}
@@ -14,7 +14,7 @@ import org.scalajs.dom
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.scalajs.js
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 /** What the home page knows about the file of an entry. */
@@ -148,8 +148,8 @@ final class DesktopLibrary private () extends LibraryListing:
       val fileName = LibraryEntry.nameOf(e.path)
       files.now().get(e.path).map:
         case FileState.Loaded(text, _) =>
-          // The same rule as the viewer of the file (`FilePersistence.formatOf`).
-          val format  = FilePersistence.formatOf(e.path, text).getOrElse(DiagramFormat.DOT)
+          // The same rule as the viewer of the file.
+          val format  = DiagramFormat.ofFile(e.path, text).getOrElse(DiagramFormat.DOT)
           val backend = languages.forFormat(format)
           DiagramCardInfo(format, backend.extractTitle(text).getOrElse(fileName), backend.diagramKind(text))
         case FileState.Missing =>
@@ -224,47 +224,44 @@ final class DesktopLibrary private () extends LibraryListing:
       case None    => Owned.of(viewer) == Owned.none
     if unchanged then Future.unit
     else
-      mergeAndWrite(key, path, viewer, current, texts.get(key), MaxWriteTries).andThen:
-        case Failure(error) =>
-          dom.console.error(s"[library] could not save the metadata of $path: ${messageOf(error)}")
-          refresh()
+      val base = for entry <- current; text <- texts.get(key) yield (entry, text)
+      mergeAndWrite(key, path, viewer, base, MaxWriteTries).andThen(reportWriteFailure(path))
 
   /** Merge the fields of the viewer onto `base`, and write the result with
-    * the text of `base` as the base of the compare-and-swap. On a refusal,
+    * the text of `base` as the base of the compare-and-swap. `base` is the
+    * entry and its exact text, or `None` when there is no entry. On a refusal,
     * read the entry again and try again, `tries` times in all.
     */
   private def mergeAndWrite(
       key: String,
       path: String,
       viewer: DiagramMetadata,
-      base: Option[LibraryEntry],
-      baseText: Option[String],
+      base: Option[(LibraryEntry, String)],
       tries: Int
   ): Future[Unit] =
-    val now = js.Date.now().toLong
+    val now   = js.Date.now().toLong
+    val entry = base.map(_._1)
     val merged = LibraryEntry(
-      path = base.fold(path)(_.path),
-      metadata = base
+      path = entry.fold(path)(_.path),
+      metadata = entry
         .fold(DiagramMetadata.empty)(_.metadata)
         .copy(
           hiddenElements = viewer.hiddenElements,
           collapsedGroups = viewer.collapsedGroups,
           autoDetectFormat = viewer.autoDetectFormat
         ),
-      createdAt = base.fold(now)(_.createdAt),
+      createdAt = entry.fold(now)(_.createdAt),
       updatedAt = now
     )
-    write(key, merged, Some(baseText.fold(EntryBase.Absent)(EntryBase.Present(_)))).recoverWith:
+    write(key, merged, Some(base.fold(EntryBase.Absent)((_, text) => EntryBase.Present(text)))).recoverWith:
       case IpcFailure("LIBRARY_CONFLICT", _) if tries > 1 =>
-        readEntry(key).flatMap((fresh, freshText) => mergeAndWrite(key, path, viewer, fresh, freshText, tries - 1))
+        readEntry(key).flatMap(fresh => mergeAndWrite(key, path, viewer, fresh, tries - 1))
 
-  /** The entry of `key` as the disk holds it now, and its exact text. */
-  private def readEntry(key: String): Future[(Option[LibraryEntry], Option[String])] =
+  /** The entry of `key` as the disk holds it now, with its exact text. */
+  private def readEntry(key: String): Future[Option[(LibraryEntry, String)]] =
     DesktopIpc
       .libraryRead(s"$key.json")
-      .map:
-        case None       => (None, None)
-        case Some(json) => (Some(upickle.default.read[LibraryEntry](json)), Some(json))
+      .map(_.map(json => (upickle.default.read[LibraryEntry](json), json)))
 
   // ------------------------------------------------------------- the files
 
@@ -460,10 +457,16 @@ final class DesktopLibrary private () extends LibraryListing:
     * the mirror shows what the disk holds.
     */
   private[library] def put(key: String, entry: LibraryEntry): Future[Unit] =
-    write(key, entry, None).andThen:
-      case Failure(error) =>
-        dom.console.error(s"[library] could not save the metadata of ${entry.path}: ${messageOf(error)}")
-        refresh()
+    write(key, entry, None).andThen(reportWriteFailure(entry.path))
+
+  /** Log a failed write of the entry of `path`, and read the store again, so
+    * that the mirror shows what the disk holds.
+    */
+  private def reportWriteFailure(path: String): PartialFunction[Try[Unit], Unit] =
+    case Failure(error) =>
+      dom.console.error(s"[library] could not save the metadata of $path: ${messageOf(error)}")
+      refresh()
+      ()
 
   /** Write an entry. The mirror and [[texts]] change at once, and the write
     * goes to the shell. The caller handles a failure.
@@ -609,7 +612,7 @@ object DesktopLibrary:
     case other                  => Option(other.getMessage).getOrElse(other.toString)
 
   private def formatOfPath(path: String): DiagramFormat =
-    FilePersistence.formatOfPath(path).getOrElse(DiagramFormat.DOT)
+    DiagramFormat.ofPath(path).getOrElse(DiagramFormat.DOT)
 
   /** The file name for a rename. A name with no extension keeps the extension
     * of the file.

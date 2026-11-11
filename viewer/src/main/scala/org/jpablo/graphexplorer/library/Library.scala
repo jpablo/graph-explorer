@@ -59,7 +59,7 @@ object Library:
 
   // ------------------------------------------- the browser library (web app)
 
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
+  def createDiagramPersistence(id: DiagramId, initialSource: Option[String])(using syncOwner: Owner): Var[DiagramSnapshot] =
     BrowserLibrary.createDiagramPersistence(id, initialSource)
 
   /** Write a diagram again. ⌘S uses this after a refused write. */

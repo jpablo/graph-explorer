@@ -72,9 +72,7 @@ object DesktopOpenRequests:
             requestId.foreach(id => pending = pending.updated(id, Pending(route, view)))
             if router.tryNavigateTo(route) then settlePending()
             else
-              requestId.foreach: id =>
-                pending -= id
-                complete(id, "rejected", Some("ACTIVATION_REFUSED"), Some("the current diagram refused navigation"))
+              requestId.foreach(complete(_, "rejected", Some("ACTIVATION_REFUSED"), Some("the current diagram refused navigation")))
           case Decision.Reject(code, message) =>
             // Answered rather than left to time out. The caller can act on "no
             // such document"; it can do nothing useful with forty-five seconds
@@ -114,7 +112,6 @@ object DesktopOpenRequests:
   private def supersede(onScreen: Route)(using ExecutionContext): Unit =
     pending.toVector.foreach: (requestId, request) =>
       if request.route != onScreen then
-        pending -= requestId
         complete(
           requestId,
           "rejected",
@@ -126,13 +123,9 @@ object DesktopOpenRequests:
     current.foreach: state =>
       pending.toVector.foreach: (requestId, request) =>
         activation(request.route, state.target, state.loadStatus.now()) match
-          case Activation.Waiting => ()
-          case Activation.Displayed =>
-            pending -= requestId
-            complete(requestId, "displayed", view = Some(request.view))
-          case Activation.Rejected(code, message) =>
-            pending -= requestId
-            complete(requestId, "rejected", Some(code), Some(message))
+          case Activation.Waiting                 => ()
+          case Activation.Displayed               => complete(requestId, "displayed", view = Some(request.view))
+          case Activation.Rejected(code, message) => complete(requestId, "rejected", Some(code), Some(message))
 
   private[desktop] enum Activation derives CanEqual:
     case Waiting
@@ -155,6 +148,9 @@ object DesktopOpenRequests:
   private val ViewerReady  = "viewer_ready"
   private val CompleteOpen = "complete_open"
 
+  /** Answer an open request. A request has one answer, so the answer also
+    * ends its wait in [[pending]].
+    */
   private def complete(
       requestId: Long,
       status:    String,
@@ -162,6 +158,7 @@ object DesktopOpenRequests:
       message:   Option[String] = None,
       view:      Option[js.Object] = None
   )(using ExecutionContext): Unit =
+    pending -= requestId
     // A JS number on the wire: the id is a u64 counter that will not approach
     // 2^53 in a process lifetime, and Scala.js would otherwise send a RuntimeLong
     // object that serde cannot read as a number.

@@ -407,10 +407,8 @@ trait Persistence:
 
   /** Release the store when the view goes away (§10).
     *
-    * The view calls this from its unmount, beside the owner it kills. Every
-    * store today releases nothing, and the method still exists: a store that
-    * holds a handle must have somewhere to give it back, and adding the call
-    * later means finding every unmount again.
+    * The view calls this from its unmount, beside the owner it kills. The
+    * store of a browser diagram stops its sync to the storage here.
     */
   def closePersistence(): Unit = persistence.close()
 

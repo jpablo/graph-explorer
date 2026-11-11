@@ -113,7 +113,7 @@ class Router:
     * file, and `gx open` of that file got ACTIVATION_REFUSED.
     */
   def tryNavigateTo(route: Route): Boolean =
-    if isCurrent(route) || leaveGuard.forall(_(route)) then
+    if mayLeave(route) then
       forceNavigateTo(route)
       true
     else false
@@ -129,7 +129,7 @@ class Router:
     * the URL in place.
     */
   def forceNavigateTo(route: Route): Unit =
-    if isCurrent(route) then replaceUrl(route) else pushRoute(route)
+    if isCurrent(route) then replaceUrl(route) else go(route, replace = false)
 
   /** Go to `route`, and replace the URL on the screen with no new history
     * entry. The guard is asked, as for [[tryNavigateTo]].
@@ -141,32 +141,34 @@ class Router:
     * `buildPath` has no query.
     */
   def redirectTo(route: Route): Unit =
-    if isCurrent(route) || leaveGuard.forall(_(route)) then
-      val path = buildPath(route)
-      Telemetry.markNavigationStart(path)
-      if hasWindow && js.typeOf(js.Dynamic.global.window.selectDynamic("history")) != "undefined" &&
-        js.typeOf(js.Dynamic.global.window.history.selectDynamic("replaceState")) == "function"
-      then dom.window.history.replaceState(null, "", path)
-      currentRouteV.set(route)
+    if mayLeave(route) then go(route, replace = true)
 
   private def isCurrent(route: Route): Boolean = currentRouteV.now() == route
 
+  /** The route on the screen is always accepted. Else the guard decides. */
+  private def mayLeave(route: Route): Boolean = isCurrent(route) || leaveGuard.forall(_(route))
+
   private def replaceUrl(route: Route): Unit =
     val path = buildPath(route)
-    if hasWindow && currentPathname() != path &&
-      js.typeOf(js.Dynamic.global.window.selectDynamic("history")) != "undefined" &&
-      js.typeOf(js.Dynamic.global.window.history.selectDynamic("replaceState")) == "function"
-    then dom.window.history.replaceState(null, "", path)
+    if currentPathname() != path then writeHistory(path, replace = true)
 
-  private def pushRoute(route: Route): Unit =
+  /** Show `route`. A new history entry holds its URL, or the URL replaces the
+    * entry on the screen.
+    */
+  private def go(route: Route, replace: Boolean): Unit =
     val path = buildPath(route)
     Telemetry.markNavigationStart(path)
     // 2. update the URL bar without reload
-    if hasWindow && js.typeOf(js.Dynamic.global.window.selectDynamic("history")) != "undefined" &&
-      js.typeOf(js.Dynamic.global.window.history.selectDynamic("pushState")) == "function"
-    then
-      dom.window.history.pushState(null, "", path)
+    writeHistory(path, replace)
     currentRouteV.set(route)
+
+  private def writeHistory(path: String, replace: Boolean): Unit =
+    val method = if replace then "replaceState" else "pushState"
+    if hasWindow && js.typeOf(js.Dynamic.global.window.selectDynamic("history")) != "undefined" &&
+      js.typeOf(js.Dynamic.global.window.history.selectDynamic(method)) == "function"
+    then
+      if replace then dom.window.history.replaceState(null, "", path)
+      else dom.window.history.pushState(null, "", path)
 
   private def parsePath(path: String): Route =
     // strip leading slash, split on '/'

@@ -8,7 +8,7 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId}
-import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, TestHelpers}
+import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
@@ -26,8 +26,6 @@ class PacedParseGapSpec extends FunSuite with TestHelpers:
 
   given Owner = unsafeWindowOwner
 
-  private type Paced = (String, DiagramFormat, ChangeOrigin)
-
   /** A pace that holds the paced parse until the test releases it.
     *
     * `EditorPacing.pace` is a debounce: a new event replaces the event that
@@ -35,15 +33,15 @@ class PacedParseGapSpec extends FunSuite with TestHelpers:
     * timer.
     */
   private final class HeldPace:
-    private var waiting: Option[Paced] = None
-    private val released               = EventBus[Paced]()
+    private var waiting: Option[Unit] = None
+    private val released              = EventBus[Unit]()
 
-    def apply(in: EventStream[Paced]): EventStream[Paced] =
+    def apply(in: EventStream[Unit]): EventStream[Unit] =
       in.foreach(event => waiting = Some(event))
       released.events
 
     /** The paced event that waits now, if one waits. */
-    def held: Option[Paced] = waiting
+    def held: Option[Unit] = waiting
 
     /** Send the paced event that waits, if one waits. */
     def release(): Unit =

@@ -443,9 +443,9 @@ case class ViewerState(
       fromCell: Option[List[Int]] = None,
       toCell:   Option[List[Int]] = None
   ) =
-    arrowEnd(from, "add").flatMap(from => arrowEnd(to, "add").map(from -> _)) match
-      case Left(message) => errorBus.emit(message)
-      case Right((from, to)) =>
+    arrowEndRefusal(from, "add").orElse(arrowEndRefusal(to, "add")) match
+      case Some(message) => errorBus.emit(message)
+      case None =>
         val applies = phases.graphEditApplies
         phases.fullGraphV.update: g =>
           val (g1, fromPort) = recordCells.resolvePortIn(g, from, fromCell)
@@ -458,19 +458,19 @@ case class ViewerState(
     val endpointNode = newEndpoint match
       case ArrowEndpointId.SourceId(id) => id
       case ArrowEndpointId.TargetId(id) => id
-    val checked =
+    val refusal =
       // An arrow to a box is in the visible graph only. It stands for one or
       // more arrows of the full graph, so a move of its end has no one meaning.
       if !fullGraphNow().arrows.contains(arrowId) then
-        Left(
+        Some(
           if visibleGraphNow().arrows.contains(arrowId) then
             "The viewer did not move the arrow, because it ends on a collapsed group. Expand the group, and then move the arrow."
           else "The viewer did not move the arrow, because the diagram does not have it."
         )
-      else arrowEnd(endpointNode, "move")
-    checked match
-      case Left(message) => errorBus.emit(message)
-      case Right(_) =>
+      else arrowEndRefusal(endpointNode, "move")
+    refusal match
+      case Some(message) => errorBus.emit(message)
+      case None =>
         val applies = phases.graphEditApplies
         phases.fullGraphV.update: g =>
           val (g1, port)       = recordCells.resolvePortIn(g, endpointNode, cell)
@@ -478,22 +478,23 @@ case class ViewerState(
           if applies then selection.set(ElementIds.from(newArrowId))
           g2
 
-  /** The node at one end of a new arrow or of a moved arrow end.
+  /** Why the node `id` cannot be one end of a new arrow or of a moved arrow
+    * end, or `None` when it can.
     *
     * The id comes from the canvas. A box is a collapsed group, and a DOT edge
     * cannot end on a cluster. The viewer does not select a member of the group
     * in place of the box, so it refuses the arrow and tells the person why.
     */
-  private def arrowEnd(id: NodeId, verb: String): Either[String, NodeId] =
+  private def arrowEndRefusal(id: NodeId, verb: String): Option[String] =
     editTargets(ElementIds.from(id)).ids.headOption match
-      case Some(node: NodeId) => Right(node)
+      case Some(_: NodeId) => None
       case Some(group: GroupId) =>
         val name = fullGraphNow().groups.get(group).map(_.label.toString).filter(_.nonEmpty).getOrElse(group.value)
-        Left(
+        Some(
           s"The viewer did not $verb the arrow, because an arrow cannot end on the collapsed group \"$name\". " +
             "Expand the group, and then connect a node in it."
         )
-      case _ => Left(s"The viewer did not $verb the arrow, because the diagram does not have the node \"${id.value}\".")
+      case _ => Some(s"The viewer did not $verb the arrow, because the diagram does not have the node \"${id.value}\".")
 
   // -------- Attribute management -----------
 

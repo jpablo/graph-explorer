@@ -55,12 +55,7 @@ object DesktopDocumentRegistry:
       /** `remote`, and only while it disagrees with an edit (§7.3). It is
         * always the newest version of the file that the shell reported.
         */
-      conflict:   Option[Conflict] = None,
-      /** The text of a save of this page that has no answer yet. The shell
-        * sends the event of a save BEFORE its reply, and this text tells the
-        * event of the save from a write of a different tool.
-        */
-      saving:     Option[String] = None
+      conflict:   Option[Conflict] = None
   ) derives CanEqual:
 
     /** The name to show for this file.
@@ -81,7 +76,17 @@ object DesktopDocumentRegistry:
       * after each save of it. A file always holds its own text, also a file
       * with mixed line endings.
       */
-    def holds(text: String): Boolean = LineEnding.sameOnDisk(sourceText, text)
+    def holds(text: String): Boolean = LineEnding.savedOver(sourceText, text) == onDisk
+
+    /** `LineEnding.sameOnDisk(sourceText, text)` computes this for each call.
+      * It does not change for one session value, and each keystroke of a file
+      * view calls [[holds]].
+      */
+    private lazy val onDisk = LineEnding.savedOver(sourceText, sourceText)
+
+    /** The base moves to this version of the file, and a conflict ends. */
+    def rebased(revision: String, text: String): Session =
+      copy(revision = revision, sourceText = text, conflict = None)
 
   /** A view of a session, as the registry sees it.
     *
@@ -103,8 +108,18 @@ object DesktopDocumentRegistry:
     */
   private var editors: Map[DocumentSessionId, List[Editor]] = Map.empty
 
+  /** The text of a save of this page that has no answer yet, for each session.
+    * The shell sends the event of a save BEFORE its reply, and this text tells
+    * the event of the save from a write of a different tool.
+    *
+    * Not in [[sessions]]: no view shows it, and a change of [[sessions]] goes
+    * through each view of the session.
+    */
+  private var saving: Map[DocumentSessionId, String] = Map.empty
+
   private[graphexplorer] def reset(): Unit =
     editors = Map.empty
+    saving = Map.empty
     sessions.set(Map.empty)
 
   def get(id: DocumentSessionId): Option[Session] = sessions.now().get(id)
@@ -152,9 +167,7 @@ object DesktopDocumentRegistry:
         val session = Session(DocumentSessionId.random, path, revision, sourceText)
         put(session)
         session
-      case Some(existing) =>
-        receive(existing.id, revision, sourceText)
-        get(existing.id).getOrElse(existing)
+      case Some(existing) => receive(existing, revision, sourceText)
 
   /** The §7.3 rule: a version of the file arrives, and this decides if the
     * base moves.
@@ -178,27 +191,21 @@ object DesktopDocumentRegistry:
     * Each version that is not the event of a save ends the wait for a save:
     * after it, the reply of that save must not move the base back.
     */
-  private def receive(id: DocumentSessionId, revision: String, text: String): Unit =
-    get(id).foreach: session =>
-      val views     = editors.getOrElse(id, Nil)
-      val sameBase  = session.holds(text)
-      val ownSave   = session.saving.contains(text)
-      val clean     = views.filter(view => session.holds(view.text()))
-      val hasAnEdit = views.exists(view => !session.holds(view.text()) && !LineEnding.sameOnDisk(text, view.text()))
-      if sameBase || ownSave || !hasAnEdit then
-        put(session.copy(revision = revision, sourceText = text, conflict = None, saving = None))
-        if !sameBase && !ownSave then clean.foreach(_.take(text))
-      else put(session.copy(conflict = Some(Conflict(revision, text)), saving = None))
-
-  /** Record `text` as the newest version of the file, while an edit holds the
-    * base (§7.3).
-    *
-    * The base does NOT move. The edit and the file are both kept, and the
-    * person chooses between them. [[receive]] makes this decision, and a test
-    * can set the state directly with this method.
-    */
-  def markConflict(id: DocumentSessionId, revision: String, text: String): Unit =
-    sessions.update(_.updatedWith(id)(_.map(_.copy(conflict = Some(Conflict(revision, text))))))
+  private def receive(session: Session, revision: String, text: String): Session =
+    val ownSave = saving.get(session.id).contains(text)
+    saving -= session.id
+    // The editors matter only for a version that is not the base and not our
+    // own save. An editor that holds the base is clean, and it takes the text.
+    val (clean, dirty) =
+      if ownSave || session.holds(text) then (Nil, Nil)
+      else editors.getOrElse(session.id, Nil).partition(view => session.holds(view.text()))
+    val next =
+      if dirty.exists(view => !LineEnding.sameOnDisk(text, view.text())) then
+        session.copy(conflict = Some(Conflict(revision, text)))
+      else session.rebased(revision, text)
+    put(next)
+    if next.conflict.isEmpty then clean.foreach(_.take(text))
+    next
 
   /** End a conflict by making the file's version the base.
     *
@@ -208,14 +215,17 @@ object DesktopDocumentRegistry:
     * takes the text, and that is the caller's decision, not the registry's.
     */
   def acceptRemote(id: DocumentSessionId): Option[Session] =
-    get(id).flatMap(_.conflict).map: remote =>
-      val resolved = get(id).get.copy(revision = remote.revision, sourceText = remote.text, conflict = None)
+    for
+      session <- get(id)
+      remote  <- session.conflict
+    yield
+      val resolved = session.rebased(remote.revision, remote.text)
       put(resolved)
       resolved
 
   /** A save of this page starts, with the text that it writes. */
   def beginSave(id: DocumentSessionId, text: String): Unit =
-    sessions.update(_.updatedWith(id)(_.map(_.copy(saving = Some(text)))))
+    saving = saving.updated(id, text)
 
   /** The shell answered a save of `text`. `revision` is the revision that the
     * save wrote, or `None` when the save did not write.
@@ -226,10 +236,9 @@ object DesktopDocumentRegistry:
     * reply changes nothing, so it cannot undo a newer version of the file.
     */
   def endSave(id: DocumentSessionId, text: String, revision: Option[String]): Unit =
-    get(id).filter(_.saving.contains(text)).foreach: session =>
-      put(revision match
-        case Some(written) => session.copy(revision = written, sourceText = text, conflict = None, saving = None)
-        case None          => session.copy(saving = None))
+    if saving.get(id).contains(text) then
+      saving -= id
+      for written <- revision; session <- get(id) do put(session.rebased(written, text))
 
   /** Give the editor of a view to its session (§7.3), and return the call
     * that takes it back.
@@ -242,11 +251,12 @@ object DesktopDocumentRegistry:
   def attach(id: DocumentSessionId, editor: Editor): () => Unit =
     editors = editors.updated(id, editors.getOrElse(id, Nil) :+ editor)
     () =>
-      val rest = editors.getOrElse(id, Nil).filterNot(_ eq editor)
-      editors = if rest.isEmpty then editors.removed(id) else editors.updated(id, rest)
-      if rest.isEmpty then
-        acceptRemote(id)
-        ()
+      editors.getOrElse(id, Nil).filterNot(_ eq editor) match
+        case Nil =>
+          editors = editors.removed(id)
+          acceptRemote(id)
+          ()
+        case rest => editors = editors.updated(id, rest)
 
   /** The file of a session has a new path, because the person renamed it.
     *
@@ -270,4 +280,5 @@ object DesktopDocumentRegistry:
     */
   def forget(id: DocumentSessionId): Unit =
     editors = editors.removed(id)
+    saving = saving.removed(id)
     sessions.update(_.removed(id))

@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.library
 
+import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot
@@ -41,7 +42,7 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
   test("a blank incoming name keeps the stored one, in the payload and the index entry"):
     clearLibrary()
     val id    = BrowserLibrary.createDiagram("Groups", "digraph G {}")
-    val state = BrowserLibrary.createDiagramPersistence(id, None)
+    val state = BrowserLibrary.createDiagramPersistence(id, None)(using unsafeWindowOwner)
 
     // The write a half-initialized viewer makes: name still pre-restore "", source live.
     state.set(state.now().copy(name = "").copy(source = "digraph G { a }"))
@@ -53,7 +54,7 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
   test("a whitespace-only name counts as blank"):
     clearLibrary()
     val id    = BrowserLibrary.createDiagram("Groups", "digraph G {}")
-    val state = BrowserLibrary.createDiagramPersistence(id, None)
+    val state = BrowserLibrary.createDiagramPersistence(id, None)(using unsafeWindowOwner)
 
     state.set(state.now().copy(name = "   "))
 
@@ -63,7 +64,7 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
   test("a real rename still reaches both the payload and the index entry"):
     clearLibrary()
     val id    = BrowserLibrary.createDiagram("Old name", "digraph G {}")
-    val state = BrowserLibrary.createDiagramPersistence(id, None)
+    val state = BrowserLibrary.createDiagramPersistence(id, None)(using unsafeWindowOwner)
 
     state.set(state.now().copy(name = "New name"))
 
@@ -74,7 +75,7 @@ class DiagramNameGuardSpec extends FunSuite with TestHelpers:
     clearLibrary()
     val id = BrowserLibrary.createEmptyDiagram("")
     dom.window.localStorage.setItem(payloadKey(id), """{"projectName":"","source":"digraph G {}"}""")
-    val state = BrowserLibrary.createDiagramPersistence(id, None)
+    val state = BrowserLibrary.createDiagramPersistence(id, None)(using unsafeWindowOwner)
 
     state.set(state.now().copy(name = "Groups"))
 

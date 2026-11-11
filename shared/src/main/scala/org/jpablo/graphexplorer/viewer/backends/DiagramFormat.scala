@@ -45,3 +45,24 @@ object DiagramFormat:
     // rules lived half here and half in the scanner.
     if mermaid.MermaidSourceScan.looksLikeMermaid(text) then Some(Mermaid)
     else Option.when(graphviz.DotSourceScan.diagramKind(text).isDefined)(DOT)
+
+  /** The language of a file name: `.mmd` and `.mermaid` are Mermaid, `.dot`
+    * and `.gv` are DOT. `None` for each other name. [[DiagramFormat.fileExtension]]
+    * gives the other direction.
+    */
+  def ofPath(path: String): Option[DiagramFormat] =
+    val name = path.toLowerCase
+    if name.endsWith(".mmd") || name.endsWith(".mermaid") then Some(Mermaid)
+    else if name.endsWith(".dot") || name.endsWith(".gv") then Some(DOT)
+    else None
+
+  /** The language of a file: the language that its text declares, or else the
+    * language of its name. `None` when neither tells.
+    *
+    * The text comes first, because a header line is evidence and an extension
+    * is a name. A Mermaid diagram with no header line, in a `.mmd` file, is
+    * Mermaid. The desktop viewer of a file and the card of the file in the
+    * library both use this rule.
+    */
+  def ofFile(path: String, text: String): Option[DiagramFormat] =
+    declared(text).orElse(ofPath(path))

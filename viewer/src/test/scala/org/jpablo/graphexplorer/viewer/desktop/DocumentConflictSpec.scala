@@ -118,7 +118,9 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
 
   test("accepting the file's version advances the base, so the next save can succeed") {
     val open = DesktopDocumentRegistry.record("/tmp/resolve.dot", "rev-1", "digraph G { a }")
-    DesktopDocumentRegistry.markConflict(open.id, "rev-2", "digraph G { theirs }")
+    // An editor with an edit makes the next version of the file a conflict.
+    DesktopDocumentRegistry.attach(open.id, DesktopDocumentRegistry.Editor(() => "digraph G { mine }", _ => ()))
+    DesktopDocumentRegistry.record("/tmp/resolve.dot", "rev-2", "digraph G { theirs }")
 
     val resolved = DesktopDocumentRegistry.acceptRemote(open.id)
 

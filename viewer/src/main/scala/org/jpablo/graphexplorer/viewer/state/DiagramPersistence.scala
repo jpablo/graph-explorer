@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.EventStream
+import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
 import org.jpablo.graphexplorer.library.Library
@@ -95,16 +96,18 @@ object DiagramPersistence:
 /** The store for a diagram of the browser library (the web app).
   *
   * `Library.createDiagramPersistence` gives a `Var`, and each change to it goes
-  * to storage. Thus `update` is a `set`, and this class opens and closes
-  * nothing.
+  * to storage. Thus `update` is a `set`. [[close]] stops the sync.
   *
   * `initialSource` is only for a diagram with no payload yet (a new diagram).
   * A stored payload has priority, also when a route gives a source.
   */
 final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) extends DiagramPersistence:
 
+  /** The owner of the sync of [[state]] to the storage. */
+  private val syncOwner = new ManualOwner
+
   private val state: Var[DiagramSnapshot] =
-    Library.createDiagramPersistence(id, initialSource)
+    Library.createDiagramPersistence(id, initialSource)(using syncOwner)
 
   lazy val initial: DiagramSnapshot = state.now()
 
@@ -130,11 +133,10 @@ final class LibraryPersistence(id: DiagramId, initialSource: Option[String]) ext
       else Library.refusedWrite(id)
     Future.successful(refusal.fold(SaveResult.Saved)(SaveResult.Failed(_)))
 
-  /** This releases nothing. The storage handle belongs to the library, and it
-    * lives longer than this view. A different view of the same diagram must
-    * find it open.
+  /** Stop the sync. Each view has its own store, and a different view of the
+    * same diagram reads the storage again.
     */
-  def close(): Unit = ()
+  def close(): Unit = syncOwner.killSubscriptions()
 
 /** A diagram with no durable home.
   *

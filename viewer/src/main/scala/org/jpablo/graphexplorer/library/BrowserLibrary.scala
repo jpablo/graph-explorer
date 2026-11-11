@@ -108,9 +108,13 @@ object BrowserLibrary extends DiagramLibrary:
   // between read, write, remove and scan sites.
   private def rawKey(key: String): String = s"[StoredString]$key"
 
+  // The one read of a key. `None` for a key that the storage does not have.
+  private def readKey(key: String): Option[String] =
+    Option(dom.window.localStorage.getItem(rawKey(key)))
+
   // One read of a key. `default` is for a key that the storage does not have.
   private def readLocalStorage(key: String, default: => String): String =
-    Option(dom.window.localStorage.getItem(rawKey(key))).getOrElse(default)
+    readKey(key).getOrElse(default)
 
   /** Physically write a key. It throws when the storage refuses the write (for
     * example, a QuotaExceededError).
@@ -143,10 +147,16 @@ object BrowserLibrary extends DiagramLibrary:
     * @param initialSource
     *   the source for a diagram that has no payload in `localStorage` yet (a
     *   new diagram). A stored payload always has priority over it.
+    * @param syncOwner
+    *   the owner of the sync. The store of a view kills it when the view goes.
+    *   On the window owner, each visit kept its `Var` and its subscription
+    *   until the tab closed.
     * @return
     *   a `Var` that holds the `DiagramSnapshot` and saves each change.
     */
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot] =
+  def createDiagramPersistence(id: DiagramId, initialSource: Option[String])(using
+      syncOwner: Owner
+  ): Var[DiagramSnapshot] =
     val initialState = DiagramSnapshot.minimal(initialSource)
     // Initialize storage ~> DiagramSnapshot
     val diagramSnapshot: Var[DiagramSnapshot] =
@@ -159,7 +169,7 @@ object BrowserLibrary extends DiagramLibrary:
               dom.console.error(s"Error reading state: $e, defaulting to initial state")
               Var(initialState)
     // synchronize DiagramSnapshot ~> storage
-    diagramSnapshot.signal.distinct.changes.foreach(storeDiagram(id, _))
+    diagramSnapshot.signal.distinct.changes.foreach(storeDiagram(id, _))(using syncOwner)
     diagramSnapshot
 
   /** Write one diagram: its payload, and the time and the name in its entry in
@@ -179,16 +189,14 @@ object BrowserLibrary extends DiagramLibrary:
     // Write the payload of the diagram.
     val payload = Try(writeLocalStorage(diagramKey(id), write(guarded)))
     // Write the time and the name into the entry in the library index.
-    val entry =
-      if payload.isFailure then payload
-      else
-        updateIndex: current =>
-          current.modify(_.diagrams.eachWhere(_.id == id))
-            .using: entry =>
-              entry.copy(
-                lastModified = System.currentTimeMillis(),
-                name = guardedDiagramName(guarded.name, entry.name)
-              )
+    val entry = payload.flatMap: _ =>
+      updateIndex: current =>
+        current.modify(_.diagrams.eachWhere(_.id == id))
+          .using: entry =>
+            entry.copy(
+              lastModified = System.currentTimeMillis(),
+              name = guardedDiagramName(guarded.name, entry.name)
+            )
     val refusal = entry.failed.toOption.map(refusalMessage(_, "the last change of this diagram"))
     refusal match
       case Some(message) =>
@@ -239,8 +247,7 @@ object BrowserLibrary extends DiagramLibrary:
 
   /** The payload of a diagram, as `localStorage` has it. */
   private def storedPayload(id: DiagramId): Option[String] =
-    try Option(dom.window.localStorage.getItem(rawKey(diagramKey(id))))
-    catch case _: Throwable => None
+    Try(readKey(diagramKey(id))).toOption.flatten
 
   /** The stored name for the guard of [[storeDiagram]]. It is parsed only when
     * needed: the sync runs for each keystroke, and only a blank incoming name
@@ -439,10 +446,10 @@ object BrowserLibrary extends DiagramLibrary:
     readLocalStorage(IndexKey, write(LibraryIndex()))
 
   private[library] def rawPayload(diagramId: String): Option[String] =
-    Option(dom.window.localStorage.getItem(rawKey(s"graph-explorer.project.$diagramId")))
+    readKey(diagramKey(DiagramId(diagramId)))
 
   private[library] def readFlag(key: String): Option[String] =
-    Option(dom.window.localStorage.getItem(rawKey(key)))
+    readKey(key)
 
   private[library] def writeFlag(key: String, value: String): Unit =
     writeLocalStorage(key, value)
