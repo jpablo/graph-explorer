@@ -2,11 +2,10 @@ package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.library.{Library, LibraryNavigation}
+import org.jpablo.graphexplorer.library.{DiagramSummary, Library, LibraryNavigation}
 import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
 import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.widgets.IconButton
 
@@ -15,8 +14,8 @@ import org.jpablo.graphexplorer.viewer.widgets.IconButton
   *
   * The key is the SET of diagram ids, not the value of the library index. Each keystroke
   * writes the index again (a new lastModified). Each name costs a payload read and a title
-  * scan. Only the title of the open diagram can change while a person types, and the list
-  * above reads that title directly from `state.displayTitle`.
+  * scan. Only the title of the open diagram can change while a person types, and the row
+  * of the open diagram (`libraryRow`) reads that title directly from `state.displayTitle`.
   */
 private def displayNames(state: ViewerState): Signal[Map[DiagramId, String]] =
   Library.index
@@ -36,6 +35,9 @@ private def openId(state: ViewerState): Signal[Option[DiagramId]] =
     case _ => Signal.fromValue(Some(state.diagramId))
 
 def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
+  // One signal of each for all the rows, so each name is read one time for each change.
+  val names = displayNames(state)
+  val open  = openId(state)
   div(
     cls := "border-r border-base-300",
     // Panel content
@@ -62,7 +64,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
               "Library"
             ),
             IconButton("bi-plus-circle", "Create Diagram")(
-              commands.routerCmds.createDiagram.execute(Some(Some(minimalGraphText)))
+              commands.routerCmds.createDiagram.execute()
             )
           )
         ),
@@ -72,29 +74,45 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           cls := "grow overflow-y-auto",
           ul(
             cls := "menu menu-sm w-full",
-            children <-- Library.index.combineWithFn(displayNames(state), state.displayTitle, openId(state)):
-              (index, names, openTitle, open) =>
-                index.diagrams.sortBy(-_.creationTime).map { diagram =>
-                  val isOpen = open.contains(diagram.id)
-                  // The title of the open diagram can change while a person types, so
-                  // the list reads it live. The other titles come from the snapshot of
-                  // the last library change.
-                  val shown =
-                    if isOpen then openTitle
-                    else names.getOrElse(diagram.id, diagram.name)
-                  li(
-                    a(
-                      cls := "flex items-center gap-2",
-                      // Not daisyUI's `menu-active`: that inverts the row to near-black, which
-                      // shouts where the rest of the chrome marks "current" with a quiet tint.
-                      cls("gx-row-active") := isOpen,
-                      div(cls := "truncate", shown),
-                      onClick --> LibraryNavigation.open(router, diagram.id, state.errorBus.emit)
-                    )
-                  )
-                }
+            // The split keys the rows by the diagram id. A row keeps its DOM node while its
+            // diagram stays in the list. Each keystroke writes the index again (a new
+            // lastModified), and before the split, each write made all the rows again.
+            children <-- Library.index
+              .map(_.diagrams.sortBy(-_.creationTime))
+              .split(_.id): (id, _, diagram) =>
+                libraryRow(state, router, id, diagram, names, open)
           )
         )
       )
+    )
+  )
+
+/** One row of the library list. The title and the mark of the row follow the signals,
+  * so a change does not make the row again.
+  *
+  * The title of the open diagram can change while a person types, so the open row reads
+  * it live from `state.displayTitle`. The other rows read the snapshot of `displayNames`.
+  */
+private def libraryRow(
+    state:   ViewerState,
+    router:  Router,
+    id:      DiagramId,
+    diagram: Signal[DiagramSummary],
+    names:   Signal[Map[DiagramId, String]],
+    open:    Signal[Option[DiagramId]]
+): HtmlElement =
+  val isOpen = open.map(_.contains(id)).distinct
+  val shown =
+    isOpen.flatMapSwitch: isOpen =>
+      if isOpen then state.displayTitle
+      else names.combineWithFn(diagram)((names, diagram) => names.getOrElse(id, diagram.name))
+  li(
+    a(
+      cls := "flex items-center gap-2",
+      // Not daisyUI's `menu-active`: that inverts the row to near-black, which
+      // shouts where the rest of the chrome marks "current" with a quiet tint.
+      cls("gx-row-active") <-- isOpen,
+      div(cls := "truncate", text <-- shown.distinct),
+      onClick --> LibraryNavigation.open(router, id, state.errorBus.emit)
     )
   )

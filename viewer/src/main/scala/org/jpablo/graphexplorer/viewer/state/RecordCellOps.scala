@@ -191,7 +191,7 @@ trait RecordCellOps:
 
     private def nodeGroupInDom(nodeId: NodeId): Option[dom.svg.G] =
       dom.document.documentElement
-        .querySelectorAllT[dom.Element](s"[id='${nodeId.toSvg}']")
+        .querySelectorAllT[dom.Element](SelectableElement.idSelector(nodeId))
         // an exit ghost keeps the id but wears the PREVIOUS layout's geometry
         .filterNot(_.closest(s".${SelectableElement.exitGhostClass}") != null)
         .collectFirst { case g: dom.svg.G => g }

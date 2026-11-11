@@ -4,12 +4,18 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.widgets.{InputBox, InputVariant}
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.{Selection, ViewerState}
-import org.jpablo.graphexplorer.viewer.utils.intersperse
+import org.jpablo.graphexplorer.viewer.utils.{Platform, intersperse}
 import org.scalajs.dom.KeyValue
 
 import scala.scalajs.js
 
-def CommandsPanel(state: ViewerState, commands: Commands) =
+/** The ⌘K palette.
+  *
+  * @param isMac true on an Apple platform. It selects the command key of the
+  *              palette shortcut (`Platform.commandKey`). A test can give
+  *              either platform.
+  */
+def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platform.isMac) =
   val searchTerm     = Var("")
   val searchHasFocus = Var(false)
   val focusSearch    = EventBus[Boolean]()
@@ -21,50 +27,53 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
   def shouldShowCommand(term: String, selection: Selection)(cmd: Command[?]) =
     cmd.shortLabel.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
 
-  def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command[?]]] =
-    commands.byHeader.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
+  /** The sections that have a visible command, in the order of `byHeader`.
+    *
+    * The rows and the keys read this one list. The index of a command is its
+    * position in the flat list of these sections: the highlight shows on the
+    * row at that index, and Enter runs the command at that index.
+    */
+  def visibleSections(term: String, selection: Selection): Seq[(String, List[Command[?]])] =
+    commands.byHeader.toSeq
+      .map((title, cmds) => title -> cmds.filter(shouldShowCommand(term, selection)))
+      .filter((_, cmds) => cmds.nonEmpty)
+
+  def commandRow(cmd: Command[?], cmdIndex: Int): LI =
+    val isActive = highlightedIndex.signal.map(_ == cmdIndex)
+    li(
+      a(
+        idAttr := s"cmd-${cmd.shortLabel.replace(" ", "-").toLowerCase}",
+        cls    := "flex justify-between",
+        title  := cmd.description.getOrElse(cmd.shortLabel),
+        cls("menu-active") <-- isActive,
+        inContext { thisNode =>
+          isActive --> { isActive =>
+            if isActive then
+              thisNode.ref.asInstanceOf[js.Dynamic].scrollIntoView(js.Dynamic.literal(block = "nearest"))
+          }
+        },
+        span(cmd.shortLabel),
+        div(
+          cmd.shortcut.map(_.toList.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + ")))
+        ),
+        onMouseDown.stopPropagation.preventDefault --> { _ =>
+          cmd.execute()
+          focusSearch.emit(true)
+        }
+      )
+    )
 
   val rows: Signal[Seq[LI]] =
     searchTerm.signal.combineWithFn(state.selection.signal): (term, selection) =>
-      val allVisibleCmds = getVisibleCommands(term, selection)
-      val flattenedCmds  = allVisibleCmds.values.flatten.toList
-      // Build the UI elements with sections
-      for
-        (cmdTitle, visibleCmds) <- allVisibleCmds.toSeq
-        // Only include section if it has visible commands
-        if visibleCmds.nonEmpty
-        // Create section title
-        titleElement = li(cls := "menu-title", h1(cmdTitle), hr())
-        // Create command rows
-        commandRows = visibleCmds.map { cmd =>
-          // Find the index of this command in the flat list
-          val cmdIndex = flattenedCmds.indexWhere(_.shortLabel == cmd.shortLabel)
-          val isActive = highlightedIndex.signal.map(_ == cmdIndex)
-          li(
-            a(
-              idAttr := s"cmd-${cmd.shortLabel.replace(" ", "-").toLowerCase}",
-              cls    := "flex justify-between",
-              title  := cmd.description.getOrElse(cmd.shortLabel),
-              cls("menu-active") <-- isActive,
-              inContext { thisNode =>
-                isActive --> { isActive =>
-                  if isActive then
-                    thisNode.ref.asInstanceOf[js.Dynamic].scrollIntoView(js.Dynamic.literal(block = "nearest"))
-                }
-              },
-              span(cmd.shortLabel),
-              div(
-                cmd.shortcut.map(_.toList.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + ")))
-              ),
-              onMouseDown.stopPropagation.preventDefault --> { _ =>
-                cmd.execute()
-                focusSearch.emit(true)
-              }
-            )
-          )
-        }
-        row <- titleElement +: commandRows
-      yield row
+      val sections = visibleSections(term, selection)
+      // The index of the first row of each section. A command in two sections
+      // has two rows, and each row has its own index. Before, a row found its
+      // index by its label, so each copy had the index of the first copy.
+      val firstIndexes = sections.scanLeft(0)((index, section) => index + section._2.size)
+      sections.zip(firstIndexes).flatMap:
+        case ((cmdTitle, visibleCmds), first) =>
+          li(cls := "menu-title", h1(cmdTitle), hr()) +:
+            visibleCmds.zipWithIndex.map((cmd, i) => commandRow(cmd, first + i))
 
   div(
     cls := "dropdown",
@@ -73,8 +82,14 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
     // reset the highlighted index when the search term or selection changes,
     searchTerm.signal --> (_ => highlightedIndex.set(-1)),
     state.selection.signal --> (_ => highlightedIndex.set(-1)),
-    // and focus the palette on Cmd+K while this panel is mounted.
-    documentEvents(_.onKeyDown).filter(e => e.key.toLowerCase == "k" && e.metaKey) --> { e =>
+    // and focus the palette on the command key of the platform + K while
+    // this panel is mounted: ⌘K on a Mac, Ctrl+K on Windows and Linux. On a
+    // Mac, Ctrl+K stays with the focused field, where it deletes to the end
+    // of the line. A key with Shift or Alt also stays: Shift+⌘K deletes the
+    // line in CodeMirror.
+    documentEvents(_.onKeyDown).filter(e =>
+      e.key.toLowerCase == "k" && !e.shiftKey && !e.altKey && Platform.commandKey(e.metaKey, e.ctrlKey, isMac)
+    ) --> { e =>
       e.preventDefault()
       focusSearch.emit(true)
     },
@@ -99,7 +114,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
           // Handle keyboard navigation directly in the input
           onKeyDown --> { e =>
             val term        = searchTerm.now()
-            val visibleCmds = getVisibleCommands(term, state.selection.now()).values.flatten.toSeq
+            val visibleCmds = visibleSections(term, state.selection.now()).flatMap(_._2)
             val cmdCount    = visibleCmds.size
 
             if cmdCount > 0 then
@@ -131,7 +146,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
           }
         )
       },
-      kbd(cls := "kbd kbd-xs opacity-60 mr-[-5px]", "⌘"),
+      kbd(cls := "kbd kbd-xs opacity-60 mr-[-5px]", if isMac then "⌘" else "Ctrl"),
       kbd(cls := "kbd kbd-xs opacity-60", "K")
     ),
 

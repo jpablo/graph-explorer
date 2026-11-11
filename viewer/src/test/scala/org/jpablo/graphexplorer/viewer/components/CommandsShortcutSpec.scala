@@ -62,6 +62,9 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
           ctrlKey = false,
           altKey = false,
           shiftKey = false,
+          // A real KeyboardEvent always has `repeat`. The ⌘S path reads it,
+          // and a read of a field that is not there fails in Scala.js.
+          repeat = false,
           preventDefault = (() => prevented = true): js.Function0[Unit],
           stopPropagation = (() => ()): js.Function0[Unit]
         )

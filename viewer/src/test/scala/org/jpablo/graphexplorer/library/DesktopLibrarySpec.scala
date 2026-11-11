@@ -275,7 +275,7 @@ class DesktopLibrarySpec extends FunSuite with TestHelpers with LoggedChecks:
         Library.install(library)
         val router = Router()
         val errors = scala.collection.mutable.Buffer.empty[String]
-        RouterCommands(router, errors += _).createDiagram.execute(Some(Some(DiagramSnapshot.minimalGraphText)), logEvent = false)
+        RouterCommands(router, errors += _).createDiagram.execute(logEvent = false)
         val route = router.currentRoute.observe(using unsafeWindowOwner)
         afterMicrotasks(()).flatMap(_ => afterMicrotasks(())).map: _ =>
           val path = s"${shell.folder}/Untitled.dot"

@@ -45,46 +45,65 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
           update.transactions.exists(tr => tr.isUserEvent("undo") || tr.isUserEvent("redo"))
         textUpdates.emit(EditorEdit(newText, fromHistory))
 
-  div(
-    mods,
-    onMountCallback: ctx =>
-      import ctx.owner
+  /** Make the EditorView in the element, and connect it to the state. The
+    * subscriptions use the owner of this mount, so the unmount stops them.
+    */
+  def mountEditor(ctx: MountContext[Div]): EditorView =
+    import ctx.owner
 
-      // Set up debounced stream that updates the state
-      textUpdates.events
-//        .debounce(100) // TODO: Make this configurable or dynamic.
-        .foreach { edit =>
-          if edit.fromHistory then state.restoreSource(edit.text)
-          else state.sourceText.set(edit.text)
-        }
+    // Set up debounced stream that updates the state
+    textUpdates.events
+//      .debounce(100) // TODO: Make this configurable or dynamic.
+      .foreach { edit =>
+        if edit.fromHistory then state.restoreSource(edit.text)
+        else state.sourceText.set(edit.text)
+      }
 
-      // Editor -> source
-      val editorView = new EditorView(new EditorViewConfig {
-        doc        = state.sourceText.now()
-        parent     = ctx.thisNode.ref
-        extensions = baseExtensions
+    // Editor -> source
+    val editorView = new EditorView(new EditorViewConfig {
+      doc        = state.sourceText.now()
+      parent     = ctx.thisNode.ref
+      extensions = baseExtensions
+    })
+
+    for wrap <- state.wrapSourceLines.signal.changes do
+      editorView.dispatch(new TransactionSpec {
+        effects = wrapping.reconfigure(wrapExtension(wrap))
       })
 
-      for wrap <- state.wrapSourceLines.signal.changes do
+    for _ <- state.undoEvent.events do
+      commands.undo(editorView)
+
+    for _ <- state.redoEvent.events do
+      commands.redo(editorView)
+
+    // Source -> editor
+    for newSource <- state.sourceText.signal.distinct do
+      val existingSource = editorView.state.doc.toString
+      if newSource != existingSource then
         editorView.dispatch(new TransactionSpec {
-          effects = wrapping.reconfigure(wrapExtension(wrap))
+          changes = new ChangeSpec {
+            from   = 0
+            to     = existingSource.length
+            insert = newSource
+          }
         })
 
-      for _ <- state.undoEvent.events do
-        commands.undo(editorView)
+    editorView
 
-      for _ <- state.redoEvent.events do
-        commands.redo(editorView)
-
-      // Source -> editor
-      for newSource <- state.sourceText.signal.distinct do
-        val existingSource = editorView.state.doc.toString
-        if newSource != existingSource then
-          editorView.dispatch(new TransactionSpec {
-            changes = new ChangeSpec {
-              from   = 0
-              to     = existingSource.length
-              insert = newSource
-            }
-          })
+  div(
+    mods,
+    // The unmount destroys the EditorView. Without `destroy`, the view keeps
+    // its listeners on the window, the document and the ancestors of the
+    // editor, and these keep the view and its whole document alive. Each
+    // view of a diagram mounts a new editor.
+    //
+    // Laminar makes the subscription of the unmount callback after the mount
+    // callback. The owner kills its subscriptions in the order of creation.
+    // Thus the subscriptions above stop first, and no edit, undo, redo or
+    // wrap change gets to a destroyed view. A later mount makes a new view.
+    onMountUnmountCallbackWithState[Div, EditorView](
+      mount = mountEditor,
+      unmount = (_, editorView) => editorView.foreach(_.destroy())
+    )
   )

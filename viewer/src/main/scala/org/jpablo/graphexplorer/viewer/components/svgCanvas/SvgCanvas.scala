@@ -132,6 +132,13 @@ def SvgCanvas(
   // rebuilt from the settled geometry.
   val layoutSettled = EventBus[Unit]()
 
+  // The listener lives as long as the svg element, so it is added here, one
+  // time, and not on mount. The same svg element can mount again: after the
+  // 3D view, CanvasContainer shows it again. A listener for each mount gave
+  // one more `layoutSettled` emission for each transition end. The listener
+  // also exists before onRendered starts a transition.
+  rawSvg.ref.addEventListener(LayoutTransition.transitionEndEvent, (_: dom.Event) => layoutSettled.emit(()))
+
   def refreshOverlayControls(elem: Option[SelectableElement], action: MouseAction): Unit =
     viewerOps.handleNewArrowControls(mainGroup, elem, action)
     viewerOps.handleArrowEndpointControl(mainGroup, elem, action, edgePositions)
@@ -166,9 +173,6 @@ def SvgCanvas(
         // mount runs modifiers in order, and onRendered's screen measurements
         // are garbage until the pan/zoom transform has been applied.
         onMountCallback { _ =>
-          // Registered BEFORE onRendered: the transition starts inside onRendered,
-          // so the listener must already exist when finish() eventually fires.
-          rawSvg.ref.addEventListener(LayoutTransition.transitionEndEvent, (_: dom.Event) => layoutSettled.emit(()))
           CountBadges.decorate(mainGroup, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
           // Delegated from the svg, so once is enough however often the layout
           // re-renders underneath it.

@@ -217,6 +217,15 @@ object SelectableElement:
         case _            => None
     else None
 
+  /** The CSS selector for the svg element of `id` (its `id` attribute is
+    * `id.toSvg`). An element id can hold any character, for example a quote
+    * or a backslash. Thus the selector escapes the id: without the escape, a
+    * quote made `querySelectorAll` throw a SyntaxError, and a backslash found
+    * a different id.
+    */
+  def idSelector(id: ElementId): String =
+    s"""[id="${CSSGlobal.escape(id.toSvg)}"]"""
+
   // NOTE: no default-strategy overloads/defaults here on purpose — a call site that
   // omits the strategy would compile fine and silently extract nothing from Mermaid
   // SVGs, undoing the strategy injection. The compiler forces callers to pass one.
@@ -369,33 +378,6 @@ case class ClusterElement(ref0: dom.svg.G, strat: SelectableElementStrategy)
 extension (e: dom.Element)
   def parentNodes: LazyList[dom.Element] =
     e +: LazyList.unfold(e)(e => Option(e.parentNode.asInstanceOf[dom.Element]).map(e => (e, e)))
-
-  def styleMap: Map[String, String] =
-    styleToMap(e.getAttribute("style"))
-
-  private def mapToStyle(m: Map[String, String]): String =
-    m.map(_ + ":" + _).mkString(";")
-
-  private def styleToMap(style: String | Null): Map[String, String] =
-    if style == null || style.isEmpty
-    then Map.empty
-    else
-      style
-        .split(";")
-        .filterNot(_.isEmpty)
-        .map: str =>
-          val arr = str.split(":")
-          arr.head -> arr.tail.headOption.getOrElse("")
-        .toMap
-
-  def replaceStyle(keyValues: (String, String)*): Unit =
-    e.setAttribute("style", mapToStyle(keyValues.toMap))
-
-  def updateStyle(keyValues: (String, String)*): Unit =
-    e.setAttribute("style", mapToStyle(e.styleMap ++ keyValues.toMap))
-
-  def removeStyle(styleName: String): Unit =
-    replaceStyle((e.styleMap - styleName).toList*)
 
 def getUnionBBox(bboxes: Seq[dom.SVGRect]): BBox =
   // Initialize with extreme values in opposite directions

@@ -55,7 +55,7 @@ object GraphvizSelectionStrategy extends SelectableElementStrategy:
   override def clusterSelector: String = "g.cluster"
 
   override def idSelectorFor(elems: ElementIds): Option[String] =
-    val selectors = elems.ids.map(id => s"[id='${id.toSvg}']")
+    val selectors = elems.ids.map(SelectableElement.idSelector)
     if selectors.nonEmpty then Some(selectors.mkString(",")) else None
 
   override def extractNodeId(e: dom.Element): NodeId =

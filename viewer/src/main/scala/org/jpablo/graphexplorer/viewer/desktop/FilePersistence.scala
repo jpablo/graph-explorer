@@ -7,7 +7,8 @@ import org.jpablo.graphexplorer.library.DesktopLibrary
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.{DiagramPersistence, DiagramSnapshot, DocumentSessionId, SaveResult}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.control.NonFatal
 
 /** The store of a diagram on the desktop: a file (§7, ADR 0001).
   *
@@ -110,9 +111,49 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
     * prints LF with no final newline. Before, a Save wrote that text as it
     * was, and one change to one attribute changed each line of a CRLF file.
     * Each save of the desktop app comes through this method.
+    *
+    * One save of a session is in flight at a time. A save sends the base
+    * revision of the session, and the base moves only after the shell writes
+    * the save. Thus a second save before that write sends the old base, and
+    * the shell refuses it with DOCUMENT_CONFLICT: the person saw "The file
+    * changed on disk" for a write of their own. Now a save that starts while
+    * a save is in flight waits for it, and then it writes with the new base.
+    * One save waits at most. A save that starts while one waits joins it, and
+    * the waiting save writes the snapshot of the last request.
     */
   def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
+    FilePersistence.inFlight.get(session) match
+      case None => start(next)
+      case Some(Some(waiting)) =>
+        waiting.snapshot = next
+        waiting.result.future
+      case Some(None) =>
+        val waiting = FilePersistence.Waiting(next)
+        FilePersistence.inFlight = FilePersistence.inFlight.updated(session, Some(waiting))
+        waiting.result.future
+
+  /** Send one save of `next`. When it ends, start the save that waits for it. */
+  private def start(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
+    FilePersistence.inFlight = FilePersistence.inFlight.updated(session, None)
+    // A throw here must also end the save. Else the session stays "in
+    // flight", and each later save waits forever.
+    val result =
+      try write(next)
+      catch case NonFatal(error) => Future.failed(error)
+    result.onComplete: _ =>
+      FilePersistence.inFlight.get(session).flatten match
+        case Some(waiting) => waiting.result.completeWith(start(waiting.snapshot))
+        case None          => FilePersistence.inFlight = FilePersistence.inFlight.removed(session)
+    result
+
+  /** The compare-and-swap write of `next`, with the base of the session now.
+    *
+    * It does not call [[update]]. A save that waited starts after the
+    * request, and the editor can hold newer text then. An `update` here
+    * would move `current` back to the older snapshot.
+    */
+  private def write(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     DesktopDocumentRegistry.get(session) match
       case None =>
         Future.successful(SaveResult.Failed("this document session is no longer open"))
@@ -172,3 +213,20 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
   def close(): Unit = ()
 
   private[desktop] def latest: DiagramSnapshot = current
+
+object FilePersistence:
+
+  /** A save that waits for the save in flight of its session. A request that
+    * comes while it waits gives its snapshot, so the save writes the last one.
+    */
+  private final class Waiting(var snapshot: DiagramSnapshot):
+    val result: Promise[SaveResult] = Promise()
+
+  /** The sessions that have a save in flight, each with the save that waits
+    * for it, if one waits.
+    *
+    * For each session, not for each view: the views of one file share one
+    * base revision (`DesktopDocumentRegistry`), and the registry follows one
+    * save of a session at a time (`beginSave`).
+    */
+  private var inFlight: Map[DocumentSessionId, Option[Waiting]] = Map.empty

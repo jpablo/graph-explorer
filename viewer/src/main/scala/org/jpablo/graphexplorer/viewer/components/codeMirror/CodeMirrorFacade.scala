@@ -76,6 +76,12 @@ class EditorView(config: EditorViewConfig) extends js.Object:
   def state: EditorState                      = js.native
   def dispatch(specs: TransactionSpec*): Unit = js.native
 
+  /** Remove the editor from the page, and remove its listeners from the
+    * window, the document and the ancestors of the editor. The view is not
+    * usable after this call.
+    */
+  def destroy(): Unit = js.native
+
 // Static members of the EditorView class.
 @js.native
 @JSImport("@codemirror/view", "EditorView")
