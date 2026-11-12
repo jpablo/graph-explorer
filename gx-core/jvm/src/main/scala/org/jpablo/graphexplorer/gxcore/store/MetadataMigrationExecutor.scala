@@ -1,10 +1,9 @@
 package org.jpablo.graphexplorer.gxcore.store
 
-import org.jpablo.graphexplorer.gxcore.fs.{Documents, FileOrigins, GxHome, LineEnding}
+import org.jpablo.graphexplorer.gxcore.fs.{Dirs, Documents, FileOrigins, GxHome, LineEnding}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
-import scala.jdk.CollectionConverters.*
 import scala.util.control.NonFatal
 
 enum MetadataMigrationResult derives CanEqual:
@@ -56,18 +55,23 @@ object MetadataMigrationExecutor:
     else
       val folder = FileOrigins.canonicalize(diagramsFolder.toAbsolutePath, diagramsFolder.toAbsolutePath)
 
+      // The plan runs outside the `try` of `execute`. Thus the two callbacks
+      // must not throw. A path that no local file can have is a missing file,
+      // and its record gets a new file.
       val plan = MetadataMigration.plan(
         old = OldRecords.fromFiles(oldRecordFiles(GxHome.libraryDir(gxHome).resolve("diagrams"))),
-        readFile = path => Documents.read(Paths.get(path)).toOption.map(_.text),
+        readFile = path => FileOrigins.toPath(path).flatMap(Documents.read(_).toOption).map(_.text),
         diagramsFolder = folder.toString,
         existingNames = namesIn(folder),
         now = now(),
         // The origin is canonical for the machine that made it. Canonicalize
         // it again here, so that the entry has the identity of the file on
         // this machine, and the separator of this platform.
-        localPath = _.filePath.map: p =>
-          val path = Paths.get(p)
-          if path.isAbsolute then FileOrigins.canonicalize(path, folder).toString else p
+        localPath = uri =>
+          for
+            p    <- uri.filePath
+            path <- FileOrigins.toPath(p)
+          yield if path.isAbsolute then FileOrigins.canonicalize(path, folder).toString else p
       )
 
       execute(plan, metadataDir, beforePublish)
@@ -78,19 +82,14 @@ object MetadataMigrationExecutor:
     * lists the same files (`library_legacy_list`).
     */
   private def oldRecordFiles(dir: Path): Vector[(String, Either[String, String])] =
-    if !Files.isDirectory(dir) then Vector.empty
-    else
-      val stream = Files.list(dir)
-      try
-        stream.iterator.asScala.toVector
-          .filter(p => p.getFileName.toString.endsWith(".json") && !p.getFileName.toString.startsWith("."))
-          .sortBy(_.getFileName.toString)
-          .map: p =>
-            val content =
-              try Right(Files.readString(p, StandardCharsets.UTF_8))
-              catch case NonFatal(e) => Left(e.toString)
-            p.getFileName.toString -> content
-      finally stream.close()
+    Dirs.entries(dir)
+      .map(_.getFileName.toString)
+      .filter(name => name.endsWith(".json") && !name.startsWith("."))
+      .map: name =>
+        val content =
+          try Right(Files.readString(dir.resolve(name), StandardCharsets.UTF_8))
+          catch case NonFatal(e) => Left(e.toString)
+        name -> content
 
   /** Perform a plan. The files first, then the entries in a temporary
     * directory, then the rename to `metadataDir`.
@@ -144,17 +143,10 @@ object MetadataMigrationExecutor:
     */
   private def namesIn(folder: Path): Set[String] =
     def files(dir: Path, prefix: String): Set[String] =
-      if !Files.isDirectory(dir) then Set.empty
-      else
-        val stream = Files.list(dir)
-        try stream.iterator.asScala.map(p => prefix + p.getFileName.toString).toSet
-        finally stream.close()
+      Dirs.entries(dir).map(p => prefix + p.getFileName.toString).toSet
     files(folder, "") ++ files(folder.resolve(MetadataMigration.RecoveredFolder), s"${MetadataMigration.RecoveredFolder}/")
 
   private def deleteTree(root: Path): Unit =
     try
-      if Files.exists(root) then
-        val stream = Files.walk(root)
-        try stream.iterator.asScala.toVector.reverse.foreach(p => Files.deleteIfExists(p))
-        finally stream.close()
+      if Files.exists(root) then Dirs.tree(root).reverse.foreach(p => Files.deleteIfExists(p))
     catch case NonFatal(_) => ()

@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.library.LoggedChecks
 
 /** Mermaid's sequence lexer matches ~30 keywords case-insensitively and
   * whole-word, so none can be a participant id. Its own error names neither the
@@ -18,7 +19,9 @@ import munit.FunSuite
   * costs nothing but noise — but a false NEGATIVE on a valid diagram would be a
   * real bug if it ever gated. The "says nothing" cases below pin that.
   */
-class ReservedWordDiagnosticSpec extends FunSuite:
+class ReservedWordDiagnosticSpec extends FunSuite with LoggedChecks:
+
+  def checkPrefix = "ReservedWordDiagnosticSpec"
 
   private def explain(src: String) = MermaidSourceScan.explainParseFailure(src)
 
@@ -46,6 +49,19 @@ class ReservedWordDiagnosticSpec extends FunSuite:
     val hint = explain(src).getOrElse(fail("expected a diagnosis"))
     assert(hint.contains("'Note'"), hint)
     assert(hint.contains("line 2"), hint)
+
+  test("a sequence diagram with frontmatter gets the same explanation"):
+    // Real Mermaid 11.12 rejects this text with the same error as the text with no
+    // frontmatter. The explanation gives the line in the editor, thus it counts the
+    // three lines of the frontmatter: the declaration of `Actor` is on line 7.
+    val withFrontmatter = "---\ntitle: Agents\n---\n" + reported
+    val withoutFrontmatter = explain(reported)
+    check(withoutFrontmatter.exists(_.contains("(line 4)")), s"setup: the explanation with no frontmatter changed: $withoutFrontmatter")
+    same(
+      explain(withFrontmatter),
+      withoutFrontmatter.map(_.replace("(line 4)", "(line 7)")),
+      "the explanation of a sequence diagram with frontmatter is not the explanation with no frontmatter"
+    )
 
   test("sees through the +/- activation marks"):
     val src = "sequenceDiagram\n  Caller->>+End: hi\n"

@@ -75,7 +75,7 @@ object MermaidTestScanner:
       start = 1
       while start < rawLines.length && rawLines(start).trim != "---" do
         val l = rawLines(start).trim
-        if l.startsWith("title:") then title = Some(l.stripPrefix("title:").trim)
+        if l.startsWith("title:") then title = Some(MermaidSourceScan.titleFromYaml(l.stripPrefix("title:")))
         start += 1
       start += 1
 

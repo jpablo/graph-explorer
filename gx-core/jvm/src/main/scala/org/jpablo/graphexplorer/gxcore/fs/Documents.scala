@@ -24,7 +24,17 @@ enum DocumentError derives CanEqual:
     */
   case Conflict(path: String, expected: ContentHash, actual: ContentHash)
   case AlreadyExists(path: String)
-  case Io(path: String, message: String)
+
+  /** `detail` is the text of the exception. */
+  case Io(path: String, detail: String)
+
+  /** The error as a text for a message to a person. */
+  def message: String = this match
+    case NotFound(p)       => s"no such file: $p"
+    case NotAFile(p)       => s"not a regular file: $p"
+    case AlreadyExists(p)  => s"already exists: $p"
+    case Io(p, detail)     => s"$p: $detail"
+    case Conflict(p, _, _) => s"conflict on $p"
 
 /** Reading and writing diagram files.
   *
@@ -67,24 +77,35 @@ object Documents:
         // The EXISTING file's convention, not the incoming text's: preserving it
         // is what keeps a save from changing the document's identity (V-04).
         // The same rule keeps the end of the file: a final newline, or none.
-        writeBytes(path, LineEnding.withEndOf(current.text, text), current.lineEnding)
+        val (doc, bytes) = encode(path, LineEnding.savedOver(current.text, text), current.lineEnding)
+        attempt(path)(AtomicFiles.write(path, bytes)).map(_ => doc)
 
   /** Create a file that does not exist yet. Separate from [[write]] because
     * "I expect nothing here" and "I expect exactly these bytes" are different
     * claims, and conflating them makes an overwrite look like a create.
+    *
+    * The create never replaces a file. This is also true when a different
+    * writer makes the same file at the same time: [[AtomicFiles.create]] does
+    * the check and the write in one atomic step. The create that loses gets
+    * `AlreadyExists`, and it changes nothing.
     */
   def create(path: Path, text: String, lineEnding: LineEnding = LineEnding.Lf)
       : Either[DocumentError, Document] =
+    // This check only makes the usual refusal fast. AtomicFiles.create does
+    // the check that closes the race.
     if Files.exists(path) then Left(DocumentError.AlreadyExists(path.toString))
-    else writeBytes(path, text, lineEnding)
+    else
+      val (doc, bytes) = encode(path, lineEnding.applyTo(text), lineEnding)
+      attempt(path)(AtomicFiles.create(path, bytes)).flatMap: created =>
+        Either.cond(created, doc, DocumentError.AlreadyExists(path.toString))
 
-  private def writeBytes(path: Path, text: String, lineEnding: LineEnding)
-      : Either[DocumentError, Document] =
-    attempt(path):
-      val encoded = lineEnding.applyTo(text)
-      val bytes   = encoded.getBytes(StandardCharsets.UTF_8) // V-16
-      AtomicFiles.write(path, bytes)
-      Document(path, encoded, Hashing.ofBytes(bytes), lineEnding)
+  /** The document of `text`, and its bytes. `text` must already use
+    * `lineEnding`. A second `applyTo` can change it: `Lf.applyTo` makes
+    * `"\r\r\n"` into `"\r\n"`, and again into `"\n"`.
+    */
+  private def encode(path: Path, text: String, lineEnding: LineEnding): (Document, Array[Byte]) =
+    val bytes = text.getBytes(StandardCharsets.UTF_8) // V-16
+    (Document(path, text, Hashing.ofBytes(bytes), lineEnding), bytes)
 
   private def attempt[A](path: Path)(body: => A): Either[DocumentError, A] =
     try Right(body)

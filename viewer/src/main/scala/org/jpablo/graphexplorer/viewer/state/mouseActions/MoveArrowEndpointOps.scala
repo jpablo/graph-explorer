@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElem
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{Inactive, MoveArrowEndpointAction}
 import org.jpablo.graphexplorer.viewer.domUtils.DomEvent
-import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.ArrowPosition
 
 /*
@@ -29,7 +29,7 @@ trait MoveArrowEndpointOps:
     val controls =
       elem.toArray.flatMap:
         case edge: EdgeElement if showControl =>
-          Arrow.fromArrowId(edge.elementId) match {
+          visibleArrowOf(edge) match {
             case Some(arrow) =>
               // Convert NodeIds to SelectableElements
               val nodeIds = Set(arrow.source, arrow.target)
@@ -67,6 +67,35 @@ trait MoveArrowEndpointOps:
     parent.querySelectorAll("g.edge-endpoint-disk").foreach(_.remove())
     controls.foreach(parent.appendChild)
 
+  /** The arrow of the edge element `edge`, from the visible graph. The canvas
+    * shows the visible graph, and an arrow to a collapsed box is only there.
+    *
+    * The text of the arrow id does not give the two end nodes: it also holds
+    * the ports (`a:f0->b/1`), and a node id can hold `->` or outer spaces.
+    */
+  private def visibleArrowOf(edge: SelectableElement): Option[Arrow] =
+    edge.arrowId.flatMap(visibleGraphNow().arrows.get)
+
+  /** True when the pointer at `point`, over the node `n`, is on the end
+    * `endpoint` of `arrow` now. A drop there does not change the arrow.
+    *
+    * The node must be the end node. When the end has a port and the pointer
+    * is over a cell, the cell must have that port too. Thus a drop on a
+    * different cell of the same record moves the port. An end with no port,
+    * or a port on a node with no cells (a compass point), compares only the
+    * node. The port is the port that the drawing uses (see
+    * `Arrow.drawnSourcePort`).
+    *
+    * This runs on each mouse move, thus it does one cell hit test, and it
+    * reads the port from the cell box that the hit test gives.
+    */
+  private def isCurrentEnd(arrow: Arrow, endpoint: ArrowEndpoint, n: NodeId, point: ClientPoint): Boolean =
+    val (node, port) =
+      if endpoint.isSource then (arrow.source, arrow.drawnSourcePort)
+      else (arrow.target, arrow.drawnTargetPort)
+    node == n && port.forall: p =>
+      recordCells.cellBoxAtClientPoint(n, point.x, point.y).forall(_.port.contains(p.takeWhile(_ != ':')))
+
   // 2. Draw a dynamic arrow that follows the pointer
   // see: [[org.jpablo.graphexplorer.viewer.components.svgCanvas.ArrowBetweenPointerAndEndpoint]]
 
@@ -80,7 +109,7 @@ trait MoveArrowEndpointOps:
       case Some(targetElementId) =>
         val ignore = (start, targetElementId) match
           case (e: EdgeElement, n: NodeId) =>
-            Arrow.fromArrowId(e.elementId).exists(a => if action.endpoint.isSource then a.source == n else a.target == n)
+            visibleArrowOf(e).exists(isCurrentEnd(_, action.endpoint, n, action.rect.end))
           case _ => false
         if !ignore then
           selection.set1(Set(start.elementId, targetElementId))

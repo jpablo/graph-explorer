@@ -217,6 +217,15 @@ object SelectableElement:
         case _            => None
     else None
 
+  /** The CSS selector for the element whose `id` attribute is `domId`. For a
+    * graph element, `domId` is `ElementId.toSvg`. An id can hold any
+    * character, for example a quote or a backslash. Thus the selector escapes
+    * the id: without the escape, a quote made `querySelectorAll` throw a
+    * SyntaxError, and a backslash found a different id.
+    */
+  def idSelector(domId: String): String =
+    s"""[id="${CSSGlobal.escape(domId)}"]"""
+
   // NOTE: no default-strategy overloads/defaults here on purpose — a call site that
   // omits the strategy would compile fine and silently extract nothing from Mermaid
   // SVGs, undoing the strategy injection. The compiler forces callers to pass one.
@@ -319,14 +328,14 @@ case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy)
               // Find the SVG root and the original marker
               val svgRoot = path.ownerSVGElement
               if svgRoot != null then {
-                val originalMarker = svgRoot.querySelector(s"#${CSSGlobal.escape(markerId)}")
+                val originalMarker = svgRoot.querySelector(SelectableElement.idSelector(markerId))
 
                 if originalMarker != null then {
                   // Use the marker's parent (could be <defs> or <g> in Mermaid)
                   val markerParent = originalMarker.parentNode
                   if markerParent != null then {
                     // Check if selected marker already exists in the SVG
-                    val existingSelected = svgRoot.querySelector(s"#${CSSGlobal.escape(selectedMarkerId)}")
+                    val existingSelected = svgRoot.querySelector(SelectableElement.idSelector(selectedMarkerId))
                     if existingSelected == null then {
                       // Clone marker and style for selection
                       val clonedMarker = originalMarker.cloneNode(true).asInstanceOf[dom.Element]
@@ -361,41 +370,6 @@ case class ClusterElement(ref0: dom.svg.G, strat: SelectableElementStrategy)
     extends SelectableElement(ref0, strat):
   val selectedClass = "selected"
   lazy val elementId: GroupId = strat.extractGroupId(ref)
-
-// ------------------------------
-// dom.Element extensions
-// ------------------------------
-
-extension (e: dom.Element)
-  def parentNodes: LazyList[dom.Element] =
-    e +: LazyList.unfold(e)(e => Option(e.parentNode.asInstanceOf[dom.Element]).map(e => (e, e)))
-
-  def styleMap: Map[String, String] =
-    styleToMap(e.getAttribute("style"))
-
-  private def mapToStyle(m: Map[String, String]): String =
-    m.map(_ + ":" + _).mkString(";")
-
-  private def styleToMap(style: String | Null): Map[String, String] =
-    if style == null || style.isEmpty
-    then Map.empty
-    else
-      style
-        .split(";")
-        .filterNot(_.isEmpty)
-        .map: str =>
-          val arr = str.split(":")
-          arr.head -> arr.tail.headOption.getOrElse("")
-        .toMap
-
-  def replaceStyle(keyValues: (String, String)*): Unit =
-    e.setAttribute("style", mapToStyle(keyValues.toMap))
-
-  def updateStyle(keyValues: (String, String)*): Unit =
-    e.setAttribute("style", mapToStyle(e.styleMap ++ keyValues.toMap))
-
-  def removeStyle(styleName: String): Unit =
-    replaceStyle((e.styleMap - styleName).toList*)
 
 def getUnionBBox(bboxes: Seq[dom.SVGRect]): BBox =
   // Initialize with extreme values in opposite directions

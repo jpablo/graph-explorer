@@ -21,6 +21,7 @@ final case class PolicyDenial(path: String, reason: String)
   * The denylist is the part that earns its keep, and it is on by default.
   */
 final case class AccessPolicy(allowedRoots: List[Path], deniedRoots: List[Path]):
+  import AccessPolicy.Root
 
   /** Evaluate against the FULLY RESOLVED path (V-07).
     *
@@ -30,27 +31,58 @@ final case class AccessPolicy(allowedRoots: List[Path], deniedRoots: List[Path])
     * this right only incidentally — `fs::canonicalize` happened to run first —
     * which the brief flagged as "safe direction, but incidental rather than
     * specified or tested". Specified and tested here.
+    *
+    * The roots go through the same canonicalization as the path. If not, a
+    * root with a symlink in it matches no canonical path. Then a denied
+    * `~/.ssh` that is a symlink stops nothing. On macOS, an allowed root under
+    * `/tmp` refuses each file, because `/tmp` is a symlink to `/private/tmp`.
     */
   def evaluate(path: Path, cwd: Path = Paths.get("").toAbsolutePath): Either[PolicyDenial, Path] =
     val resolved = FileOrigins.canonicalize(path, cwd)
 
     // Denial wins over permission: a denied root inside an allowed root is still
     // denied, which is the only ordering that makes the denylist meaningful.
-    deniedRoots.find(resolved.startsWith) match
+    deniedRoots.iterator.map(Root.of).find(_.contains(resolved)) match
       case Some(denied) =>
-        Left(PolicyDenial(resolved.toString, s"path is under a denied root: $denied"))
+        Left(PolicyDenial(resolved.toString, s"path is under a denied root: ${denied.show}"))
       case None =>
         if allowedRoots.isEmpty then Right(resolved) // allow-all, by decision (D6)
-        else if allowedRoots.exists(resolved.startsWith) then Right(resolved)
+        else if allowedRoots.iterator.map(Root.of).exists(_.contains(resolved)) then Right(resolved)
         else
           Left(
             PolicyDenial(
               resolved.toString,
-              s"path is outside every allowed root: ${allowedRoots.mkString(", ")}"
+              s"path is outside every allowed root: ${allowedRoots.map(Root.of(_).show).mkString(", ")}"
             )
           )
 
 object AccessPolicy:
+
+  /** A root as the person gave it, and its canonical form.
+    *
+    * `evaluate` makes the canonical form for each call. It does not make it
+    * one time, when we make the policy. A root that does not exist then can
+    * exist later, or it can become a symlink. `~/.kube` is an example. The
+    * cost is one `toRealPath` for each root in each call. A command evaluates
+    * few paths, so this cost is small.
+    */
+  private final case class Root(asGiven: Path, canonical: Path):
+    def contains(resolved: Path): Boolean = resolved.startsWith(canonical)
+
+    /** The root as the person gave it. If the canonical form is different, the
+      * text shows it too, so the person sees why a path matches or does not.
+      */
+    def show: String =
+      if canonical.equals(asGiven) then asGiven.toString
+      else s"$asGiven (real path: $canonical)"
+
+  private object Root:
+
+    /** A relative root resolves against the working directory of the process,
+      * as in `fromEnv`. The `cwd` of a call does not change the root.
+      */
+    def of(root: Path): Root =
+      Root(root, FileOrigins.canonicalize(root, Paths.get("").toAbsolutePath))
 
   /** Sensitive locations refused unless the user overrides them.
     *

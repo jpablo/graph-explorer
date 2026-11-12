@@ -79,7 +79,7 @@ object SourceCommands:
       Left(
         CommandError.NotApplicable(
           command.name,
-          s"no such element: ${missing.toVector.map(ElementRef.render).sorted.mkString(", ")}"
+          s"no such element: ${ElementRef.renderAll(missing).mkString(", ")}"
         )
       )
 
@@ -121,7 +121,7 @@ object SourceCommands:
           Left(
             CommandError.NotApplicable(
               command.name,
-              s"these nodes cannot be combined into a record: ${render(nodes)}"
+              s"these nodes cannot be combined into a record: ${ElementRef.renderAll(nodes).mkString(", ")}"
             )
           )
 
@@ -192,6 +192,3 @@ object SourceCommands:
     */
   private def labelOf(graph: ViewerGraph, id: NodeId): Option[String] =
     graph.nodes.get(id).map(_.label.toString).filter(_.nonEmpty)
-
-  private def render(ids: Set[NodeId]): String =
-    ids.toVector.map(ElementRef.render).sorted.mkString(", ")

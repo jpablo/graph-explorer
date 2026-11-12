@@ -45,6 +45,19 @@ class DiagramKindScanSpec extends FunSuite:
     assertEquals(MermaidSourceScan.diagramKind("graph LRX\n  A --> B"), None)
     assertEquals(MermaidSourceScan.diagramKind("graph LR; A{Decision} --> B"), Some("flowchart"))
 
+  test("mermaid: `graph` with no direction, or with a direction other than LR RL TB BT TD, is a flowchart"):
+    // Real Mermaid 11.12 reads each text as a flowchart (see BareGraphHeaderSpec in
+    // the viewer tests). The kind badge of the library card reads this scanner.
+    val texts = Vector(
+      "graph\n  A --> B",
+      "---\ntitle: Plan\n---\ngraph\n  A --> B",
+      "graph >\n  A --> B",
+      "graph v\n  A --> B",
+      "graph BR\n  A --> B",
+      "graph\tTD\n  A --> B"
+    )
+    assertEquals(texts.map(t => t -> MermaidSourceScan.diagramKind(t)), texts.map(t => t -> Some("flowchart")))
+
   test("mermaid: frontmatter with no diagram after it is no kind"):
     assertEquals(MermaidSourceScan.diagramKind("---\ntitle: notes\n---\njust prose"), None)
 

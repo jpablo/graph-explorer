@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
-import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.state.{LeaveIntent, ViewerState}
 import org.scalajs.dom
 
@@ -42,13 +41,22 @@ object DesktopClose:
     *
     * The listener is process-global, like the other desktop listeners, while
     * the target moves with navigation.
+    *
+    * The subscription lives on the owner of the VIEW (`state.owner`). Thus it
+    * stops when the view unmounts, and it does not keep the view in memory.
+    * Before, it lived on the window owner. A view that went away then still
+    * reported for its file, and an outside change of that file put the flag
+    * to false while the view on the screen held an edit.
     */
-  def install(state: ViewerState)(using Owner, ExecutionContext): Unit =
+  def install(state: ViewerState)(using ExecutionContext): Unit =
     target = Some(state)
 
     // Report as it changes. A flag the shell already holds is what lets a
-    // close decide synchronously.
-    state.documentDirty.foreach(report)
+    // close decide synchronously. The first value is the value of this view
+    // now. Only the view on the screen reports: Laminar mounts the new view
+    // before it unmounts the old view, and the old view must not change the
+    // flag in that time.
+    state.documentDirty.foreach(dirty => if target.exists(_ eq state) then report(dirty))(using state.owner)
 
     if listener.isEmpty then
       val handler: js.Function1[dom.Event, Unit] = _ =>
@@ -69,7 +77,8 @@ object DesktopClose:
     *
     * Without the report, a dirty view that the person navigated away from
     * would leave the shell refusing every close for an edit that no longer
-    * exists.
+    * exists. A view that is not the target sends nothing: the new view has
+    * reported already.
     */
   def detach(state: ViewerState)(using ExecutionContext): Unit =
     if target.exists(_ eq state) then

@@ -59,12 +59,7 @@ class Router:
   currentRoute.foreach: route =>
     val path = buildPath(route)
     Telemetry.log("router.routeChanged", "path" -> path, "route" -> route.toString)
-    // call the gtag function if available (avoid ReferenceError in tests / SSR)
-    try
-      val gtag = js.Dynamic.global.selectDynamic("gtag")
-      if js.typeOf(gtag) == "function" then
-        gtag("event", "page_view", js.Dictionary("page_path" -> path))
-    catch case _: Throwable => () // ignore in test/SSR environments
+    Telemetry.gaEvent("page_view", js.Dictionary("page_path" -> path))
 
   /** A view can refuse to be left (§7.4).
     *
@@ -105,9 +100,15 @@ class Router:
     tryNavigateTo(route)
     ()
 
-  /** Navigate and report whether the mounted view accepted the request. */
+  /** Navigate and report whether the mounted view accepted the request.
+    *
+    * A navigation to the route on the screen does nothing, and it is
+    * accepted. The guard is not asked: the view stays, so nothing is lost.
+    * Before, a dirty file asked "Save this file?" for a click on that same
+    * file, and `gx open` of that file got ACTIVATION_REFUSED.
+    */
   def tryNavigateTo(route: Route): Boolean =
-    if leaveGuard.forall(_(route)) then
+    if mayLeave(route) then
       forceNavigateTo(route)
       true
     else false
@@ -116,16 +117,53 @@ class Router:
     *
     * The guard's own dialog calls this after the person chooses, and it must
     * not be asked the same question twice.
+    *
+    * The route on the screen gets no second history entry. The route signal
+    * is `distinct`, so the view does not change either. Only its URL can
+    * change: `/` and `/app` are both Home, and the canonical path replaces
+    * the URL in place.
     */
   def forceNavigateTo(route: Route): Unit =
+    if isCurrent(route) then replaceUrl(route) else go(route, replace = false)
+
+  /** Go to `route`, and replace the URL on the screen with no new history
+    * entry. The guard is asked, as for [[tryNavigateTo]].
+    *
+    * This is for a redirect: the start URL must not stay in the history. A
+    * share URL (`/diagrams/<id>?dot=...`) goes to its diagram in this way.
+    * With a new entry, Back went to the share URL again, and the old text of
+    * the link came back over the stored diagram. The query goes too, because
+    * `buildPath` has no query.
+    */
+  def redirectTo(route: Route): Unit =
+    if mayLeave(route) then go(route, replace = true)
+
+  private def isCurrent(route: Route): Boolean = currentRouteV.now() == route
+
+  /** The route on the screen is always accepted. Else the guard decides. */
+  private def mayLeave(route: Route): Boolean = isCurrent(route) || leaveGuard.forall(_(route))
+
+  private def replaceUrl(route: Route): Unit =
+    val path = buildPath(route)
+    if currentPathname() != path then writeHistory(path, replace = true)
+
+  /** Show `route`. A new history entry holds its URL, or the URL replaces the
+    * entry on the screen.
+    */
+  private def go(route: Route, replace: Boolean): Unit =
     val path = buildPath(route)
     Telemetry.markNavigationStart(path)
     // 2. update the URL bar without reload
-    if hasWindow && js.typeOf(js.Dynamic.global.window.selectDynamic("history")) != "undefined" &&
-      js.typeOf(js.Dynamic.global.window.history.selectDynamic("pushState")) == "function"
-    then
-      dom.window.history.pushState(null, "", path)
+    writeHistory(path, replace)
     currentRouteV.set(route)
+
+  private def writeHistory(path: String, replace: Boolean): Unit =
+    val method = if replace then "replaceState" else "pushState"
+    if hasWindow && js.typeOf(js.Dynamic.global.window.selectDynamic("history")) != "undefined" &&
+      js.typeOf(js.Dynamic.global.window.history.selectDynamic(method)) == "function"
+    then
+      if replace then dom.window.history.replaceState(null, "", path)
+      else dom.window.history.pushState(null, "", path)
 
   private def parsePath(path: String): Route =
     // strip leading slash, split on '/'

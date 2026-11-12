@@ -94,13 +94,20 @@ object DesktopMetadataMigration:
 private[library] object MigrationSteps:
 
   /** The text of each path that the shell can read, by the path that was
-    * asked for. A path that the shell cannot read is not in the result: the
-    * plan reads it as a missing file.
+    * asked for AND by the canonical path that the shell gave. A path that the
+    * shell cannot read is not in the result: the plan reads it as a missing
+    * file.
+    *
+    * The plan asks for a file by its canonical path (`localPath` in
+    * [[DesktopMetadataMigration]]). That path can have a different spelling
+    * from the path of the record: `/tmp` and `/private/tmp` on macOS, `/` and
+    * `\` on Windows, a folder through a symbolic link. With only the path of
+    * the record here, the plan took the file for missing, and it made a copy.
     */
   def readEach(paths: Vector[String]): Future[Map[String, DesktopIpc.FileSnapshot]] =
     Future
       .traverse(paths.distinct): path =>
-        DesktopIpc.readFile(path).map(s => Some(path -> s)).recover { case NonFatal(_) => None }
+        DesktopIpc.readFile(path).map(s => Vector(path -> s, s.path -> s)).recover { case NonFatal(_) => Vector.empty }
       .map(_.flatten.toMap)
 
   /** The files of the folder that the plan can use again: each name that

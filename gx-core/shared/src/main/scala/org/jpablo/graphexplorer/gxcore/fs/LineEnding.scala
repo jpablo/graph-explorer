@@ -51,10 +51,9 @@ object LineEnding:
     * file saw a change that nobody made.
     */
   def withEndOf(file: String, text: String): String =
-    val bare = text.reverse.dropWhile(c => c == '\n' || c == '\r').reverse
-    if !file.endsWith("\n") then bare
-    else if text.endsWith("\n") then text
-    else text + "\n"
+    if file.endsWith("\n") then
+      if text.endsWith("\n") then text else text + "\n"
+    else text.substring(0, text.lastIndexWhere(c => c != '\n' && c != '\r') + 1)
 
   /** The text that a save of `text` writes over `file` (V-04): the line
     * endings of `file`, and the end of `file`.
@@ -67,12 +66,30 @@ object LineEnding:
   def savedOver(file: String, text: String): String =
     detect(file).applyTo(withEndOf(file, text))
 
-  /** True when a save of `text` over `file` writes `file` again: the two texts
-    * differ at most in the line endings and in the final newline. The desktop
-    * uses it to decide if an editor holds an edit that the file does not have.
+  /** True when a save of `text` over `file` writes the same text as a save of
+    * `file` over `file`. Thus the two texts differ at most in the line endings
+    * and in the end of the file.
+    *
+    * A save (`savedOver`) gives each line the dominant line ending of `file`,
+    * and it gives the text the end of `file`. This function compares the
+    * results of the two saves, so it ignores what a save ignores, and nothing
+    * more. It is the same as a comparison of the two texts with each CRLF as
+    * LF and with the end of `file` (`withEndOf`).
+    *
+    * A lone CR is not a line ending, because a save keeps it. Thus a change
+    * of a lone CR is an edit. The exception is a CR at the end of a text,
+    * because `withEndOf` removes it or adds an LF to it.
+    *
+    * The desktop uses this function to decide if an editor holds an edit that
+    * the file does not have (`Session.holds`, `Persistence`). When a file
+    * opens, the editor has the text of the file, so `sameOnDisk(file, file)`
+    * is true for each file. Before, this function compared
+    * `savedOver(file, text)` with `file`. A file with mixed line endings was
+    * then dirty when it opened, and a change from a different writer became
+    * a conflict.
     */
   def sameOnDisk(file: String, text: String): Boolean =
-    savedOver(file, text) == file
+    savedOver(file, text) == savedOver(file, file)
 
   extension (e: LineEnding)
     /** Rewrite text to use this convention, whatever it currently uses. */

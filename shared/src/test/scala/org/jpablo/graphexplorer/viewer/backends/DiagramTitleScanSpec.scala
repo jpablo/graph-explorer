@@ -1,8 +1,12 @@
 package org.jpablo.graphexplorer.viewer.backends
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.graphviz.Graphviz as ScalaGraphviz
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotSourceScan
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, toViewerGraph as dotJsonToViewerGraph}
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidSourceScan
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
+import upickle.default.read
 
 /** The source-text title scanners behind the "show the diagram's own title instead of
   * Untitled" feature. They run per keystroke and per library card, so they are regex/
@@ -37,6 +41,21 @@ class DiagramTitleScanSpec extends FunSuite:
     val text = """flowchart LR
                  |  title --> b""".stripMargin
     assertEquals(MermaidSourceScan.diagramTitle(text), None)
+
+  // The two tests below show two more effects of the header bugs. `diagramTitle`
+  // finds the header with its own scan. That scan does not skip the frontmatter.
+  // It also knows `graph` only when a space follows it.
+  test("mermaid: a node named `title` is NOT a title when the frontmatter has no `title:`"):
+    val text = """---
+                 |config:
+                 |  theme: dark
+                 |---
+                 |flowchart LR
+                 |  title --> b""".stripMargin
+    assertEquals(MermaidSourceScan.diagramTitle(text), None)
+
+  test("mermaid: a node named `title` is NOT a title in a flowchart with a bare `graph` header"):
+    assertEquals(MermaidSourceScan.diagramTitle("graph\n  title --> b"), None)
 
   test("mermaid: no title anywhere"):
     assertEquals(MermaidSourceScan.diagramTitle("sequenceDiagram\n  A->>B: hi"), None)
@@ -109,3 +128,65 @@ class DiagramTitleScanSpec extends FunSuite:
                  |  label = "After The Brackets";
                  |}""".stripMargin
     assertEquals(DotSourceScan.graphTitle(text), Some("After The Brackets"))
+
+  // ---------------- DOT: an escaped quote ----------------
+
+  /** The graph label that the DOT reader of the app gives. The canvas and the
+    * attribute panel show this label. The reader changes `\"` in a quoted string
+    * into `"`, as Graphviz does.
+    */
+  private def readerGraphLabel(dot: String): Option[String] =
+    ScalaGraphviz.structureJson(dot) match
+      case Right(json) =>
+        dotJsonToViewerGraph(read[SimpleGraph](json)).elements.graphAttributes.get(Label.attrId).map(_.toString)
+      case Left(err) => fail(s"setup: the DOT reader rejects the fixture: $err\n$dot")
+
+  private def dotTitle(text: String): Option[String] = SourceTitle.of(DiagramFormat.DOT, text)
+
+  test("dot: an escaped quote in the graph label stays a quote in the title"):
+    val forms = Vector(
+      "label statement" ->
+        """digraph G {
+          |  label = "The \"core\" plan";
+          |  a -> b;
+          |}""".stripMargin,
+      "graph attribute statement" ->
+        """digraph G {
+          |  graph [label="The \"core\" plan"];
+          |  a -> b;
+          |}""".stripMargin,
+      "multi-line graph attribute list" ->
+        """digraph G {
+          |  graph [
+          |      rankdir="LR",
+          |      label="The \"core\" plan"
+          |  ];
+          |  a -> b;
+          |}""".stripMargin
+    )
+    forms.foreach((name, text) => assertEquals(readerGraphLabel(text), Some("The \"core\" plan"), s"setup: $name"))
+    assertEquals(
+      forms.map((name, text) => name -> dotTitle(text)),
+      forms.map((name, _) => name -> Some("The \"core\" plan"))
+    )
+
+  test("dot: an escaped quote and a bracket in a node label do not hide the graph title"):
+    // The same cause as the test above: the scan does not know `\"`. Thus it sees
+    // `[` outside a quoted span, and it thinks that the attribute list stays open.
+    val text = """digraph G {
+                 |  a [label="say \"[\" here"];
+                 |  label = "Title";
+                 |}""".stripMargin
+    assertEquals(readerGraphLabel(text), Some("Title"), "setup")
+    assertEquals(dotTitle(text), Some("Title"))
+
+  test("dot: a backslash before the closing quote does not escape it"):
+    // A guard for the fix of `\"`. It passes before the fix. In `"C:\\"`, the
+    // backslash escapes the backslash, and the quote closes the string.
+    val text = """digraph G {
+                 |  graph [label="C:\\", rankdir="LR"];
+                 |  a -> b;
+                 |}""".stripMargin
+    val title = dotTitle(text)
+    assert(title.exists(t => t.startsWith("C:") && !t.contains("rankdir")), s"title: $title")
+    assertEquals(title, readerGraphLabel(text), "the title is not the label that the DOT reader gives")

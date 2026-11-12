@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.library
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.gxcore.model.LibraryEntry
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
@@ -89,6 +90,25 @@ class DesktopMetadataMigrationSpec extends FunSuite with TestHelpers with Logged
         same(shell.callsOf("create_document").size, 0, "a file was created for a record whose file exists")
         same(shell.entryOf("/w/arch.dot").map(_.metadata.hiddenElements), Some(Set("node:a")))
         same(shell.files.get("/w/arch.dot"), Some("digraph { a }"), "the file of the person changed")
+
+  // Finding 12. `bound` holds each file by the RAW path of its record, but the
+  // plan asks `readFile` for the CANONICAL path that the shell gave. When the
+  // two spellings differ (macOS `/tmp` and `/private/tmp`, Windows `/` and
+  // `\`, a folder through a symlink), the read misses. The plan takes the file
+  // for missing: it makes a copy in the folder for new diagrams, and the copy
+  // gets the entry. The real file gets none.
+  test("a record bound to a file with a different canonical spelling gives its metadata to that file"):
+    withOldLibrary("a.json" -> record("arch", "digraph { a }", file = Some("/tmp/w/arch.dot"), hidden = Set("node:a"))): shell =>
+      shell.canonical = p => if p.startsWith("/tmp/") then "/private" + p else p
+      shell.files("/private/tmp/w/arch.dot") = "digraph { a }"
+      DesktopMetadataMigration.run(() => now).map: outcome =>
+        done(outcome)
+        same(shell.callsOf("create_document").size, 0, s"the migration made a copy of a file that exists: ${shell.files.keys.toList.sorted}")
+        same(
+          shell.entryOf("/private/tmp/w/arch.dot").map(_.metadata.hiddenElements),
+          Some(Set("node:a")),
+          s"the file of the record has no entry: ${shell.entries.values.map(upickle.default.read[LibraryEntry](_).path).toList}"
+        )
 
   test("a record whose text differs from its file: its text goes to Recovered/, and both are in the library"):
     withOldLibrary("a.json" -> record("arch", "digraph { record }", file = Some("/w/arch.dot"))): shell =>

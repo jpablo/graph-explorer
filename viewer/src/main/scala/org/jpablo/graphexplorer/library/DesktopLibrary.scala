@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.gxcore.store.{MetadataMigration, SafeFileName}
 import org.jpablo.graphexplorer.router.Route
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, SourceTitle}
 import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopIpc}
-import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc.{DiagramsFolder, FileSnapshot, IpcFailure}
+import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc.{DiagramsFolder, EntryBase, FileSnapshot, IpcFailure}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, DocumentSessionId}
 import org.scalajs.dom
@@ -14,7 +14,7 @@ import org.scalajs.dom
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.scalajs.js
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 /** What the home page knows about the file of an entry. */
@@ -58,6 +58,13 @@ final class DesktopLibrary private () extends LibraryListing:
 
   /** The entries, by key. */
   private val entries: Var[Map[String, LibraryEntry]] = Var(Map.empty)
+
+  /** The exact text of each entry in [[entries]], as the page last read it or
+    * wrote it. A write of metadata gives this text to the shell as its base,
+    * so that the shell can refuse the write when `gx` changed the entry after
+    * the page read it (`library_write`, `LIBRARY_CONFLICT`).
+    */
+  private var texts: Map[String, String] = Map.empty
 
   /** The key of each path that the library has hashed. A key never changes,
     * so the cache never goes stale.
@@ -141,7 +148,8 @@ final class DesktopLibrary private () extends LibraryListing:
       val fileName = LibraryEntry.nameOf(e.path)
       files.now().get(e.path).map:
         case FileState.Loaded(text, _) =>
-          val format  = DiagramFormat.detect(text)
+          // The same rule as the viewer of the file.
+          val format  = DiagramFormat.ofFile(e.path, text).getOrElse(DiagramFormat.DOT)
           val backend = languages.forFormat(format)
           DiagramCardInfo(format, backend.extractTitle(text).getOrElse(fileName), backend.diagramKind(text))
         case FileState.Missing =>
@@ -174,29 +182,40 @@ final class DesktopLibrary private () extends LibraryListing:
     *
     * The viewer owns the hidden elements, the collapsed groups and the
     * language mode. The entry owns the rest: the tags and the notes, which the
-    * viewer has no UI for. The write merges the two onto the entry as it is
-    * NOW. Thus a `gx tag` that arrives while the file is on the screen stays
-    * after the next hide in the viewer.
+    * viewer has no UI for, and `createdAt`. The write merges the fields of the
+    * viewer onto the entry.
     *
-    * Only a change writes. When the viewer gives what the entry already holds
-    * (an edit of the source, a visit, the adoption of an outside change), the
-    * write does not occur. A visit is not an edit, and a write would move
-    * `updatedAt`. A file with no entry gets one on its first change, and that
-    * puts it in the library, as `gx hide` does.
+    * The mirror can be older than the disk: the shell polls the store, and
+    * the refresh needs one more round trip. Thus the write is a
+    * compare-and-swap on the text of the entry that the merge used. When `gx`
+    * changed the entry in the meantime (`gx tag`, `gx hide`), the shell
+    * refuses the write. The page then reads the entry again, merges onto it,
+    * and tries again ([[MaxWriteTries]] times). Thus a `gx tag` that the
+    * mirror does not know yet stays after the next hide in the viewer.
+    *
+    * Only a change of the viewer writes. `before` is the metadata that the
+    * viewer had before this change. When the fields of the viewer did not
+    * change (an edit of the source, a visit), the write does not occur. A
+    * keystroke thus cannot put back an entry that `gx remove` removed. When
+    * the viewer gives what the entry already holds (the adoption of an
+    * outside change), the write does not occur either, because a write would
+    * move `updatedAt`. A file with no entry gets one on the first change of
+    * its metadata, and that puts it in the library, as `gx hide` does.
     */
-  def writeMetadata(path: String, viewer: DiagramMetadata): Unit =
-    keys.now().get(path) match
-      case Some(key) =>
-        putMetadata(key, path, viewer)
-        ()
-      case None =>
-        // The key comes from the shell. Keep only the latest value while it
-        // comes, so that a burst of changes gives one write.
-        waitingWrites += path -> viewer
-        keyOf(path).foreach: key =>
-          waitingWrites.get(path).foreach: latest =>
-            waitingWrites -= path
-            putMetadata(key, path, latest)
+  def writeMetadata(path: String, before: DiagramMetadata, viewer: DiagramMetadata): Unit =
+    if Owned.of(before) != Owned.of(viewer) then
+      keys.now().get(path) match
+        case Some(key) =>
+          putMetadata(key, path, viewer)
+          ()
+        case None =>
+          // The key comes from the shell. Keep only the latest value while it
+          // comes, so that a burst of changes gives one write.
+          waitingWrites += path -> viewer
+          keyOf(path).foreach: key =>
+            waitingWrites.get(path).foreach: latest =>
+              waitingWrites -= path
+              putMetadata(key, path, latest)
 
   private def putMetadata(key: String, path: String, viewer: DiagramMetadata): Future[Unit] =
     val current = entries.now().get(key)
@@ -205,21 +224,44 @@ final class DesktopLibrary private () extends LibraryListing:
       case None    => Owned.of(viewer) == Owned.none
     if unchanged then Future.unit
     else
-      val now  = js.Date.now().toLong
-      val base = current.fold(DiagramMetadata.empty)(_.metadata)
-      put(
-        key,
-        LibraryEntry(
-          path = current.fold(path)(_.path),
-          metadata = base.copy(
-            hiddenElements = viewer.hiddenElements,
-            collapsedGroups = viewer.collapsedGroups,
-            autoDetectFormat = viewer.autoDetectFormat
-          ),
-          createdAt = current.fold(now)(_.createdAt),
-          updatedAt = now
-        )
-      )
+      val base = for entry <- current; text <- texts.get(key) yield (entry, text)
+      mergeAndWrite(key, path, viewer, base, MaxWriteTries).andThen(reportWriteFailure(path))
+
+  /** Merge the fields of the viewer onto `base`, and write the result with
+    * the text of `base` as the base of the compare-and-swap. `base` is the
+    * entry and its exact text, or `None` when there is no entry. On a refusal,
+    * read the entry again and try again, `tries` times in all.
+    */
+  private def mergeAndWrite(
+      key: String,
+      path: String,
+      viewer: DiagramMetadata,
+      base: Option[(LibraryEntry, String)],
+      tries: Int
+  ): Future[Unit] =
+    val now   = js.Date.now().toLong
+    val entry = base.map(_._1)
+    val merged = LibraryEntry(
+      path = entry.fold(path)(_.path),
+      metadata = entry
+        .fold(DiagramMetadata.empty)(_.metadata)
+        .copy(
+          hiddenElements = viewer.hiddenElements,
+          collapsedGroups = viewer.collapsedGroups,
+          autoDetectFormat = viewer.autoDetectFormat
+        ),
+      createdAt = entry.fold(now)(_.createdAt),
+      updatedAt = now
+    )
+    write(key, merged, Some(base.fold(EntryBase.Absent)((_, text) => EntryBase.Present(text)))).recoverWith:
+      case IpcFailure("LIBRARY_CONFLICT", _) if tries > 1 =>
+        readEntry(key).flatMap(fresh => mergeAndWrite(key, path, viewer, fresh, tries - 1))
+
+  /** The entry of `key` as the disk holds it now, with its exact text. */
+  private def readEntry(key: String): Future[Option[(LibraryEntry, String)]] =
+    DesktopIpc
+      .libraryRead(s"$key.json")
+      .map(_.map(json => (upickle.default.read[LibraryEntry](json), json)))
 
   // ------------------------------------------------------------- the files
 
@@ -234,13 +276,14 @@ final class DesktopLibrary private () extends LibraryListing:
   private[library] def openPath(path: String): Future[Either[String, Route]] =
     DesktopIpc
       .openFile(path)
-      .map: snapshot =>
-        files.update(_.updated(path, FileState.Loaded(snapshot.text, snapshot.revision)))
-        // The shell gives the canonical spelling of the path. It names the
-        // same file, so it has the same entry.
-        keys.now().get(path).foreach(key => keys.update(_.updated(snapshot.path, key)))
-        val session = DesktopDocumentRegistry.record(snapshot.path, snapshot.revision, snapshot.text)
-        Right(Route.File(session.id.value))
+      .flatMap: snapshot =>
+        val state = FileState.Loaded(snapshot.text, snapshot.revision)
+        files.update(_.updated(path, state).updated(snapshot.path, state))
+        // The session has the path that the shell gives. The viewer reads and
+        // writes the entry of that path, so the entry must be there first.
+        moveToCanonical(path, snapshot.path).map: _ =>
+          val session = DesktopDocumentRegistry.record(snapshot.path, snapshot.revision, snapshot.text)
+          Right(Route.File(session.id.value))
       .recoverWith:
         case NonFatal(error) =>
           readFileState(path).map: (_, state) =>
@@ -248,6 +291,34 @@ final class DesktopLibrary private () extends LibraryListing:
             state match
               case FileState.Missing => Left(s"The file $path is missing. Put it back, or remove it from the library.")
               case _                 => Left(s"Could not open $path: ${messageOf(error)}")
+
+  /** Move the entry of `path` to the key of `canonical`, the canonical path
+    * of the same file that the shell gave.
+    *
+    * An old entry can have a path that is not canonical: a file that a
+    * different tool renamed with a change of case only, or a path through
+    * `/tmp` on macOS (`/private/tmp`). The key of an entry is the key of its
+    * path, and `gx` uses the key of the canonical path. Thus the entry moves
+    * to that key, with its metadata: the new entry first, and then the old
+    * one goes. Then the viewer, `gx`, and the list use one entry.
+    *
+    * When the key of the canonical path has an entry already, that entry
+    * stays, and the old one stays too. A move must not write over metadata.
+    * A failure goes to the console: the file opens all the same.
+    */
+  private def moveToCanonical(path: String, canonical: String): Future[Unit] =
+    if path == canonical then Future.unit
+    else
+      keys.now().get(path).flatMap(key => entries.now().get(key).map(key -> _)) match
+        case None => Future.unit
+        case Some((oldKey, entry)) =>
+          keyOf(canonical)
+            .flatMap: newKey =>
+              if newKey == oldKey || entries.now().contains(newKey) then Future.unit
+              else put(newKey, entry.copy(path = canonical)).flatMap(_ => removeEntry(oldKey))
+            .recover:
+              case NonFatal(e) =>
+                dom.console.warn(s"[library] the entry of $path did not move to $canonical: ${messageOf(e)}")
 
   /** "New diagram": a NEW file in the folder for new diagrams, with an entry,
     * open on the screen (ADR 0001).
@@ -300,10 +371,14 @@ final class DesktopLibrary private () extends LibraryListing:
     DesktopDocumentRegistry.get(session) match
       case None => Future.successful(FileRename.Refused("This file is not open any more."))
       case Some(open) =>
-        fileNameFor(newName, open.path) match
+        fileNameFor(newName, open.path).map(fileName => (fileName, siblingOf(open.path, fileName))) match
           case Left(why) => Future.successful(FileRename.Refused(why))
-          case Right(fileName) =>
-            DesktopIpc.renameFile(open.path, siblingOf(open.path, fileName)).transformWith:
+          case Right((_, target)) if target == open.path =>
+            // The rename dialog starts with the name of the file, and Enter
+            // sends it. The name does not change, so nothing changes.
+            Future.successful(FileRename.Done(open.path))
+          case Right((fileName, target)) =>
+            DesktopIpc.renameFile(open.path, target).transformWith:
               case Failure(IpcFailure("DOCUMENT_EXISTS", _)) =>
                 Future.successful(FileRename.Refused(s"A file named $fileName exists already. Choose a different name."))
               case Failure(error) =>
@@ -317,6 +392,9 @@ final class DesktopLibrary private () extends LibraryListing:
   /** Move the entry of `from` to the key of `to`. Write the new entry first,
     * and then remove the old one. Thus a failure leaves two entries, and never
     * none.
+    *
+    * When the two paths have one key, the entry is where it must be, and
+    * nothing changes. A write and then a remove of one key removes the entry.
     */
   private def moveEntry(from: String, to: String): Future[FileRename] =
     keyOf(from).flatMap: oldKey =>
@@ -325,9 +403,10 @@ final class DesktopLibrary private () extends LibraryListing:
         case Some(entry) =>
           keyOf(to)
             .flatMap: newKey =>
-              val moved = entry.copy(path = to, updatedAt = js.Date.now().toLong)
-              put(newKey, moved)
+              if newKey == oldKey then Future.successful(false)
+              else put(newKey, entry.copy(path = to, updatedAt = js.Date.now().toLong)).map(_ => true)
             .transformWith:
+              case Success(false) => Future.successful(FileRename.Done(to))
               case Failure(error) =>
                 Future.successful(
                   FileRename.MetadataNotMoved(
@@ -373,23 +452,40 @@ final class DesktopLibrary private () extends LibraryListing:
 
   // ----------------------------------------------------------- the entries
 
-  /** Write an entry. The mirror changes at once, and the write goes to the
-    * shell. A failed write reads the store again, so that the mirror shows
-    * what the disk holds.
+  /** Write an entry, with no base check. The mirror changes at once, and the
+    * write goes to the shell. A failed write reads the store again, so that
+    * the mirror shows what the disk holds.
     */
   private[library] def put(key: String, entry: LibraryEntry): Future[Unit] =
+    write(key, entry, None).andThen(reportWriteFailure(entry.path))
+
+  /** Log a failed write of the entry of `path`, and read the store again, so
+    * that the mirror shows what the disk holds.
+    */
+  private def reportWriteFailure(path: String): PartialFunction[Try[Unit], Unit] =
+    case Failure(error) =>
+      dom.console.error(s"[library] could not save the metadata of $path: ${messageOf(error)}")
+      refresh()
+      ()
+
+  /** Write an entry. The mirror and [[texts]] change at once, and the write
+    * goes to the shell. The caller handles a failure.
+    *
+    * The mirror changes before the reply, so the base of the next write is
+    * this text. When this write fails, the shell refuses the next write that
+    * has a base, and that write reads the entry again.
+    */
+  private def write(key: String, entry: LibraryEntry, base: Option[EntryBase]): Future[Unit] =
+    val json = upickle.default.write(entry, indent = 2)
     entries.update(_.updated(key, entry))
+    texts += key -> json
     keys.update(_.updated(entry.path, key))
     markChange(key)
-    DesktopIpc
-      .libraryWrite(s"$key.json", upickle.default.write(entry, indent = 2))
-      .andThen:
-        case Failure(error) =>
-          dom.console.error(s"[library] could not save the metadata of ${entry.path}: ${messageOf(error)}")
-          refresh()
+    DesktopIpc.libraryWrite(s"$key.json", json, base)
 
   private def removeEntry(key: String): Future[Unit] =
     entries.update(_.removed(key))
+    texts -= key
     markChange(key)
     DesktopIpc
       .libraryDelete(s"$key.json")
@@ -435,20 +531,24 @@ final class DesktopLibrary private () extends LibraryListing:
   private[library] def refresh(): Future[Unit] =
     val started = changeClock
     loadEntries()
-      .map: loaded =>
-        val changedHere = lastChange.collect { case (key, at) if at > started => key }
-        val current     = entries.now()
-        entries.set(changedHere.foldLeft(loaded)((m, key) => current.get(key).fold(m.removed(key))(m.updated(key, _))))
+      .map:
+        case None => () // The shell cannot list the store, so the mirror keeps what it has.
+        case Some(loaded) =>
+          val changedHere = lastChange.collect { case (key, at) if at > started => key }
+          def keepChanges[A](read: Map[String, A], here: Map[String, A]): Map[String, A] =
+            changedHere.foldLeft(read)((m, key) => here.get(key).fold(m.removed(key))(m.updated(key, _)))
+          entries.set(keepChanges(loaded.view.mapValues(_._1).toMap, entries.now()))
+          texts = keepChanges(loaded.view.mapValues(_._2).toMap, texts)
       .flatMap(_ => readUnknownFiles())
 
-  /** Each entry that the shell can see, and whose name is the key of its path.
+  /** Each entry that the shell can see, and whose name is the key of its path,
+    * with its exact text. `None` when the shell cannot list the store.
     *
     * An entry that does not parse, or whose name is not the key of its path,
     * is REPORTED and skipped. One bad file must not take down the whole library.
-    * `MetadataStore.unreadable()` makes the same choice on the JVM. When the
-    * shell cannot list the store, the mirror keeps what it has.
+    * `MetadataStore.unreadable()` makes the same choice on the JVM.
     */
-  private def loadEntries(): Future[Map[String, LibraryEntry]] =
+  private def loadEntries(): Future[Option[Map[String, (LibraryEntry, String)]]] =
     DesktopIpc
       .libraryList()
       .flatMap: stored =>
@@ -458,16 +558,16 @@ final class DesktopLibrary private () extends LibraryListing:
               dom.console.warn(s"[library] ${file.name} could not be read: $why")
               None
             case Right(json) =>
-              try Some(file.name -> upickle.default.read[LibraryEntry](json))
+              try Some((file.name, upickle.default.read[LibraryEntry](json), json))
               catch
                 case NonFatal(e) =>
                   dom.console.warn(s"[library] ${file.name} is not a readable entry: ${e.getMessage}")
                   None
         Future
-          .traverse(parsed): (name, entry) =>
+          .traverse(parsed): (name, entry, json) =>
             keyOf(entry.path)
               .map: key =>
-                if s"$key.json" == name then Some(key -> entry)
+                if s"$key.json" == name then Some(key -> (entry, json))
                 else
                   dom.console.warn(
                     s"[library] $name is the entry of ${entry.path}, and its name is not the key of that path. " +
@@ -475,11 +575,11 @@ final class DesktopLibrary private () extends LibraryListing:
                   )
                   None
               .recover { case NonFatal(e) => dom.console.warn(s"[library] no key for ${entry.path}: ${messageOf(e)}"); None }
-          .map(_.flatten.toMap)
+          .map(found => Some(found.flatten.toMap))
       .recover:
         case NonFatal(e) =>
           dom.console.error(s"[library] could not be listed: ${messageOf(e)}")
-          entries.now()
+          None
 
 object DesktopLibrary:
 
@@ -487,6 +587,11 @@ object DesktopLibrary:
 
   /** The highest number that "New diagram" tries before it stops. */
   private val MaxNumber = 1000
+
+  /** How many times a write of metadata tries, when a different writer
+    * changes the entry each time ([[DesktopLibrary.writeMetadata]]).
+    */
+  private val MaxWriteTries = 3
 
   /** Read the library, and the file of each entry. */
   def load(): Future[DesktopLibrary] =
@@ -507,8 +612,7 @@ object DesktopLibrary:
     case other                  => Option(other.getMessage).getOrElse(other.toString)
 
   private def formatOfPath(path: String): DiagramFormat =
-    if path.toLowerCase.endsWith(".mmd") || path.toLowerCase.endsWith(".mermaid") then DiagramFormat.Mermaid
-    else DiagramFormat.DOT
+    DiagramFormat.ofPath(path).getOrElse(DiagramFormat.DOT)
 
   /** The file name for a rename. A name with no extension keeps the extension
     * of the file.

@@ -14,7 +14,6 @@ import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, Diagra
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.state.ThumbnailRenderer
-import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 
@@ -252,7 +251,7 @@ def LibraryView(
             cls := "h-8",
             span().plusCircleIcon,
             "Create Diagram",
-            onClick --> routerCmds.createDiagram.execute(Some(Some(minimalGraphText)))
+            onClick --> routerCmds.createDiagram.execute()
           ).primary.small
         )
       ),
@@ -299,7 +298,7 @@ def LibraryView(
                     sortOption match
                       case SortOption.LastModified => filteredDiagrams.sortBy(-_.lastModified)
                       case SortOption.Title        => filteredDiagrams.sortBy(shownName(_).toLowerCase)
-                      case SortOption.CreationDate => filteredDiagrams.sortBy(-_.createdAt)
+                      case SortOption.CreationDate => filteredDiagrams.sortBy(-_.creationTime)
                   Telemetry.log("home.projects.cardsReady", "projectsShown" -> sorted.size)
                   val render = viewMode match
                     case LibraryViewMode.Cards => diagramCard(graphviz, router, _, _)
@@ -595,7 +594,7 @@ private[library] def diagramCard(graphviz: Graphviz, router: Router, info: Optio
         div(
           cls := "flex items-center gap-1",
           span().fileCodeIcon,
-          s"Created: ${formatDate(diagram.createdAt)}"
+          s"Created: ${formatDate(diagram.creationTime)}"
         )
       )
     )
@@ -642,7 +641,7 @@ private[library] def diagramRow(graphviz: Graphviz, router: Router, info: Option
       problem.map(why => span(cls := "badge badge-xs badge-warning shrink-0", title := why, "missing"))
     ),
     span(cls := "row-date hidden sm:block", s"Modified ${formatDate(diagram.lastModified)}"),
-    span(cls := "row-date hidden md:block", s"Created ${formatDate(diagram.createdAt)}"),
+    span(cls := "row-date hidden md:block", s"Created ${formatDate(diagram.creationTime)}"),
     span(
       // A click on the row opens the diagram. Without this fence, a remove
       // also opens the diagram, or a dead route after the remove.

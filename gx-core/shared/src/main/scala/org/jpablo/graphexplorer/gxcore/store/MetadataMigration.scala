@@ -46,7 +46,7 @@ object MetadataMigration:
   /** The name that the app gives to a new diagram. It is not information that
     * a person typed, so it does not become a tag.
     */
-  private val DefaultName = "Untitled"
+  private[store] val DefaultName = "Untitled"
 
   /** The path of a file in the folder for new diagrams. `relative` uses `/`.
     * The result uses the separator of the folder: `\\` for a Windows folder.
@@ -131,7 +131,7 @@ object MetadataMigration:
       */
     def newFile(state: State, record: LegacyRecord, subfolder: Option[String], why: String): State =
       val base = SafeFileName.of(record.name)
-      val ext  = extensionOf(formatOf(record))
+      val ext  = formatOf(record).fileExtension
       val dir  = subfolder.fold("")(_ + "/")
 
       def reusable(relative: String): Boolean =
@@ -212,9 +212,7 @@ object MetadataMigration:
   private def formatOf(record: LegacyRecord): DiagramFormat =
     DiagramFormat.values.find(_.toString == record.format).getOrElse(DiagramFormat.detect(record.text))
 
-  private def extensionOf(format: DiagramFormat): String = format match
-    case DiagramFormat.DOT     => ".dot"
-    case DiagramFormat.Mermaid => ".mmd"
+  private val WindowsDrive = "^[A-Za-z]:\\\\".r
 
   private def isWindowsPath(path: String): Boolean =
-    "^[A-Za-z]:\\\\".r.findPrefixOf(path).isDefined || path.startsWith("\\\\")
+    WindowsDrive.findPrefixOf(path).isDefined || path.startsWith("\\\\")

@@ -16,6 +16,7 @@ import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
+import org.jpablo.graphexplorer.gxcore.command.SourceCommand
 import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
@@ -43,6 +44,9 @@ case class ViewerState(
     setTheme:                 String => Unit = _ => (),
     errorBus:                 EventBus[String] = EventBus(),
     infoBus:                  EventBus[String] = EventBus(),
+    /** The text for a store that has no text yet. A stored diagram keeps its
+      * own text, and a file takes the text of its session.
+      */
     initialSource:            Option[String] = None,
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
     initialLeftPanelVisible:  Boolean = false,
@@ -122,8 +126,18 @@ case class ViewerState(
   editorNotice.signal.changes.filter(_.exists(_.isError))
     .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
 
-  // persisted source can be overridden by passing a non-empty initialSource
-  val source = initialSource.getOrElse(persistence.initial.source)
+  // The store gives the start text. `initialSource` only seeds a store that has
+  // no text yet: a new browser diagram, or an example. It must not replace a
+  // stored diagram. A share URL keeps its `?dot=` text in the browser history.
+  // Before, a Back to that URL opened the stored diagram with the old text of
+  // the link, and the next change wrote that text over the stored diagram.
+  val source = persistence.initial.source
+
+  // A file keeps its text, also an empty text: a 0-byte file opens empty and
+  // clean. Before, the empty text became the DOT template. The view was then
+  // dirty at once, and a Save wrote the template into the file. Each other
+  // target starts an empty source with the template.
+  private val phasesSource = if source.isEmpty && !isFileBacked then None else Some(source)
 
   // Registry of diagram backends. InternalPhases depends only on this abstraction, not on concrete backends.
   // It is public, so a view of OTHER diagrams (the library sidebar) can ask this registry
@@ -132,7 +146,7 @@ case class ViewerState(
 
   val phases = InternalPhases(
     languages = languages,
-    initialSource = if source.isEmpty then None else Some(source),
+    initialSource = phasesSource,
     hiddenNodes = metadata.hiddenElements.signal,
     collapsedGroups = metadata.collapsedGroups.signal,
     autoDetectFormat = metadata.autoDetectFormat,
@@ -243,8 +257,13 @@ case class ViewerState(
   // so the filter runs when ITS transaction executes: a selection.set made inside the
   // same graph update (e.g. combineIntoRecord selecting the new record) has already
   // landed by then and is preserved. A snapshot-based remove() here clobbered it.
+  //
+  // The selection holds the ids of the CANVAS. The box of a collapsed group and an
+  // arrow to that box are in the visible graph, not in the full graph. Thus an id
+  // stays when the full graph or the visible graph has it. When the filter runs,
+  // the visible graph already shows the new full graph.
   fullGraph.changes.foreach { graph =>
-    selection.keepOnly(id => elementExists(graph, id))
+    selection.keepOnly(id => elementExists(graph, id) || elementExists(visibleGraphNow(), id))
   }
 
   val mouseAction = MouseActionVar()
@@ -363,18 +382,19 @@ case class ViewerState(
   def createGroupMaybePrompt(elementIds: ElementIds): Unit =
     pendingNewGroupV.set(Some(PendingNewGroup(elementIds)))
 
-  /** Creates a new group with the specified elements and label. */
+  /** Creates a new group with the specified elements and label.
+    *
+    * `elementIds` has the ids of the canvas, so [[editTargets]] turns a box into
+    * its group. The edit goes through the command vocabulary, as `ungroup` does.
+    * Thus the menu and a socket client run one operation.
+    */
   def createGroupWithLabel(elementIds: ElementIds, label: String): Unit =
-    val applies = phases.graphEditApplies
-    phases.fullGraphV.update(_.moveToNewGroup(elementIds, label))
-    // Select the newly created group. After a refused edit the member is still
-    // in its old group, and that group is not the new one.
-    if applies then
-      val updatedGraph = fullGraphNow()
-      val memberIds = elementIds.memberIds
-      memberIds.headOption.flatMap(updatedGraph.membership).foreach { groupId =>
-        selection.set(ElementIds.from(groupId))
-      }
+    runSourceCommand(
+      SourceCommand.Group(editTargets(elementIds).ids.toSet, label),
+      // Select the new group. A refused edit does not call this.
+      onApplied = (before, after) =>
+        (after.groupIds -- before.groupIds).headOption.foreach(groupId => selection.set(ElementIds.from(groupId)))
+    )
 
   // -------- storage ------------
   initializePersistence()
@@ -387,7 +407,7 @@ case class ViewerState(
 
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an edge. If the
     * selected element is a group/cluster, the new node will be added to that group. The new node will become the only selected element
-    * after creation.
+    * after creation. A selected box is its group. The new node then goes into the collapsed group, and the box stays selected.
     *
     * @param attributes
     *   The attributes to apply to the new node
@@ -405,10 +425,12 @@ case class ViewerState(
   ): Unit =
     val applies = phases.graphEditApplies
     phases.fullGraphV.update: fullGraph =>
-      val sel                      = selection.now()
-      val selectedElementId        = if sel.isEmpty then None else Some(sel.head)
+      // A box gives its group. Then the new node goes into that group, as for the
+      // expanded group, and no arrow ends on the box.
+      val selectedElementId        = selection.targets().ids.headOption
       val (newGraph, newNodeId, _) = fullGraph.addNodeWithSmartConnection(selectedElementId, attributes, direction)
-      if applies then selection.set2(newNodeId)
+      // A node in a collapsed group has no shape on the canvas. Then its box stays selected.
+      if applies && !selectedElementId.exists(hasBox) then selection.set2(newNodeId)
       newGraph
 
   /** `fromCell`/`toCell` name record CELLS on either end: their ports (minted
@@ -421,24 +443,58 @@ case class ViewerState(
       fromCell: Option[List[Int]] = None,
       toCell:   Option[List[Int]] = None
   ) =
-    val applies = phases.graphEditApplies
-    phases.fullGraphV.update: g =>
-      val (g1, fromPort) = recordCells.resolvePortIn(g, from, fromCell)
-      val (g2, toPort)   = recordCells.resolvePortIn(g1, to, toCell)
-      val (g3, _)        = g2.addArrow(from, to, fromPort, toPort)
-      if applies then selection.set(ElementIds.from(from))
-      g3
+    arrowEndRefusal(from, "add").orElse(arrowEndRefusal(to, "add")) match
+      case Some(message) => errorBus.emit(message)
+      case None =>
+        val applies = phases.graphEditApplies
+        phases.fullGraphV.update: g =>
+          val (g1, fromPort) = recordCells.resolvePortIn(g, from, fromCell)
+          val (g2, toPort)   = recordCells.resolvePortIn(g1, to, toCell)
+          val (g3, _)        = g2.addArrow(from, to, fromPort, toPort)
+          if applies then selection.set(ElementIds.from(from))
+          g3
 
   def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId, cell: Option[List[Int]] = None) =
-    val applies = phases.graphEditApplies
-    phases.fullGraphV.update: g =>
-      val endpointNode = newEndpoint match
-        case ArrowEndpointId.SourceId(id) => id
-        case ArrowEndpointId.TargetId(id) => id
-      val (g1, port)       = recordCells.resolvePortIn(g, endpointNode, cell)
-      val (g2, newArrowId) = g1.moveArrowEndpoint(arrowId, newEndpoint, port)
-      if applies then selection.set(ElementIds.from(newArrowId))
-      g2
+    val endpointNode = newEndpoint match
+      case ArrowEndpointId.SourceId(id) => id
+      case ArrowEndpointId.TargetId(id) => id
+    val refusal =
+      // An arrow to a box is in the visible graph only. It stands for one or
+      // more arrows of the full graph, so a move of its end has no one meaning.
+      if !fullGraphNow().arrows.contains(arrowId) then
+        Some(
+          if visibleGraphNow().arrows.contains(arrowId) then
+            "The viewer did not move the arrow, because it ends on a collapsed group. Expand the group, and then move the arrow."
+          else "The viewer did not move the arrow, because the diagram does not have it."
+        )
+      else arrowEndRefusal(endpointNode, "move")
+    refusal match
+      case Some(message) => errorBus.emit(message)
+      case None =>
+        val applies = phases.graphEditApplies
+        phases.fullGraphV.update: g =>
+          val (g1, port)       = recordCells.resolvePortIn(g, endpointNode, cell)
+          val (g2, newArrowId) = g1.moveArrowEndpoint(arrowId, newEndpoint, port)
+          if applies then selection.set(ElementIds.from(newArrowId))
+          g2
+
+  /** Why the node `id` cannot be one end of a new arrow or of a moved arrow
+    * end, or `None` when it can.
+    *
+    * The id comes from the canvas. A box is a collapsed group, and a DOT edge
+    * cannot end on a cluster. The viewer does not select a member of the group
+    * in place of the box, so it refuses the arrow and tells the person why.
+    */
+  private def arrowEndRefusal(id: NodeId, verb: String): Option[String] =
+    editTargets(ElementIds.from(id)).ids.headOption match
+      case Some(_: NodeId) => None
+      case Some(group: GroupId) =>
+        val name = fullGraphNow().groups.get(group).map(_.label.toString).filter(_.nonEmpty).getOrElse(group.value)
+        Some(
+          s"The viewer did not $verb the arrow, because an arrow cannot end on the collapsed group \"$name\". " +
+            "Expand the group, and then connect a node in it."
+        )
+      case _ => Some(s"The viewer did not $verb the arrow, because the diagram does not have the node \"${id.value}\".")
 
   // -------- Attribute management -----------
 
@@ -470,15 +526,40 @@ case class ViewerState(
 
   /** A collapsed group renders as a proxy NODE carrying the group's id string,
     * so a click on the box selects `NodeId(g)` — but the element that actually
-    * exists in the full graph is `GroupId(g)`. Anything that READS OR WRITES the
-    * graph through a selection must translate first: `updateAttributes` mints a
-    * node for an unknown NodeId (`nodes.getOrElse(id, nodeWithDefaults(id))`),
-    * so editing a collapsed box would otherwise create a phantom node instead of
-    * restyling the group. Selection itself deliberately keeps the proxy id — the
-    * SVG element is a node, and highlighting resolves it as one.
+    * exists in the full graph is `GroupId(g)`. Anything that READS the graph
+    * through a selection must translate first. A graph EDIT uses
+    * [[editTargets]], which calls this and also removes unknown ids:
+    * `updateAttributes` mints a node for an unknown NodeId
+    * (`nodes.getOrElse(id, nodeWithDefaults(id))`). Selection itself
+    * deliberately keeps the proxy id — the SVG element is a node, and
+    * highlighting resolves it as one.
     */
   def resolveCollapsed(ids: ElementIds): ElementIds =
     visibleGraphNow().resolveProxies(ids)
+
+  /** The ids of a graph edit, from the ids of the canvas: the ONE step between
+    * the two.
+    *
+    * Each graph edit that takes ids from the selection, from a canvas gesture or
+    * from a live-view command reads them through this step. The step does two
+    * things:
+    *   - It turns a box into the group that the box shows ([[resolveCollapsed]]).
+    *     Thus an edit of a box is the edit of the expanded group.
+    *   - It removes each id that the full graph does not have, for example a
+    *     stale ref from a socket client, or an arrow to a box. `updateAttributes`
+    *     adds a node for an unknown NodeId, and an arrow or a membership with an
+    *     unknown id puts a phantom node into the text. After this step, an edit
+    *     cannot do that.
+    */
+  def editTargets(ids: ElementIds): ElementIds =
+    val graph = fullGraphNow()
+    resolveCollapsed(ids).filter(id => elementExists(graph, id))
+
+  /** True when `id` is a group that the canvas shows as a box. */
+  private def hasBox(id: ElementId): Boolean =
+    id match
+      case group: GroupId => visibleGraphNow().proxyForGroup.contains(group)
+      case _              => false
 
   /** The id the CANVAS uses for `id` — the exact inverse of [[resolveCollapsed]].
     *
@@ -522,7 +603,7 @@ case class ViewerState(
     metadata.collapsedGroups.signal.map(_.contains(groupId))
 
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
-    phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(resolveCollapsed(elementIds)))
+    phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(editTargets(elementIds)))
 
   // Theme management
   lazy val currentTheme: Var[Option[String]] = Var(None)

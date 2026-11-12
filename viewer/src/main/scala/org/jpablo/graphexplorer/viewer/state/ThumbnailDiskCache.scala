@@ -74,7 +74,11 @@ private[state] object ThumbnailDiskCache:
       catch case _: Throwable => p.trySuccess(None)
       p.future
 
-  /** The stored SVG for `source`, if this browser has laid it out before. */
+  /** The stored SVG for `source`, if this browser has laid it out before.
+    *
+    * The SVG can hold no drawing, because earlier versions stored such renders.
+    * Thus the caller must examine the SVG before it uses it
+    * ([[ThumbnailRenderer.hasDrawing]]). */
   def get(format: DiagramFormat, source: String): Future[Option[String]] =
     db().flatMap {
       case None => Future.successful(None)
@@ -100,7 +104,8 @@ private[state] object ThumbnailDiskCache:
     }.recover { case _ => None }
 
   /** Store a freshly rendered thumbnail. Fire-and-forget: a failed write costs
-    * one re-render next session and nothing else. */
+    * one re-render next session and nothing else. Give it only an SVG that
+    * holds a drawing ([[ThumbnailRenderer.hasDrawing]]). */
   def put(format: DiagramFormat, source: String, svgHtml: String): Unit =
     db().foreach {
       case None => ()

@@ -3,23 +3,21 @@ package org.jpablo.graphexplorer.viewer
 import buildinfo.BuildInfo
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.library.{DesktopStartup, Library, LibraryView}
+import org.jpablo.graphexplorer.library.{DesktopStartup, Library, LibraryNavigation, LibraryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
 import org.jpablo.graphexplorer.viewer.desktop.{
   DesktopBridge,
-  DesktopClose,
   DesktopDocumentRegistry,
   DesktopIpc,
   DesktopOpenRequests,
+  DesktopViewWiring,
   LiveViewCommands
 }
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{
-  DiagramSnapshot,
   DocumentSessionId,
-  LeaveIntent,
   RightPanelSection,
   ViewerState,
   ViewTarget
@@ -111,21 +109,7 @@ object Viewer:
       // the web app gets a share URL, and only the browser library keeps the
       // source of a diagram.
       val sharedDot = ShareUrl.readDotParam().filter(_ => !Library.isDesktop)
-      sharedDot.foreach: dot =>
-        // The path of the link holds the diagram id (/diagrams/<id>?dot=...). When that
-        // diagram is in the local library, open IT. A match by exact source alone made a
-        // new "Untitled" copy each time the owner opened their own link after an edit.
-        ShareUrl.readDiagramIdFromPath().filter(Library.diagramExists) match
-          case Some(pathId) =>
-            router.navigateTo(Route.Diagram(pathId.value))
-          case None =>
-            Library.findDiagramBySource(dot) match
-              case Some(existingId) =>
-                router.navigateTo(Route.Diagram(existingId.value))
-              case None =>
-                // Create a new diagram with the DOT text from the link.
-                val newId = Library.createEmptyDiagram(DiagramSnapshot.defaultDiagramName)
-                router.navigateTo(Route.Diagram(newId.value, Some(dot)))
+      sharedDot.foreach(LibraryNavigation.openShareLink(router, _))
 
       // Before any route is chosen: a socket client can ask "what is selected"
       // while the app is on its library page. The answer must be "nothing is
@@ -148,7 +132,7 @@ object Viewer:
       // delivering an open. Announcing it before `Library.install` had run
       // would let an early open be answered "no such diagram" by a library that
       // had simply not loaded yet.
-      DesktopOpenRequests.install(router.tryNavigateTo)
+      DesktopOpenRequests.install(router)
 
       Graphviz.build().foreach: (graphviz: Graphviz) =>
         dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)
@@ -190,21 +174,10 @@ object Viewer:
           state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)(using viewOwner)
           // Similarly track the left panel visibility state between diagrams
           state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
-          // §7.4: a file with an unsaved edit asks before it is left.
-          // Registered per view and cleared on unmount below, so exactly one
-          // guard exists and it belongs to what is on screen.
-          val leaveGuard: Route => Boolean = route =>
-            if state.documentIsDirty then
-              state.pendingLeave.set(Some(LeaveIntent.Navigate(route)))
-              false
-            else true
-          router.guardNavigation(leaveGuard)
-
-          // §7.4's other half: the window closing. The shell refuses that close
-          // and asks here, because it cannot ask during teardown. The page
-          // keeps the shell's flag current so the common case — nothing
-          // unsaved — closes with no round trip at all.
-          DesktopClose.install(state)
+          // The leave guard, the close guard, the live view tier and the open
+          // handshake, on the owner of this view. The tests call the same
+          // function, so they drive this wiring and not a copy.
+          val detachDesktop = DesktopViewWiring.attach(state, router)
 
           // The BROWSER's window closing. A tab has no shell to ask, so the
           // generic prompt is all there is. The desktop does not rely on this:
@@ -216,13 +189,6 @@ object Viewer:
               event.preventDefault()
               event.asInstanceOf[js.Dynamic].updateDynamic("returnValue")("")
           dom.window.addEventListener("beforeunload", warnOnClose)
-          // The live view tier answers from HERE (D7.2): a socket client's "what is
-          // selected" has no answer anywhere else.
-          LiveViewCommands.attach(state)
-          // The open handshake settles only after this viewer has attached and
-          // accepted its source. `LiveViewCommands` gets its target first, so a
-          // live view command immediately after `gx open` is safe.
-          DesktopOpenRequests.attach(state)
 
           TopLevel(state, router, Commands(state, routerCmds), exampleName.map(exampleBanner(_, state, routerCmds)))
             .amend(onUnmountCallback { _ =>
@@ -231,10 +197,7 @@ object Viewer:
               // the view that set it, so a query after navigation was answered
               // by a viewer nobody was looking at. The document bridge no
               // longer needs one at all: a viewer follows its OWN session.
-              LiveViewCommands.detach(state)
-              DesktopOpenRequests.detach(state)
-              router.clearNavigationGuard(leaveGuard)
-              DesktopClose.detach(state)
+              detachDesktop()
               dom.window.removeEventListener("beforeunload", warnOnClose)
               state.closePersistence()
               viewOwner.killSubscriptions()

@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, NavDirection, RightPanelSection, SaveResult, ViewerState}
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
+import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.scalajs.dom.KeyValue
 import org.scalajs.dom
 
@@ -60,7 +61,12 @@ enum CmdAction[-A]:
       case _                    => throw new IllegalArgumentException("argument required")
 
 object CmdAction:
-  given Conversion[() => Unit, CmdAction[Nothing]] = NoArg(_)
+  // `Any`, not `Nothing`: `Command` is contravariant, so a command with no
+  // argument is then a `Command[Any]`, and it fits each `Command[A]`. A list of
+  // `Command[Any]` (the palette, the menus, the shortcuts) can hold only such
+  // commands, because they run with no argument. A one-argument command there
+  // is a compile error, not the runtime throw "argument required".
+  given Conversion[() => Unit, CmdAction[Any]] = NoArg(_)
   given [A] => Conversion[A => Unit, CmdAction[A]] = OneArg(_)
 
 case class Command[-A](
@@ -78,14 +84,14 @@ case class Command[-A](
     // key auto-repeats ~30×/s; streaming one GA event per repeat is noise).
     if logEvent then
       val commandIdentifier = description.getOrElse(shortLabel)
-      val p = js.Dynamic.literal(
-        "command_label"  -> commandIdentifier,
-        "event_category" -> "Command",
-        "event_label"    -> commandIdentifier
+      Telemetry.gaEvent(
+        "command_executed",
+        js.Dynamic.literal(
+          "command_label"  -> commandIdentifier,
+          "event_category" -> "Command",
+          "event_label"    -> commandIdentifier
+        )
       )
-      val gtag = js.Dynamic.global.selectDynamic("gtag")
-      if js.typeOf(gtag) == "function" then
-        gtag("event", "command_executed", p)
     action.execute(arg)
 
 /** The commands that change the route.
@@ -99,31 +105,33 @@ class RouterCommands(router: Router, reportError: String => Unit = message => Li
   /** On the desktop, a new diagram is a new FILE in the folder for new
     * diagrams, with an entry in the library (ADR 0001). In the web app, it is
     * a diagram of the browser library.
+    *
+    * The new diagram holds `minimalGraphText`. In the web app, the route gives
+    * that text to the new diagram, because the diagram has no payload yet.
     */
-  private def createDiagramAndNavigate(source: Option[String] = None) =
+  private def createDiagramAndNavigate(): Unit =
     Library.desktop match
       case Some(desktop) =>
-        val text = source.getOrElse(minimalGraphText)
-        navigateWhenReady(desktop.newDiagram(DiagramSnapshot.defaultDiagramName, text, extensionOf(text)))
+        navigateWhenReady(
+          desktop.newDiagram(DiagramSnapshot.defaultDiagramName, minimalGraphText, DiagramFormat.DOT.fileExtension)
+        )
       case None =>
         val id = Library.createEmptyDiagram(DiagramSnapshot.defaultDiagramName)
-        router.navigateTo(Route.Diagram(id.value, source))
-
-  /** The extension of a new file: the language of its text decides. */
-  private def extensionOf(text: String): String =
-    DiagramFormat.detect(text) match
-      case DiagramFormat.DOT     => ".dot"
-      case DiagramFormat.Mermaid => ".mmd"
+        router.navigateTo(Route.Diagram(id.value, Some(minimalGraphText)))
 
   private def navigateWhenReady(result: scala.concurrent.Future[Either[String, Route]]): Unit =
     result.foreach:
       case Right(route)  => router.navigateTo(route)
       case Left(message) => reportError(message)
 
+  /** A command with no argument. The ⌘K palette runs each command with no
+    * argument (`cmd.execute()`). Before, this command took the source as its
+    * argument, and the palette run threw "argument required".
+    */
   val createDiagram =
     Command(
       "Create new diagram",
-      (source: Option[String]) => createDiagramAndNavigate(source),
+      () => createDiagramAndNavigate(),
       always,
       description = Some("Create a new diagram and open it")
     )
@@ -141,7 +149,7 @@ class RouterCommands(router: Router, reportError: String => Unit = message => Li
         val (name, source) = nameAndSource
         Library.desktop match
           case Some(desktop) =>
-            navigateWhenReady(desktop.newDiagram(name, source, extensionOf(source)))
+            navigateWhenReady(desktop.newDiagram(name, source, DiagramFormat.detect(source).fileExtension))
           case None =>
             val id = Library.createDiagram(name, source)
             // No source through the route: the payload is already written, so the
@@ -804,7 +812,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
   import headers.*
 
-  val byHeader: VectorMap[String, List[Command[?]]] = VectorMap(
+  val byHeader: VectorMap[String, List[Command[Any]]] = VectorMap(
     common -> List(
       all.newNode,
       all.newBackwardsNode,
@@ -947,7 +955,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val isSymbol = sh.key.length == 1 && !sh.key.head.isLetterOrDigit
     if isSymbol then sh.copy(key = keyLower, shift = false) else sh.copy(key = keyLower)
 
-  val byShortcut: Map[Shortcut, Command[?]] =
+  val byShortcut: Map[Shortcut, Command[Any]] =
     byHeader.values.flatten
       .collect { case c @ Command(shortcut = Some(sh)) => normalizeShortcut(sh) -> c }
       .toMap
@@ -965,12 +973,17 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       // `window.__graphExplorerDesktopBridge` to find a destination for the
       // whole process. All viewers used that one reference. Thus ⌘S could
       // write a file while the autosave changed a different diagram.
-      state.save().foreach:
-        case SaveResult.Saved             => state.infoBus.emit("Saved")
-        case SaveResult.Conflict(message) => state.errorBus.emit(message)
-        case SaveResult.Failed(message)   => state.errorBus.emit(s"Save failed: $message")
-        // Not an error: an example simply has nowhere to go (§11).
-        case SaveResult.Unsupported(message) => state.infoBus.emit(message)
+      //
+      // A held ⌘S sends a keydown with `repeat` about 30 times each second.
+      // One press is one save. A repeat only keeps the key from the browser,
+      // which otherwise opens its own save dialog.
+      if !ev.repeat then
+        state.save().foreach:
+          case SaveResult.Saved             => state.infoBus.emit("Saved")
+          case SaveResult.Conflict(message) => state.errorBus.emit(message)
+          case SaveResult.Failed(message)   => state.errorBus.emit(s"Save failed: $message")
+          // Not an error: an example simply has nowhere to go (§11).
+          case SaveResult.Unsupported(message) => state.infoBus.emit(message)
       return
 
     // ⌘V / Ctrl+V is advertised by `pasteDiagram` but deliberately NOT dispatched

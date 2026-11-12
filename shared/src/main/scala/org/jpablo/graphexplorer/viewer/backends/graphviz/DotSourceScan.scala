@@ -7,14 +7,21 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
   */
 private[backends] object DotSourceScan:
 
+  // The text between the quotes of a DOT string. A backslash escapes the next
+  // character, thus `\"` does not end the string, but the quote in `"C:\\"` does.
+  // The escaped character can be a line break: DOT continues the string on the
+  // next line. This is the one form of this rule (see [[quotedStringEnd]]).
+  private val QuotedText = """[^"\\]*(?:\\[\s\S][^"\\]*)*"""
   // A `label = "..."` statement standing alone on its line (trailing comma allowed:
   // inside a multi-line attribute list the entries are comma-separated).
-  private val BareLabel = """label\s*=\s*"([^"]*)"\s*,?\s*;?""".r
+  private val BareLabel = raw"""label\s*=\s*"($QuotedText)"\s*,?\s*;?""".r
   // The same attribute anywhere inside a single-line `graph [ ... ]` statement.
-  private val GraphAttrLabel = """label\s*=\s*"([^"]*)"""".r
+  private val GraphAttrLabel = raw"""label\s*=\s*"($QuotedText)"""".r
   // Quoted spans, dropped before counting brackets so a bracket inside a label
   // (`label="a[b"`) cannot skew the nesting depth.
-  private val QuotedSpan = """"[^"]*"""".r
+  private val QuotedSpan = raw""""$QuotedText"""".r
+  // The text of a DOT string after its opening quote, with the closing quote.
+  private val QuotedTextAndClose = raw"""$QuotedText"""".r
 
   // The graph declaration keyword, optionally preceded by `strict`. Whole-word and
   // case-independent, like DOT's own keywords — so a line starting `graph_config`
@@ -77,11 +84,28 @@ private[backends] object DotSourceScan:
       Scan(
         depth = newDepth,
         inGraphAttrs = newDepth > 0 && (inGraphAttrs || opensGraphAttrs),
-        title = title.orElse(candidate.map(_.trim).filter(_.nonEmpty))
+        title = title.orElse(candidate.map(v => unescapeQuotes(v).trim).filter(_.nonEmpty))
       )
 
   private object Scan:
     val start = Scan(depth = 0, inGraphAttrs = false, title = None)
+
+  /** The text of a quoted string as the DOT reader gives it: `\"` becomes `"`, and
+    * each other escape stays as it is. Graphviz reads a label in the same way.
+    *
+    * In a [[QuotedText]] capture, each backslash escapes the next character. Thus
+    * the backslash before a quote always escapes that quote, and a plain replace
+    * finds the same escapes as a left-to-right scan.
+    */
+  private def unescapeQuotes(quoted: String): String =
+    quoted.replace("\\\"", "\"")
+
+  /** The index after the quote that closes the DOT string that opens just before
+    * `from`, or `None` when the string does not close. A backslash escapes the next
+    * character, as in [[QuotedText]].
+    */
+  def quotedStringEnd(text: String, from: Int): Option[Int] =
+    QuotedTextAndClose.findPrefixMatchOf(text.substring(from)).map(from + _.end)
 
   private def bracketBalance(line: String): Int =
     val unquoted = QuotedSpan.replaceAllIn(line, "")

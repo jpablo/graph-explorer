@@ -5,8 +5,6 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeNoDefaults
 
-import scala.annotation.tailrec
-
 /** Collapsing a group: the group and everything inside it render as ONE box,
   * and the arrows that crossed its border now start or end at that box.
   *
@@ -74,12 +72,8 @@ trait CollapseOps:
     * Ids that no longer name a group (deleted since) drop out.
     */
   def effectiveCollapsed(collapsed: Set[GroupId]): Set[GroupId] =
-    @tailrec
-    def hasCollapsedAncestor(g: GroupId): Boolean =
-      membership(g) match
-        case None         => false
-        case Some(parent) => (parent in collapsed) || hasCollapsedAncestor(parent)
-    collapsed.filter(g => (g in groups) && !hasCollapsedAncestor(g))
+    // A cycle in the memberships stops the ancestor walk of `outermost`
+    outermost(collapsed).filter(_ in groups)
 
   /** The collapse-applied graph as the NEIGHBOR MACHINERY (badges, expand/
     * contract toggles) must see it. Three things travel together:

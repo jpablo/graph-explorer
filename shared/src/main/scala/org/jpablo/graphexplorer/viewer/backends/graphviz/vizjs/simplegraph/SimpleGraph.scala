@@ -203,6 +203,12 @@ enum SimpleGraphObject:
 
 object SimpleGraphObject:
 
+  /** Reads one object with no help from the root. Only the keys tell a
+    * subgraph from a node here: a subgraph has `nodes` or `cluster`. An empty
+    * subgraph has neither key, so this reader gives a node for it. Thus the
+    * reader of [[SimpleGraph]] uses this reader only when the root has no
+    * `_subgraph_cnt` (see [[SimpleGraph.readObjects]]).
+    */
   given ReadWriter[SimpleGraphObject] =
     readwriter[ujson.Value].bimap[SimpleGraphObject](
       {
@@ -210,14 +216,16 @@ object SimpleGraphObject:
         case Cluster(cluster) => writeJs(cluster)
       },
       { jsValue =>
-        // Distinguish between node and cluster based on the presence of specific fields
-        // Clusters have a 'nodes' field, while nodes don't. Same for 'cluster' field.
         if jsValue.obj.contains("nodes") || jsValue.obj.contains("cluster") then
           Cluster(read[SimpleGraphCluster](jsValue))
         else
           Node(read[SimpleGraphNode](jsValue))
       }
     )
+
+  private[simplegraph] def isSubgraph(obj: SimpleGraphObject): Boolean = obj match
+    case Cluster(_) => true
+    case Node(_)    => false
 
 /** The root object of the graph data structure, encompassing all elements of the graph.
   *
@@ -292,5 +300,54 @@ case class SimpleGraph(
 object SimpleGraph:
   val minimal = SimpleGraph("G")
 
-  given ReadWriter[SimpleGraph] =
+  private val SubgraphCountKey = "_subgraph_cnt"
+  private val ObjectsKey       = "objects"
+
+  /** The fields of the root. `objects` uses the reader of [[SimpleGraphObject]]. */
+  private val fieldsReadWriter: ReadWriter[SimpleGraph] =
     ExtraAttrs.readWriterWithExtras(_.extraAttrs, (g, e) => g.copy(extraAttrs = e))
+
+  /** Graphviz writes each subgraph in `objects` before the nodes, and the root
+    * key `_subgraph_cnt` gives the number of subgraphs. Graphviz writes `nodes`
+    * only for a subgraph that has nodes. Thus only the position tells an empty
+    * subgraph from a node.
+    *
+    * The first `subgraphCount` objects are subgraphs, and the other objects
+    * are nodes. The keys of an object do not change this. Thus an empty
+    * subgraph is a subgraph, and a node with a `nodes` attribute is a node.
+    */
+  private[simplegraph] def readObjects(objects: ujson.Value, subgraphCount: Int): Option[List[SimpleGraphObject]] =
+    Option.unless(objects.isNull):
+      objects.arr.iterator.zipWithIndex.map { (obj, index) =>
+        if index < subgraphCount then SimpleGraphObject.Cluster(read[SimpleGraphCluster](obj))
+        else SimpleGraphObject.Node(read[SimpleGraphNode](obj))
+      }.toList
+
+  /** The reader uses the position of each object when the root has
+    * `_subgraph_cnt` (see [[readObjects]]). When the root has no
+    * `_subgraph_cnt`, the reader of [[SimpleGraphObject]] uses the keys of each
+    * object.
+    *
+    * The writer puts the subgraphs before the nodes and writes
+    * `_subgraph_cnt`, as Graphviz does. Thus a read of the written JSON gives
+    * the same subgraphs, also an empty subgraph.
+    */
+  given ReadWriter[SimpleGraph] =
+    readwriter[ujson.Value].bimap[SimpleGraph](
+      { graph =>
+        val (subgraphs, nodes) = graph.objects.getOrElse(Nil).partition(SimpleGraphObject.isSubgraph)
+        val ordered            = graph.copy(objects = graph.objects.map(_ => subgraphs ++ nodes))
+        val js                 = writeJs(ordered)(using fieldsReadWriter)
+        js.obj(SubgraphCountKey) = ujson.Num(subgraphs.size.toDouble)
+        js
+      },
+      { js =>
+        js.obj.get(SubgraphCountKey).flatMap(_.numOpt) match
+          case None => read[SimpleGraph](js)(using fieldsReadWriter)
+          case Some(subgraphCount) =>
+            // A copy of the root with no `objects`: the input stays unchanged.
+            val fields = ujson.Obj.from(js.obj.iterator.filterNot((key, _) => key == ObjectsKey))
+            read[SimpleGraph](fields)(using fieldsReadWriter)
+              .copy(objects = js.obj.get(ObjectsKey).flatMap(readObjects(_, subgraphCount.toInt)))
+      }
+    )

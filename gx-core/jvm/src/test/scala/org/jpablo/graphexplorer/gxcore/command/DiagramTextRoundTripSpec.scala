@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.gxcore.command
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{GroupId, NodeId}
 
@@ -57,6 +58,17 @@ class DiagramTextRoundTripSpec extends FunSuite:
     assert(!text.contains("digraph"), s"an undirected graph became directed:\n$text")
     assert(!text.contains("->"), s"undirected edges became directed:\n$text")
     assert(text.contains("MyNet"), s"the graph lost its name:\n$text")
+  }
+
+  /** Real Mermaid reads `graph` with no direction as a flowchart from top to
+    * bottom. `gx` read it as DOT, and then the DOT reader rejected it.
+    */
+  test("a Mermaid flowchart with a bare `graph` header is Mermaid, and gx reads back what it wrote") {
+    val named = DiagramText.parseNamed("graph\n  A --> B").fold(fail(_), identity)
+    assertEquals(named.format, DiagramFormat.Mermaid)
+    assertEquals(named.graph.nodeIds, Set(NodeId("A"), NodeId("B")))
+    val again = DiagramText.parseNamed(DiagramText.render(named.graph, DiagramFormat.Mermaid)).fold(fail(_), identity)
+    assertEquals(again.graph.nodeIds, named.graph.nodeIds)
   }
 
   test("a named digraph keeps its name") {

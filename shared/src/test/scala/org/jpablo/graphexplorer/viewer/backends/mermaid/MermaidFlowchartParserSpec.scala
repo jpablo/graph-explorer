@@ -46,6 +46,39 @@ class MermaidFlowchartParserSpec extends FunSuite:
     val result = MermaidFlowchartParser.parse("sequenceDiagram\n  Alice->>Bob: hello\n")
     assert(result.left.exists(_.contains("expected a flowchart header")), result)
 
+  test("headless parser reads each flowchart header that real Mermaid reads, with the direction of Mermaid"):
+    // Real Mermaid 11.12 reads each header below, and `getDirection()` gives the direction on the right. A header with
+    // no direction gives TB. Mermaid changes `>` to LR, `<` to RL, `^` to BT and `v` to TB, and it keeps BR. The five
+    // letter forms keep the letters of the text, as before. (Mermaid itself gives TB for TD.)
+    val headersAndDirections = Vector(
+      "graph"        -> "TB",
+      "graph "       -> "TB",
+      "flowchart"    -> "TB",
+      "graph >"      -> "LR",
+      "graph>"       -> "LR",
+      "graph <"      -> "RL",
+      "graph ^"      -> "BT",
+      "graph v"      -> "TB",
+      "graph BR"     -> "BR",
+      "graph >;"     -> "LR",
+      "graph\tTD"    -> "TD",
+      "flowchart >"  -> "LR",
+      "flowchart v"  -> "TB",
+      "graph LR"     -> "LR",
+      "flowchart TD" -> "TD"
+    )
+    val obtained = headersAndDirections.map: (header, _) =>
+      header -> MermaidFlowchartParser.parse(s"$header\n  A --> B").map(g => (g.direction, g.vertices.keySet))
+    val expected = headersAndDirections.map: (header, direction) =>
+      header -> (Right((Some(direction), Set("A", "B"))): Either[String, (Option[String], Set[String])])
+    assertEquals(obtained, expected)
+
+  test("headless parser rejects the flowchart headers that real Mermaid rejects"):
+    // Real Mermaid 11.12 gives a lexical error or a parse error for each header below.
+    val headers = Vector("graph;", "flowchart;", "graph lr", "graph V", "graph vv", "graph v1", "graph LR1", "graph ><", "graph >x")
+    val accepted = headers.filterNot(h => MermaidFlowchartParser.parse(s"$h\n  A --> B").left.exists(_.contains("expected a flowchart header")))
+    assertEquals(accepted, Vector.empty)
+
   test("headless parser reports unclosed nested subgraphs"):
     val result = MermaidFlowchartParser.parse("flowchart LR\n  subgraph open[Open]\n    A\n")
     assert(result.left.exists(_.contains("no matching 'end'")), result)

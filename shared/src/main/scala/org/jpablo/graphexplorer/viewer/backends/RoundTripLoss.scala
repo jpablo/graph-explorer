@@ -43,6 +43,16 @@ enum UnmodeledContent(val label: String) derives CanEqual:
   /** The `hide empty description` and `scale` lines of a Mermaid state diagram. */
   case StateDisplayOptions extends UnmodeledContent("the `hide empty description` and `scale` lines")
 
+object UnmodeledContent:
+
+  /** The labels of `lost` as one phrase, in the order of the enum. Example:
+    * "the comments and the `strict` keyword".
+    */
+  def listed(lost: Set[UnmodeledContent]): String =
+    values.toList.filter(lost.contains).map(_.label) match
+      case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
+      case names                         => names.mkString
+
 /** Finds the content that a round trip through the graph model drops.
   *
   * The viewer uses it to refuse a canvas edit that would drop content from a

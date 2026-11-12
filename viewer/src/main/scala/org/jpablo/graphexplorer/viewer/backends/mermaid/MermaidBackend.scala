@@ -264,12 +264,15 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
     positions.toMap
 
+  // The convert functions decode the labels and the titles here, where they leave Mermaid: the parser results keep
+  // the internal entity codes of Mermaid (see MermaidSourceScan.decodeEntityCodes).
+
   /** Convert Mermaid JS vertices to Scala model. */
   private def convertVertices(jsVertices: js.Dictionary[MermaidVertexJS]): Map[String, MermaidVertex] =
     jsVertices.map { case (id, v) =>
       id -> MermaidVertex(
         id = v.id,
-        text = v.text,
+        text = MermaidSourceScan.decodeEntityCodes(v.text),
         labelType = v.labelType.toOption,
         domId = v.domId.toOption,
         styles = v.styles.toOption.map(_.toList).getOrElse(Nil),
@@ -285,7 +288,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         start = e.start,
         end = e.end,
         edgeType = e.`type`.toOption,
-        text = e.text.toOption.filter(_.nonEmpty),
+        text = e.text.toOption.filter(_.nonEmpty).map(MermaidSourceScan.decodeEntityCodes),
         labelType = e.labelType.toOption,
         stroke = e.stroke.toOption,
         styles = e.style.toOption.map(_.toList).getOrElse(Nil),
@@ -298,7 +301,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     jsSubgraphs.map { s =>
       MermaidSubgraph(
         id = s.id,
-        title = s.title.toOption,
+        title = s.title.toOption.map(MermaidSourceScan.decodeEntityCodes),
         nodes = s.nodes.toOption.map(_.toList).getOrElse(Nil),
         classes = s.classes.toOption.map(_.toList).getOrElse(Nil)
       )
@@ -775,8 +778,7 @@ object MermaidBackend:
     else None
 
   private def queryById(svg: dom.svg.SVG, id: String): Option[dom.Element] =
-    val escaped = id.replace("\\", "\\\\").replace("\"", "\\\"")
-    Option(svg.querySelector(s"""[id="$escaped"]"""))
+    Option(svg.querySelector(SelectableElement.idSelector(id)))
 
   private def normalizeCssValue(value: String): Option[String] =
     Option(value.replace("!important", "").trim).filter(_.nonEmpty)
@@ -821,13 +823,38 @@ object MermaidBackend:
       else currentColor
     }
 
-  /** Mermaid derives the id of the scratch element it appends to `<body>` while
-    * rendering by prefixing this with `d`. style.scss neutralizes that element via
-    * `body > div[id^="dmermaid-render-"]` — keep the two in step, or the layout it
-    * causes (a one-frame document scrollbar) comes back.
+  /** A token that is new for each page load. Each render id holds it.
+    *
+    * Mermaid finds the element that it draws into by its id, and it looks in the
+    * whole document. The library page shows thumbnails from the disk cache, and
+    * those SVGs keep the ids of earlier sessions. A counter alone starts at 1 in
+    * each session. Thus a stored SVG can have the id of a new render, and Mermaid
+    * then removes that SVG or draws into it (see RenderIdClashSpec).
+    *
+    * The token is the start time of the page load in base 36, then a random part of
+    * six base-36 digits. Two page loads get the same token only if they start in
+    * the same millisecond and also get the same random part.
+    */
+  private val sessionToken: String =
+    val time   = java.lang.Long.toString(js.Date.now().toLong, 36)
+    val random = Integer.toString((js.Math.random() * Int.MaxValue).toInt, 36)
+    time + "0" * (6 - random.length) + random
+
+  /** The id of the next Mermaid render: `mermaid-render-<token>-<n>`.
+    *
+    * The token makes the id unique across page loads, and `n` makes it unique in
+    * one page load. The id starts with a letter and holds only `[a-z0-9-]`. Thus
+    * `getElementById` and the CSS `#id` selectors in the `<style>` of Mermaid
+    * accept it. An earlier version wrote `mermaid-render-<n>`, with no token. That
+    * id has one `-` less, so it never equals a new id.
+    *
+    * During a render, Mermaid adds a scratch element at the end of `<body>`. Its id
+    * is `d` and then this id. style.scss neutralizes that element with
+    * `body > div[id^="dmermaid-render-"]`. Keep the prefix `mermaid-render-`, or a
+    * document scrollbar shows for one frame at each render.
     */
   def nextRenderId(): String =
-    val id = renderCounter.incrementAndGet()
-    s"mermaid-render-$id"
+    val n = renderCounter.incrementAndGet()
+    s"mermaid-render-$sessionToken-$n"
 
   def apply()(using ExecutionContext): MermaidBackend = new MermaidBackend()

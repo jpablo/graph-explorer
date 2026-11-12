@@ -10,16 +10,20 @@ import scala.collection.mutable
   */
 object MermaidFlowchartParser:
 
-  private val HeaderLine    = raw"(?i)^(?:flowchart|graph)\s+(TD|TB|BT|LR|RL)\s*;?$$".r
-  private val DirectionLine = raw"(?i)^direction\s+(TD|TB|BT|LR|RL)\s*;?$$".r
-  private val SubgraphLine  = raw"(?i)^subgraph\s+([A-Za-z0-9_][A-Za-z0-9_-]*)(?:\s*\[(.*)\])?\s*;?$$".r
-  private val StyleLine     = raw"(?i)^style\s+([A-Za-z0-9_][A-Za-z0-9_-]*)\s+(.+?)\s*;?$$".r
-  private val ClassDefLine  = raw"(?i)^classDef\s+([^\s]+)\s+(.+?)\s*;?$$".r
-  private val ClassLine     = raw"(?i)^class\s+([^\s]+)\s+(.+?)\s*;?$$".r
-  private val LinkStyleLine = raw"(?i)^linkStyle\s+(default|\d+)\s+(.+?)\s*;?$$".r
-  // `accTitle` and `accDescr` are text for screen readers. The graph does not keep them.
-  private val AccessibleLine = raw"(?i)^acc(?:Title|Descr)\s*:.*$$".r
-  private val AccDescrBlock  = raw"(?i)^accDescr\s*\{(.*)$$".r
+  // Real Mermaid matches its keywords and directions with case (Mermaid 11.12): `Class --> b` is an arrow, and
+  // `Style a fill:#f00` and `flowchart lr` are errors. Thus these patterns also match with case.
+  // The header that the Mermaid 11.12 lexer reads: the keyword alone, a letter direction after a space, or an arrow
+  // direction with or without a space. Only a header with a direction can have a `;`.
+  private val HeaderLine    = raw"^(?:flowchart|graph)(?:(?:\s+(TD|TB|BT|LR|RL|BR|v)|\s*([<>^]))\s*;?|\s*)$$".r
+  private val DirectionLine = raw"^direction\s+(TD|TB|BT|LR|RL)\s*;?$$".r
+  private val SubgraphLine  = raw"^subgraph\s+([A-Za-z0-9_][A-Za-z0-9_-]*)(?:\s*\[(.*)\])?\s*;?$$".r
+  private val StyleLine     = raw"^style\s+([A-Za-z0-9_][A-Za-z0-9_-]*)\s+(.+?)\s*;?$$".r
+  private val ClassDefLine  = raw"^classDef\s+([^\s]+)\s+(.+?)\s*;?$$".r
+  private val ClassLine     = raw"^class\s+([^\s]+)\s+(.+?)\s*;?$$".r
+  private val LinkStyleLine = raw"^linkStyle\s+(default|\d+)\s+(.+?)\s*;?$$".r
+  // `accTitle` and `accDescr` are text for screen readers. The graph does not keep them. With case, as Mermaid.
+  private val AccessibleLine = raw"^acc(?:Title|Descr)\s*:.*$$".r
+  private val AccDescrBlock  = raw"^accDescr\s*\{(.*)$$".r
   private val EdgeLine =
     raw"^([^\s]+)\s+(<-->|<-\.->|<==>|-->|-\.->|==>|---|-\.-|===)(?:\|([^|]*)\|)?\s+([^\s]+)\s*;?$$".r
 
@@ -88,10 +92,10 @@ object MermaidFlowchartParser:
           case _ if line.startsWith("%%") => ()
           // A multi-line `accDescr { ... }` block continues to the line with `}`.
           case _ if inAccDescrBlock       => inAccDescrBlock = !line.contains("}")
-          case HeaderLine(dir) if !sawHeader =>
-            direction = Some(dir.toUpperCase)
+          case HeaderLine(letters, arrow) if !sawHeader =>
+            direction = Some(headerDirection(Option(letters), Option(arrow)))
             sawHeader = true
-          case HeaderLine(_) =>
+          case HeaderLine(_, _) =>
             failure = Some(s"could not parse the Mermaid flowchart: duplicate header at line $lineNumber")
           case _ if !sawHeader =>
             failure = Some(s"could not parse the Mermaid flowchart: expected a flowchart header at line $lineNumber")
@@ -120,7 +124,7 @@ object MermaidFlowchartParser:
               classAssignments(id) = (classAssignments.getOrElse(id, Nil) ++ classes).distinct
           case LinkStyleLine(target, body) =>
             val (styles, interpolate) = splitCss(body)
-            if target.equalsIgnoreCase("default") then
+            if target == "default" then
               defaultEdgeStyle = styles
               defaultEdgeInterpolate = interpolate
             else linkStyles(target.toInt) = (styles, interpolate)
@@ -208,11 +212,23 @@ object MermaidFlowchartParser:
           .filter(_.nonEmpty)
         (title, closing + 1)
 
+  /** The layout direction of a header, as `getDirection()` of real Mermaid 11.12 gives it.
+    *
+    * Mermaid changes `>` to LR, `<` to RL, `^` to BT and `v` to TB, and it gives TB to a header with no direction. It
+    * keeps BR. Mermaid also changes TD to TB, but this reader keeps the letters of the text, as it did before.
+    */
+  private def headerDirection(letters: Option[String], arrow: Option[String]): String =
+    letters.orElse(arrow).fold("TB")(dir => DirectionAliases.getOrElse(dir, dir))
+
+  private val DirectionAliases = Map("v" -> "TB", ">" -> "LR", "<" -> "RL", "^" -> "BT")
+
   private def splitNames(value: String): List[String] =
     value.stripSuffix(";").split("[\\s,]+").iterator.map(_.trim).filter(_.nonEmpty).toList
 
+  // With case, as Mermaid. The earlier test lowercased the line and then looked for `accTitle:`, thus it never
+  // matched an accessibility line.
   private def ignoredDirective(line: String): Boolean =
-    line.toLowerCase.startsWith("click ") || AccessibleLine.matches(line)
+    line.startsWith("click ") || AccessibleLine.matches(line)
 
   private def edgeType(arrow: String): String =
     if arrow.startsWith("<") then "double_arrow_point"

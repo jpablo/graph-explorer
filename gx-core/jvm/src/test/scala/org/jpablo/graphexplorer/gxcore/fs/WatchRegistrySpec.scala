@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.gxcore.model.OriginUri
 
 import java.nio.file.{Files, Path}
 
-/** V-05 (self-write suppression) and V-06 (deletion is reported, not swallowed).
+/** The debounce, and V-06 (deletion is reported, not swallowed).
   *
   * The clock is injected and [[WatchRegistry.poll]] is called explicitly, so
   * nothing here sleeps. A debounce tested with real time is how an intermittent
@@ -88,64 +88,6 @@ class WatchRegistrySpec extends FunSuite:
     val events = h.registry.poll()
     assertEquals(events.size, 1)
     assertEquals(events.head match { case WatchEvent.Changed(_, x) => Some(x); case _ => None }, Documents.hashOf(f))
-  }
-
-  // ------------------------------------------------ V-05 self-write
-
-  /** The loop this prevents: write -> watch fires -> push to UI -> UI writes
-    * again. Without suppression a single save oscillates forever.
-    */
-  tmp.test("V-05: a write announced by this process is never reported back to it") { dir =>
-    val h   = Harness(dir)
-    val f   = dir.resolve("a.dot")
-    write(f, "one")
-    val uri = FileOrigins.originOf(f, dir)
-    h.registry.watch(uri)
-
-    val written = Documents
-      .write(f, "two", Documents.hashOf(f).getOrElse(fail("gone")))
-      .fold(e => fail(s"$e"), identity)
-    h.registry.noteSelfWrite(uri, written.hash)
-
-    assertEquals(h.settle(), Vector.empty, "the writer heard its own write")
-
-    // And the registry has adopted it, so a LATER external change is still seen.
-    write(f, "three")
-    assertEquals(h.settle().size, 1)
-  }
-
-  tmp.test("V-05: suppression is per content, so a different write still reports") { dir =>
-    val h   = Harness(dir)
-    val f   = dir.resolve("a.dot")
-    write(f, "one")
-    val uri = FileOrigins.originOf(f, dir)
-    h.registry.watch(uri)
-
-    // We announce content we intended to write...
-    h.registry.noteSelfWrite(uri, Hashing.ofText("ours", LineEnding.Lf))
-    // ...but somebody else's content is what landed.
-    write(f, "theirs")
-    assertEquals(h.settle().size, 1, "an external write was mistaken for our own")
-  }
-
-  /** The stale-record hazard: if our write is never observed (overtaken before
-    * the next poll), the note must not survive to suppress a genuine, identical
-    * change later on.
-    */
-  tmp.test("V-05: an unobserved self-write note does not linger and suppress a real change") { dir =>
-    val h   = Harness(dir)
-    val f   = dir.resolve("a.dot")
-    write(f, "one")
-    val uri = FileOrigins.originOf(f, dir)
-    h.registry.watch(uri)
-
-    h.registry.noteSelfWrite(uri, Hashing.ofText("ours", LineEnding.Lf))
-    write(f, "someone else")      // overtakes it; our content is never on disk
-    assertEquals(h.settle().size, 1)
-
-    // Now the same content we once intended arrives, from outside.
-    write(f, "ours")
-    assertEquals(h.settle().size, 1, "a stale self-write note suppressed a genuine change")
   }
 
   // -------------------------------------------------- V-06 deletion

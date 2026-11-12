@@ -70,6 +70,28 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
     }
   }
 
+  // A generator that adds LF lines to a CRLF file gives mixed line endings.
+  // `LineEnding.sameOnDisk(file, file)` was false for such a file. Thus the
+  // file was dirty as it opened, and a change from a different writer became
+  // a conflict that nobody made (`SameOnDiskSpec`).
+  test("a clean editor of a file with mixed line endings is clean, and adopts the file when it changes") {
+    withGraphvizAsync { graphviz =>
+      val mixed = "digraph G {\n  a\r\n}\r\n"
+      val open  = DesktopDocumentRegistry.record("/tmp/mixed.dot", "rev-1", mixed)
+      val state = ViewerState(ViewTarget.File(open.id), graphviz)
+
+      afterMicrotasks {
+        assertEquals(state.sourceText.now(), mixed)
+        assertEquals(state.documentIsDirty, false, "nobody changed the file, so it must not be dirty")
+
+        DesktopBridge.routeDocumentChange(fileChanged("digraph G {\n  b\r\n}\r\n", "/tmp/mixed.dot", "rev-2"))
+
+        assertEquals(state.sourceText.now(), "digraph G {\n  b\r\n}\r\n", "a clean editor must follow the file")
+        assertEquals(DesktopDocumentRegistry.get(open.id).flatMap(_.conflict), None)
+      }
+    }
+  }
+
   test("a dirty editor keeps its text when the file changes, and records the conflict") {
     withGraphvizAsync { graphviz =>
       val open  = DesktopDocumentRegistry.record("/tmp/dirty.dot", "rev-1", "digraph G { a }")
@@ -96,7 +118,9 @@ class DocumentConflictSpec extends FunSuite with TestHelpers:
 
   test("accepting the file's version advances the base, so the next save can succeed") {
     val open = DesktopDocumentRegistry.record("/tmp/resolve.dot", "rev-1", "digraph G { a }")
-    DesktopDocumentRegistry.markConflict(open.id, "rev-2", "digraph G { theirs }")
+    // An editor with an edit makes the next version of the file a conflict.
+    DesktopDocumentRegistry.attach(open.id, DesktopDocumentRegistry.Editor(() => "digraph G { mine }", _ => ()))
+    DesktopDocumentRegistry.record("/tmp/resolve.dot", "rev-2", "digraph G { theirs }")
 
     val resolved = DesktopDocumentRegistry.acceptRemote(open.id)
 

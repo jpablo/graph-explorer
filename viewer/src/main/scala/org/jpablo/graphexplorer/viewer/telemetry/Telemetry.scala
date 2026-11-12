@@ -26,6 +26,16 @@ object Telemetry:
       if fromQuery then dom.window.sessionStorage.setItem(EnabledKey, "1")
       fromSession || fromQuery
 
+  /** Send one Google Analytics event, when the page has `gtag`.
+    *
+    * `typeof gtag` comes first. A read of `gtag` on a page that does not
+    * declare it throws ReferenceError (a test page, or a blocked script).
+    */
+  def gaEvent(name: String, params: js.Any): Unit =
+    if js.typeOf(js.Dynamic.global.gtag) == "function" then
+      js.Dynamic.global.gtag("event", name, params)
+      ()
+
   def nowMs(): Double =
     if hasWindow && js.typeOf(dom.window.performance) != "undefined" then dom.window.performance.now()
     else new js.Date().getTime()

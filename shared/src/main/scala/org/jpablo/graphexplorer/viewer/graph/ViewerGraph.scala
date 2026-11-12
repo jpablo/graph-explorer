@@ -127,6 +127,11 @@ case class ViewerGraph(
       )
     )
 
+  /** Removes the given nodes, arrows, and groups. It also removes each arrow to or from a removed node.
+    *
+    * A member of a removed group goes to the nearest ancestor that stays, or to the root. Then it removes each group that this removal
+    * empties, and each ancestor that becomes empty because of that. A group that was empty before the removal stays.
+    */
   def removeElements(elementIds: ElementIds): ViewerGraph =
     val classified       = elementIds.classify
     val groupIdsToRemove = classified.groups
@@ -181,8 +186,14 @@ case class ViewerGraph(
       groups = groups -- groupIdsToRemove
     ))
 
-    // Clean up any empty groups that may have resulted from the removal
-    graphWithRemovedElements.removeEmptyGroups()
+    // Only a group that loses a child can become empty because of this removal:
+    // - A removed node or a removed group: its parent loses it. If the removal also removes the parent,
+    //   the nearest ancestor that stays loses a child. `survivingContainer` finds that ancestor.
+    // - A removed arrow: no group loses a child, because `memberships` does not contain arrows.
+    // `removeEmptyGroups()` also removes the empty groups that the removal did not touch, for example an empty legend.
+    val removedMembers: Set[GroupMemberId] = nodeIdsToRemove ++ groupIdsToRemove
+    val candidates = removedMembers.flatMap(member => membership(member).flatMap(survivingContainer))
+    graphWithRemovedElements.removeEmptyGroupsFrom(candidates)
 
   private def maxArrowSequence(source: NodeId, target: NodeId): Int =
     val seqs = arrows.values
@@ -488,12 +499,6 @@ case class ViewerGraph(
     else
       None
 
-//  def toCSV: CSV =
-//    CSV(
-//      arrows
-//        .map(a => Array(a.source.toString, a.target.toString))
-//        .toArray
-//    )
 end ViewerGraph
 
 object ViewerGraph:

@@ -1,6 +1,8 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
-import org.jpablo.graphexplorer.router.Route
+import com.raquo.airstream.ownership.Subscription
+import com.raquo.laminar.api.L.unsafeWindowOwner
+import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, ViewTarget, ViewerState}
 import org.scalajs.dom
 
@@ -22,14 +24,27 @@ object DesktopOpenRequests:
 
   private val EventName = "ge:open.requested"
 
-  private var installed = false
+  /** The answer to a request whose route the screen left before the view
+    * showed the file. `await_open` in `main.rs` gives this code to `gx`.
+    */
+  private[desktop] val OpenSuperseded = "OPEN_SUPERSEDED"
+
+  /** Kept so [[reset]] can REMOVE them. Without the removal, an install after
+    * a reset adds a second listener, and both listeners answer one request.
+    */
+  private var listener: Option[js.Function1[dom.Event, Unit]] = None
+  private var routeChanges: Option[Subscription] = None
+
   private var current: Option[ViewerState] = None
   private var pending = Map.empty[Long, Pending]
 
   private case class Pending(route: Route, view: js.Object)
 
   private[desktop] def reset(): Unit =
-    installed = false
+    listener.foreach(dom.window.removeEventListener(EventName, _))
+    listener = None
+    routeChanges.foreach(_.kill())
+    routeChanges = None
     current = None
     pending = Map.empty
 
@@ -38,19 +53,26 @@ object DesktopOpenRequests:
     * Process-global like the other desktop listeners, and deliberately NOT
     * scoped to a mounted viewer: an open request routinely arrives while the
     * app is on Home, which is exactly when there is no viewer to attach to.
+    *
+    * It follows the route of the router too. When the screen goes to a
+    * different route, each request that waits for a different route gets
+    * `OPEN_SUPERSEDED` at once (§4). Before, such a request stayed `Waiting`,
+    * and its `gx open` waited for the timeout of the shell (45 s). A second
+    * `gx open` during a slow load (Mermaid), a click on Home, and the back
+    * button all do this.
     */
-  def install(navigate: Route => Boolean)(using ExecutionContext): Unit =
-    if !installed then
+  def install(router: Router)(using ExecutionContext): Unit =
+    if listener.isEmpty then
       val handler: js.Function1[dom.Event, Unit] = event =>
         val requestId = DesktopIpc.asLong(event.asInstanceOf[js.Dynamic].selectDynamic("detail"), "requestId")
         decide(event) match
           case Decision.Show(route, view) =>
+            // Pending BEFORE the navigation. The route change of this
+            // navigation supersedes the OTHER requests, and keeps this one.
             requestId.foreach(id => pending = pending.updated(id, Pending(route, view)))
-            if navigate(route) then settlePending()
+            if router.tryNavigateTo(route) then settlePending()
             else
-              requestId.foreach: id =>
-                pending -= id
-                complete(id, "rejected", Some("ACTIVATION_REFUSED"), Some("the current diagram refused navigation"))
+              requestId.foreach(complete(_, "rejected", Some("ACTIVATION_REFUSED"), Some("the current diagram refused navigation")))
           case Decision.Reject(code, message) =>
             // Answered rather than left to time out. The caller can act on "no
             // such document"; it can do nothing useful with forty-five seconds
@@ -58,7 +80,8 @@ object DesktopOpenRequests:
             requestId.foreach(complete(_, "rejected", Some(code), Some(message)))
 
       dom.window.addEventListener(EventName, handler)
-      installed = true
+      listener = Some(handler)
+      routeChanges = Some(router.currentRoute.changes.foreach(supersede)(using unsafeWindowOwner))
 
       // §4.1: the socket answers from process start, before this page exists,
       // so an open issued in that window would be dispatched into a page with
@@ -80,17 +103,29 @@ object DesktopOpenRequests:
   def detach(state: ViewerState): Unit =
     if current.exists(_ eq state) then current = None
 
+  /** Answer each request that waits for a route that is not `onScreen`.
+    *
+    * The route, and not the view, decides. At start the route can change
+    * before a view exists (Graphviz loads first), and that request must wait
+    * for its view.
+    */
+  private def supersede(onScreen: Route)(using ExecutionContext): Unit =
+    pending.toVector.foreach: (requestId, request) =>
+      if request.route != onScreen then
+        complete(
+          requestId,
+          "rejected",
+          Some(OpenSuperseded),
+          Some("the window went to a different view before it showed the file")
+        )
+
   private def settlePending()(using ExecutionContext): Unit =
     current.foreach: state =>
       pending.toVector.foreach: (requestId, request) =>
         activation(request.route, state.target, state.loadStatus.now()) match
-          case Activation.Waiting => ()
-          case Activation.Displayed =>
-            pending -= requestId
-            complete(requestId, "displayed", view = Some(request.view))
-          case Activation.Rejected(code, message) =>
-            pending -= requestId
-            complete(requestId, "rejected", Some(code), Some(message))
+          case Activation.Waiting                 => ()
+          case Activation.Displayed               => complete(requestId, "displayed", view = Some(request.view))
+          case Activation.Rejected(code, message) => complete(requestId, "rejected", Some(code), Some(message))
 
   private[desktop] enum Activation derives CanEqual:
     case Waiting
@@ -113,6 +148,9 @@ object DesktopOpenRequests:
   private val ViewerReady  = "viewer_ready"
   private val CompleteOpen = "complete_open"
 
+  /** Answer an open request. A request has one answer, so the answer also
+    * ends its wait in [[pending]].
+    */
   private def complete(
       requestId: Long,
       status:    String,
@@ -120,6 +158,7 @@ object DesktopOpenRequests:
       message:   Option[String] = None,
       view:      Option[js.Object] = None
   )(using ExecutionContext): Unit =
+    pending -= requestId
     // A JS number on the wire: the id is a u64 counter that will not approach
     // 2^53 in a process lifetime, and Scala.js would otherwise send a RuntimeLong
     // object that serde cannot read as a number.

@@ -63,6 +63,30 @@ object ThumbnailRenderer:
     else dom.window.setTimeout(run, 0) // Safari < 16.4 and friends
     p.future
 
+  /** The SVG elements that put marks on the screen. */
+  private val DrawableSelector =
+    "path, rect, circle, ellipse, line, polyline, polygon, text, image, use, foreignObject"
+
+  /** True when `svg` holds at least one element that draws a mark.
+    *
+    * A Mermaid render whose id was also on the page gave an SVG with only a
+    * style and an empty group (see RenderIdClashSpec). That SVG has no viewBox,
+    * and its card is blank. Each correct thumbnail holds a drawable element. A
+    * Graphviz SVG always holds the polygon of its background. Each Mermaid
+    * diagram kind draws its markers, shapes, and labels with these elements.
+    *
+    * The search includes defs and markers. Thus an empty diagram, for example
+    * a flowchart with no nodes, keeps its blank thumbnail. The search stops at
+    * the first match, and a correct SVG has one near its start. Thus the check
+    * costs much less than the parse before it.
+    */
+  private[state] def hasDrawing(svg: dom.Element): Boolean =
+    svg.querySelector(DrawableSelector) != null
+
+  /** A render gave an SVG with no drawing (see [[hasDrawing]]). */
+  private final class NoDrawingException(format: DiagramFormat)
+      extends Exception(s"the $format thumbnail holds no drawing")
+
   /** Process diagram text (DOT or Mermaid) and return an SVG element.
     * Used for generating thumbnails on the library page.
     */
@@ -88,11 +112,10 @@ object ThumbnailRenderer:
       case None =>
         log("thumb.cache.miss", cacheFields*)
 
-        // Adopt an SVG string (from the persistent cache, or fresh off a
+        // Adopt a parsed SVG (from the persistent cache, or fresh off a
         // render) as this card's element, refilling the in-memory cache on the
         // way so a card scrolled past twice pays the lookup only once.
-        def adopt(svgHtml: String): ReactiveSvgElement[SVG] =
-          val proto = parseSVG(svgHtml).ref
+        def adopt(proto: dom.svg.SVG): ReactiveSvgElement[SVG] =
           ThumbnailSvgCache.put(format, dot.value, proto)
           log("thumb.cache.store", cacheFields*)
           ThumbnailSvgCache.cloneSvg(proto)
@@ -132,23 +155,43 @@ object ThumbnailRenderer:
 
         val startedAt = Telemetry.nowMs()
 
+        // Render the source and parse the result. A result with no drawing is
+        // a failed render: the disk cache does not get it, and the card shows
+        // what it shows for other failures of this format. Only a result with
+        // a drawing goes into the disk cache.
+        def renderFresh(): Future[dom.svg.SVG] =
+          val rendered = format match
+            case DiagramFormat.DOT     => renderDot(startedAt)
+            case DiagramFormat.Mermaid => renderMermaid(startedAt)
+          rendered.map: svgHtml =>
+            val proto = parseSVG(svgHtml).ref
+            if !hasDrawing(proto) then
+              log("thumb.render.noDrawing", "format" -> format.toString, "bytes" -> svgHtml.length)
+              throw NoDrawingException(format)
+            ThumbnailDiskCache.put(format, dot.value, svgHtml)
+            proto
+
         // The persistent cache sits BETWEEN the in-memory one and the renderer:
         // a library seen before parses stored SVG and lays out nothing. A miss,
         // a failed open (private browsing), or a corrupt record all arrive here
         // as None and simply render — the store is an optimisation, never a
-        // source of truth.
-        val html: Future[String] =
+        // source of truth. A stored record that does not parse as SVG, or that
+        // holds no drawing, is also a miss. Earlier versions stored SVGs with no
+        // drawing, and such a record stays until the source changes. The fresh
+        // render replaces the record.
+        val parsed: Future[dom.svg.SVG] =
           ThumbnailDiskCache.get(format, dot.value).flatMap:
             case Some(stored) =>
-              log("thumb.disk.hit", "format" -> format.toString, "bytes" -> stored.length)
-              Future.successful(stored)
+              Try(parseSVG(stored).ref).toOption.filter(hasDrawing) match
+                case Some(proto) =>
+                  log("thumb.disk.hit", "format" -> format.toString, "bytes" -> stored.length)
+                  Future.successful(proto)
+                case None =>
+                  log("thumb.disk.noDrawing", "format" -> format.toString, "bytes" -> stored.length)
+                  renderFresh()
             case None =>
               log("thumb.disk.miss", "format" -> format.toString)
-              val rendered = format match
-                case DiagramFormat.DOT     => renderDot(startedAt)
-                case DiagramFormat.Mermaid => renderMermaid(startedAt)
-              rendered.foreach(ThumbnailDiskCache.put(format, dot.value, _))
-              rendered
+              renderFresh()
 
         // A Mermaid failure lands on the "No preview" placeholder rather than in
         // Airstream's error channel, which used to raise a global error per card
@@ -157,8 +200,8 @@ object ThumbnailRenderer:
         // shows a skeleton — the pending state is the starting value, so it can
         // no longer be confused with a failed render.
         val safe = format match
-          case DiagramFormat.Mermaid => html.map(adopt).recover { case _ => emptySvg }
-          case DiagramFormat.DOT     => html.map(adopt)
+          case DiagramFormat.Mermaid => parsed.map(adopt).recover { case _ => emptySvg }
+          case DiagramFormat.DOT     => parsed.map(adopt)
 
         EventStream.fromFuture(safe).toSignal(skeletonSvg)
 

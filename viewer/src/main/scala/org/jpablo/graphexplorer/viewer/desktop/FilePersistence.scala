@@ -4,9 +4,11 @@ import com.raquo.airstream.core.{EventStream, Signal}
 import org.jpablo.graphexplorer.gxcore.fs.LineEnding
 import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.library.DesktopLibrary
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.{DiagramPersistence, DiagramSnapshot, DocumentSessionId, SaveResult}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.control.NonFatal
 
 /** The store of a diagram on the desktop: a file (§7, ADR 0001).
   *
@@ -28,15 +30,20 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 final class FilePersistence(session: DocumentSessionId, library: Option[DesktopLibrary]) extends DiagramPersistence:
 
-  /** The text that the shell read, and the metadata of the entry. A file with
-    * no entry starts with empty metadata.
+  /** The text that the shell read, its language, and the metadata of the
+    * entry. A file with no entry starts with empty metadata.
+    *
+    * The language is the language that the text declares, or else the
+    * language of the extension (`DiagramFormat.ofFile`). Before, the
+    * format was `None`, and the viewer took `DiagramFormat.detect`, which
+    * falls back to DOT. A `.mmd` file with no header line opened as DOT.
     */
   lazy val initial: DiagramSnapshot =
     DesktopDocumentRegistry.get(session) match
       case Some(open) =>
         DiagramSnapshot(
           source = open.sourceText,
-          format = None,
+          format = DiagramFormat.ofFile(open.path, open.sourceText).map(_.toString),
           metadata = library.flatMap(_.metadataOf(open.path)).getOrElse(DiagramMetadata.empty)
         )
       case None =>
@@ -56,7 +63,7 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
     * already holds what the adoption gives (`DesktopLibrary.writeMetadata`).
     *
     * The source does NOT come through here. The file follows its SESSION
-    * (§7.3, `Persistence.followDocumentSession`), which has the rule that an
+    * (§7.3, `DesktopDocumentRegistry.receive`), which has the rule that an
     * outside change must not replace a dirty editor silently.
     */
   def external: EventStream[DiagramMetadata] =
@@ -73,16 +80,17 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
           .changes
           .collect { case Some(entry) => entry.metadata }
 
-  /** Keep the edit in memory, and give the metadata to the library. The
-    * library writes only a change to the entry, so an edit of the source
-    * alone writes nothing.
+  /** Keep the edit in memory, and give the metadata to the library, with the
+    * metadata from before this edit. The library writes only a change of the
+    * metadata of the viewer, so an edit of the source alone writes nothing.
     */
   def update(next: DiagramSnapshot): Unit =
+    val before = current
     current = next
     for
       lib  <- library
       open <- DesktopDocumentRegistry.get(session)
-    do lib.writeMetadata(open.path, next.metadata)
+    do lib.writeMetadata(open.path, before.metadata, next.metadata)
 
   /** §7.1: a compare-and-swap write of this session's path.
     *
@@ -91,34 +99,112 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
     * here would go stale, and a stale base revision turns every second save
     * into a conflict.
     *
+    * The registry knows that the save is in flight (`beginSave`). The shell
+    * sends the event of the save BEFORE its reply, and the person can type
+    * between the two. The event then moves the base, and the editor keeps the
+    * new keys. Before, the page saw the event as a write of a different tool,
+    * and it showed a conflict with its own save. The reply moves the base only
+    * when no version of the file came after the save started (`endSave`).
+    *
     * V-04: the save keeps the line endings of the file and its end (a final
     * newline, or none), as `gx` does (`LineEnding.savedOver`). A canvas edit
     * prints LF with no final newline. Before, a Save wrote that text as it
     * was, and one change to one attribute changed each line of a CRLF file.
     * Each save of the desktop app comes through this method.
+    *
+    * One save of a session is in flight at a time. A save sends the base
+    * revision of the session, and the base moves only after the shell writes
+    * the save. Thus a second save before that write sends the old base, and
+    * the shell refuses it with DOCUMENT_CONFLICT: the person saw "The file
+    * changed on disk" for a write of their own. Now a save that starts while
+    * a save is in flight waits for it, and then it writes with the new base.
+    * One save waits at most. A save that starts while one waits joins it, and
+    * the waiting save writes the snapshot of the last request.
     */
   def saveNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     update(next)
+    FilePersistence.inFlight.get(session) match
+      case None => start(next)
+      case Some(Some(waiting)) =>
+        waiting.snapshot = next
+        waiting.result.future
+      case Some(None) =>
+        val waiting = FilePersistence.Waiting(next)
+        FilePersistence.inFlight = FilePersistence.inFlight.updated(session, Some(waiting))
+        waiting.result.future
+
+  /** Send one save of `next`. When it ends, start the save that waits for it. */
+  private def start(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
+    FilePersistence.inFlight = FilePersistence.inFlight.updated(session, None)
+    // A throw here must also end the save. Else the session stays "in
+    // flight", and each later save waits forever.
+    val result =
+      try write(next)
+      catch case NonFatal(error) => Future.failed(error)
+    result.onComplete: _ =>
+      FilePersistence.inFlight.get(session).flatten match
+        case Some(waiting) => waiting.result.completeWith(start(waiting.snapshot))
+        case None          => FilePersistence.inFlight = FilePersistence.inFlight.removed(session)
+    result
+
+  /** The compare-and-swap write of `next`, with the base of the session now.
+    *
+    * It does not call [[update]]. A save that waited starts after the
+    * request, and the editor can hold newer text then. An `update` here
+    * would move `current` back to the older snapshot.
+    */
+  private def write(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
     DesktopDocumentRegistry.get(session) match
       case None =>
         Future.successful(SaveResult.Failed("this document session is no longer open"))
       case Some(open) =>
         val text = LineEnding.savedOver(open.sourceText, next.source)
+        DesktopDocumentRegistry.beginSave(session, text)
         DesktopIpc
           .saveDocument(open.path, text, open.revision)
-          .map:
-            case DesktopIpc.SaveOutcome.Saved(path, revision) =>
-              // The registry advances, so the NEXT save compares against what
-              // this one wrote. It holds the text that is in the file, so the
-              // next save keeps the same line endings.
-              DesktopDocumentRegistry.record(path, revision, text)
-              SaveResult.Saved
-            case DesktopIpc.SaveOutcome.Conflict(_) =>
-              SaveResult.Conflict("The file changed on disk. Reload it and try again.")
-            case DesktopIpc.SaveOutcome.Failed(message) =>
-              SaveResult.Failed(message)
-            case DesktopIpc.SaveOutcome.Unavailable =>
-              SaveResult.Unsupported("Saving a file needs the desktop app")
+          .flatMap:
+            case DesktopIpc.SaveOutcome.NotWatched(_) => saveWithNewWatch(open, text)
+            case outcome                              => Future.successful(outcome)
+          .map: outcome =>
+            // Each outcome ends the save. Only a write moves the base, so the
+            // NEXT save compares against what this one wrote. The base holds
+            // the text that is in the file, so the next save keeps the same
+            // line endings.
+            val written = outcome match
+              case DesktopIpc.SaveOutcome.Saved(_, revision) => Some(revision)
+              case _                                         => None
+            DesktopDocumentRegistry.endSave(session, text, written)
+            outcome match
+              case DesktopIpc.SaveOutcome.Saved(_, _)         => SaveResult.Saved
+              case DesktopIpc.SaveOutcome.Conflict(_)         =>
+                SaveResult.Conflict("The file changed on disk. Reload it and try again.")
+              case DesktopIpc.SaveOutcome.NotWatched(message) => SaveResult.Failed(message)
+              case DesktopIpc.SaveOutcome.Failed(message)     => SaveResult.Failed(message)
+              case DesktopIpc.SaveOutcome.Unavailable         => SaveResult.Unsupported("Saving a file needs the desktop app")
+
+  /** The shell lost the watch of the file, so the save wrote nothing. Register
+    * the watch again (`open_document`), and retry the save one time.
+    *
+    * A watch can go for many causes: `gx unwatch`, or an open that the screen
+    * left before it showed the file. Without a watch, each save of the view
+    * fails with "path is not currently watched".
+    *
+    * The retry sends the SAME base revision. The shell compares it with the
+    * file on disk, so an outside change before the retry comes back as a
+    * conflict and not as a write over that change. The new watch sends a
+    * document event, and that event can end the wait for this save. Thus
+    * `beginSave` comes again before the retry.
+    */
+  private def saveWithNewWatch(open: DesktopDocumentRegistry.Session, text: String)(using
+      ExecutionContext
+  ): Future[DesktopIpc.SaveOutcome] =
+    DesktopIpc
+      .openFile(open.path)
+      .flatMap: _ =>
+        DesktopDocumentRegistry.beginSave(session, text)
+        DesktopIpc.saveDocument(open.path, text, open.revision)
+      .recover:
+        case error => DesktopIpc.SaveOutcome.Failed(s"the file has no watch, and a new watch failed: ${error.getMessage}")
 
   /** The session stays. A person can navigate to Home and back, and §12 keeps
     * the watch separate from the view, so closing a view must not end a session
@@ -127,3 +213,20 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
   def close(): Unit = ()
 
   private[desktop] def latest: DiagramSnapshot = current
+
+object FilePersistence:
+
+  /** A save that waits for the save in flight of its session. A request that
+    * comes while it waits gives its snapshot, so the save writes the last one.
+    */
+  private final class Waiting(var snapshot: DiagramSnapshot):
+    val result: Promise[SaveResult] = Promise()
+
+  /** The sessions that have a save in flight, each with the save that waits
+    * for it, if one waits.
+    *
+    * For each session, not for each view: the views of one file share one
+    * base revision (`DesktopDocumentRegistry`), and the registry follows one
+    * save of a session at a time (`beginSave`).
+    */
+  private var inFlight: Map[DocumentSessionId, Option[Waiting]] = Map.empty

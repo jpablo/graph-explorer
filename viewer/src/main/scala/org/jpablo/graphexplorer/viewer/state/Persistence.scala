@@ -1,5 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.airstream.core.Transaction
+import com.raquo.airstream.ownership.Subscription
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
 import org.jpablo.graphexplorer.library.{FileRename, Library}
@@ -15,7 +17,6 @@ enum LeaveIntent derives CanEqual:
   case Navigate(route: Route)
   case CloseWindow
 import org.jpablo.graphexplorer.gxcore.command.ElementRef
-import org.jpablo.graphexplorer.gxcore.fs.LineEnding
 import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
@@ -86,54 +87,45 @@ trait Persistence:
     */
   val pendingLeave: Var[Option[LeaveIntent]] = Var(None)
 
-  /** The text this viewer last took from its session.
+  /** Give this view's editor to its session (§7.3, §10).
     *
-    * Viewer-local, and that is the point of it. The decision below used to live
-    * in `DesktopBridge` against a PROCESS-GLOBAL "current viewer", so every file
-    * event had to ask "is this still the right view?" and every navigation had
-    * to remember to say goodbye. A viewer that knows what it last adopted can
-    * answer §7.3 from its own state.
+    * The registry holds the §7.3 rule (`DesktopDocumentRegistry.receive`).
+    * When a version of the file arrives, it reads the text of this editor, and
+    * it decides from the base, the editor and the file. The view keeps no copy
+    * of the base: the session holds it, and two copies could disagree.
+    *
+    * The registry calls `take` only for a clean editor. The editor then takes
+    * the text of the file, with the language rule of [[adoptFileText]].
+    *
+    * Owner-scoped: when the owner of this view dies (the view unmounts), the
+    * editor goes back. The session then has no edit, so a conflict ends, and
+    * the file's version becomes the base.
     */
-  private var lastAdopted: String = ""
-
-  /** Follow this viewer's own session (§7.3, §10).
-    *
-    * Owner-scoped: Laminar teardown ends it, so a view that leaves the screen
-    * stops listening without anything having to detach it.
-    *
-    * The rule, from the viewer's own two facts — what it last adopted, and what
-    * is in the editor now:
-    *
-    *   - the editor matches what was adopted: no edit to lose, take the file.
-    *   - the editor moved, and the file has the edit of the editor: a save of
-    *     this view, or the same edit from a different writer. The file is the
-    *     new base, and there is no conflict. Before, a save of this view
-    *     recorded a conflict with the text that the save wrote.
-    *   - the editor moved AND the file moved: both versions matter, so keep the
-    *     edit on screen and record the conflict. §7.3 forbids replacing dirty
-    *     text silently.
-    *   - the editor moved and the file did not: nothing happened.
-    *
-    * "Matches" and "has" ignore the line endings and the final newline, because
-    * a save keeps those of the file (V-04).
-    */
-  private def followDocumentSession(): Unit =
+  private def attachToSession(): Unit =
     target match
       case ViewTarget.File(session) =>
-        lastAdopted = persistence.initial.source
-        documentSession.changes.foreach:
-          case None => ()
-          case Some(current) =>
-            val editorMoved = !LineEnding.sameOnDisk(lastAdopted, sourceText.now())
-            val fileMoved   = current.sourceText != lastAdopted
-            if !editorMoved then
-              lastAdopted = current.sourceText
-              replaceSourceDetectingFormat(current.sourceText)
-            else if current.holds(sourceText.now()) then
-              lastAdopted = current.sourceText
-            else if fileMoved then
-              DesktopDocumentRegistry.markConflict(session, current.revision, current.sourceText)
+        val detach = DesktopDocumentRegistry.attach(
+          session,
+          DesktopDocumentRegistry.Editor(text = () => sourceText.now(), take = adoptFileText)
+        )
+        new Subscription(owner, detach)
+        ()
       case _ => ()
+
+  /** Put the text of the file in the editor: a clean adoption, "Load the
+    * file", or "Discard".
+    *
+    * The language is NOT read off the text with `DiagramFormat.detect`, which
+    * falls back to DOT and ignores auto-detect off. Before, a language that
+    * the person picked by hand was lost after each outside change. With
+    * auto-detect off, the language stays. With auto-detect on, the language
+    * is the language that the text declares, or else the language now.
+    */
+  private def adoptFileText(text: String): Unit =
+    val format =
+      if autoDetectFormat.now() then DiagramFormat.declared(text).getOrElse(formatSelection.now())
+      else formatSelection.now()
+    replaceSource(text, format)
 
   /** Follow the metadata when a different writer changes it (D7.3).
     *
@@ -148,7 +140,7 @@ trait Persistence:
     * metadata of the entry, and the store writes only a change
     * (`DesktopLibrary.writeMetadata`). The adoption does not touch the source,
     * the selection or the viewport. The source follows the session
-    * ([[followDocumentSession]]), and the other two are not metadata.
+    * (`DesktopDocumentRegistry.receive`), and the other two are not metadata.
     */
   private def followMetadata(): Unit =
     persistence.external.foreach: next =>
@@ -207,10 +199,8 @@ trait Persistence:
 
   /** Resolve this viewer's file conflict.
     *
-    * Both answers accept the file's revision as the new save base. The viewer
-    * must also advance `lastAdopted` before the registry emits that new base.
-    * Otherwise the active session follower compares the registry update with
-    * the old base and immediately creates the same conflict again.
+    * Both answers accept the file's revision as the new save base, so the next
+    * save's compare-and-swap succeeds.
     *
     * @param adoptRemoteText
     *   true replaces the editor with the file's text; false keeps the local
@@ -219,10 +209,22 @@ trait Persistence:
   def resolveDocumentConflict(adoptRemoteText: Boolean): Unit =
     target match
       case ViewTarget.File(session) =>
-        DesktopDocumentRegistry.get(session).flatMap(_.conflict).foreach: remote =>
-          lastAdopted = remote.text
-          DesktopDocumentRegistry.acceptRemote(session)
-          if adoptRemoteText then replaceSourceDetectingFormat(remote.text)
+        DesktopDocumentRegistry.acceptRemote(session).foreach: resolved =>
+          if adoptRemoteText then adoptFileText(resolved.sourceText)
+      case _ => ()
+
+  /** Drop the edit of this view, because the person chose "Discard" (§7.4).
+    *
+    * The editor takes the file: the newest version, if a conflict waits, and
+    * else the base. The conflict ends. Before, "Discard" only left the view,
+    * and the session kept its conflict. A return to the file then showed the
+    * banner "Your edit is still here", with no edit.
+    */
+  def discardEdit(): Unit =
+    target match
+      case ViewTarget.File(session) =>
+        DesktopDocumentRegistry.acceptRemote(session)
+        DesktopDocumentRegistry.get(session).foreach(open => adoptFileText(open.sourceText))
       case _ => ()
 
   /** ViewerSettings below is deliberately NOT branched by the target: theme,
@@ -252,11 +254,10 @@ trait Persistence:
     // before the metadata had one `Var`. A store reads the two values as the
     // same (`DesktopLibrary.writeMetadata`), so this alone writes nothing. The
     // view of the flag is distinct, so the restore does not always change it.
-    // Thus the restore applies auto-detect itself.
+    // Thus `initializePersistence` applies auto-detect after the restore.
     val restoredMetadata = restoredDiagram.metadata
     metadata.set(restoredMetadata.copy(autoDetectFormat = Some(restoredMetadata.autoDetectFormat.getOrElse(true))))
     storedName.set(restoredDiagram.name)
-    phases.applyAutoDetectNow()
 
     Var.set(
       // app settings
@@ -285,6 +286,9 @@ trait Persistence:
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
   private def setupStateSynchronization(): Unit =
+    // A write that the store refuses goes to the alert of the view (`ErrorAlert`).
+    persistence.refusedWrites.foreach(errorBus.emit)
+
     // synchronize ViewerState ~> DiagramSnapshot
     Signal
       .combine(
@@ -376,19 +380,35 @@ trait Persistence:
   def save()(using ExecutionContext): Future[SaveResult] =
     persistence.saveNow(snapshot())
 
-  /** Initializes persistence by restoring state and setting up synchronization. */
+  /** Initializes persistence by restoring state and setting up synchronization.
+    *
+    * The sync must start after the restore is complete. Before, the sync saw
+    * each step of the restore as an edit when the view was built in a running
+    * Airstream transaction. `Viewer` builds the view in the map of the route
+    * signal, so that is the usual case. In a running transaction, each
+    * `Var.set` of the restore makes a new transaction, and Airstream runs it
+    * after the current transaction. The sync subscribed before that, so a visit
+    * with no edit wrote the half-restored state, and then the restored state.
+    * In the browser library, each write also moved `lastModified`.
+    *
+    * Thus auto-detect and the sync go in new transactions too. Airstream runs
+    * the new transactions of a transaction in the order of their creation, and
+    * it runs the transactions that each one makes before the next one. Thus
+    * auto-detect sees the restored format and flag, and the sync subscribes
+    * after the restore and after the change of auto-detect. Outside a
+    * transaction, each new transaction runs at once, in the same order.
+    */
   def initializePersistence(): Unit =
     restorePersistedState()
-    setupStateSynchronization()
-    followDocumentSession()
+    Transaction(_ => phases.applyAutoDetectNow())
+    Transaction(_ => setupStateSynchronization())
+    attachToSession()
     followMetadata()
 
   /** Release the store when the view goes away (§10).
     *
-    * The view calls this from its unmount, beside the owner it kills. Every
-    * store today releases nothing, and the method still exists: a store that
-    * holds a handle must have somewhere to give it back, and adding the call
-    * later means finding every unmount again.
+    * The view calls this from its unmount, beside the owner it kills. The
+    * store of a browser diagram stops its sync to the storage here.
     */
   def closePersistence(): Unit = persistence.close()
 

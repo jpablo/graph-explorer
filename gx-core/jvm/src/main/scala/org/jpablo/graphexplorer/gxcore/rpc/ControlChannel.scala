@@ -1,12 +1,13 @@
 package org.jpablo.graphexplorer.gxcore.rpc
 
-import java.io.ByteArrayOutputStream
+import java.io.{ByteArrayOutputStream, IOException, InterruptedIOException}
 import java.net.{StandardProtocolFamily, UnixDomainSocketAddress}
 import java.nio.ByteBuffer
-import java.nio.channels.SocketChannel
+import java.nio.channels.{SelectionKey, Selector, SocketChannel}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
-import scala.util.control.NonFatal
+import scala.concurrent.duration.*
+import scala.util.control.{NoStackTrace, NonFatal}
 
 /** Why a call did not produce an answer.
   *
@@ -29,8 +30,20 @@ enum ChannelError derives CanEqual:
   *
   * AF_UNIX on every platform, including Windows — see the desktop's `main.rs`
   * for why one transport rather than D4's two.
+  *
+  * Each call has a time limit, `timeout`. The limit starts when the call
+  * starts, and it covers the send of the request and the read of the full
+  * answer. A NIO channel has no read timeout, and `channel.socket()` does not
+  * work for a unix socket. Thus the channel is in non-blocking mode, and a
+  * `Selector` waits for it with a time limit.
   */
-final class ControlChannel private (channel: SocketChannel, debug: String => Unit):
+final class ControlChannel private (channel: SocketChannel, timeout: FiniteDuration, debug: String => Unit):
+  import ControlChannel.TimedOut
+
+  // The selector has only this channel. The key has no interest until a call
+  // waits for a read or a write.
+  private val selector = Selector.open()
+  private val key      = channel.register(selector, 0)
 
   // Strict equality is on project-wide, and ujson.Value carries no CanEqual.
   // Comparing two ids structurally is exactly what is wanted here, so the
@@ -54,18 +67,32 @@ final class ControlChannel private (channel: SocketChannel, debug: String => Uni
     // mismatch check below — which read it as a number — quietly matched
     // nothing on every single call.
     val line    = ujson.write(request)
-    debug(s"-> $line")
-    try
-      channel.write(ByteBuffer.wrap((line + "\n").getBytes(StandardCharsets.UTF_8)))
-      readFrame() match
-        case None =>
-          Left(ChannelError.Io(s"desktop closed the connection during '$method'"))
-        case Some(raw) =>
-          debug(s"<- $raw")
-          parseResponse(raw, id)
-    catch case NonFatal(e) => Left(ChannelError.Io(s"$method failed: ${e.getMessage}"))
+    if !channel.isOpen then Left(ChannelError.Io(s"cannot send '$method': the connection is closed"))
+    else
+      debug(s"-> $line")
+      val deadline = System.nanoTime() + timeout.toNanos
+      try
+        send(ByteBuffer.wrap((line + "\n").getBytes(StandardCharsets.UTF_8)), deadline)
+        readFrame(deadline) match
+          case None =>
+            Left(ChannelError.Io(s"desktop closed the connection during '$method'"))
+          case Some(raw) =>
+            debug(s"<- $raw")
+            parseResponse(raw, id)
+      catch
+        case TimedOut(step) =>
+          // A late answer can come after this. The next call on this
+          // connection then reads it as its own answer. Close the connection,
+          // so that a next call fails at once with a clear error.
+          close()
+          Left(ChannelError.Io(s"the desktop did not $step '$method' in $timeout"))
+        case NonFatal(e) => Left(ChannelError.Io(s"$method failed: ${e.getMessage}"))
 
   def close(): Unit =
+    // Close the selector first. The JDK closes the socket of a registered
+    // channel only after its key is gone.
+    try selector.close()
+    catch case NonFatal(_) => ()
     try channel.close()
     catch case NonFatal(_) => ()
 
@@ -104,7 +131,7 @@ final class ControlChannel private (channel: SocketChannel, debug: String => Uni
     * decoding each chunk would corrupt exactly the non-ASCII paths V-16 is
     * about. UTF-8 is named rather than defaulted for the same reason.
     */
-  private def readFrame(): Option[String] =
+  private def readFrame(deadline: Long): Option[String] =
     val buffer = ByteBuffer.allocate(16 * 1024)
     val out    = ByteArrayOutputStream()
     var done   = false
@@ -115,14 +142,71 @@ final class ControlChannel private (channel: SocketChannel, debug: String => Uni
       if n < 0 then
         done = true
         closed = out.size() == 0
+      else if n == 0 then await(SelectionKey.OP_READ, deadline, "answer")
       else
         buffer.flip()
         while buffer.hasRemaining && !done do
           val b = buffer.get()
           if b == '\n'.toByte then done = true else out.write(b.toInt)
+        // A peer that sends bytes with no end of line must also stop at the
+        // deadline, so do the check here too, and not only in `await`.
+        if !done && System.nanoTime() - deadline >= 0 then throw TimedOut("answer")
     if closed then None else Some(String(out.toByteArray, StandardCharsets.UTF_8))
 
+  /** A write in non-blocking mode can write only a part of the buffer, or
+    * nothing. A desktop that does not read fills the socket buffer, and then
+    * the write cannot continue. Thus the write also stops at the deadline.
+    */
+  private def send(buffer: ByteBuffer, deadline: Long): Unit =
+    while buffer.hasRemaining do
+      if channel.write(buffer) == 0 then await(SelectionKey.OP_WRITE, deadline, "read the request")
+      else if buffer.hasRemaining && System.nanoTime() - deadline >= 0 then throw TimedOut("read the request")
+
+  /** Wait until the channel is ready for `op`. Throw `TimedOut` if the
+    * deadline comes first.
+    */
+  private def await(op: Int, deadline: Long, step: String): Unit =
+    val _     = key.interestOps(op)
+    var ready = false
+    while !ready do
+      val left = deadline - System.nanoTime()
+      if left <= 0 then throw TimedOut(step)
+      // A select on an interrupted thread returns at once. Without this check
+      // the loop uses all of a CPU until the deadline.
+      if Thread.currentThread().isInterrupted then
+        throw InterruptedIOException(s"interrupted while the desktop had to $step")
+      // `select(0)` waits with no limit. Thus the value is 1 ms or more.
+      val _ = selector.select(left / 1_000_000 + 1)
+      // Remove the key from the selected set. A key that stays in the set
+      // makes the next `select` return 0, also when the channel is ready.
+      ready = selector.selectedKeys().remove(key)
+
 object ControlChannel:
+
+  /** The time limit of one call: the send of the request and the read of the
+    * answer.
+    *
+    * The desktop sets a time limit on its own waits (desktop/src-tauri/src/main.rs).
+    * A live view command waits 5 s (`LIVE_VIEW_TIMEOUT`). A `show` can wait two
+    * times `OPEN_TIMEOUT` (45 s), one after the other: first `wait_for_page`
+    * waits for the page, then `await_open` waits for the acknowledgment. Thus
+    * the desktop can need 90 s before it sends its own error.
+    *
+    * This value is 90 s and a margin of 10 s. Thus a slow cold start gets the
+    * desktop's own error, which tells more. A shorter limit can stop a `show`
+    * that the desktop then completes, and gx reports a failure for a file that
+    * the window shows. This limit stops only a desktop that answers nothing: a
+    * desktop that is stopped, deadlocked, or in a debugger. Make it longer if
+    * the desktop gets a new wait.
+    */
+  val DefaultTimeout: FiniteDuration = 100.seconds
+
+  /** The deadline of a call came before the step completed. `step` completes
+    * the sentence "the desktop did not ...".
+    */
+  private final case class TimedOut(step: String)
+      extends IOException(s"the desktop did not $step in time")
+      with NoStackTrace
 
   /** Where the desktop said its socket is.
     *
@@ -149,27 +233,47 @@ object ControlChannel:
     * behind, so its existence proves nothing and `connect` is what settles it.
     * That is strictly better than v1's liveness check, which believed the file.
     */
-  def connect(socket: Path, debug: String => Unit = _ => ()): Either[ChannelError, ControlChannel] =
+  def connect(
+      socket:  Path,
+      debug:   String => Unit = _ => (),
+      timeout: FiniteDuration = DefaultTimeout
+  ): Either[ChannelError, ControlChannel] =
     try
       val channel = SocketChannel.open(StandardProtocolFamily.UNIX)
-      try
-        channel.connect(UnixDomainSocketAddress.of(socket))
-        debug(s"connected to $socket")
-        Right(ControlChannel(channel, debug))
-      catch
-        case NonFatal(e) =>
-          channel.close()
-          Left(ChannelError.NoDesktop(s"$socket: ${e.getMessage}"))
+      // The connect is in blocking mode, with no time limit. A unix socket
+      // connects or fails at once, with one exception: on Linux, a connect
+      // waits when the listen backlog of the desktop is full. That occurs
+      // only after hundreds of calls to a desktop that does not accept. In
+      // non-blocking mode, Linux gives EAGAIN, which shows here as NoDesktop.
+      val connected =
+        try
+          val _ = channel.connect(UnixDomainSocketAddress.of(socket))
+          Right(())
+        catch
+          case NonFatal(e) =>
+            channel.close()
+            Left(ChannelError.NoDesktop(s"$socket: ${e.getMessage}"))
+      connected.flatMap: _ =>
+        try
+          val _ = channel.configureBlocking(false)
+          val c = ControlChannel(channel, timeout, debug)
+          debug(s"connected to $socket")
+          Right(c)
+        catch
+          case NonFatal(e) =>
+            channel.close()
+            Left(ChannelError.Io(s"cannot use the connection to $socket: ${e.getMessage}"))
     catch case NonFatal(e) => Left(ChannelError.Io(s"cannot open a unix socket: ${e.getMessage}"))
 
   /** Connect, run, close — the shape every caller actually wants. */
   def use[A](
       controlFile: Path,
-      debug:       String => Unit = _ => ()
+      debug:       String => Unit = _ => (),
+      timeout:     FiniteDuration = DefaultTimeout
   )(f: ControlChannel => Either[ChannelError, A]): Either[ChannelError, A] =
     socketPathFrom(controlFile) match
       case None => Left(ChannelError.NoDesktop(s"no socket recorded in $controlFile"))
       case Some(socket) =>
-        connect(socket, debug).flatMap: channel =>
+        connect(socket, debug, timeout).flatMap: channel =>
           try f(channel)
           finally channel.close()

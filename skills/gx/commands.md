@@ -148,7 +148,7 @@ command does not run it.
 | Command | Notes |
 |---|---|
 | `gx status [--json]` | the library folder, the number of diagrams (and of missing files), and the desktop: running, starting, or not running. Exit 0 also with no desktop |
-| `gx watch <file>... [--json] [--interval MS]` | one line for each change of a file: `changed`, `restored` or `deleted`. `--json`: `{"event", "origin", "hash"}` on each line. It does not stop: run it in the background. `--interval` sets the poll and the debounce (default 50) |
+| `gx watch <file>... [--json] [--interval MS]` | one line for each change of a file: `changed`, `restored` or `deleted`. `--json`: `{"event", "origin", "hash"}` on each line. It does not stop: run it in the background. `--interval` sets the poll and the debounce, 1 or more (default 50) |
 | `gx skill [<version>] [--latest] [--json]` | where this skill is, pinned to the running binary |
 | `gx --version` | the version of the binary |
 | `gx help` | the command list |

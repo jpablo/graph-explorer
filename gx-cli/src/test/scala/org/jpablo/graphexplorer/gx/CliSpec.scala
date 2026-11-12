@@ -422,6 +422,96 @@ class CliSpec extends FunSuite:
     assertEquals(firstColumn(a).toSet, Set("api..db", "web..api"))
   }
 
+  /** The lines of the audit log that record a write of a file. */
+  private def writes(dir: Path): Int =
+    val log = dir.resolve("audit.jsonl")
+    if !Files.exists(log) then 0
+    else Files.readAllLines(log).asScala.count(_.contains("\"event\":\"written\""))
+
+  // The check for "no change" compared the rendered text with the text of the
+  // file. The renderer gives LF, but a save keeps the line endings and the
+  // end of the file (V-04). Thus a change that changed nothing on a CRLF file
+  // wrote the file again, logged a write, and said "changed": true.
+  tmp.test("a change that changes nothing writes nothing, also on a CRLF file") { dir =>
+    for (name, text) <- Seq(
+        "crlf.dot" -> "digraph G {\r\n  api\r\n  web -> api\r\n}\r\n",
+        "lf.dot"   -> "digraph G {\n  api\n  web -> api\n}\n"
+      )
+    do
+      val f = write(dir, name, text)
+      val first = Run(dir)
+      assertEquals(first("set", name, "api", "color=red", "--json"), ExitCode.Ok, first.stderr)
+      assertEquals(first.json("changed").bool, true, name)
+      val bytes  = Files.readAllBytes(f).toVector
+      val logged = writes(dir)
+
+      val again = Run(dir)
+      assertEquals(again("set", name, "api", "color=red", "--json"), ExitCode.Ok, again.stderr)
+      assertEquals(again.json("changed").bool, false, s"$name: the second set changes nothing")
+      assertEquals(Files.readAllBytes(f).toVector, bytes, name)
+      assertEquals(writes(dir), logged, s"$name: gx wrote nothing, so the audit log has no new write")
+  }
+
+  /** A diagram with an empty cluster (a legend) and a cluster with nodes. */
+  private def legend(dir: Path): Path =
+    write(
+      dir,
+      "legend.dot",
+      """digraph G {
+        |  subgraph cluster_legend { label="Legend" }
+        |  subgraph cluster_svc { label="services"; api; db }
+        |  web -> api
+        |}
+        |""".stripMargin
+    )
+
+  /** The names of the groups and of the nodes of a file, as gx reads them. */
+  private def groupsAndNodes(dir: Path, file: String): (Set[String], Set[String]) =
+    val g = Run(dir)
+    g("groups", file)
+    val n = Run(dir)
+    n("nodes", file)
+    (firstColumn(g).toSet, firstColumn(n).toSet)
+
+  // The DOT reader read an empty cluster as a NODE with the name and the
+  // label of the cluster (`SimpleGraphObject`, see `EmptySubgraphSpec`). Thus
+  // each change wrote `"cluster_legend" [label="Legend"];` into the file.
+  tmp.test("an empty cluster is a group, and a change keeps it a group") { dir =>
+    val f = legend(dir)
+    assertEquals(groupsAndNodes(dir, "legend.dot"), (Set("cluster_legend", "cluster_svc"), Set("api", "db", "web")))
+
+    val r = Run(dir)
+    assertEquals(r("set", "legend.dot", "web", "color=red"), ExitCode.Ok, r.stderr)
+    assertEquals(
+      groupsAndNodes(dir, "legend.dot"),
+      (Set("cluster_legend", "cluster_svc"), Set("api", "db", "web")),
+      Files.readString(f)
+    )
+    val a = Run(dir)
+    a("attrs", "legend.dot", "cluster_legend", "--json")
+    assertEquals(a.json.arr.head("attributes").obj.get("label").map(_.str), Some("Legend"), Files.readString(f))
+  }
+
+  // `ungroupSelection` removed EACH empty group of the graph, also a group
+  // that the ungroup did not name (`GroupsOpsSpec`).
+  tmp.test("ungroup keeps an empty group that it does not name") { dir =>
+    val f = legend(dir)
+    val r = Run(dir)
+    assertEquals(r("ungroup", "legend.dot", "cluster_svc"), ExitCode.Ok, r.stderr)
+    assertEquals(groupsAndNodes(dir, "legend.dot"), (Set("cluster_legend"), Set("api", "db", "web")), Files.readString(f))
+  }
+
+  // `moveToNewGroup` removed EACH empty group of the graph, so a new group
+  // removed the empty legend from the file (`GroupsOpsSpec`).
+  tmp.test("group keeps an empty group that it does not touch") { dir =>
+    val f = legend(dir)
+    val r = Run(dir)
+    assertEquals(r("group", "legend.dot", "web", "--label", "edge"), ExitCode.Ok, r.stderr)
+    val (groups, nodes) = groupsAndNodes(dir, "legend.dot")
+    assert(groups.contains("cluster_legend"), Files.readString(f))
+    assertEquals(nodes, Set("api", "db", "web"), Files.readString(f))
+  }
+
   tmp.test("ungroup refuses a node") { dir =>
     arch(dir)
     val r = Run(dir)
@@ -691,6 +781,19 @@ class CliSpec extends FunSuite:
     assertEquals(c.json("notes").str, "")
   }
 
+  // An empty <text> is a usage error, so empty stdin is one too. Before, an
+  // empty stdin (for example from a command that failed in a pipe) set the
+  // note to "", and the note that was there went away with exit 0.
+  tmp.test("note --stdin with no text is a usage error, and the note stays") { dir =>
+    val f = arch(dir)
+    Run(dir)("note", "arch.dot", "keep me")
+    for input <- Seq("", "\n", "\r\n\n") do
+      val r = Run(dir, stdinText = input)
+      assertEquals(r("note", "arch.dot", "--stdin"), ExitCode.Usage, s"stdin=${input.map(_.toInt)} stderr=${r.stderr}")
+      assert(r.stderr.contains("--clear"), r.stderr)
+      assertEquals(r.entry(f).map(_.metadata.notes), Some("keep me"))
+  }
+
   tmp.test("note needs exactly one of a text, --stdin and --clear") { dir =>
     arch(dir)
     for args <- Seq(Seq("note", "arch.dot"), Seq("note", "arch.dot", "a", "--clear"), Seq("note", "arch.dot", "a", "b")) do
@@ -802,6 +905,32 @@ class CliSpec extends FunSuite:
     val j = Run(dir)
     j("ls", "--json")
     assertEquals(j.json.arr.head("missing").bool, true)
+  }
+
+  /** A path that no local file can have: `Paths.get` refuses U+0000 on each
+    * platform. An entry file that a person edited by hand, or an entry from a
+    * different platform, can have such a path. Before, `ls`, `status` and
+    * `selection` gave it to `Paths.get`, and the `InvalidPathException` made
+    * the whole command fail with "unexpected failure".
+    */
+  private def UnusablePath = "/w/a\u0000b.dot"
+
+  /** Put an entry with [[UnusablePath]] into the library. `metadata/` must exist. */
+  private def putUnusable(dir: Path): Unit =
+    val entry = LibraryEntry(path = UnusablePath, metadata = DiagramMetadata(tags = List("odd")), createdAt = 1L, updatedAt = 2L)
+    Run(dir).library.put(entry).fold(err => fail(s"$err"), identity)
+
+  tmp.test("ls lists an entry whose path no file can have, and marks it missing") { dir =>
+    val f = arch(dir).toRealPath().toString
+    Run(dir)("add", "arch.dot")
+    putUnusable(dir)
+    val r = Run(dir)
+    assertEquals(r("ls"), ExitCode.Ok, r.stderr)
+    assert(r.lines.exists(l => l.startsWith(UnusablePath) && l.endsWith("missing")), r.stdout)
+    assert(r.lines.exists(l => l.startsWith(f) && !l.endsWith("missing")), r.stdout)
+    val j = Run(dir)
+    assertEquals(j("ls", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json.arr.map(e => e("path").str -> e("missing").bool).toMap, Map(f -> false, UnusablePath -> true))
   }
 
   tmp.test("ls of an empty library says so") { dir =>
@@ -1114,6 +1243,13 @@ class CliSpec extends FunSuite:
     assertEquals(r.json, ujson.Obj("path" -> gone, "selection" -> ujson.Arr("node:a")))
   }
 
+  tmp.test("selection gives the refs when the desktop sends a path that no file can have") { dir =>
+    val r = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(UnusablePath), UnusablePath, "node:a")))
+    assertEquals(r("selection", "--json"), ExitCode.Ok, r.stderr)
+    assert(r.stderr.contains("The selection is in the ref spelling"), r.stderr)
+    assertEquals(r.json, ujson.Obj("path" -> UnusablePath, "selection" -> ujson.Arr("node:a")))
+  }
+
   tmp.test("selection with nothing on the screen is exit 2, as before") { dir =>
     val n = Run(dir, answer = (_, _) => Left(ChannelError.Rpc("NO_LIVE_VIEW", "no diagram is open", ujson.Obj())))
     assertEquals(n("selection"), ExitCode.NeedsDesktop)
@@ -1153,6 +1289,16 @@ class CliSpec extends FunSuite:
     assertEquals(j.json("desktopRunning").bool, false)
   }
 
+  tmp.test("status counts an entry whose path no file can have as missing, and exits 0") { dir =>
+    arch(dir)
+    Run(dir)("add", "arch.dot")
+    putUnusable(dir)
+    val j = Run(dir)
+    assertEquals(j("status", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json("diagrams").num.toInt, 2)
+    assertEquals(j.json("missing").num.toInt, 1)
+  }
+
   tmp.test("status says what the desktop is watching, with a plural that is a plural") { dir =>
     def withWatches(n: Int) =
       Right(ujson.Obj("running" -> true, "watches" -> ujson.Arr.from((1 to n).map(i => ujson.Obj("path" -> s"/tmp/$i.dot")))))
@@ -1183,7 +1329,7 @@ class CliSpec extends FunSuite:
   tmp.test("watch streams a change to stdout with no desktop") { dir =>
     val f = write(dir, "gen.dot", "digraph { v1 }")
     val w = Run(dir, duringWatch = () => Files.writeString(f, "digraph { v2 }"))
-    assertEquals(w("watch", "gen.dot", "--interval", "0"), ExitCode.Ok, w.stderr)
+    assertEquals(w("watch", "gen.dot", "--interval", "1"), ExitCode.Ok, w.stderr)
     assert(w.stdout.contains("changed"), s"stdout=${w.stdout} stderr=${w.stderr}")
     assert(w.stdout.contains(f.toRealPath().toString), w.stdout)
   }
@@ -1191,7 +1337,7 @@ class CliSpec extends FunSuite:
   tmp.test("watch --json prints one JSON object per line") { dir =>
     val f = write(dir, "gen.dot", "digraph { v1 }")
     val w = Run(dir, duringWatch = () => Files.writeString(f, "digraph { v2 }"))
-    w("watch", "gen.dot", "--json", "--interval", "0")
+    w("watch", "gen.dot", "--json", "--interval", "1")
     assert(w.stdout.contains("\"event\":\"changed\""), w.stdout)
     ujson.read(w.stdout.linesIterator.next())
   }
@@ -1199,8 +1345,18 @@ class CliSpec extends FunSuite:
   tmp.test("watch reports a deleted file") { dir =>
     val f = write(dir, "gen.dot", "digraph { v1 }")
     val w = Run(dir, duringWatch = () => Files.deleteIfExists(f))
-    assertEquals(w("watch", "gen.dot", "--interval", "0"), ExitCode.Ok, w.stderr)
+    assertEquals(w("watch", "gen.dot", "--interval", "1"), ExitCode.Ok, w.stderr)
     assert(w.stdout.contains("deleted"), w.stdout)
+  }
+
+  // `--interval 0` gave `sleep(0)` and a debounce of 0, so the loop polled
+  // each file with no pause and used one CPU core at 100%.
+  tmp.test("watch refuses an interval of 0") { dir =>
+    write(dir, "gen.dot", "digraph { v1 }")
+    val w = Run(dir)
+    assertEquals(w("watch", "gen.dot", "--interval", "0"), ExitCode.Usage, w.stderr)
+    assert(w.stderr.contains("--interval"), w.stderr)
+    assert(!w.stderr.contains("watching "), w.stderr)
   }
 
   tmp.test("watch with no file is a usage error, and watch refuses a denied path") { dir =>

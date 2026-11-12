@@ -5,7 +5,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
-import org.scalajs.dom
+import org.jpablo.graphexplorer.viewer.utils.KeyEvents.keyDown
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
@@ -53,23 +53,10 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
       var reported = List.empty[String]
       state.infoBus.events.foreach(message => reported = reported :+ message)
 
-      var prevented = false
-      val event = js.Dynamic
-        .literal(
-          key = "s",
-          code = "KeyS",
-          metaKey = true,
-          ctrlKey = false,
-          altKey = false,
-          shiftKey = false,
-          preventDefault = (() => prevented = true): js.Function0[Unit],
-          stopPropagation = (() => ()): js.Function0[Unit]
-        )
-        .asInstanceOf[dom.KeyboardEvent]
-
+      val event = keyDown("s", meta = true)
       commands.handleKeyDown(event)
 
-      assert(prevented, "Save shortcut should prevent browser default save behavior")
+      assert(event.defaultPrevented, "Save shortcut should prevent browser default save behavior")
       afterMicrotasks {
         assertEquals(
           reported,
@@ -91,21 +78,9 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
       // gesture would stop working, and the clipboard-permission prompt would
       // come back with it.
       def press(meta: Boolean, ctrl: Boolean) =
-        var prevented = false
-        val event = js.Dynamic
-          .literal(
-            key = "v",
-            code = "KeyV",
-            metaKey = meta,
-            ctrlKey = ctrl,
-            altKey = false,
-            shiftKey = false,
-            preventDefault = (() => prevented = true): js.Function0[Unit],
-            stopPropagation = (() => ()): js.Function0[Unit]
-          )
-          .asInstanceOf[dom.KeyboardEvent]
+        val event = keyDown("v", meta = meta, ctrl = ctrl)
         commands.handleKeyDown(event)
-        prevented
+        event.defaultPrevented
 
       assert(!press(meta = true, ctrl = false), "Cmd+V must reach the browser")
       assert(!press(meta = false, ctrl = true), "Ctrl+V must reach the browser")

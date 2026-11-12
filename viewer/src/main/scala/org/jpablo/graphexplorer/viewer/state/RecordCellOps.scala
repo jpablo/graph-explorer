@@ -169,29 +169,36 @@ trait RecordCellOps:
 
     /** The cell nearest to a point in node-local gv coords (a click on a
       * separator picks the closest cell rather than dropping the gesture). */
-    def cellNearestLocalPoint(nodeId: NodeId, x: Double, y: Double): Option[RecordTree.Path] =
+    def cellNearestLocalPoint(nodeId: NodeId, x: Double, y: Double): Option[RecordCellBox] =
       val boxes = cellBoxes(nodeId)
-      boxes.find(_.contains(x, y)).orElse(boxes.minByOption(_.distanceTo(x, y))).map(_.path)
+      boxes.find(_.contains(x, y)).orElse(boxes.minByOption(_.distanceTo(x, y)))
 
     /** The cell under a CLIENT point (click and drop targeting): finds the
       * node's group in the DOM, converts the point to node-local gv coords
       * (getScreenCTM covers viewBox + pan/zoom), hit-tests the model boxes.
+      *
+      * The box also gives the port of the cell. Its rule is the rule of the
+      * label: the record field id, or the `port` attribute of the html cell.
       */
-    def cellPathAtClientPoint(nodeId: NodeId, clientX: Double, clientY: Double): Option[RecordTree.Path] =
+    def cellBoxAtClientPoint(nodeId: NodeId, clientX: Double, clientY: Double): Option[RecordCellBox] =
       if !isCellEditable(nodeId) then None
       else
         for
           group <- nodeGroupInDom(nodeId)
           local <- clientToLocal(group, clientX, clientY)
-          path <- {
+          box <- {
             val bbox = RecordCellOverlay.ownGeometryBBox(group)
             cellNearestLocalPoint(nodeId, local.x - (bbox.x + bbox.width / 2), (bbox.y + bbox.height / 2) - local.y)
           }
-        yield path
+        yield box
+
+    /** The path of the cell under a CLIENT point (see [[cellBoxAtClientPoint]]). */
+    def cellPathAtClientPoint(nodeId: NodeId, clientX: Double, clientY: Double): Option[RecordTree.Path] =
+      cellBoxAtClientPoint(nodeId, clientX, clientY).map(_.path)
 
     private def nodeGroupInDom(nodeId: NodeId): Option[dom.svg.G] =
       dom.document.documentElement
-        .querySelectorAllT[dom.Element](s"[id='${nodeId.toSvg}']")
+        .querySelectorAllT[dom.Element](SelectableElement.idSelector(nodeId.toSvg))
         // an exit ghost keeps the id but wears the PREVIOUS layout's geometry
         .filterNot(_.closest(s".${SelectableElement.exitGhostClass}") != null)
         .collectFirst { case g: dom.svg.G => g }

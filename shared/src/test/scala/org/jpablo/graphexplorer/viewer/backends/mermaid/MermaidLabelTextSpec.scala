@@ -31,3 +31,22 @@ class MermaidLabelTextSpec extends FunSuite:
   test("toStored and fromStored are inverses on stored labels"):
     for stored <- List("a\\nb", "a\\\\nb", "plain", "x\\ny\\\\z", "\\n") do
       assertEquals(MermaidLabelText.toStored(MermaidLabelText.fromStored(stored)), stored, s"stored: $stored")
+
+  // Real Mermaid changes `#name;` into `ﬂ°name¶ß` and `#123;` into `ﬂ°°123¶ß`
+  // before it parses (`encodeEntities`), and the parser results keep that code.
+
+  test("decodeEntityCodes gives back a quote for the code of #quot;"):
+    assertEquals(MermaidSourceScan.decodeEntityCodes("say ﬂ°quot¶ßhiﬂ°quot¶ß"), "say \"hi\"")
+
+  test("decodeEntityCodes gives back the source form of each other code"):
+    assertEquals(MermaidSourceScan.decodeEntityCodes("a ﬂ°amp¶ß b ﬂ°°35¶ß"), "a #amp; b #35;")
+
+  test("decodeEntityCodes keeps a text with no code"):
+    for text <- List("plain", "Stage [beta]", "a $1 \\ b", "#quot", "") do
+      assertEquals(MermaidSourceScan.decodeEntityCodes(text), text, s"text: $text")
+
+  test("decodeQuotes is the inverse of encodeQuotes"):
+    for label <- List("say \"hi\"", "\"core\"", "no quote", "\"\"") do
+      val encoded = MermaidSourceScan.encodeQuotes(label)
+      assert(!encoded.contains("\""), s"encoded: $encoded")
+      assertEquals(MermaidSourceScan.decodeQuotes(encoded), label)

@@ -46,7 +46,10 @@ trait LibraryListing:
   */
 trait DiagramLibrary extends LibraryListing:
 
-  def createDiagramPersistence(id: DiagramId, initialSource: Option[String]): Var[DiagramSnapshot]
+  /** The stored state of one diagram as a `Var`. Each change of the `Var` is
+    * written while `syncOwner` lives.
+    */
+  def createDiagramPersistence(id: DiagramId, initialSource: Option[String])(using syncOwner: Owner): Var[DiagramSnapshot]
 
   def createEmptyDiagram(name: String): DiagramId
 

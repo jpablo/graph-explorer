@@ -11,7 +11,8 @@ import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.scalajs.js
+import scala.util.{Failure, Success, Try}
 
 // Unified state containing both representations
 case class GraphState(
@@ -19,10 +20,12 @@ case class GraphState(
     viewerGraph: ViewerGraph,
     format:      DiagramFormat,
     lastOrigin:  ChangeOrigin,
-    // False when `viewerGraph` does NOT correspond to `text` (the parse failed). While out of
-    // sync, graph edits are ignored: serializing the placeholder graph would overwrite the
-    // user's document in the editor AND localStorage (observed data-loss path).
-    graphInSync: Boolean = true
+    // True only when `viewerGraph` is the parse of `text` in `format`, or when `text` is the
+    // serialization of `viewerGraph`. It is false before the first parse lands, after a
+    // keystroke or a format change until the parse of that text lands, and after a failed
+    // parse. While out of sync, graph edits are ignored: a serialization of a graph that does
+    // not model the text would overwrite the document in the editor AND in storage.
+    graphInSync: Boolean
 ) derives CanEqual
 
 /** Whether the current source has become a usable live diagram. */
@@ -63,7 +66,7 @@ class InternalPhases(
       * Injected so tests can pass `identity` and keep asserting synchronously:
       * what they are pinning is the text <-> graph contract, not the schedule
       * on which typing reaches it. */
-    pace: EventStream[(String, DiagramFormat, ChangeOrigin)] => EventStream[(String, DiagramFormat, ChangeOrigin)] =
+    pace: EventStream[Unit] => EventStream[Unit] =
       EditorPacing.pace(_),
     /** True when a graph edit must keep the whole text, because a file is
       * behind the document. The setter of [[fullGraphV]] reads it at each
@@ -84,13 +87,18 @@ class InternalPhases(
   // Start with minimal graph; async parsing will populate it
   private val initialViewerGraph: ViewerGraph = ViewerGraph.minimalWithDirected
 
-  // Single unified state
+  // Single unified state.
+  // The placeholder graph is not the parse of the text, so the state starts out of sync.
+  // Thus a format change before the first parse lands (the restore of a stored format)
+  // reinterprets the text. It does not take the empty-diagram branch of the format
+  // observer, which replaces the text with a template.
   private val state = Var(
     GraphState(
       text = initialText,
       viewerGraph = initialViewerGraph,
       format = initialFormat,
-      lastOrigin = ChangeOrigin.CodeMirror
+      lastOrigin = ChangeOrigin.CodeMirror,
+      graphInSync = false
     )
   )
 
@@ -137,7 +145,8 @@ class InternalPhases(
               s"[${format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=$origin",
               logLevel
             )
-            state.set(GraphState(text, graph, format, origin))
+            // The graph is the parse of the text in this format, so the two agree.
+            state.set(GraphState(text, graph, format, origin, graphInSync = true))
             loadStatus.set(DiagramLoadStatus.Ready)
           case Left(notice) =>
             editorNotice.set(Option(notice))
@@ -161,11 +170,25 @@ class InternalPhases(
     * Deliberately downstream of `sourceText`: the text reaches GraphState (and
     * therefore persistence) on every keystroke, and only the parse that follows
     * it waits. See [[EditorPacing]] for why the other order loses data.
+    *
+    * The event is only a trigger, so it carries no value. When it fires, the
+    * parse reads the text and the format of the state at that time. In the
+    * wait, a different path can change the format (auto-detect, a
+    * `replaceDocument`). Before, the event held the text and the format of
+    * the keystroke, and the paced parse used that format.
+    * That parse replaced the correct parse in `flatMapSwitch`, and its result
+    * failed the guard. Thus `loadStatus` stayed Loading, and the graph did not
+    * land.
+    *
+    * When the graph is already the parse of the current text, the paced parse
+    * has nothing to do, and it does not start.
     */
-  private val pacedParse = EventBus[(String, DiagramFormat, ChangeOrigin)]()
+  private val pacedParse = EventBus[Unit]()
 
-  pace(pacedParse.events).foreach { case (text, format, origin) =>
-    EditorPacing.timing(() => parseTextToGraphAsync(text, format, origin))
+  pace(pacedParse.events).foreach { _ =>
+    val current = state.now()
+    if !current.graphInSync then
+      EditorPacing.timing(() => parseTextToGraphAsync(current.text, current.format, ChangeOrigin.CodeMirror))
   }
 
   // Trigger initial async parsing (must be after subscription is set up)
@@ -186,8 +209,16 @@ class InternalPhases(
           val selectedFormat = formatSelection.now()
           // The text lands NOW (this is what persistence observes); the parse
           // it implies is paced.
-          pacedParse.emit((newText, selectedFormat, ChangeOrigin.CodeMirror))
-          currentState.copy(text = newText, format = selectedFormat, lastOrigin = ChangeOrigin.CodeMirror)
+          pacedParse.emit(())
+          // The graph is still the parse of the OLD text. Until the paced parse
+          // lands, the state is out of sync, so a canvas edit in the gap does not
+          // print the old graph over the typed text.
+          currentState.copy(
+            text = newText,
+            format = selectedFormat,
+            lastOrigin = ChangeOrigin.CodeMirror,
+            graphInSync = false
+          )
         else
           currentState
       }
@@ -205,33 +236,57 @@ class InternalPhases(
         // New source of truth: incoming graph
         // Note: This keeps the current format since the graph was modified in-place
         if !currentState.graphInSync then
-          // The displayed graph does not correspond to the current text (parse failed).
-          // Serializing it would overwrite the user's document — ignore the edit.
-          simpleLog("Ignoring graph edit while text and graph are out of sync (parse error)", logLevel)
+          // The displayed graph is not the parse of the current text: a parse is
+          // pending, or it failed. Serializing it would overwrite the user's
+          // document — ignore the edit.
+          simpleLog("Ignoring graph edit while text and graph are out of sync", logLevel)
           currentState
-        else if newGraph != currentState.viewerGraph then
-          lossyEditRefusal(currentState) match
-            case Some(message) =>
-              // The text would lose content that the graph does not model, and a
-              // file would take that text. Keep the text, and tell the person.
-              simpleLog(s"Refusing a lossy graph edit: $message", logLevel)
-              // This setter runs inside the transaction of the update. The new
-              // transaction sends the message after that transaction ends.
-              Transaction(_ => refusedEdits.onNext(message))
-              currentState
-            case None =>
-              val serializedText =
-                languages.forFormat(currentState.format).graphToText(newGraph, omitInternal = true)
-              GraphState(
-                text = serializedText,
-                viewerGraph = newGraph,
-                format = currentState.format, // Preserve format when graph is edited
-                lastOrigin = ChangeOrigin.Graph
-              )
         else
-          currentState
+          // The safety net. Airstream puts an exception of this setter into the ROOT
+          // state Var as a Failure. Then each later edit fails until a reload. Thus
+          // an edit that throws here (for example a graph that the printer cannot
+          // write) keeps the current state, and the person gets a message.
+          Try(applyGraphEdit(currentState, newGraph)) match
+            case Success(next) => next
+            case Failure(error) =>
+              dom.console.error("[InternalPhases] A graph edit threw in the setter of fullGraphV:", error.asInstanceOf[js.Any])
+              refuse("The viewer did not apply the canvas edit, because the graph could not be written as text.")
+              currentState
       }
     ).distinct // TODO: consider using distinctByRef
+
+  /** The state after a graph edit, when the text and the graph are in sync. */
+  private def applyGraphEdit(currentState: GraphState, newGraph: ViewerGraph): GraphState =
+    if newGraph != currentState.viewerGraph then
+      lossyEditRefusal(currentState) match
+        case Some(message) =>
+          // The text would lose content that the graph does not model, and a
+          // file would take that text. Keep the text, and tell the person.
+          simpleLog(s"Refusing a lossy graph edit: $message", logLevel)
+          refuse(message)
+          currentState
+        case None =>
+          val serializedText =
+            languages.forFormat(currentState.format).graphToText(newGraph, omitInternal = true)
+          GraphState(
+            text = serializedText,
+            viewerGraph = newGraph,
+            format = currentState.format, // Preserve format when graph is edited
+            lastOrigin = ChangeOrigin.Graph,
+            // The text is the serialization of the graph, so the two agree.
+            graphInSync = true
+          )
+    else
+      currentState
+
+  /** Tell the person that a graph edit did not apply.
+    *
+    * The setter of [[fullGraphV]] runs inside the transaction of the update.
+    * The new transaction sends the message after that transaction ends.
+    */
+  private def refuse(message: String): Unit =
+    Transaction(_ => refusedEdits.onNext(message))
+    ()
 
   /** True when the setter of [[fullGraphV]] applies a graph edit now.
     *
@@ -256,11 +311,7 @@ class InternalPhases(
       Option.when(lost.nonEmpty)(refusalMessage(lost))
 
   private def refusalMessage(lost: Set[UnmodeledContent]): String =
-    val names = UnmodeledContent.values.toList.filter(lost.contains).map(_.label)
-    val listed = names match
-      case init :+ last if init.nonEmpty => s"${init.mkString(", ")} and $last"
-      case _                             => names.mkString
-    s"The viewer did not apply the canvas edit, because it would remove $listed from the file. " +
+    s"The viewer did not apply the canvas edit, because it would remove ${UnmodeledContent.listed(lost)} from the file. " +
       "Make the change in the text instead."
 
   val fullGraph = fullGraphV.signal.distinct
@@ -389,8 +440,9 @@ class InternalPhases(
 
   /** Apply auto-detect to the text on the screen now, if it is on.
     *
-    * The restore of a diagram calls this after it sets the stored format. The
-    * flag can be on before and after the restore, and then it does not change.
+    * `initializePersistence` calls this after the restore sets the stored
+    * format, in a transaction after the sets of the restore. The flag can be
+    * on before and after the restore, and then it does not change.
     */
   def applyAutoDetectNow(): Unit = applyAutoDetect(state.now().text)
 
@@ -404,12 +456,19 @@ class InternalPhases(
       // lose. Serializing the (empty) graph through the new backend yields that
       // backend's own canonical empty source. Out-of-sync or blank documents keep the
       // reinterpret path: the first can't be trusted as empty, the second parses clean.
+      // Out of sync includes a graph that is not the parse of the text YET: the
+      // placeholder before the first parse lands (the restore of a stored format), and
+      // the graph of the text before a keystroke. Its emptiness says nothing about the text.
       if currentState.graphInSync && currentState.text.trim.nonEmpty && hasNoElements(currentState.viewerGraph) then
         val newText = languages.forFormat(newFormat).graphToText(currentState.viewerGraph, omitInternal = true)
-        state.set(GraphState(newText, currentState.viewerGraph, newFormat, currentState.lastOrigin))
+        // The new text is the serialization of the graph, so the two agree.
+        state.set(GraphState(newText, currentState.viewerGraph, newFormat, currentState.lastOrigin, graphInSync = true))
         parseTextToGraphAsync(newText, newFormat, currentState.lastOrigin)
       else
-        state.set(currentState.copy(format = newFormat))
+        // The graph is not the parse of the text in the NEW format, so the state is out
+        // of sync until that parse lands. A canvas edit in that gap would print the old
+        // graph in the new format over the text.
+        state.set(currentState.copy(format = newFormat, graphInSync = false))
         parseTextToGraphAsync(currentState.text, newFormat, currentState.lastOrigin)
 
 end InternalPhases

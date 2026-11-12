@@ -75,7 +75,7 @@ class MetadataStoreSpec extends FunSuite:
     val bad = dir.resolve("metadata").resolve(MetadataStore.fileNameOf("/work/bad.dot"))
     Files.writeString(bad, """{"path": "/work/bad.dot", "tags": [""", StandardCharsets.UTF_8)
     assertEquals(store.list().map(_.path), Vector("/work/a.dot"))
-    assertEquals(store.unreadable().map(_.file), Vector(bad.getFileName.toString))
+    assertEquals(store.listing()._2.map(_.file), Vector(bad.getFileName.toString))
     store.get("/work/bad.dot") match
       case Left(MetadataError.Unreadable(_, _)) => ()
       case other                                => fail(s"expected Unreadable, got $other")
@@ -87,7 +87,7 @@ class MetadataStoreSpec extends FunSuite:
     val json  = upickle.default.write(entry("/work/a.dot"))
     Files.writeString(dir.resolve("metadata").resolve(MetadataStore.fileNameOf("/work/z.dot")), json, StandardCharsets.UTF_8)
     assertEquals(store.list(), Vector.empty)
-    assertEquals(store.unreadable().size, 1)
+    assertEquals(store.listing()._2.size, 1)
     assertEquals(store.get("/work/a.dot"), Left(MetadataError.NotFound("/work/a.dot")))
     store.get("/work/z.dot") match
       case Left(MetadataError.Unreadable(_, why)) => assert(why.contains("/work/a.dot"), why)
@@ -99,7 +99,7 @@ class MetadataStoreSpec extends FunSuite:
     Files.writeString(dir.resolve("metadata").resolve(".something.json.tmp"), "partial", StandardCharsets.UTF_8)
     Files.writeString(dir.resolve("metadata").resolve("README"), "x", StandardCharsets.UTF_8)
     assertEquals(store.list().map(_.path), Vector("/work/a.dot"))
-    assertEquals(store.unreadable(), Vector.empty)
+    assertEquals(store.listing()._2, Vector.empty)
 
   tmp.test("the file on the disk has exactly the eight keys"): dir =>
     val store = storeIn(dir)

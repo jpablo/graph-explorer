@@ -26,99 +26,111 @@ class VisibilityOpsSpec extends FunSuite with TestHelpers:
     g.arrows.values.find(a => a.source.value == s && a.target.value == t).get.id
 
   test("hideSuccessorLayer hides only the immediate layer and nodes that lose all incoming"):
-    withGraphviz { graphviz =>
+    withGraphvizAsync { graphviz =>
       val st = ViewerState(ViewTarget.diagram("test"), graphviz, _ => ())
 
-      // Graph: A->B, E->B, A->D, D->F, B->G
-      buildGraph(st, nodes = Seq("A", "B", "D", "E", "F", "G"), edges = Seq(
-        "A" -> "B",
-        "E" -> "B",
-        "A" -> "D",
-        "D" -> "F",
-        "B" -> "G"
-      ))
+      // Wait for the first parse. Before it lands, the graph is a placeholder,
+      // and the viewer refuses a graph edit on it.
+      afterMicrotasks {
+        // Graph: A->B, E->B, A->D, D->F, B->G
+        buildGraph(st, nodes = Seq("A", "B", "D", "E", "F", "G"), edges = Seq(
+          "A" -> "B",
+          "E" -> "B",
+          "A" -> "D",
+          "D" -> "F",
+          "B" -> "G"
+        ))
 
-      st.selection.set1(Set(NodeId("A")))
-      st.hideSuccessors(recursive = false)
+        st.selection.set1(Set(NodeId("A")))
+        st.hideSuccessors(recursive = false)
 
-      val g        = st.fullGraphNow()
-      val hidden   = st.hiddenElements.now().classify
-      val aToB     = findArrowId(g, "A", "B")
-      val aToD     = findArrowId(g, "A", "D")
-      val dToF     = findArrowId(g, "D", "F")
+        val g        = st.fullGraphNow()
+        val hidden   = st.hiddenElements.now().classify
+        val aToB     = findArrowId(g, "A", "B")
+        val aToD     = findArrowId(g, "A", "D")
+        val dToF     = findArrowId(g, "D", "F")
 
-      assert(hidden.arrows.contains(aToB), "A->B arrow should be hidden")
-      assert(hidden.arrows.contains(aToD), "A->D arrow should be hidden")
-      assert(!hidden.arrows.contains(dToF), "D->F arrow should remain visible in non-recursive mode")
+        assert(hidden.arrows.contains(aToB), "A->B arrow should be hidden")
+        assert(hidden.arrows.contains(aToD), "A->D arrow should be hidden")
+        assert(!hidden.arrows.contains(dToF), "D->F arrow should remain visible in non-recursive mode")
 
-      assert(hidden.nodes.contains(NodeId("D")), "D should be hidden (no other incoming)")
-      assert(!hidden.nodes.contains(NodeId("B")), "B should remain visible (has E->B)")
+        assert(hidden.nodes.contains(NodeId("D")), "D should be hidden (no other incoming)")
+        assert(!hidden.nodes.contains(NodeId("B")), "B should remain visible (has E->B)")
+      }
     }
 
   test("hideSuccessorsRecursive hides deeper layers transitively"):
-    withGraphviz { graphviz =>
+    withGraphvizAsync { graphviz =>
       val st = ViewerState(ViewTarget.diagram("test"), graphviz, _ => ())
 
-      // Graph: A->B, E->B, A->D, D->F, B->G
-      buildGraph(st, nodes = Seq("A", "B", "D", "E", "F", "G"), edges = Seq(
-        "A" -> "B",
-        "E" -> "B",
-        "A" -> "D",
-        "D" -> "F",
-        "B" -> "G"
-      ))
+      // Wait for the first parse. Before it lands, the graph is a placeholder,
+      // and the viewer refuses a graph edit on it.
+      afterMicrotasks {
+        // Graph: A->B, E->B, A->D, D->F, B->G
+        buildGraph(st, nodes = Seq("A", "B", "D", "E", "F", "G"), edges = Seq(
+          "A" -> "B",
+          "E" -> "B",
+          "A" -> "D",
+          "D" -> "F",
+          "B" -> "G"
+        ))
 
-      st.selection.set1(Set(NodeId("A")))
-      st.hideSuccessors(recursive = true)
+        st.selection.set1(Set(NodeId("A")))
+        st.hideSuccessors(recursive = true)
 
-      val g        = st.fullGraphNow()
-      val hidden   = st.hiddenElements.now().classify
-      val aToB     = findArrowId(g, "A", "B")
-      val aToD     = findArrowId(g, "A", "D")
-      val dToF     = findArrowId(g, "D", "F")
+        val g        = st.fullGraphNow()
+        val hidden   = st.hiddenElements.now().classify
+        val aToB     = findArrowId(g, "A", "B")
+        val aToD     = findArrowId(g, "A", "D")
+        val dToF     = findArrowId(g, "D", "F")
 
-      assert(hidden.arrows.contains(aToB), "A->B arrow should be hidden")
-      assert(hidden.arrows.contains(aToD), "A->D arrow should be hidden")
-      assert(hidden.arrows.contains(dToF), "D->F arrow should be hidden recursively")
+        assert(hidden.arrows.contains(aToB), "A->B arrow should be hidden")
+        assert(hidden.arrows.contains(aToD), "A->D arrow should be hidden")
+        assert(hidden.arrows.contains(dToF), "D->F arrow should be hidden recursively")
 
-      assert(hidden.nodes.contains(NodeId("D")), "D should be hidden (no other incoming)")
-      assert(hidden.nodes.contains(NodeId("F")), "F should be hidden transitively")
-      assert(!hidden.nodes.contains(NodeId("B")), "B should remain visible (has E->B)")
+        assert(hidden.nodes.contains(NodeId("D")), "D should be hidden (no other incoming)")
+        assert(hidden.nodes.contains(NodeId("F")), "F should be hidden transitively")
+        assert(!hidden.nodes.contains(NodeId("B")), "B should remain visible (has E->B)")
+      }
     }
 
   test("deleteHiddenElements removes hidden elements from the graph and clears hidden state"):
-    withGraphviz { graphviz =>
+    withGraphvizAsync { graphviz =>
       val st = ViewerState(ViewTarget.diagram("test"), graphviz, _ => ())
 
-      // Stub confirm to always approve
-      js.eval(
-        """
-          if (typeof window === 'undefined') { global.window = {}; }
-          window.confirm = function(_) { return true; };
-        """
-      )
+      // Wait for the first parse. Before it lands, the graph is a placeholder,
+      // and the viewer refuses a graph edit on it.
+      afterMicrotasks {
+        // Stub confirm to always approve
+        js.eval(
+          """
+            if (typeof window === 'undefined') { global.window = {}; }
+            window.confirm = function(_) { return true; };
+          """
+        )
 
-      // Graph: A->D, D->F
-      buildGraph(st, nodes = Seq("A", "D", "F"), edges = Seq(
-        "A" -> "D",
-        "D" -> "F"
-      ))
+        // Graph: A->D, D->F
+        buildGraph(st, nodes = Seq("A", "D", "F"), edges = Seq(
+          "A" -> "D",
+          "D" -> "F"
+        ))
 
-      st.selection.set1(Set(NodeId("A")))
-      st.hideSuccessors(recursive = true)
+        st.selection.set1(Set(NodeId("A")))
+        st.hideSuccessors(recursive = true)
 
-      val hiddenBefore = st.hiddenElements.now().classify
-      assert(hiddenBefore.nodes.contains(NodeId("D")))
-      assert(hiddenBefore.nodes.contains(NodeId("F")))
+        val hiddenBefore = st.hiddenElements.now().classify
+        assert(hiddenBefore.nodes.contains(NodeId("D")))
+        assert(hiddenBefore.nodes.contains(NodeId("F")))
 
-      st.deleteHiddenElements()
+        st.deleteHiddenElements()
 
-      val gAfter     = st.fullGraphNow()
-      val hiddenAfter = st.hiddenElements.now()
+        val gAfter     = st.fullGraphNow()
+        val hiddenAfter = st.hiddenElements.now()
 
-      assert(!gAfter.nodeIds.contains(NodeId("D")))
-      assert(!gAfter.nodeIds.contains(NodeId("F")))
-      assert(hiddenAfter.isEmpty, "Hidden set should be cleared after deletion")
+        assert(!gAfter.nodeIds.contains(NodeId("D")))
+        assert(!gAfter.nodeIds.contains(NodeId("F")))
+        assert(hiddenAfter.isEmpty, "Hidden set should be cleared after deletion")
+      }
     }
 
   test("hideSuccessorsRecursive handles edges with source ports (e:\"s\" -> d)"):

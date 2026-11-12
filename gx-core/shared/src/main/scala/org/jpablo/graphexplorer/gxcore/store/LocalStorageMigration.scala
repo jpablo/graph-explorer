@@ -114,7 +114,7 @@ object LocalStorageMigration:
       val name = List(
         browserDiagram.name,
         o.get("projectName").flatMap(_.strOpt).getOrElse("")
-      ).find(n => n.nonEmpty && n != "Untitled").getOrElse("Untitled")
+      ).find(n => n.nonEmpty && n != MetadataMigration.DefaultName).getOrElse(MetadataMigration.DefaultName)
 
       val format = o.get("format").flatMap(_.strOpt).filter(_.nonEmpty).getOrElse("DOT")
 

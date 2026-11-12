@@ -120,7 +120,7 @@ Two writes of the same bytes give the same revision, and an edit A → B → A g
 4. It waits until the page says that it shows the file (`complete_open`), for 45 seconds at most (`OPEN_TIMEOUT`).
 5. It raises the window. `focused: false` tells that no window came to the front.
 
-The page refuses a file that does not parse with `PARSE_FAILED`. When an open fails, the desktop removes the watch that this open made, and it keeps a watch that was there before. A second `show` of a file sends its text again, and the answer has the same `sessionId`. The `sessionId` is opaque. It never holds the path.
+The page refuses a file that does not parse with `PARSE_FAILED`. When an open fails, the desktop removes the watch that this open made, and it keeps a watch that was there before. It also keeps the new watch for `PARSE_FAILED` and `ACTIVATION_REFUSED`, because the page holds the file: it shows the text with an error, or it can show the file after the unsaved-changes dialog. When the window goes to a different view before it shows the file, the page refuses with `OPEN_SUPERSEDED`. An open of the file that the window shows now does not ask about an unsaved edit. A second `show` of a file sends its text again, and the answer has the same `sessionId`. The `sessionId` is opaque. It never holds the path.
 
 ### `live-view`
 
@@ -154,7 +154,7 @@ A snapshot is `{path, text, format, revision, timestampMs}`. The `path` of a sna
 | Command | Arguments | Result | Errors |
 |---|---|---|---|
 | `open_document` | `path` | a snapshot. It starts a watch | `WATCH_FAILED`, `DOCUMENT_READ_FAILED` |
-| `save_document` | `path`, `text`, `baseRevision` | a snapshot. It writes only if the file has the revision `baseRevision` | `DOCUMENT_CONFLICT`, `DOCUMENT_WRITE_FAILED` |
+| `save_document` | `path`, `text`, `baseRevision` | a snapshot. It writes only if the file has the revision `baseRevision` | `DOCUMENT_CONFLICT`, `DOCUMENT_NOT_WATCHED`, `DOCUMENT_WRITE_FAILED` |
 | `read_document` | `path` | a snapshot, with no watch. The home page reads each file of the library with it | `DOCUMENT_DENIED`, `DOCUMENT_MISSING`, `DOCUMENT_READ_FAILED` |
 | `create_document` | `path`, `text` | a snapshot. It never writes over a file: a hard link gives the file its name | `DOCUMENT_DENIED`, `DOCUMENT_EXISTS`, `DOCUMENT_WRITE_FAILED` |
 | `rename_document` | `from`, `to` | `path`, `revision`, `watchMoved`. It never writes over a file, and the watch moves to the new path | `DOCUMENT_DENIED`, `DOCUMENT_MISSING`, `DOCUMENT_EXISTS`, `DOCUMENT_RENAME_FAILED` |
@@ -171,8 +171,8 @@ The library is `$GX_HOME/library/metadata/`: one JSON entry for each diagram.
 | Command | Arguments | Result | Errors |
 |---|---|---|---|
 | `library_list` | none | each entry: `name`, and `json` or `error` | `LIBRARY_UNAVAILABLE` |
-| `library_read` | `name` | the JSON text | `LIBRARY_UNAVAILABLE`, `INVALID_LIBRARY_NAME`, `LIBRARY_READ_FAILED` |
-| `library_write` | `name`, `json` | none | `LIBRARY_UNAVAILABLE`, `INVALID_LIBRARY_NAME`, `LIBRARY_NOT_MIGRATED`, `LIBRARY_WRITE_FAILED` |
+| `library_read` | `name` | the JSON text | `LIBRARY_UNAVAILABLE`, `INVALID_LIBRARY_NAME`, `LIBRARY_ENTRY_MISSING`, `LIBRARY_READ_FAILED` |
+| `library_write` | `name`, `json`, `base` (optional) | none. With a `base`, it writes only if the entry on the disk is the `base` | `LIBRARY_UNAVAILABLE`, `INVALID_LIBRARY_NAME`, `LIBRARY_NOT_MIGRATED`, `LIBRARY_CONFLICT`, `LIBRARY_WRITE_FAILED` |
 | `library_delete` | `name` | `true`, or `false` when the entry was not there. The diagram file stays | `LIBRARY_UNAVAILABLE`, `INVALID_LIBRARY_NAME`, `LIBRARY_DELETE_FAILED` |
 | `library_legacy_list` | none | `migrated`, and `records`: the old records of `library/diagrams/`. `records` is empty when `migrated` is true | `LIBRARY_UNAVAILABLE` |
 | `library_commit_migration` | `entries`: `[{name, json}]` | `committed`: the number of entries | `LIBRARY_UNAVAILABLE`, `LIBRARY_ALREADY_MIGRATED`, `INVALID_LIBRARY_NAME`, `LIBRARY_MIGRATION_FAILED` |
@@ -184,14 +184,14 @@ Rules:
 - `library_write` does not make `metadata/`. Only the migration makes it, and the migration runs only while `metadata/` does not exist.
 - `library_commit_migration` writes the entries into a temporary directory, and renames that directory to `metadata/` last. Thus a crash leaves no part of a store.
 - The shell only reads `library/diagrams/`. It never writes there, so an older desktop still shows its old library.
-- The page of this version does not call `library_read`.
+- The `base` of `library_write` is what the page saw of the entry: `{"state": "absent"}`, or `{"state": "present", "json": "..."}` with the exact text. `gx` writes the same directory, so the entry can change after the page read it. On `LIBRARY_CONFLICT` the page reads the entry with `library_read`, merges its change again, and writes again. It tries 3 times in all.
 
 ### The window and the live view
 
 | Command | Arguments | What it does |
 |---|---|---|
 | `viewer_ready` | none | The page listens now. Each open request that waits for the page continues |
-| `complete_open` | `requestId`, `status` (`displayed` or `rejected`), `code`, `message`, `view` | The answer of the page to `ge:open.requested`. The shell passes on `DOCUMENT_NOT_FOUND`, `OPEN_DENIED`, `PARSE_FAILED` and `ACTIVATION_REFUSED`. Each other code becomes `VIEW_REJECTED` |
+| `complete_open` | `requestId`, `status` (`displayed` or `rejected`), `code`, `message`, `view` | The answer of the page to `ge:open.requested`. The shell passes on `DOCUMENT_NOT_FOUND`, `OPEN_DENIED`, `PARSE_FAILED`, `ACTIVATION_REFUSED` and `OPEN_SUPERSEDED`. Each other code becomes `VIEW_REJECTED` |
 | `live_view_reply` | `id`, `ok`, `result`, `code`, `message` | The answer of the page to `ge:live-view.command`. The shell drops an answer with an `id` that no request waits for |
 | `set_unsaved` | `unsaved` | The page tells whether it has an edit that is not in the file. `status` reports it as `unsavedInPage` |
 | `confirm_close` | none | The person answered Save or Discard. The app exits |
@@ -229,11 +229,13 @@ This is the complete list of codes that the shell can return.
 | `UNWATCH_FAILED` | socket | `unwatch` cannot resolve the path |
 | `DOCUMENT_READ_FAILED` | socket, IPC | The file has no watch (`get-document`), or the shell cannot read it |
 | `DOCUMENT_WRITE_FAILED` | socket, IPC | The file has no watch (`put-document`), or the shell cannot write it |
+| `DOCUMENT_NOT_WATCHED` | IPC | `save_document`: the file has no watch. The page starts a watch (`open_document`) and tries the save again one time, with the same `baseRevision` |
 | `DOCUMENT_CONFLICT` | socket, IPC | The file does not have the revision `baseRevision`. The error has `currentRevision` and `attemptedBaseRevision` |
 | `DOCUMENT_NOT_FOUND` | socket | `show`: the page has no document session for the path |
 | `OPEN_DENIED` | socket | `show`: the shell passes it on from the page. The page of this version does not send it |
 | `PARSE_FAILED` | socket | `show`: the page cannot parse the file |
 | `ACTIVATION_REFUSED` | socket | `show`: the page did not go to the file |
+| `OPEN_SUPERSEDED` | socket | `show`: the window went to a different view before it showed the file |
 | `VIEW_REJECTED` | socket | `show`: the page cannot route the target. `live-view`: the window shows a different diagram or session |
 | `OPEN_TIMEOUT` | socket | `show`: the page did not come up, or did not answer, in 45 seconds |
 | `NO_LIVE_VIEW` | socket | `live-view`: there is no window, or no diagram on the screen |
@@ -247,8 +249,10 @@ This is the complete list of codes that the shell can return.
 | `DIAGRAMS_FOLDER_INVALID` | IPC | `GX_DIAGRAMS_DIR` is relative, or the folder cannot be resolved |
 | `INVALID_LIBRARY_NAME` | IPC | The entry name does not have the form `<64 hex>.json`, or the migration gives one name two times |
 | `LIBRARY_UNAVAILABLE` | IPC | `GX_HOME` is relative, or the shell cannot find the home directory |
+| `LIBRARY_ENTRY_MISSING` | IPC | `library_read`: the entry does not exist |
 | `LIBRARY_READ_FAILED` | IPC | The shell cannot read the entry |
 | `LIBRARY_WRITE_FAILED` | IPC | The shell cannot write the entry |
+| `LIBRARY_CONFLICT` | IPC | `library_write`: the entry on the disk is not the `base`. The disk does not change |
 | `LIBRARY_DELETE_FAILED` | IPC | The shell cannot delete the entry |
 | `LIBRARY_NOT_MIGRATED` | IPC | `library_write` before `metadata/` exists |
 | `LIBRARY_ALREADY_MIGRATED` | IPC | `metadata/` exists, so the migration is done |
