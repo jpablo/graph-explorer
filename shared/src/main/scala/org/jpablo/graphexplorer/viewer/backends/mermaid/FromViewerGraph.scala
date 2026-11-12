@@ -11,11 +11,20 @@ import scala.collection.immutable.VectorMap
 
 private val MermaidNodeCssPreferredKeyOrder = Vector("fill", "stroke", "stroke-width", "color", "font-family", "font-size")
 
+/** Converts a ViewerGraph back to Mermaid text.
+  *
+  * A graph from a state diagram becomes a state diagram again (see
+  * `viewerGraphToMermaidStateText`). Each other graph becomes a flowchart.
+  */
+def viewerGraphToMermaidText(graph: ViewerGraph): String =
+  if isMermaidStateDiagram(graph) then viewerGraphToMermaidStateText(graph)
+  else viewerGraphToMermaidFlowchartText(graph)
+
 /** Converts a ViewerGraph back to Mermaid flowchart text.
   *
   * This is the inverse of `toViewerGraph` in ToViewerGraph.scala.
   */
-def viewerGraphToMermaidText(graph: ViewerGraph): String =
+private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
   val lines = StringBuilder()
 
   // Get title from graph attributes (Label attribute)
@@ -27,7 +36,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   // Add front matter with title if present
   titleOpt.foreach { title =>
     lines.append("---\n")
-    lines.append(s"title: ${yamlTitle(title)}\n")
+    lines.append(s"title: ${MermaidSourceScan.titleToYaml(title)}\n")
     lines.append("---\n")
   }
 
@@ -427,7 +436,7 @@ private def emitClassDefLines(lines: StringBuilder, graphAttributes: Attributes)
     lines.append(s"  classDef $className $body\n")
   }
 
-private def collectClassDefBodies(graphAttributes: Attributes): Vector[(String, String)] =
+private[mermaid] def collectClassDefBodies(graphAttributes: Attributes): Vector[(String, String)] =
   val styleByClass = graphAttributes.values.collect {
     case (attrId, value) if attrId.value.startsWith(MermaidClassDefPrefix) =>
       attrId.value.stripPrefix(MermaidClassDefPrefix) -> value.toString
@@ -512,7 +521,7 @@ private def mergeCssOverrides(
   if merged.isEmpty then None
   else Some(formatMermaidCssBody(merged))
 
-private def nodeStyleDirectiveCss(node: ViewerNode): Option[String] =
+private[mermaid] def nodeStyleDirectiveCss(node: ViewerNode): Option[String] =
   val attrs = node.attributes.values
   mergeCssOverrides(
     cssDeclarationsOf(attrs, Style.attrId),
@@ -553,7 +562,7 @@ private def edgeStyleDirectiveCss(arrow: Arrow): Option[String] =
     )
   )
 
-private def groupStyleDirectiveCss(group: ViewerGroup): Option[String] =
+private[mermaid] def groupStyleDirectiveCss(group: ViewerGroup): Option[String] =
   val attrs       = group.attributes.values
   val borderColor = attrs.get(PenColor.attrId).orElse(attrs.get(Color.attrId)).map(_.toString).filter(_.nonEmpty)
   mergeCssOverrides(
@@ -594,26 +603,3 @@ private def escapeMermaidLabel(label: String): String =
     // Wrap in quotes and escape internal quotes
     "\"" + MermaidSourceScan.encodeQuotes(label) + "\""
   else label
-
-/** A title that is safe as a plain YAML scalar: letters, digits, spaces and `_ . , ( ) / -`, with a letter first and
-  * no space last. Mermaid reads the frontmatter with js-yaml, thus a `: `, a ` #`, a quote or an indicator character
-  * (`- ? [ { ! & * | > % @`) at the start changes or breaks a plain title.
-  */
-private val PlainYamlTitle = "[A-Za-z](?:[A-Za-z0-9 _.,()/-]*[A-Za-z0-9_.,()/-])?".r
-
-/** YAML reads these plain words as a value that is not text (js-yaml JSON schema), and Mermaid then loses the title. */
-private val YamlValueWords = Set("true", "false", "null")
-
-/** A line break in a title, with the spaces and tabs around it. */
-private val TitleLineBreak = "[ \\t]*(?:\\r\\n|\\r|\\n)+[ \\t]*".r
-
-/** The YAML form of the frontmatter title: a plain scalar when that is safe, or else a single-quoted scalar.
-  *
-  * A one-line title cannot keep a line break. Thus each line break (with the spaces around it) becomes one space.
-  * In a single-quoted scalar, `''` is a quote and the other characters stay as they are.
-  * `MermaidSourceScan.frontmatterValue` reads this form back.
-  */
-private def yamlTitle(title: String): String =
-  val oneLine = TitleLineBreak.replaceAllIn(title, " ")
-  if PlainYamlTitle.matches(oneLine) && !YamlValueWords.contains(oneLine.toLowerCase) then oneLine
-  else "'" + oneLine.replace("'", "''") + "'"

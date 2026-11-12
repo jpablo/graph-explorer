@@ -83,21 +83,44 @@ object GraphvizSelectionStrategy extends SelectableElementStrategy:
 
 /** Strategy for Mermaid-generated SVGs.
   *
-  * Mermaid SVG structure:
+  * Mermaid flowchart SVG structure:
   *   - Nodes: `<g class="node" id="flowchart-nodeId-123">...</g>`
   *   - Edges: `<path class="flowchart-link" id="L-A-B-0">...</path>`
   *   - Subgraphs: `<g class="cluster">...</g>`
+  *
+  * Mermaid state diagram SVG structure:
+  *   - States: `<g class="node statediagram-state" id="state-Idle-3">...</g>`; a
+  *     start or end state is `<g class="node default" id="state-root_start-0">`
+  *   - Transitions: `<path class="transition" id="edge2">`, where 2 is the index
+  *     of the transition in the source
+  *   - Composite states: `<g class="statediagram-cluster" id="Active" data-id="Active">`
+  *   - Notes: `<g class="node statediagram-note">` and `<path class="transition note-edge">`.
+  *     They are not elements of the graph.
+  *
+  * An `edge<N>` id does not tell which arrow a transition is. Thus
+  * MermaidBackend.stampStateElementIds puts the graph ids on the SVG:
+  * `data-node-id` on each state and [[arrowIdAttr]] on each transition.
   */
 object MermaidSelectionStrategy extends SelectableElementStrategy:
-  override def nodeSelector: String    = "g.node"
+  /** The attribute that holds the ArrowId of a drawn transition. */
+  val arrowIdAttr = "data-arrow-id"
+
+  /** The paths that draw an arrow, in a flowchart or a state diagram. */
+  val linkPathSelector = "path.flowchart-link, path.transition:not(.note-edge)"
+
+  override def nodeSelector: String = "g.node:not(.statediagram-note)"
   // edge-label-hit: the invisible rect over an edge label (MermaidBackend.addEdgeHitAreas);
   // it resolves to its edge through data-edge-id like the hit-halo clones do.
-  override def edgeSelector: String    = s"g.edgePath, g.edge, path.flowchart-link, path.edgePath, rect.${SelectableElement.edgeLabelHitClass}"
-  override def clusterSelector: String = "g.cluster"
+  override def edgeSelector: String =
+    s"g.edgePath, g.edge, $linkPathSelector, path.edgePath, rect.${SelectableElement.edgeLabelHitClass}"
+  override def clusterSelector: String = "g.cluster, g.statediagram-cluster"
 
   // Pattern to extract node ID from Mermaid's DOM ID format
   // e.g., "flowchart-start-1414" -> "start"
   private val mermaidNodeIdPattern = """flowchart-(.+)-\d+""".r
+  // A state: "state-Idle-3" -> "Idle". The stamped data-node-id comes first;
+  // this is the fallback for an SVG with no stamps.
+  private val mermaidStateIdPattern = """state-(.+)-\d+""".r
   // Edge DOM ids changed across Mermaid majors: old renderers emitted "L-A-B-0" plus
   // LS-/LE- source/target classes; Mermaid 11 emits "L_A_B_0" with neither class.
   // Missing the v11 form made extractArrowId fall through to a garbage hashCode id,
@@ -135,8 +158,9 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
       .getOrElse {
         val svgId = e.id
         svgId match
-          case mermaidNodeIdPattern(nodeId) => NodeId(nodeId)
-          case _ if svgId.nonEmpty          => NodeId(svgId)
+          case mermaidNodeIdPattern(nodeId)   => NodeId(nodeId)
+          case mermaidStateIdPattern(stateId) => NodeId(stateId)
+          case _ if svgId.nonEmpty            => NodeId(svgId)
           case _ =>
             // Fallback: try to find a title or use data attributes
             val title = e.querySelector("title")
@@ -146,6 +170,10 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
 
   override def extractArrowId(e: dom.Element): ArrowId =
     def arrowIdFromElement(edgeElem: dom.Element): Option[ArrowId] =
+      // A state transition has its graph id (MermaidBackend.stampStateElementIds).
+      dataAttr(edgeElem, arrowIdAttr).map(ArrowId(_)).orElse(arrowIdFromDomId(edgeElem))
+
+    def arrowIdFromDomId(edgeElem: dom.Element): Option[ArrowId] =
       // Hit-area clones (MermaidBackend.addEdgeHitAreas) carry the original path's DOM
       // id in data-edge-id, since element ids must stay unique.
       val domId = dataAttr(edgeElem, "data-edge-id").getOrElse(edgeElem.id)
@@ -202,3 +230,4 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
   override def isEdge(e: dom.Element): Boolean =
     e.classList.contains("edge") || e.classList.contains("edgePath") || e.classList.contains("flowchart-link")
       || e.classList.contains(SelectableElement.edgeLabelHitClass)
+      || (e.classList.contains("transition") && !e.classList.contains("note-edge"))

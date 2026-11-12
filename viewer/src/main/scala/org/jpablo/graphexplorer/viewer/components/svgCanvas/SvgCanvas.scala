@@ -176,6 +176,11 @@ def SvgCanvas(
         // mount runs modifiers in order, and onRendered's screen measurements
         // are garbage until the pan/zoom transform has been applied.
         onMountCallback { _ =>
+          // Mermaid sets an inline max-width (its useMaxWidth option) on most
+          // diagram kinds. The svg clips its content, so the box must cover the
+          // whole canvas for a pan to stay visible. The canvas owns the size.
+          rawSvg.ref.style.setProperty("max-width", "none")
+          rawSvg.ref.style.setProperty("max-height", "none")
           CountBadges.decorate(mainGroup, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
           onRendered(rawSvg.ref)
         },

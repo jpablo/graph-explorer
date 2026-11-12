@@ -106,16 +106,17 @@ class MermaidWriterRoundTripSpec extends FunSuite:
   // Before the fix, the writer wrote `title: <text>` with no YAML quotes. The app's parser is not a YAML parser: it
   // read `Plan: Q1` correctly, but it removed the quotes around `"Core"`, and it stopped at the line break. Real
   // Mermaid rejects or cuts more of these titles (see MermaidWriterRealMermaidSpec). Now the writer writes a
-  // single-quoted YAML title when a plain title is not safe, and the app's reader removes the same quotes.
+  // double-quoted YAML title when a plain title is not safe (`MermaidSourceScan.titleToYaml`), and the app's reader
+  // reads it back (`MermaidSourceScan.titleFromYaml`).
   test("bug 2: the title keeps a colon, quotes, a hash sign, and a line break"):
-    // A one-line YAML title cannot keep a line break. The writer writes a space in its place.
+    // A double-quoted YAML title keeps a line break as `\n`.
     val titles = Vector(
       "Plan: Q1"      -> "Plan: Q1",
       "\"Draft\" plan" -> "\"Draft\" plan",
       "Release #2"    -> "Release #2",
       "\"Core\""      -> "\"Core\"",
       "it's"          -> "it's",
-      "Plan\nQ1"      -> "Plan Q1"
+      "Plan\nQ1"      -> "Plan\nQ1"
     )
     val changed = titles.flatMap { (title, expected) =>
       val g = fromDot(s"digraph { label=${dotQuoted(title)}; a -> b }")

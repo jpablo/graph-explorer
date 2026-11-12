@@ -122,14 +122,14 @@ class MermaidWriterRealMermaidSpec extends FunSuite with LoggedChecks:
   // The drawing shows the title that real Mermaid reads from the YAML, thus this test reads the title from the
   // drawing (`text.flowchartTitleText`). `MermaidBackend.textToGraph` reads the title with the app's own reader.
   test("bug 2: real Mermaid draws the title with a colon, quotes, a hash sign, and a line break"):
-    // A one-line YAML title cannot keep a line break. The writer writes a space in its place.
+    // A double-quoted YAML title keeps a line break as `\n` (`MermaidSourceScan.titleToYaml`).
     val titles = Vector(
       "Plan: Q1"      -> "Plan: Q1",
       "\"Draft\" plan" -> "\"Draft\" plan",
       "Release #2"    -> "Release #2",
       "\"Core\""      -> "\"Core\"",
       "it's"          -> "it's",
-      "Plan\nQ1"      -> "Plan Q1"
+      "Plan\nQ1"      -> "Plan\nQ1"
     )
     oneByOne(titles) { (title, expected) =>
       val g = fromDot(s"digraph { label=${dotQuoted(title)}; a -> b }")

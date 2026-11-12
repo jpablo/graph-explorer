@@ -1,5 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends
 
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidSourceScan
+
 /** Content that a document can have and that the graph model does not keep.
   *
   * A canvas edit prints the whole graph again, and the printers write only
@@ -27,8 +29,19 @@ enum UnmodeledContent(val label: String) derives CanEqual:
   /** Mermaid `accTitle` and `accDescr`. */
   case AccessibilityText extends UnmodeledContent("the accessibility text (`accTitle`, `accDescr`)")
 
-  /** A Mermaid `direction` line inside a subgraph. */
-  case SubgraphDirection extends UnmodeledContent("the `direction` lines in subgraphs")
+  /** A Mermaid `direction` line inside a subgraph or a composite state. */
+  case SubgraphDirection extends UnmodeledContent("the `direction` lines in subgraphs or composite states")
+
+  /** The notes of a Mermaid state diagram. */
+  case StateNotes extends UnmodeledContent("the notes")
+
+  /** The `--` lines of a Mermaid state diagram, which divide a composite state
+    * into concurrent regions.
+    */
+  case ConcurrentRegions extends UnmodeledContent("the concurrent regions (`--`)")
+
+  /** The `hide empty description` and `scale` lines of a Mermaid state diagram. */
+  case StateDisplayOptions extends UnmodeledContent("the `hide empty description` and `scale` lines")
 
 object UnmodeledContent:
 
@@ -147,6 +160,9 @@ object RoundTripLoss:
     *     on the lines that follow.
     *   - `click`, `accTitle`, `accDescr` and `direction` are keywords at the
     *     start of a statement. A `;` also separates two statements.
+    *   - In a state diagram, `state X {` opens a composite state and `}` closes
+    *     it. A note starts with `note`. A multi-line note continues to the line
+    *     with `end note`, and its lines are text.
     */
   private object MermaidLoss:
 
@@ -156,6 +172,13 @@ object RoundTripLoss:
     private val Subgraph    = """(?i)subgraph(?:\s.*)?""".r
     private val End         = """end(?:[\s;].*)?""".r
     private val Direction   = """(?i)direction\s+(?:TB|TD|BT|LR|RL)\s*;?""".r
+    private val StateOpen   = """(?i)state\s.*\{""".r
+    private val StateClose  = """\}""".r
+    private val Note        = """(?i)note\s.*""".r
+    // A note with its text on the next lines: no `:` after the state name.
+    private val NoteBlock   = """(?i)note\s+(?:left|right)\s+of\s+[^:]+""".r
+    private val Concurrent  = """--""".r
+    private val Display     = """(?i)(?:hide\s+empty\s+description|scale\s+\d+\s+width)\b.*""".r
 
     def scan(text: String): Set[UnmodeledContent] =
       val found = Set.newBuilder[UnmodeledContent]
@@ -174,31 +197,63 @@ object RoundTripLoss:
               else if !line.startsWith("title:") then found += UnmodeledContent.Directives
             closing + 1
 
+      val stateDiagram    = MermaidSourceScan.diagramKind(text).contains("state")
       var depth           = 0
       var inDirective     = false
       var inAccessibility = false
+      var inNote          = false
 
       lines.drop(bodyStart).foreach: line =>
         if inDirective then inDirective = !line.contains("}%%")
         else if inAccessibility then inAccessibility = !line.contains("}")
+        else if inNote then inNote = !line.toLowerCase.contains("end note")
         else if line.startsWith("%%{") then
           found += UnmodeledContent.Directives
           inDirective = !line.drop(3).contains("}%%")
         else if line.startsWith("%%") then found += UnmodeledContent.Comments
         else
-          statements(line).foreach:
-            case Click()      => found += UnmodeledContent.ClickHandlers
-            case Accessible() => found += UnmodeledContent.AccessibilityText
-            case Subgraph()   => depth += 1
-            case End()        => depth = 0 max (depth - 1)
-            case Direction()  => if depth > 0 then found += UnmodeledContent.SubgraphDirection
-            case _            => ()
+          if stateDiagram then
+            val (content, kind) = stateStatement(line, depth)
+            found ++= content
+            kind match
+              case StateLine.Open     => depth += 1
+              case StateLine.Close    => depth = 0 max (depth - 1)
+              case StateLine.NoteOpen => inNote = true
+              case StateLine.Other    => ()
+          else
+            statements(line).foreach:
+              case Click()      => found += UnmodeledContent.ClickHandlers
+              case Accessible() => found += UnmodeledContent.AccessibilityText
+              case Subgraph()   => depth += 1
+              case End()        => depth = 0 max (depth - 1)
+              case Direction()  => if depth > 0 then found += UnmodeledContent.SubgraphDirection
+              case _            => ()
           // A multi-line `accDescr { ... }` block continues to the line with `}`.
           inAccessibility = line match
             case AccDescrTop() => !line.drop(line.indexOf('{') + 1).contains("}")
             case _             => false
 
       found.result()
+
+    private enum StateLine derives CanEqual:
+      case Open, Close, NoteOpen, Other
+
+    /** Scans one line of a state diagram: the content that the line has and
+      * the graph does not keep, and the kind of the line. A state diagram has
+      * one statement on a line, because its lexer does not split a line at `;`.
+      */
+    private def stateStatement(line: String, depth: Int): (Option[UnmodeledContent], StateLine) =
+      line match
+        case Click()      => (Some(UnmodeledContent.ClickHandlers), StateLine.Other)
+        case Accessible() => (Some(UnmodeledContent.AccessibilityText), StateLine.Other)
+        case NoteBlock()  => (Some(UnmodeledContent.StateNotes), StateLine.NoteOpen)
+        case Note()       => (Some(UnmodeledContent.StateNotes), StateLine.Other)
+        case Concurrent() => (Some(UnmodeledContent.ConcurrentRegions), StateLine.Other)
+        case Display()    => (Some(UnmodeledContent.StateDisplayOptions), StateLine.Other)
+        case Direction()  => (Option.when(depth > 0)(UnmodeledContent.SubgraphDirection), StateLine.Other)
+        case StateOpen()  => (None, StateLine.Open)
+        case StateClose() => (None, StateLine.Close)
+        case _            => (None, StateLine.Other)
 
     /** The statements of a line: its parts between the `;` separators that
       * are not inside a quoted string. Each part is trimmed.

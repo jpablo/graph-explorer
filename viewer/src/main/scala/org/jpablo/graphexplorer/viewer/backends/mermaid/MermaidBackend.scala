@@ -4,6 +4,7 @@ import com.raquo.airstream.core.Signal
 import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs, RenderOnlyDiagram}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.StateDiagramHeader
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.{parseSVG, querySelectorAllT}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
@@ -16,7 +17,10 @@ import scala.util.Try
 
 /** DiagramBackend implementation for Mermaid diagrams.
   *
-  * This backend uses the Mermaid.js library to parse and render flowchart diagrams.
+  * This backend uses the Mermaid.js library to parse and render diagrams. It
+  * renders each kind of Mermaid diagram. It parses flowcharts and state
+  * diagrams (`stateDiagram-v2`) into a graph, so that the canvas can select and
+  * edit them. Each other kind is render-only.
   */
 class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
@@ -33,7 +37,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     // Initialize Mermaid.js lazily on first use so merely constructing/listing this backend is cheap.
     MermaidBackend.ensureInitialized()
     MermaidBackend.enqueue {
-      parseMermaid(text).map(toViewerGraph)
+      parseMermaid(text)
     }
 
   override def textToSvg(text: String): Future[SvgWithPositions] =
@@ -42,15 +46,19 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       val renderId = MermaidBackend.nextRenderId()
       val defaultEdgeMarkerColor = MermaidBackend.extractDefaultEdgeMarkerColor(text)
       dom.console.info(s"[mermaid] textToSvg start id=$renderId len=${text.length}")
-      renderMermaid(renderId, text).map { svgString =>
+      for
+        stateDiagram <- parseStateDiagram(text)
+        svgString    <- renderMermaid(renderId, text)
+      yield
         val svg = parseSVG(MermaidBackend.declareMissingXlinkNamespace(svgString))
         MermaidBackend.normalizeRenderedSvg(svg.ref, defaultEdgeMarkerColor)
+        // Before extractEdgePositions, which reads the ids of the transitions.
+        stateDiagram.foreach(MermaidBackend.stampStateElementIds(svg.ref, _))
         val edgePositions = extractEdgePositions(svg.ref)
         // After extractEdgePositions, so the id-less clones don't pollute the positions map
         MermaidBackend.addEdgeHitAreas(svg.ref)
         dom.console.info(s"[mermaid] textToSvg complete id=$renderId edges=${edgePositions.size}")
         SvgWithPositions(svg, edgePositions)
-      }
     }
 
   override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String =
@@ -102,9 +110,28 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       .scanLeft((first: Option[Option[SvgWithPositions]]) => first.getOrElse(None)):
         (last, next) => next.getOrElse(last)
 
+  /** The state diagram of `text`, when it is one.
+    *
+    * The SVG alone does not tell which arrow a drawn transition is: Mermaid
+    * gives it the DOM id `edge<N>`. Thus the render parses the text too, and
+    * stamps the graph ids on the SVG. A failed parse gives None, so that the
+    * render reports the error of Mermaid.
+    */
+  private def parseStateDiagram(text: String): Future[Option[MermaidStateGraph]] =
+    if !MermaidSourceScan.diagramKind(text).contains("state") then Future.successful(None)
+    else
+      val promise = Promise[Option[MermaidStateGraph]]()
+      MermaidJS.mermaidAPI
+        .getDiagramFromText(text)
+        .`then`[Unit](
+          diagram => { promise.complete(Try(MermaidBackend.readStateDiagram(text, diagram))); () },
+          (_: Any) => { promise.success(None); () }
+        )
+      promise.future.recover { case _ => None }
+
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future. */
-  private def parseMermaid(text: String): Future[MermaidGraph] =
-    val promise = Promise[MermaidGraph]()
+  private def parseMermaid(text: String): Future[ViewerGraph] =
+    val promise = Promise[ViewerGraph]()
     var completed = false
 
     dom.console.info(s"[mermaid] getDiagramFromText start len=${text.length}")
@@ -123,53 +150,14 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
           // after every render-only diagram had already been classified.
           completed = true
           try
-            val yy =
-              MermaidBackend
-                .selectDiagramYY(diagram)
-                .getOrElse(throw RenderOnlyDiagram(
-                  kind = diagram.`type`,
-                  details =
-                    s"“${diagram.`type`}” diagrams are render-only: the canvas draws and live-updates " +
-                      "from the source, but selection and editing are available for flowcharts only."
-                ))
-            val vertices  = convertVertices(MermaidBackend.jsMapToDict(yy.getVertices()))
-            val jsEdges   = yy.getEdges()
-            val edges     = convertEdges(jsEdges)
-            val edgesWithSourceLabels =
-              MermaidEdgeLabelFallback.withSourceEdgeLabels(text, edges)
-            val subgraphs = convertSubgraphs(yy.getSubGraphs())
-            val (verticesWithSourceClasses, subgraphsWithSourceClasses) =
-              MermaidClassAssignmentFallback.withSourceClassAssignments(text, vertices, subgraphs)
-            val verticesWithSourceLabels =
-              MermaidVertexLabelFallback.withSourceVertexLabels(text, verticesWithSourceClasses)
-            val verticesWithSourceCoverage =
-              MermaidMissingVertexFallback.withSourceVertices(text, verticesWithSourceLabels, edgesWithSourceLabels, subgraphsWithSourceClasses)
-            val classDefs = MermaidClassDefFallback.withSourceClassDefs(text, convertClassDefs(MermaidBackend.jsMapToDict(yy.getClasses())))
-            val defaultEdgeStyle = jsEdges.defaultStyle.toOption.map(_.toList).getOrElse(Nil)
-            val defaultEdgeInterpolate = jsEdges.defaultInterpolate.toOption
-            val direction = yy.getDirection().toOption
-            // `getDiagramFromText` does not give the frontmatter title to the diagram, thus
-            // `getDiagramTitle` is empty for a flowchart. Read the title from the frontmatter, as the
-            // app's own parser does. Without it, a canvas edit writes the text with no title.
-            val title = yy.getDiagramTitle().toOption.filter(_.nonEmpty)
-              .orElse(MermaidSourceScan.diagramTitle(text))
-              .orElse(yy.getAccTitle().toOption.filter(_.nonEmpty))
-
-            dom.console.info(
-              s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} classDefs=${classDefs.size} defaultEdgeStyle=${defaultEdgeStyle.nonEmpty} dir=${direction.getOrElse("")} title=${title.getOrElse("")}"
-            )
-            promise.success(
-              MermaidGraph(
-                vertices = verticesWithSourceCoverage,
-                edges = edgesWithSourceLabels,
-                subgraphs = subgraphsWithSourceClasses,
-                direction = direction,
-                title = title,
-                classDefs = classDefs,
-                defaultEdgeStyle = defaultEdgeStyle,
-                defaultEdgeInterpolate = defaultEdgeInterpolate
-              )
-            )
+            MermaidBackend.readStateDiagram(text, diagram) match
+              case Some(stateDiagram) =>
+                dom.console.info(
+                  s"[mermaid] parsed state diagram states=${stateDiagram.states.size} transitions=${stateDiagram.transitions.size} composites=${stateDiagram.composites.size}"
+                )
+                promise.success(stateDiagramToViewerGraph(stateDiagram))
+              case None =>
+                promise.success(toViewerGraph(flowchartGraph(text, diagram)))
             ()
           catch case e: Throwable =>
             promise.failure(e)
@@ -183,6 +171,55 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       )
 
     promise.future
+
+  /** The flowchart of a parsed diagram. Each kind other than a flowchart or a
+    * state diagram is render-only.
+    */
+  private def flowchartGraph(text: String, diagram: Diagram): MermaidGraph =
+    val yy =
+      MermaidBackend
+        .selectDiagramYY(diagram)
+        .getOrElse(throw RenderOnlyDiagram(
+          kind = diagram.`type`,
+          details = MermaidBackend.renderOnlyDetails(diagram.`type`)
+        ))
+    val vertices  = convertVertices(MermaidBackend.jsMapToDict(yy.getVertices()))
+    val jsEdges   = yy.getEdges()
+    val edges     = convertEdges(jsEdges)
+    val edgesWithSourceLabels =
+      MermaidEdgeLabelFallback.withSourceEdgeLabels(text, edges)
+    val subgraphs = convertSubgraphs(yy.getSubGraphs())
+    val (verticesWithSourceClasses, subgraphsWithSourceClasses) =
+      MermaidClassAssignmentFallback.withSourceClassAssignments(text, vertices, subgraphs)
+    val verticesWithSourceLabels =
+      MermaidVertexLabelFallback.withSourceVertexLabels(text, verticesWithSourceClasses)
+    val verticesWithSourceCoverage =
+      MermaidMissingVertexFallback.withSourceVertices(text, verticesWithSourceLabels, edgesWithSourceLabels, subgraphsWithSourceClasses)
+    val classDefs = MermaidClassDefFallback.withSourceClassDefs(text, convertClassDefs(MermaidBackend.jsMapToDict(yy.getClasses())))
+    val defaultEdgeStyle = jsEdges.defaultStyle.toOption.map(_.toList).getOrElse(Nil)
+    val defaultEdgeInterpolate = jsEdges.defaultInterpolate.toOption
+    val direction = yy.getDirection().toOption
+    // getDiagramFromText removes the frontmatter and does not keep its title,
+    // so getDiagramTitle returns "". Read the frontmatter title from the source,
+    // because a canvas edit prints the title again only from the graph.
+    // The accTitle is not a title: it is text for screen readers, and Mermaid
+    // does not draw it. A canvas edit prints the title as a visible title.
+    val title = yy.getDiagramTitle().toOption.filter(_.nonEmpty)
+      .orElse(MermaidSourceScan.frontmatterTitle(text))
+
+    dom.console.info(
+      s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} classDefs=${classDefs.size} defaultEdgeStyle=${defaultEdgeStyle.nonEmpty} dir=${direction.getOrElse("")} title=${title.getOrElse("")}"
+    )
+    MermaidGraph(
+      vertices = verticesWithSourceCoverage,
+      edges = edgesWithSourceLabels,
+      subgraphs = subgraphsWithSourceClasses,
+      direction = direction,
+      title = title,
+      classDefs = classDefs,
+      defaultEdgeStyle = defaultEdgeStyle,
+      defaultEdgeInterpolate = defaultEdgeInterpolate
+    )
 
   /** Render Mermaid text to SVG asynchronously.
     */
@@ -378,6 +415,97 @@ object MermaidBackend:
           .flatMap(parser => parser.yy.toOption.filter(hasFlowchartAccessors))
       )
 
+  /** The type that Mermaid gives to a `stateDiagram-v2` diagram. A
+    * `stateDiagram` header (no `-v2`) gives the type `state`, which has an older
+    * renderer and other DOM ids. That kind stays render-only.
+    */
+  private[mermaid] val StateDiagramType = "stateDiagram"
+
+  private[mermaid] def renderOnlyDetails(diagramType: String): String =
+    if diagramType == "state" then
+      "“stateDiagram” diagrams are render-only. To select and edit the states on the canvas, " +
+        s"change the header to `$StateDiagramHeader`."
+    else
+      s"“$diagramType” diagrams are render-only: the canvas draws and live-updates from the source, " +
+        s"but selection and editing are available for flowcharts and state diagrams (`$StateDiagramHeader`) only."
+
+  /** The state diagram of a parsed diagram, when it is a `stateDiagram-v2`.
+    *
+    * It reads the layout data of Mermaid's StateDB, not the parsed statements:
+    * the layout data has the nested states, and it is what the renderer draws.
+    */
+  private[mermaid] def readStateDiagram(text: String, diagram: Diagram): Option[MermaidStateGraph] =
+    diagram.db.toOption.filter(_ => diagram.`type` == StateDiagramType).map { yy =>
+      val db   = yy.asInstanceOf[StateDiagramDB]
+      val data = db.getData()
+      val nodes = data.nodes.toSeq.map { n =>
+        MermaidStateGraph.LayoutNode(
+          id = n.id,
+          label = n.label.toOption.map(stateLabel).getOrElse(n.id),
+          descriptions = n.description.toOption.map(_.toList).getOrElse(Nil),
+          shape = n.shape.getOrElse("rect"),
+          parentId = n.parentId.toOption.filter(_.nonEmpty),
+          isGroup = n.isGroup.getOrElse(false),
+          domId = n.domId.toOption,
+          cssClasses = n.cssClasses.getOrElse(""),
+          cssStyles = n.cssStyles.toOption.map(_.toList).getOrElse(Nil)
+        )
+      }
+      val edges = data.edges.toSeq.map { e =>
+        MermaidStateGraph.LayoutEdge(e.id, e.start, e.end, e.label.getOrElse(""), e.classes.getOrElse(""))
+      }
+      val classDefs = jsMapToDict(db.getClasses()).toSeq.map { (name, classDef) =>
+        name -> classDef.styles.toOption.map(_.toList).getOrElse(Nil)
+      }
+      MermaidStateGraph.fromLayout(
+        nodes = nodes,
+        edges = edges,
+        direction = stateRootDirection(db),
+        title = db.getDiagramTitle().toOption.filter(_.nonEmpty).orElse(MermaidSourceScan.frontmatterTitle(text)),
+        classDefs = classDefs
+      )
+    }
+
+  /** A layout label is a string. Before the parse ends it can be an array of
+    * descriptions, and then the first one is the label.
+    */
+  private def stateLabel(label: js.Any): String =
+    if js.Array.isArray(label) then label.asInstanceOf[js.Array[js.Any]].headOption.map(_.toString).getOrElse("")
+    else label.toString
+
+  /** The `direction` of the top level, when the source has one. The public
+    * `getDirection` gives `TB` also when the source has no `direction` line.
+    */
+  private def stateRootDirection(db: StateDiagramDB): Option[String] =
+    val dyn       = db.asInstanceOf[js.Dynamic]
+    val statement = dyn.selectDynamic("getDirectionStatement")
+    if js.typeOf(statement) != "function" then None
+    else
+      val found = dyn.getDirectionStatement()
+      if js.isUndefined(found) || found == null then None
+      else found.value.asInstanceOf[js.UndefOr[String]].toOption.filter(_.nonEmpty)
+
+  /** Stamps the graph ids on the drawn states and transitions of a state
+    * diagram, so that MermaidSelectionStrategy finds the elements of the graph.
+    *
+    * A state gets `data-node-id`. A transition path and its label get
+    * `data-arrow-id`. A self-loop has no `edge<N>` path, and the strategy reads
+    * its id from the DOM ids of its three paths.
+    */
+  private[mermaid] def stampStateElementIds(svg: dom.svg.SVG, diagram: MermaidStateGraph): Unit =
+    val nodeIds  = diagram.nodeIdsByDomId
+    val arrowIds = diagram.arrowIdsByDomId
+    val arrowAttr = MermaidSelectionStrategy.arrowIdAttr
+    svg.querySelectorAllT[dom.Element]("g.node").foreach { g =>
+      nodeIds.get(g.id).foreach(id => g.setAttribute("data-node-id", id.value))
+    }
+    svg.querySelectorAllT[dom.Element]("path.transition").foreach { p =>
+      arrowIds.get(p.id).foreach(id => p.setAttribute(arrowAttr, id.value))
+    }
+    svg.querySelectorAllT[dom.Element](".edgeLabel g.label[data-id]").foreach { label =>
+      arrowIds.get(label.getAttribute("data-id")).foreach(id => label.setAttribute(arrowAttr, id.value))
+    }
+
 
   private[mermaid] def normalizeRenderedSvg(svg: dom.svg.SVG, defaultEdgeMarkerColor: Option[String]): Unit =
     fixViewBoxCase(svg)
@@ -426,13 +554,14 @@ object MermaidBackend:
     * SelectableElement.findAll — the rendered path stays the canonical edge element.
     */
   private[mermaid] def addEdgeHitAreas(svg: dom.svg.SVG): Unit =
-    svg.querySelectorAllT[dom.Element]("path.flowchart-link").foreach { p =>
+    svg.querySelectorAllT[dom.Element](MermaidSelectionStrategy.linkPathSelector).foreach { p =>
       val hit = SelectableElement.hitHaloClone(p)
       hit.removeAttribute("marker-start")
       hit.removeAttribute("marker-end")
       hit.setAttribute("data-edge-id", p.id)
       // Keep the original class list too: MermaidSelectionStrategy's edge selector
-      // matches on flowchart-link, and the halo must resolve like its edge.
+      // matches on flowchart-link (or transition), and the halo must resolve like
+      // its edge. cloneNode also keeps a stamped data-arrow-id.
       hit.setAttribute(
         "class",
         s"${Option(p.getAttribute("class")).getOrElse("")} ${SelectableElement.hitAreaClass}".trim
@@ -451,6 +580,10 @@ object MermaidBackend:
           hit.setAttribute("width", w)
           hit.setAttribute("height", h)
           hit.setAttribute("data-edge-id", edgeId)
+          // A state transition label has the graph id (stampStateElementIds).
+          Option(label.getAttribute(MermaidSelectionStrategy.arrowIdAttr))
+            .filter(_.nonEmpty)
+            .foreach(hit.setAttribute(MermaidSelectionStrategy.arrowIdAttr, _))
           hit.setAttribute("class", s"${SelectableElement.edgeLabelHitClass} ${SelectableElement.hitAreaClass}")
           // appended AFTER the foreignObject so it paints (and hit-tests) on top of it
           hit.setAttribute("style", "fill:transparent;pointer-events:all;cursor:pointer")
