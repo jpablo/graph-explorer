@@ -264,17 +264,12 @@ def viewerGraphElementsToText(
   // level changes the whole layout ("wrong ownership of arrows").
   val emittedArrows = scala.collection.mutable.Set[org.jpablo.graphexplorer.viewer.models.ArrowId]()
   def emitArrow(arrow: Arrow, level: Int): Unit = {
-    // A port has two homes: the structural `sourcePort`/`targetPort`, which is what import
-    // fills in and what `Arrow.id` is built from, and the `tailport`/`headport` ATTRIBUTE,
-    // which is what the toolbar row edits. Emitting both wrote an edge that contradicted
-    // itself -- `"A":"se" -> "B" [tailport="n"]` -- and Graphviz resolves that in favour of
-    // the node-reference port, so the drawing kept the stale value the panel had just
-    // replaced. The attribute is the newer of the two by construction (import only ever
-    // produces the structural one), so it wins and the structural form stands down.
-    def portAttr(attrId: org.jpablo.graphexplorer.viewer.models.AttributeId) =
-      arrow.attributes.values.get(attrId).map(_.toString)
-    val tailPort = portAttr(TailPort.attrId).orElse(arrow.sourcePort).map(p => ":" + quoted(p)).getOrElse("")
-    val headPort = portAttr(HeadPort.attrId).orElse(arrow.targetPort).map(p => ":" + quoted(p)).getOrElse("")
+    // A port has two homes (see `Arrow.drawnSourcePort`). An edge with both forms contradicts
+    // itself, for example `"A":"se" -> "B" [tailport="n"]`. Graphviz then uses the node-reference
+    // port, and the drawing kept the old value that the panel replaced. Thus the writer writes
+    // only the drawn port, as a node-reference port.
+    val tailPort = arrow.drawnSourcePort.map(p => ":" + quoted(p)).getOrElse("")
+    val headPort = arrow.drawnTargetPort.map(p => ":" + quoted(p)).getOrElse("")
 
     // ...and having emitted it as a port, do not also emit it as an attribute.
     val edgeAttrs = collectEdgeAttributes(arrow, Set("tail", "head", TailPort.attrId.value, HeadPort.attrId.value))
@@ -290,7 +285,9 @@ def viewerGraphElementsToText(
 
   // Emit one node statement at the given nesting level (shared by cluster members and
   // standalone nodes — the formatting decision is identical).
+  val emittedNodes = scala.collection.mutable.Set[NodeId]()
   def emitNode(node: ViewerNode, level: Int): Unit = {
+    emittedNodes += node.id
     val nodeAttrs = collectNodeAttributes(node)
     val hasMultiLineHtmlLabel = node.attributes.values.get(Label.attrId)
       .map(_.toString)
@@ -356,23 +353,27 @@ def viewerGraphElementsToText(
     !elements.memberships.contains(groupId)
   }
 
-  // Process all groups if no explicit top-level found (fallback)
-  val groupsToProcess = if (topLevelGroups.nonEmpty) topLevelGroups else elements.groups.keys
-
   // Sort groups by their _gvid attribute to preserve original order
-  val sortedGroupsToProcess = groupsToProcess.toList.sortBy { groupId =>
-    gvidOrder(elements.groups(groupId).attributes)
-  }
+  def inGvidOrder(groupIds: Iterable[GroupId]): List[GroupId] =
+    groupIds.toList.sortBy(groupId => gvidOrder(elements.groups(groupId).attributes))
 
-  sortedGroupsToProcess.foreach { groupId =>
+  inGvidOrder(topLevelGroups).foreach { groupId =>
     processCluster(groupId, 1, processedGroups)
   }
 
-  // Add standalone nodes (not members of any cluster)
-  val clusterNodeIds = nodesByParent.values.flatten.toSet
+  // A group whose parent is not written is not top level, and no written group
+  // holds it: its parent does not exist, or the memberships make a cycle. Write
+  // each such group at the top level, as the Mermaid writer does. Without this
+  // step, the group and its members went away from the text. This pass visits
+  // each group, because processCluster does nothing for a group that it wrote.
+  inGvidOrder(elements.groups.keys).foreach { groupId =>
+    processCluster(groupId, 1, processedGroups)
+  }
 
+  // Add standalone nodes: each node that no cluster wrote. A node whose group
+  // does not exist is one of them.
   elements.nodes.foreach { case (nodeId, node) =>
-    if (!clusterNodeIds.contains(nodeId)) {
+    if (!emittedNodes.contains(nodeId)) {
       emitNode(node, 1)
     }
   }

@@ -5,6 +5,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 
+import scala.annotation.tailrec
+
 trait GroupsOps:
   this: ViewerGraph =>
 
@@ -31,7 +33,12 @@ trait GroupsOps:
     */
   def moveToNewGroup(elementIds: ElementIds, label: String = ""): ViewerGraph =
     // Filter out any edge IDs, keep nodes and groups (clusters)
-    val memberIds = elementIds.memberIds
+    // Only the outermost selected elements go into the new group. An element
+    // whose ancestor is also selected stays in its group, and moves with that
+    // ancestor. If it went into the new group too, the new group went into
+    // the parent of that element, which is in the new group: a cycle. Then
+    // the DOT writer found no top-level group for the cycle.
+    val memberIds = outermost(elementIds.memberIds)
     if memberIds.isEmpty then this
     else
       val groupId  = nextGroupId()
@@ -58,6 +65,25 @@ trait GroupsOps:
       // Only a former parent of a moved element can become empty because of this move.
       // `removeEmptyGroups()` also removes empty groups that the move did not touch, for example an empty legend.
       graphWithNewGroup.removeEmptyGroupsFrom(parents)
+
+  /** The elements of `members` that have no ancestor in `members`. A cycle in
+    * the memberships stops the walk (see [[ancestorsOf]]). Thus a group on a
+    * cycle is its own ancestor, and it is not outermost.
+    */
+  private[graph] def outermost[M <: GroupMemberId](members: Set[M]): Set[M] =
+    val asMembers = members.toSet[GroupMemberId]
+    members.filterNot(member => ancestorsOf(member).exists(asMembers.contains))
+
+  /** The groups that hold `member`: its parent, the parent of that group, and
+    * so on, up to the top level. A cycle in the memberships stops the walk.
+    */
+  private def ancestorsOf(member: GroupMemberId): Set[GroupId] =
+    @tailrec
+    def walk(current: Option[GroupId], found: Set[GroupId]): Set[GroupId] =
+      current match
+        case Some(g) if !found.contains(g) => walk(membership(g), found + g)
+        case _                             => found
+    walk(membership(member), Set.empty)
 
   /** Moves each element to the parent of its group. An element in a top-level group goes to the root.
     *

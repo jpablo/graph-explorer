@@ -499,12 +499,6 @@ case class ViewerGraph(
     else
       None
 
-//  def toCSV: CSV =
-//    CSV(
-//      arrows
-//        .map(a => Array(a.source.toString, a.target.toString))
-//        .toArray
-//    )
 end ViewerGraph
 
 object ViewerGraph:

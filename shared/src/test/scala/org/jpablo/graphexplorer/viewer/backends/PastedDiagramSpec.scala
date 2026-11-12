@@ -7,6 +7,7 @@ import munit.FunSuite
   * README, an issue comment.
   */
 class PastedDiagramSpec extends FunSuite:
+  import PastedDiagramSpec.*
 
   test("bare DOT and bare Mermaid keep their text verbatim"):
     val dot = "digraph G {\n  a -> b\n}"
@@ -99,6 +100,50 @@ class PastedDiagramSpec extends FunSuite:
     assertEquals(DiagramFormat.declared("graph TD\n  A --> B"), Some(DiagramFormat.Mermaid))
     assertEquals(DiagramFormat.declared("graph LR; A{Decision} --> B"), Some(DiagramFormat.Mermaid))
 
+  /** The text in Scala literal form, so a line break or a tab shows in a failure message. */
+  private def literal(text: String): String =
+    "\"" + text.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t") + "\""
+
+  private def readsAsDot(text: String): Boolean =
+    org.jpablo.graphexplorer.graphviz.Graphviz.structureJson(text).isRight
+
+  /** The language that each entry point gives for a text. */
+  final case class Languages(text: String, declared: Option[DiagramFormat], detect: DiagramFormat, pasted: Option[DiagramFormat]):
+    def allAre(format: DiagramFormat): Boolean = declared.contains(format) && detect == format && pasted.contains(format)
+
+  private def languagesOf(text: String): Languages =
+    Languages(literal(text), DiagramFormat.declared(text), DiagramFormat.detect(text), PastedDiagram.from(text).map(_.format))
+
+  test("a `graph` header with no direction, or with a direction other than LR RL TB BT TD, is a Mermaid flowchart"):
+    // Setup: the DOT reader rejects each text, thus no text is a DOT graph.
+    FlowchartsWithBareOrOtherDirection.foreach(t => assert(!readsAsDot(t), s"setup: the DOT reader accepts ${literal(t)}"))
+    val notMermaid = FlowchartsWithBareOrOtherDirection.map(languagesOf).filterNot(_.allAre(DiagramFormat.Mermaid))
+    assertEquals(notMermaid, Vector.empty, s"${notMermaid.size} of ${FlowchartsWithBareOrOtherDirection.size} flowcharts are not Mermaid")
+
+  test("a DOT graph that starts with `graph` stays DOT"):
+    // A guard for the fix of the bare `graph` header. It passes before the fix.
+    DotGraphsThatStartWithGraph.foreach(t => assert(readsAsDot(t), s"setup: the DOT reader rejects ${literal(t)}"))
+    val notDot = DotGraphsThatStartWithGraph.map(languagesOf).filterNot(_.allAre(DiagramFormat.DOT))
+    assertEquals(notDot, Vector.empty, s"${notDot.size} of ${DotGraphsThatStartWithGraph.size} DOT graphs are not DOT")
+
+  test("a `graph` header with no body is no evidence of Mermaid"):
+    // A person who types `graph G {` has the text `graph` for a moment. Auto-detect
+    // follows `declared`, thus these texts must give DOT, as before the fix of the
+    // bare `graph` header. A name alone on the next line is no evidence either.
+    val texts    = Vector("graph", "graph ", "graph\n", "graph\n\n", "graph >", "graph v", "graph BR", "graph\nG", "graph\n\"my graph\"")
+    val obtained = texts.map(t => literal(t) -> DiagramFormat.declared(t))
+    assertEquals(obtained, texts.map(t => literal(t) -> Some(DiagramFormat.DOT)))
+
+  test("no part of a DOT graph that starts with `graph` declares Mermaid while a person types it"):
+    // Each start of each text, from one character to the full text.
+    val mermaidPrefixes = for
+      text   <- DotGraphsThatStartWithGraph
+      length <- 1 to text.length
+      prefix  = text.take(length)
+      if DiagramFormat.declared(prefix).contains(DiagramFormat.Mermaid)
+    yield literal(prefix)
+    assertEquals(mermaidPrefixes, Vector.empty)
+
   test("frontmatter is not a declaration until a header follows it"):
     // `---` used to be evidence of Mermaid on its own, which made every
     // Markdown document with YAML frontmatter a Mermaid diagram.
@@ -118,3 +163,39 @@ class PastedDiagramSpec extends FunSuite:
     assertEquals(DiagramFormat.declared("flowchart TD\n  A --> B"), Some(DiagramFormat.Mermaid))
     assertEquals(DiagramFormat.declared("who knows what this is"), None)
     assertEquals(DiagramFormat.detect("who knows what this is"), DiagramFormat.DOT)
+
+object PastedDiagramSpec:
+
+  // Real Mermaid 11.12 reads each text below as a flowchart. BareGraphHeaderSpec
+  // (viewer) checks this with real Mermaid. The Mermaid lexer gives `graph` the
+  // directions LR, RL, TB, BT, TD, BR, >, <, ^ and v. A `graph` line with no
+  // direction is a flowchart from top to bottom.
+  val FlowchartsWithBareOrOtherDirection = Vector(
+    "graph\n  A --> B",
+    "graph\nA --> B",
+    "graph \n  A --> B",
+    "graph\r\n  A --> B",
+    "graph\n  A{Decision} --> B",
+    "---\ntitle: Plan\n---\ngraph\n  A --> B",
+    "graph >\n  A --> B",
+    "graph <\n  A --> B",
+    "graph ^\n  A --> B",
+    "graph v\n  A --> B",
+    "graph>\n  A --> B",
+    "graph BR\n  A --> B",
+    "graph\tTD\n  A --> B"
+  )
+
+  // Each text below is a DOT graph. Real Mermaid rejects each one.
+  val DotGraphsThatStartWithGraph = Vector(
+    "graph {\n  a -- b\n}",
+    "graph{ a -- b }",
+    "graph G {\n  a -- b\n}",
+    "graph\n{\n  a -- b\n}",
+    "graph\nG {\n  a -- b\n}",
+    "graph\n\"my graph\" {\n  a -- b\n}",
+    "strict graph {\n  a -- b\n}",
+    "strict graph\n{\n  a -- b\n}",
+    "graph v { a -- b }",
+    "graph BR { a -- b }"
+  )

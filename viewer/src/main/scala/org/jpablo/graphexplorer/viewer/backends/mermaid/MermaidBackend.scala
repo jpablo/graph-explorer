@@ -148,8 +148,11 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
             val defaultEdgeStyle = jsEdges.defaultStyle.toOption.map(_.toList).getOrElse(Nil)
             val defaultEdgeInterpolate = jsEdges.defaultInterpolate.toOption
             val direction = yy.getDirection().toOption
-            // Try getDiagramTitle first, fallback to getAccTitle
+            // `getDiagramFromText` does not give the frontmatter title to the diagram, thus
+            // `getDiagramTitle` is empty for a flowchart. Read the title from the frontmatter, as the
+            // app's own parser does. Without it, a canvas edit writes the text with no title.
             val title = yy.getDiagramTitle().toOption.filter(_.nonEmpty)
+              .orElse(MermaidSourceScan.diagramTitle(text))
               .orElse(yy.getAccTitle().toOption.filter(_.nonEmpty))
 
             dom.console.info(
@@ -224,12 +227,15 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
     positions.toMap
 
+  // The convert functions decode the labels and the titles here, where they leave Mermaid: the parser results keep
+  // the internal entity codes of Mermaid (see MermaidSourceScan.decodeEntityCodes).
+
   /** Convert Mermaid JS vertices to Scala model. */
   private def convertVertices(jsVertices: js.Dictionary[MermaidVertexJS]): Map[String, MermaidVertex] =
     jsVertices.map { case (id, v) =>
       id -> MermaidVertex(
         id = v.id,
-        text = v.text,
+        text = MermaidSourceScan.decodeEntityCodes(v.text),
         labelType = v.labelType.toOption,
         domId = v.domId.toOption,
         styles = v.styles.toOption.map(_.toList).getOrElse(Nil),
@@ -245,7 +251,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         start = e.start,
         end = e.end,
         edgeType = e.`type`.toOption,
-        text = e.text.toOption.filter(_.nonEmpty),
+        text = e.text.toOption.filter(_.nonEmpty).map(MermaidSourceScan.decodeEntityCodes),
         labelType = e.labelType.toOption,
         stroke = e.stroke.toOption,
         styles = e.style.toOption.map(_.toList).getOrElse(Nil),
@@ -258,7 +264,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     jsSubgraphs.map { s =>
       MermaidSubgraph(
         id = s.id,
-        title = s.title.toOption,
+        title = s.title.toOption.map(MermaidSourceScan.decodeEntityCodes),
         nodes = s.nodes.toOption.map(_.toList).getOrElse(Nil),
         classes = s.classes.toOption.map(_.toList).getOrElse(Nil)
       )

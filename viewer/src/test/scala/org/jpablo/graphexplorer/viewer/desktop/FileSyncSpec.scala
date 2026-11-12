@@ -199,11 +199,13 @@ class FileSyncSpec extends FunSuite with TestHelpers with LoggedChecks:
   // Finding 14: a re-adoption sets the language from `detect`.
   // ---------------------------------------------------------------------------
 
-  /** A Mermaid flowchart with no direction. `detect` does not know this
-    * header, and it reads DOT.
+  /** A Mermaid flowchart with no direction and one node. Real Mermaid reads
+    * it, but `detect` reads DOT. A bare `graph` line and a name alone are no
+    * evidence of Mermaid, because DOT can put the name of the graph on the next
+    * line (`graph\nG {`). An arrow such as `A --> B` is evidence of Mermaid.
     */
-  private val noDirection = "graph\n  A --> B\n"
-  private val noDirectionLater = "graph\n  A --> B\n  B --> C\n"
+  private val noDirection = "graph\n  A\n"
+  private val noDirectionLater = "graph\n  B\n"
 
   /** Open the flowchart as a file with no known extension, and pick Mermaid
     * by hand. The pick turns auto-detect off.

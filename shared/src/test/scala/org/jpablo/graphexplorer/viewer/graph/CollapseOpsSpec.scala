@@ -187,6 +187,18 @@ class CollapseOpsSpec extends FunSuite:
     val ends = out.arrows.values.map(a => (a.source.value, a.target.value)).toSet
     assertEquals(ends, Set(("outer", "d")))
 
+  test("effectiveCollapsed stops at a cycle in the memberships above a collapsed group"):
+    // `g` is in `p`, and `p` and `q` hold each other. No group above `g` is collapsed.
+    val (p, q) = (GroupId("p"), GroupId("q"))
+    val cyclic = sample.modifyElements.using: e =>
+      e.copy(
+        groups = e.groups + (p -> ViewerGroup.group(p)) + (q -> ViewerGroup.group(q)),
+        memberships = e.memberships + (g -> p) + (p -> q) + (q -> p)
+      )
+    assertEquals(cyclic.effectiveCollapsed(Set(g)), Set(g))
+    // A group on the cycle is its own ancestor, thus it is not outermost
+    assertEquals(cyclic.effectiveCollapsed(Set(p)), Set.empty[GroupId])
+
   test("a port on a rewritten end is dropped — the box has no such field"):
     val ported = sample.modifyElements.using: e =>
       val a = Arrow(NodeId("a"), NodeId("c"), targetPort = Some("f1"))

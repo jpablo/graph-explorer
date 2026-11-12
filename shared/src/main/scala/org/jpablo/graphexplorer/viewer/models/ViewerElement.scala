@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.models
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, ClusterLabelLoc, Id, Label, LabelJust}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, ClusterLabelLoc, HeadPort, Id, Label, LabelJust, TailPort}
 import org.jpablo.graphexplorer.viewer.models.Arrow.{sequenceSeparator, titleIdSeparator}
 import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
 import upickle.default.*
@@ -87,6 +87,19 @@ case class Arrow(
 
   def endpoints = Seq(source, target)
 
+  // A port has two homes. The import fills in the structural `sourcePort`/`targetPort`, and `id`
+  // uses it. The toolbar edits the `tailport`/`headport` attribute. Only the import makes the
+  // structural port, thus the attribute is the newer of the two, and it wins. The DOT writer
+  // writes this port, and Graphviz draws the end there.
+
+  /** The port that the source end uses: the `tailport` attribute, or else [[sourcePort]]. */
+  def drawnSourcePort: Option[String] =
+    attributes.values.get(TailPort.attrId).map(_.toString).orElse(sourcePort)
+
+  /** The port that the target end uses: the `headport` attribute, or else [[targetPort]]. */
+  def drawnTargetPort: Option[String] =
+    attributes.values.get(HeadPort.attrId).map(_.toString).orElse(targetPort)
+
   /** The endpoint that is not `n` (for a self-loop, `n` itself). */
   def otherEnd(n: NodeId): NodeId = if source == n then target else source
 end Arrow
@@ -118,15 +131,6 @@ object Arrow:
   def arrow(s: NodeId, t: NodeId) =
     val a = Arrow(s, t)
     a.id -> a
-
-  // example:
-  // A->B/1
-  private val edgeTitlePattern = raw"(.+)$titleIdSeparator(.+)$sequenceSeparator(\d+)".r
-
-  def fromArrowId(arrowId: ArrowId): Option[Arrow] =
-    arrowId.value match
-      case edgeTitlePattern(l, r, i) if l.trim.nonEmpty && r.trim.nonEmpty => Some(arrow(l.trim -> r.trim, seq = i.toInt))
-      case _                                                               => None
 
   val arrowId = raw"arrow:(.+)".r
 

@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
+import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, BoldStyle, BorderStyle, Color, CornerStyle, Dir, FillColor, FontColor, FontName, FontSize, InvisibleStyle, Label, PenColor, PenWidth, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
@@ -9,7 +10,6 @@ import org.jpablo.graphexplorer.viewer.models.*
 import scala.collection.immutable.VectorMap
 
 private val MermaidNodeCssPreferredKeyOrder = Vector("fill", "stroke", "stroke-width", "color", "font-family", "font-size")
-private val MermaidUnsafeIdChar             = "[^A-Za-z0-9_-]".r
 
 /** Converts a ViewerGraph back to Mermaid flowchart text.
   *
@@ -27,7 +27,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   // Add front matter with title if present
   titleOpt.foreach { title =>
     lines.append("---\n")
-    lines.append(s"title: $title\n")
+    lines.append(s"title: ${yamlTitle(title)}\n")
     lines.append("---\n")
   }
 
@@ -42,6 +42,9 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   val rootGroupId = GroupId(ViewerGraphElements.defaultRootId.value)
 
   val connectedNodeIds = graph.arrows.values.flatMap(_.endpoints).toSet
+
+  // One Mermaid id for each node and each group, before the first id is written
+  val ids = MermaidIds(graph, rootGroupId, connectedNodeIds)
 
   // Shared indexes: one deterministic group ordering for the three group passes,
   // and one membership pass instead of a scan per group.
@@ -69,15 +72,19 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   def emitSubgraph(groupId: GroupId, group: ViewerGroup, depth: Int): Unit =
     if emittedGroups.add(groupId) then
       val indent = "  " * depth
-      val title = MermaidLabelText.fromStored(group.label.toString) match
-        case s if s.nonEmpty => s" [$s]"
-        case _               => ""
-      lines.append(s"${indent}subgraph ${mermaidId(groupId.value)}$title\n")
+      // A group with a new id shows its old id, as Mermaid shows the id of a subgraph that has no title
+      val storedTitle = Some(group.label.toString)
+        .filter(_.nonEmpty)
+        .orElse(Option.when(ids.renamed(groupId))(storedFormOf(groupId.value)))
+      val title = storedTitle.map(MermaidLabelText.fromStored).filter(_.nonEmpty) match
+        case Some(s) => s" [${escapeMermaidLabel(s)}]"
+        case None    => ""
+      lines.append(s"${indent}subgraph ${ids.group(groupId)}$title\n")
 
       // Member nodes first, then child subgraphs, each in deterministic id order
       nodesByGroup.getOrElse(groupId, Nil).toVector.sortBy(_.value).foreach { nodeId =>
         graph.nodes.get(nodeId).foreach { node =>
-          lines.append(s"$indent  ${serializeNode(nodeId, node)}\n")
+          lines.append(s"$indent  ${serializeNode(nodeId, node, ids)}\n")
           subgraphNodes += nodeId
         }
       }
@@ -101,16 +108,16 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   // Serialize nodes not in any subgraph
   graph.nodes.foreach { case (nodeId, node) =>
     if !subgraphNodes.contains(nodeId) then
-      val shouldEmitNode = shouldEmitStandaloneNode(nodeId, node, connectedNodeIds)
+      val shouldEmitNode = shouldEmitStandaloneNode(nodeId, node, connectedNodeIds, ids)
       if shouldEmitNode then
-        val nodeLine = serializeNode(nodeId, node)
+        val nodeLine = serializeNode(nodeId, node, ids)
         lines.append(s"  $nodeLine\n")
   }
 
   // Serialize edges and per-edge style directives (`linkStyle` indexes are by edge declaration order).
   val orderedArrows = sortedArrows(graph.arrows.values)
   orderedArrows.foreach { arrow =>
-    val edgeLine = serializeEdge(arrow)
+    val edgeLine = serializeEdge(arrow, ids)
     lines.append(s"  $edgeLine\n")
   }
   orderedArrows.zipWithIndex.foreach { case (arrow, edgeIndex) =>
@@ -122,7 +129,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   // Emit inline style directives for nodes, merging CSS style text and normalized node attrs.
   graph.nodes.foreach { case (nodeId, node) =>
     nodeStyleDirectiveCss(node).foreach { css =>
-      lines.append(s"  style ${mermaidId(nodeId.value)} $css\n")
+      lines.append(s"  style ${ids.node(nodeId)} $css\n")
     }
   }
 
@@ -135,27 +142,28 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
       .get(Shape.attrId)
       .map(_.toString)
       .filter(s => mermaidMappedShape(s).isEmpty)
-      .foreach(s => lines.append(s"  class ${mermaidId(nodeId.value)} $ShapeClassPrefix$s\n"))
+      .foreach(s => lines.append(s"  class ${ids.node(nodeId)} $ShapeClassPrefix$s\n"))
   }
   sortedGroups.foreach { case (groupId, group) =>
     if groupId != rootGroupId then
       groupStyleDirectiveCss(group).foreach { css =>
-        lines.append(s"  style ${mermaidId(groupId.value)} $css\n")
+        lines.append(s"  style ${ids.group(groupId)} $css\n")
       }
   }
-  emitGroupClassLines(lines, sortedGroups, rootGroupId)
+  emitGroupClassLines(lines, sortedGroups, rootGroupId, ids)
 
   lines.toString
 
 /** Serialize a node with its shape and label. */
-private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
+private def serializeNode(nodeId: NodeId, node: ViewerNode, ids: MermaidIds): String =
   val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
   val classOpt = node.attributes.values.get(MermaidClassAttr).map(_.toString).filter(_.nonEmpty)
   val rounded  = node.attributes.values.get(CornerStyle.attrId).exists(_.toString == "rounded")
 
-  val safeId = mermaidId(nodeId.value)
-  val label  = labelOpt.getOrElse(nodeId.value)
+  val safeId = ids.node(nodeId)
+  // With no label, the canvas shows the id. Thus a node with a new id gets its old id as its label.
+  val label = labelOpt.getOrElse(storedFormOf(nodeId.value))
   val (openBracket, closeBracket) = shapeOpt match
     case Some(s) =>
       mermaidMappedShape(s) match
@@ -176,8 +184,14 @@ private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
     val escapedLabel = escapeMermaidLabel(MermaidLabelText.fromStored(label))
     s"$safeId$openBracket$escapedLabel$closeBracket$classSuffix"
 
+/** The stored (DOT-escaped) form of an id, for a label. An id with no `\` and no line break is its own stored form,
+  * thus this function calls `TextUtils.escape` only for the other ids.
+  */
+private def storedFormOf(id: String): String =
+  if id.exists(c => c == '\\' || c == '\n') then TextUtils.escape(id) else id
+
 /** Serialize an edge with its style and label. */
-private def serializeEdge(arrow: Arrow): String =
+private def serializeEdge(arrow: Arrow, ids: MermaidIds): String =
   val (startArrow, endArrow) = effectiveEdgeMarkers(arrow.attributes)
 
   // Mermaid links can carry an end arrow, arrows at BOTH ends, or none — but no
@@ -194,7 +208,7 @@ private def serializeEdge(arrow: Arrow): String =
   val labelOpt  = arrow.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val labelPart = labelOpt.map(l => s"|${escapeMermaidLabel(MermaidLabelText.fromStored(l))}|").getOrElse("")
 
-  s"${mermaidId(src.value)} $arrowType$labelPart ${mermaidId(dst.value)}"
+  s"${ids.node(src)} $arrowType$labelPart ${ids.node(dst)}"
 
 /** Which ends of the edge actually DRAW a marker. The app's edge theme renders with
   * dir=both (see ViewerGraph.defaultEdgeTheme), so the drawn markers are controlled by
@@ -227,13 +241,129 @@ private def edgeLineStyle(attrs: Attributes): Option[String] =
     .orElse(Option.when(values.get(BoldStyle.attrId).exists(_.toString == "true"))("bold"))
     .orElse(values.get(BorderStyle.attrId).map(_.toString))
 
-/** Map a node/subgraph id to a Mermaid-safe identifier, applied consistently at every id
-  * emission site (node defs, edges, subgraphs, style/class directives) so references still
-  * resolve. Ids with whitespace or metacharacters (possible after DOT import of quoted ids)
-  * would otherwise produce invalid/mis-parsed Mermaid. Already-safe ids pass through unchanged. */
-private def mermaidId(id: String): String =
-  if id.forall(MermaidSourceScan.isIdentifierChar) then id
-  else MermaidUnsafeIdChar.replaceAllIn(id, "_")
+/** The Mermaid id of each node and each group of one graph.
+  *
+  * The writer builds this map once, before it writes the first line. Each place that writes an id (node definitions,
+  * arrows, subgraphs, `style` lines and `class` lines) reads it, thus these places always agree.
+  *
+  * An id that Mermaid can use and that no other element has keeps its id. Thus the usual graph does not change. The map
+  * gives a new id to an id that:
+  *   - has a character that is not safe in a Mermaid id, or has `--` (Mermaid reads `--` as the start of a link);
+  *   - is a flowchart keyword that breaks the Mermaid parse (see [[MermaidKeywordIds]]);
+  *   - is the id of another element. Mermaid has one set of ids for nodes and for subgraphs, and DOT has two.
+  *
+  * One node is not another element: a stand-in for a group (see `standsForGroup` in `MermaidIds.apply`). This node
+  * is not in `nodeIds`, and [[node]] gives it the id of its group.
+  */
+private final class MermaidIds private (nodeIds: Map[NodeId, String], groupIds: Map[GroupId, String]):
+  def node(id: NodeId): String   = nodeIds.get(id).orElse(groupIds.get(GroupId(id.value))).getOrElse(id.value)
+  def group(id: GroupId): String = groupIds.getOrElse(id, id.value)
+
+  /** True when the node has a new id of its own. Then the writer must write the old id as its label. */
+  def renamed(id: NodeId): Boolean = nodeIds.get(id).exists(_ != id.value)
+
+  /** True when the group has a new id. Then the writer must write the old id as its title. */
+  def renamed(id: GroupId): Boolean = groupIds.get(id).exists(_ != id.value)
+
+private object MermaidIds:
+
+  private val UnsafeIdChar = "[^A-Za-z0-9_-]".r
+  private val HyphenRun    = "-{2,}".r
+
+  /** `connectedNodeIds` holds the end nodes of each arrow. An end that is not in `graph.nodes` gets an id too. */
+  def apply(graph: ViewerGraph, rootGroupId: GroupId, connectedNodeIds: Set[NodeId]): MermaidIds =
+    val groups       = graph.groups.keys.filter(_ != rootGroupId).toVector.sortBy(_.value)
+    val danglingEnds = connectedNodeIds.filterNot(graph.nodes.contains).toVector.sortBy(_.value)
+    val nodes        = graph.nodes.keys.toVector ++ danglingEnds
+
+    val groupIdValues = groups.map(_.value).toSet
+
+    /** True when the node is a stand-in for a group: a node with no attributes and no group that has the id of a
+      * group. The Mermaid reader (`toViewerGraph`) makes this node for an arrow to a subgraph, and in Mermaid the id
+      * names the subgraph. Thus this node keeps the id of its group.
+      */
+    def standsForGroup(id: NodeId): Boolean =
+      groupIdValues.contains(id.value) &&
+        graph.nodes.get(id).forall(_.attributes.values.isEmpty) &&
+        !graph.memberships.contains(id)
+    val ownNodes = nodes.filterNot(standsForGroup)
+
+    val taken    = scala.collection.mutable.Set[String]()
+    val nodeIds  = scala.collection.mutable.Map[NodeId, String]()
+    val groupIds = scala.collection.mutable.Map[GroupId, String]()
+
+    // First the ids that do not change, nodes before groups. Thus a new id cannot take an id that stays.
+    ownNodes.foreach(id => if MermaidKeywordIds.usable(id.value, subgraph = false) && taken.add(id.value) then nodeIds(id) = id.value)
+    groups.foreach(id => if MermaidKeywordIds.usable(id.value, subgraph = true) && taken.add(id.value) then groupIds(id) = id.value)
+
+    // Then a new id for each other element
+    def newId(id: String, subgraph: Boolean): String =
+      val next = freshId(id, subgraph, taken.contains)
+      taken += next
+      next
+    ownNodes.foreach(id => if !nodeIds.contains(id) then nodeIds(id) = newId(id.value, subgraph = false))
+    groups.foreach(id => if !groupIds.contains(id) then groupIds(id) = newId(id.value, subgraph = true))
+
+    new MermaidIds(nodeIds.toMap, groupIds.toMap)
+
+  /** A new Mermaid id for `id`, made of ASCII characters, that `taken` does not have.
+    *
+    * The steps below give a base that Mermaid can use: it has only safe characters, no `--`, and no keyword at its
+    * start. A `_2` or `_3` at its end does not change that.
+    */
+  private def freshId(id: String, subgraph: Boolean, taken: String => Boolean): String =
+    val chars    = UnsafeIdChar.replaceAllIn(id, "_")
+    val noLinks  = HyphenRun.replaceAllIn(chars, m => "_" * m.matched.length)
+    val nonEmpty = if noLinks.isEmpty then "id" else noLinks
+    // `end` becomes `end_`, and `end-x` becomes `end_x`: a word character after the keyword stops the match
+    val base = MermaidKeywordIds.keywordAt(nonEmpty, subgraph) match
+      case Some(keyword) => keyword + "_" + nonEmpty.drop(keyword.length).stripPrefix("-")
+      case None          => nonEmpty
+    Iterator.from(1)
+      .map(n => if n == 1 then base else s"${base}_$n")
+      .find(candidate => !taken(candidate))
+      .get
+
+/** The flowchart keywords that break the Mermaid parse when they are an id.
+  *
+  * The list comes from the lexer of Mermaid 11.12 (`flowDiagram`), and a check of each id with real Mermaid confirmed
+  * it (MermaidWriterRealMermaidSpec). The match is case-sensitive: `End`, `Style` and `Class` are good ids.
+  */
+private object MermaidKeywordIds:
+
+  /** The lexer matches these words with `\b` after them. Thus the word breaks the parse alone, and also before a
+    * character that is not `[A-Za-z0-9_]`, for example `end-x` or `endé`. `end_x` and `end1` are good ids.
+    */
+  private val WordKeywords = Set(
+    "end", "subgraph", "graph", "flowchart", "style", "class", "classDef", "linkStyle", "interpolate",
+    "_self", "_blank", "_parent", "_top"
+  )
+
+  /** The lexer matches these words with white space after them. Thus only the whole word breaks the parse. */
+  private val SpaceKeywords = Set("click", "call", "href")
+
+  /** Mermaid reads this word as a keyword only after `subgraph`. A node can have the id `default`. */
+  private val SubgraphKeywords = Set("default")
+
+  /** The word keywords after `subgraph`. */
+  private val SubgraphWordKeywords = WordKeywords ++ SubgraphKeywords
+
+  private def isAsciiWordChar(c: Char): Boolean =
+    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
+
+  /** The keyword at the start of `id` that breaks the parse, if one is there. */
+  def keywordAt(id: String, subgraph: Boolean): Option[String] =
+    val words = if subgraph then SubgraphWordKeywords else WordKeywords
+    words
+      .find(word => id.startsWith(word) && id.lift(word.length).forall(c => !isAsciiWordChar(c)))
+      .orElse(SpaceKeywords.find(_ == id))
+
+  /** True when Mermaid reads `id` as this one id, after `subgraph` when `subgraph` is true. */
+  def usable(id: String, subgraph: Boolean): Boolean =
+    id.nonEmpty &&
+      id.forall(MermaidSourceScan.isIdentifierChar) &&
+      !id.contains("--") &&
+      keywordAt(id, subgraph).isEmpty
 
 /** Maps DOT shape names to Mermaid bracket syntax (paired with `mermaidShapeToDot`),
   * or None when Mermaid has no form for the shape (record, house, ...): the caller
@@ -279,7 +409,7 @@ private def mermaidLinkToken(styleOpt: Option[String], start: Boolean, end: Bool
     case (false, false) => family.open
     case _              => family.fwd
 
-private def shouldEmitStandaloneNode(nodeId: NodeId, node: ViewerNode, connectedNodeIds: Set[NodeId]): Boolean =
+private def shouldEmitStandaloneNode(nodeId: NodeId, node: ViewerNode, connectedNodeIds: Set[NodeId], ids: MermaidIds): Boolean =
   val labelOpt         = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val shapeOpt         = node.attributes.values.get(Shape.attrId).map(_.toString)
   val hasExplicitLabel = labelOpt.exists(_ != nodeId.value)
@@ -287,7 +417,10 @@ private def shouldEmitStandaloneNode(nodeId: NodeId, node: ViewerNode, connected
   val hasClass         = node.attributes.values.contains(MermaidClassAttr)
   val hasCssStyle      = node.attributes.values.get(Style.attrId).exists(_.toString.contains(":"))
 
-  !connectedNodeIds.contains(nodeId) || hasExplicitLabel || hasShape || hasClass || hasCssStyle
+  // A node with a new id needs a line of its own, because only that line can carry its old id as its label
+  val renamed = ids.renamed(nodeId)
+
+  !connectedNodeIds.contains(nodeId) || hasExplicitLabel || hasShape || hasClass || hasCssStyle || renamed
 
 private def emitClassDefLines(lines: StringBuilder, graphAttributes: Attributes): Unit =
   collectClassDefBodies(graphAttributes).foreach { case (className, body) =>
@@ -325,7 +458,8 @@ private def emitDefaultLinkStyleLine(lines: StringBuilder, graphAttributes: Attr
 private def emitGroupClassLines(
     lines:        StringBuilder,
     sortedGroups: Vector[(GroupId, ViewerGroup)],
-    rootGroupId:  GroupId
+    rootGroupId:  GroupId,
+    ids:          MermaidIds
 ): Unit =
   sortedGroups.foreach { case (groupId, group) =>
     if groupId != rootGroupId then
@@ -335,7 +469,7 @@ private def emitGroupClassLines(
         .toVector
         .flatMap(parseMermaidClassNames)
       if classNames.nonEmpty then
-        lines.append(s"  class ${mermaidId(groupId.value)} ${classNames.mkString(",")}\n")
+        lines.append(s"  class ${ids.group(groupId)} ${classNames.mkString(",")}\n")
   }
 
 private def mergeMermaidCssBodies(styleBodyOpt: Option[String], extraBodyOpt: Option[String]): Option[String] =
@@ -458,5 +592,28 @@ private def escapeMermaidLabel(label: String): String =
     label.contains(">")
   then
     // Wrap in quotes and escape internal quotes
-    "\"" + label.replace("\"", "#quot;") + "\""
+    "\"" + MermaidSourceScan.encodeQuotes(label) + "\""
   else label
+
+/** A title that is safe as a plain YAML scalar: letters, digits, spaces and `_ . , ( ) / -`, with a letter first and
+  * no space last. Mermaid reads the frontmatter with js-yaml, thus a `: `, a ` #`, a quote or an indicator character
+  * (`- ? [ { ! & * | > % @`) at the start changes or breaks a plain title.
+  */
+private val PlainYamlTitle = "[A-Za-z](?:[A-Za-z0-9 _.,()/-]*[A-Za-z0-9_.,()/-])?".r
+
+/** YAML reads these plain words as a value that is not text (js-yaml JSON schema), and Mermaid then loses the title. */
+private val YamlValueWords = Set("true", "false", "null")
+
+/** A line break in a title, with the spaces and tabs around it. */
+private val TitleLineBreak = "[ \\t]*(?:\\r\\n|\\r|\\n)+[ \\t]*".r
+
+/** The YAML form of the frontmatter title: a plain scalar when that is safe, or else a single-quoted scalar.
+  *
+  * A one-line title cannot keep a line break. Thus each line break (with the spaces around it) becomes one space.
+  * In a single-quoted scalar, `''` is a quote and the other characters stay as they are.
+  * `MermaidSourceScan.frontmatterValue` reads this form back.
+  */
+private def yamlTitle(title: String): String =
+  val oneLine = TitleLineBreak.replaceAllIn(title, " ")
+  if PlainYamlTitle.matches(oneLine) && !YamlValueWords.contains(oneLine.toLowerCase) then oneLine
+  else "'" + oneLine.replace("'", "''") + "'"

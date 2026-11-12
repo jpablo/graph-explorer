@@ -1,80 +1,24 @@
 package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
-import com.raquo.airstream.ownership.ManualOwner
-import com.raquo.laminar.api.L.render
 import munit.FunSuite
 import org.jpablo.graphexplorer.library.LoggedChecks
-import org.jpablo.graphexplorer.router.Router
-import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands}
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, Promise}
-import scala.scalajs.js
 import scala.util.Try
 
 /** The canvas of a DOT diagram, as the app shows it: `CanvasContainer` in the
   * document, with the svg of `ViewerState.finalSVG` in it.
   */
-class SvgCanvasSpec extends FunSuite with TestHelpers with LoggedChecks:
+class SvgCanvasSpec extends FunSuite with TestHelpers with LoggedChecks with CanvasFixture:
 
   def checkPrefix = "SvgCanvasSpec"
 
+  def canvasDiagramId = "svg-canvas-spec"
+
   override def munitFixtures = List(mockStorageFixture())
-
-  /** The canvas in the document, and the viewer that it shows. */
-  private final class Canvas(val state: ViewerState, val box: dom.html.Element):
-
-    /** The svg that the canvas shows now. */
-    def svg: dom.svg.SVG = box.querySelector("svg").asInstanceOf[dom.svg.SVG]
-
-    /** The group of the node `id`. The search compares the `id` property, and
-      * thus it does not use a CSS selector.
-      */
-    def nodeGroup(id: NodeId): Option[dom.svg.G] =
-      box.querySelectorAll("g.node").toSeq.collectFirst:
-        case g: dom.svg.G if g.id == id.toSvg => g
-
-  private def waitFor(condition: => Boolean, description: => String, timeoutMs: Int = 10000): Future[Unit] =
-    val p     = Promise[Unit]()
-    val start = js.Date.now()
-    def loop(): Unit =
-      if Try(condition).getOrElse(false) then p.trySuccess(())
-      else if js.Date.now() - start >= timeoutMs then
-        val message = s"Timed out after ${timeoutMs}ms: $description"
-        println(s"[$checkPrefix] $message")
-        p.tryFailure(new RuntimeException(message))
-      else js.timers.setTimeout(20)(loop())
-    loop()
-    p.future
-
-  /** Show `dot` in a canvas in the document, and run `body` when the canvas
-    * shows the node `firstNode`. The end of the test removes the canvas, and
-    * puts the URL back.
-    */
-  private def withCanvas(dot: String, firstNode: NodeId)(body: Canvas => Future[Unit]): Future[Unit] =
-    val startHref = dom.window.location.href
-    val owner     = ManualOwner()
-    withGraphvizAsync: graphviz =>
-      val state    = ViewerState(ViewTarget.diagram("svg-canvas-spec"), graphviz, initialSource = Some(dot))(using owner)
-      val commands = Commands(state, RouterCommands(Router()))
-      val box      = dom.document.createElement("div").asInstanceOf[dom.html.Element]
-      box.style.width = "800px"
-      box.style.height = "600px"
-      dom.document.body.appendChild(box)
-      val root   = render(box, CanvasContainer(state, commands))
-      val canvas = Canvas(state, box)
-      waitFor(canvas.nodeGroup(firstNode).isDefined, s"the canvas shows the node $firstNode")
-        .flatMap(_ => body(canvas))
-        .transform: outcome =>
-          root.unmount()
-          box.parentNode.removeChild(box)
-          owner.killSubscriptions()
-          dom.window.history.replaceState(null, "", startHref)
-          outcome
 
   // ---------------------------------------------------------------------------
   // Bug 1: an element id is not escaped in a CSS selector.
@@ -134,7 +78,7 @@ class SvgCanvasSpec extends FunSuite with TestHelpers with LoggedChecks:
     * controls removes the controls and adds them again
     * (`AddNewArrowOps.handleNewArrowControls`).
     */
-  private def controlsAddedBySettle(canvas: Canvas): Int =
+  private def controlsAddedBySettle(canvas: TestCanvas): Int =
     val mainGroup = CanvasRoot.mainGroup(canvas.svg)
     val observer  = new dom.MutationObserver((_, _) => ())
     observer.observe(mainGroup, new dom.MutationObserverInit { childList = true })
@@ -147,7 +91,7 @@ class SvgCanvasSpec extends FunSuite with TestHelpers with LoggedChecks:
         case e: dom.Element => e.classList.contains("new-arrow-control")
         case _              => false
 
-  private def foldBadges(canvas: Canvas): Int =
+  private def foldBadges(canvas: TestCanvas): Int =
     canvas.svg.querySelectorAll(s"g.${CountBadges.foldClass}").length
 
   // `CanvasContainer` shows the svg with `flatMapSwitch` on `view3DActive`.
