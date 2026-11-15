@@ -28,4 +28,6 @@ A board shows many diagrams, images, and notes on one canvas. We store a board a
 - One diagram can be on more than one board. When a tool writes a diagram file again, each board that shows it follows.
 - A database diagram and an image are items with the same rule as a DOT file.
 - The viewer keeps the source and the graph of one diagram for each window now. A board needs that state for each item. A window that opens one diagram shows it as the only item, with no board file.
-- In the web app, the browser keeps the board and its items, because a browser has no files.
+- In the web app, the browser keeps the board and its items, because a browser has no files. The stored text of a browser board is the text of a board file. The location of an item there is `browser:<diagram id>`.
+- A board file has the extension `.gxboard`. A reader refuses a `version` that is newer than its own, because its write could remove content. A reader keeps each key that it does not know, and a write gives the key back.
+- The id of an item comes from the name of its diagram, and a number makes it different from the other ids of the board. An id names one item, so that a later tool can refer to an item.

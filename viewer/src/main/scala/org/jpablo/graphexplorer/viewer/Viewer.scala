@@ -3,8 +3,10 @@ package org.jpablo.graphexplorer.viewer
 import buildinfo.BuildInfo
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.library.{DesktopStartup, Library, LibraryNavigation, LibraryView}
+import org.jpablo.graphexplorer.board.{BoardView, BrowserBoardStore}
+import org.jpablo.graphexplorer.library.{BrowserBoards, DesktopStartup, Library, LibraryNavigation, LibraryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
+import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
 import org.jpablo.graphexplorer.viewer.desktop.{
@@ -255,6 +257,13 @@ object Viewer:
 
               case Route.File(sessionId) =>
                 fileView(sessionId)
+
+              case Route.Board(id) =>
+                // Only the web app has boards now. The desktop app will keep a
+                // board as a file, on the route of a file.
+                if !Library.isDesktop && BrowserBoards.exists(id) then
+                  BoardView(BrowserBoardStore(id, DefaultDiagramLanguages(graphviz)), graphviz, router, errors)
+                else unknownBoard(routerCmds)
           )
 
         render(document.querySelector("#app"), app)
@@ -281,6 +290,17 @@ object Viewer:
       cls := "loose-document-placeholder",
       h2("No such document session"),
       p("This page shows a file the desktop opened. That session is not open now."),
+      Button(
+        "Back to the library",
+        onClick --> (_ => routerCmds.navigateHome.execute())
+      ).primary.small
+    )
+
+  private def unknownBoard(routerCmds: RouterCommands) =
+    div(
+      cls := "unknown-example",
+      h2("No such board"),
+      p("This browser has no board with this address."),
       Button(
         "Back to the library",
         onClick --> (_ => routerCmds.navigateHome.execute())

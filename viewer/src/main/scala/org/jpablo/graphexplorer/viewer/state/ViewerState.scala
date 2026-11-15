@@ -389,6 +389,12 @@ case class ViewerState(
       .flatMapSwitch((renderer, sourceInItsLanguage) => renderer.render(renderInputsFor(sourceInItsLanguage)))
       .distinct
 
+  /** The drawing alone, with no behavior of the canvas. A board shows it for an
+    * item. Only one place can show the element, and that place is not the
+    * canvas of this viewer ([[finalSVG]]).
+    */
+  val drawing: Signal[Option[ReactiveSvgElement[SVG]]] = svgWithPositions.map(_.map(_.svg))
+
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.
   // svgWithPositions ~> finalSVG

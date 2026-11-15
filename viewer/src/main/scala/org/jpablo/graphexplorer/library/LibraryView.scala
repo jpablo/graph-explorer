@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.router.Router
+import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.{AboutDialog, PreferencesDialog, RouterCommands}
 import org.jpablo.graphexplorer.viewer.state.ViewerSettings
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
@@ -307,6 +307,10 @@ def LibraryView(
         }
       ),
 
+      // -------- Boards Section --------
+      // Only the web app has boards now. The desktop app will keep a board as a file.
+      Option.when(!Library.isDesktop)(boardsSection(router)).toSeq,
+
       // -------- Examples Section --------
       div(
         idAttr := "examples-grid",
@@ -500,6 +504,64 @@ private[library] def libraryNotice =
           div(cls := "flex-1 text-sm", lines.map(line => p(line))),
           Button("Close", onClick --> Library.notice.set(None)).small
         )
+  )
+
+/** The boards of the web app: a control that makes a board, and one card for
+  * each board (ADR 0003).
+  */
+private def boardsSection(router: Router) =
+  div(
+    idAttr := "boards-grid",
+    div(
+      cls := "flex items-center gap-3 mb-4",
+      h1(
+        cls := "text-2xl font-bold gap-2 flex",
+        span(cls := "bi bi-easel"),
+        "Boards"
+      ),
+      Button(
+        idAttr := "new-board",
+        span().plusCircleIcon,
+        "New board",
+        onClick --> { _ =>
+          BrowserBoards.create(BrowserBoards.nextName()) match
+            case Right(id)     => router.navigateTo(Route.Board(id))
+            case Left(message) => Library.showNotice(Vector(message))
+        }
+      ).small
+    ),
+    div(
+      cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4",
+      children <-- BrowserBoards.index.map: index =>
+        index.boards.sortBy(-_.lastModified).map(boardCard(router, _))
+    ),
+    child.maybe <-- BrowserBoards.index.map: index =>
+      Option.when(index.boards.isEmpty):
+        p(cls := "text-sm text-base-content/60", "A board shows many diagrams on one canvas.")
+  )
+
+private def boardCard(router: Router, board: BoardSummary) =
+  val items = BrowserBoards.read(board.id).fold(_ => "", read => if read.items.size == 1 then "1 item · " else s"${read.items.size} items · ")
+  div(
+    cls := "board-card card card-sm",
+    dataAttr("board-id") := board.id,
+    div(
+      cls := "card-body p-3 flex-row items-center gap-3",
+      a(
+        cls  := "flex-1 min-w-0 flex items-center gap-3 cursor-pointer hover:text-primary transition-colors",
+        role := "button",
+        onClick --> (_ => router.navigateTo(Route.Board(board.id))),
+        i(cls := "bi bi-easel text-lg"),
+        div(
+          cls := "min-w-0",
+          div(cls := "font-medium truncate", board.name),
+          div(cls := "text-xs text-base-content/70", s"${items}Modified ${formatDate(board.lastModified)}")
+        )
+      ),
+      IconButton("bi-trash", "Delete board", TooltipPos.left, cls := "danger")(
+        if dom.window.confirm("Delete this board? Its diagrams stay in the library.") then BrowserBoards.delete(board.id)
+      )
+    )
   )
 
 /** Open a diagram of the list. A failure goes to the notice of the home page. */
