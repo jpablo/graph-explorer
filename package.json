@@ -12,7 +12,9 @@
   "dependencies": {
     "@codemirror/commands": "6.7.1",
     "@codemirror/lang-javascript": "6.2.2",
+    "@codemirror/language": "6.10.3",
     "@codemirror/view": "6.34.1",
+    "@lezer/highlight": "1.2.1",
     "@types/jsdom": "21.1.7",
     "@types/node": "^22.8.2",
     "@viz-js/lang-dot": "1.0.4",
