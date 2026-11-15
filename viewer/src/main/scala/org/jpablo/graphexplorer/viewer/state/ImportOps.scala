@@ -72,5 +72,8 @@ trait ImportOps:
       case None         => infoBus.emit("The clipboard holds no DOT or Mermaid diagram")
 
   private def applyPaste(pasted: PastedDiagram): Unit =
-    replaceSource(pasted.source, pasted.format)
-    infoBus.emit(s"Pasted ${pasted.format.displayName} diagram from the clipboard")
+    if metadata.now().locked then
+      errorBus.emit("The viewer did not paste the diagram, because the diagram is locked. Unlock the diagram to change it.")
+    else
+      replaceSource(pasted.source, pasted.format)
+      infoBus.emit(s"Pasted ${pasted.format.displayName} diagram from the clipboard")

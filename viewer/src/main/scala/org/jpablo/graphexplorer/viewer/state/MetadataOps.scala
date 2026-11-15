@@ -54,8 +54,19 @@ final class MetadataOps(val metadata: Var[DiagramMetadata])(using owner: Owner):
   val renderer: Var[Option[String]] =
     metadata.zoomLazy(_.renderer)((m, id) => m.copy(renderer = id)).distinct
 
+  /** The id of the extractor that the person selected (`Extractor.id`). `None`:
+    * the app finds the extractor from the content, or else from the file name.
+    */
+  val extractor: Var[Option[String]] =
+    metadata.zoomLazy(_.extractor)((m, id) => m.copy(extractor = id)).distinct
+
+  /** True when the person told the app not to write to the data source. */
+  val locked: Var[Boolean] =
+    metadata.zoomLazy(_.locked)((m, on) => m.copy(locked = on)).distinct
+
   // Keep each view running, so that its `now()` is fresh (see the class comment).
-  List[Var[?]](hiddenElements, collapsedGroups, autoDetectFormat, renderer).foreach(_.signal.foreach(_ => ()))
+  List[Var[?]](hiddenElements, collapsedGroups, autoDetectFormat, renderer, extractor, locked)
+    .foreach(_.signal.foreach(_ => ()))
 
 end MetadataOps
 

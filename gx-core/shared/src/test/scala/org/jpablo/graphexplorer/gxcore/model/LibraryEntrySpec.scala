@@ -63,6 +63,30 @@ class LibraryEntrySpec extends FunSuite:
     assertEquals(read.metadata.renderer, None)
     assertEquals(upickle.default.write(read), representativeJson)
 
+  test("an entry with a selected extractor and a lock has the two keys, after the renderer key"):
+    val entry = LibraryEntry(path, DiagramMetadata(renderer = Some("mermaid"), extractor = Some("dot"), locked = true), 1, 2)
+    val json  = upickle.default.write(entry)
+    assertEquals(json, minimalJson.stripSuffix("}") + ""","renderer":"mermaid","extractor":"dot","locked":true}""")
+    assertEquals(upickle.default.read[LibraryEntry](json), entry)
+
+  test("an entry with only a lock has only the locked key, after the eight keys"):
+    val entry = LibraryEntry(path, DiagramMetadata(locked = true), 1, 2)
+    val json  = upickle.default.write(entry)
+    assertEquals(json, minimalJson.stripSuffix("}") + ""","locked":true}""")
+    assertEquals(upickle.default.read[LibraryEntry](json), entry)
+
+  test("an entry from before the extractor and the lock reads as no selection and not locked, and a write gives the same bytes"):
+    val read = upickle.default.read[LibraryEntry](representativeJson)
+    assertEquals(read.metadata.extractor, None)
+    assertEquals(read.metadata.locked, false)
+    assertEquals(upickle.default.write(read), representativeJson)
+
+  test("the location of an entry is the canonical file URI of its path"):
+    val entry = LibraryEntry("/Users/someone/Documents/Graph Explorer/a b.dot", DiagramMetadata.empty, 1, 2)
+    assertEquals(entry.location.value, "file:///Users/someone/Documents/Graph%20Explorer/a%20b.dot")
+    // The key of the entry is the hash of this text.
+    assertEquals(entry.location.value, LibraryEntry.keySource(entry.path))
+
   test("a read ignores a name and a folder in the file, and a write does not give them back"):
     val withName = minimalJson.replace("\"tags\":[]", "\"name\":\"Architecture\",\"folder\":{\"segments\":[\"x\"]},\"tags\":[]")
     val read     = upickle.default.read[LibraryEntry](withName)

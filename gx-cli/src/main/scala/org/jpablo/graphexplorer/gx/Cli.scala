@@ -34,7 +34,8 @@ import scala.util.control.NonFatal
   *   - A read command (`nodes`, `arrows`, `groups`, `attrs`) parses the file.
   *   - A change command (`set`, `group`, …) writes the file. It writes only
   *     when the file still has the hash that gx read. It refuses a write that
-  *     removes comments or `strict`, unless the caller adds `--reformat`.
+  *     removes comments or `strict`, unless the caller adds `--reformat`. It
+  *     refuses a locked file (`gx lock`).
   *   - A metadata command (`hide`, `tag`, …) writes the library entry of the
   *     file, and never the file.
   *   - A desktop command (`open`, `select`, `selection`, `fit`) needs a running
@@ -68,6 +69,8 @@ object Cli:
       |  gx collapse <file> <group>...      gx expand <file> (<group>... | --all)
       |  gx tag      <file> <tag>...        gx untag  <file> <tag>...
       |  gx note     <file> (<text> | --stdin | --clear)
+      |  gx lock     <file>                 gx unlock <file>
+      |                                     gx does not change a locked file
       |  gx info     <file> [--json]        the metadata of a diagram
       |  gx ls [--tag T] [--json]           the library
       |  gx add <file>...                   put a diagram in the library
@@ -120,6 +123,8 @@ object Cli:
     Command("tag", "gx tag <file> <tag>...", Json, Set.empty, true, tag),
     Command("untag", "gx untag <file> <tag>...", Json, Set.empty, true, untag),
     Command("note", "gx note <file> (<text> | --stdin | --clear)", Json ++ Set("stdin", "clear"), Set.empty, true, note),
+    Command("lock", "gx lock <file> [--json]", Json, Set.empty, true, lock),
+    Command("unlock", "gx unlock <file> [--json]", Json, Set.empty, true, unlock),
     Command("info", "gx info <file> [--json]", Json, Set.empty, true, info),
     Command("ls", "gx ls [--tag T] [--json]", Json, Set("tag"), true, ls),
     Command("add", "gx add <file>... [--json]", Json, Set.empty, true, add),
@@ -626,7 +631,9 @@ object Cli:
 
   /** The steps of each change (plan §2):
     *
-    *   1. Read the file and its hash, and parse it.
+    *   1. Read the file and its hash, and parse it. Then refuse a locked file
+    *      (`requireUnlocked`). This check comes before step 2, so a locked
+    *      file gives the same refusal for each change.
     *   2. Make the change on the graph.
     *   3. Render the text. If a save of it gives the same text as a save of
     *      the file over itself, write nothing (`LineEnding.sameOnDisk`). The
@@ -645,7 +652,13 @@ object Cli:
   private def change(command: Command, args: Args, env: CliEnv)(
       edit: Loaded => Either[Int, (ViewerGraph, Vector[(String, String)])]
   ): Int =
-    loadFile(command, args, env).flatMap(loaded => edit(loaded).map(loaded -> _)) match
+    val edited =
+      for
+        loaded <- loadFile(command, args, env)
+        _      <- requireUnlocked(loaded.path, env)
+        result <- edit(loaded)
+      yield loaded -> result
+    edited match
       case Left(code) => code
       case Right((loaded, (graph, extra))) =>
         val text      = DiagramText.render(graph, loaded.format)
@@ -690,6 +703,25 @@ object Cli:
       val notes = Option.unless(changed)("unchanged").toVector ++ extra.map((k, v) => s"$k $v")
       env.out((Vector(path.toString, hash.hex) ++ notes).mkString("  "))
     ExitCode.Ok
+
+  /** Refuse a change of a locked file (CONTEXT.md, "Locked"). The lock is in
+    * the entry of the file, so a file with no entry is not locked.
+    *
+    * An entry that gx cannot read is also a refusal (`entryOf`), because such
+    * an entry can hold a lock.
+    *
+    * This check only reads the store. It does not run the migration: an old
+    * record has no lock.
+    */
+  private def requireUnlocked(path: Path, env: CliEnv): Either[Int, Unit] =
+    entryOf(path, env).flatMap:
+      case Some(entry) if entry.metadata.locked =>
+        env.err(
+          s"gx: $path is locked, so gx did not write it. " +
+            s"To remove the lock, run: gx unlock ${shellWord(path.toString)}"
+        )
+        Left(ExitCode.InvalidPathOrPolicy)
+      case _ => Right(())
 
   // ---------------------------------------------------------- metadata
 
@@ -762,6 +794,10 @@ object Cli:
   /** The fields of `info`, in the order of the output. Each value is a
     * function, so that a caller can build one field only. Only `hidden` and
     * `collapsed` evaluate `names`, and only when they have a ref.
+    *
+    * `location` is the canonical `file:` URI of the file (ADR 0002). A file
+    * with no entry has a location too. `extractor` and `renderer` are `null`
+    * when the person selected none.
     */
   private def infoFields(
       path:  Path,
@@ -776,7 +812,11 @@ object Cli:
       "notes"            -> (() => ujson.Str(meta.map(_.notes).getOrElse(""))),
       "hidden"           -> (() => strings(displayed(meta.toVector.flatMap(_.hiddenElements), names))),
       "collapsed"        -> (() => strings(displayed(meta.toVector.flatMap(_.collapsedGroups), names))),
-      "autoDetectFormat" -> (() => meta.flatMap(_.autoDetectFormat).map(ujson.Bool(_)).getOrElse(ujson.Null))
+      "autoDetectFormat" -> (() => meta.flatMap(_.autoDetectFormat).map(ujson.Bool(_)).getOrElse(ujson.Null)),
+      "location"         -> (() => ujson.Str(entry.fold(LibraryEntry.keySource(path.toString))(_.location.value))),
+      "extractor"        -> (() => optional(meta.flatMap(_.extractor))),
+      "renderer"         -> (() => optional(meta.flatMap(_.renderer))),
+      "locked"           -> (() => ujson.Bool(meta.exists(_.locked)))
     )
 
   private def infoJson(path: Path, entry: Option[LibraryEntry], names: => Option[ElementNames]): ujson.Obj =
@@ -938,6 +978,29 @@ object Cli:
         else
           updateEntry(path, create = note.nonEmpty, env)(MetadataCommands.run(_, MetadataCommand.SetNotes(note)))
             .fold(identity, entry => reportEntry(path, entry, None, "notes", args, env))
+
+  /** `lock` makes the entry when there is none, as each command that adds
+    * metadata does. After it, each change command refuses the file
+    * (`requireUnlocked`).
+    */
+  private def lock(command: Command, args: Args, env: CliEnv): Int =
+    withOneFile(command, args, env): path =>
+      updateEntry(path, create = true, env)(MetadataCommands.run(_, MetadataCommand.Lock))
+
+  private def unlock(command: Command, args: Args, env: CliEnv): Int =
+    withOneFile(command, args, env): path =>
+      updateEntry(path, create = false, env)(MetadataCommands.run(_, MetadataCommand.Unlock))
+
+  /** `lock` and `unlock`: exactly one file, and no other argument. */
+  private def withOneFile(command: Command, args: Args, env: CliEnv)(
+      update: Path => Either[Int, Option[LibraryEntry]]
+  ): Int =
+    fileArg(command, args, env) match
+      case Left(code) => code
+      case Right(_) if args.positional.sizeIs > 1 =>
+        usage(command, s"${command.name} takes exactly one <file>", env)
+      case Right(path) =>
+        update(path).fold(identity, entry => reportEntry(path, entry, None, "locked", args, env))
 
   private def info(command: Command, args: Args, env: CliEnv): Int =
     fileArg(command, args, env).flatMap(path => entryOf(path, env).map(path -> _)) match

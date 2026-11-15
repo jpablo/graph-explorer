@@ -153,6 +153,8 @@ case class ViewerState(
     editorNotice = editorNotice,
     logLevel = logLevel,
     keepTextWhole = () => isFileBacked,
+    // The root `Var`, because its `now()` is always fresh.
+    sourceLocked = () => metadata.now().locked,
     refusedEdits = errorBus.writer
   )
 
@@ -209,9 +211,36 @@ case class ViewerState(
     * describes would be corrected before anyone could read it.
     */
   def setDiagramFormat(format: DiagramFormat): Unit =
-    Var.set(autoDetectFormat -> false, formatSelection -> format)
+    // The selection is the extractor of the language, in the metadata (ADR
+    // 0002). Thus the next open of the diagram uses it. The flag and the
+    // extractor are two fields of one `Var`, so one value sets the two.
+    val selected = metadata.now().copy(autoDetectFormat = Some(false), extractor = Some(languages.extractor(format).id))
+    Var.set(metadata.metadata -> selected, formatSelection -> format)
+
+  /** Let the document select its language again, and remove the selected extractor. */
+  def detectDiagramFormat(): Unit =
+    metadata.metadata.update(_.copy(autoDetectFormat = Some(true), extractor = None))
 
   val autoDetectFormat: Var[Boolean] = metadata.autoDetectFormat
+
+  /** The language that the metadata selects: the language of the selected
+    * extractor. It is `None` while auto-detect is on, and for an extractor
+    * that this build does not have.
+    */
+  private[state] def selectedFormat(m: DiagramMetadata): Option[DiagramFormat] =
+    if m.autoDetectFormat.getOrElse(true) then None
+    else m.extractor.flatMap(languages.extractorById).map(_.format)
+
+  // A different writer can select the extractor, for example a second window
+  // on the same file. Then the language of this view follows the selection.
+  metadata.extractor.signal.changes.foreach: _ =>
+    selectedFormat(metadata.now()).filter(_ != formatSelection.now()).foreach(formatSelection.set)
+
+  /** True when the person locked the diagram (CONTEXT.md, "Locked"). The app
+    * then does not change the source: not from the editor, not from the
+    * canvas, and not with a save. A change of the metadata stays possible.
+    */
+  val sourceLocked: Signal[Boolean] = metadata.locked.signal
 
   /** The format selector's three options as ONE string, since a `<select>` has
     * one value: the sentinel, or a format's name.
@@ -233,7 +262,7 @@ case class ViewerState(
       * that rule, so every path that asserts a language obeys it.
       */
     def select(value: String): Unit =
-      if value == auto then autoDetectFormat.set(true)
+      if value == auto then detectDiagramFormat()
       else setDiagramFormat(DiagramFormat.valueOf(value))
 
   /** The options of the renderer selector as ONE string, as [[formatOption]]

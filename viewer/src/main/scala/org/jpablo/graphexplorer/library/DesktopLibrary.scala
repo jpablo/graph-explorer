@@ -249,7 +249,9 @@ final class DesktopLibrary private () extends LibraryListing:
           hiddenElements = viewer.hiddenElements,
           collapsedGroups = viewer.collapsedGroups,
           autoDetectFormat = viewer.autoDetectFormat,
-          renderer = viewer.renderer
+          renderer = viewer.renderer,
+          extractor = viewer.extractor,
+          locked = viewer.locked
         ),
       createdAt = entry.fold(now)(_.createdAt),
       updatedAt = now
@@ -602,13 +604,19 @@ object DesktopLibrary:
   /** The fields of the metadata that the viewer owns. `None` and `Some(true)`
     * of the language mode are the same value: the viewer reads `None` as on.
     */
-  private final case class Owned(hidden: Set[String], collapsed: Set[String], autoDetect: Boolean, renderer: Option[String])
-      derives CanEqual
+  private final case class Owned(
+      hidden:     Set[String],
+      collapsed:  Set[String],
+      autoDetect: Boolean,
+      renderer:   Option[String],
+      extractor:  Option[String],
+      locked:     Boolean
+  ) derives CanEqual
 
   private object Owned:
     def of(m: DiagramMetadata): Owned =
-      Owned(m.hiddenElements, m.collapsedGroups, m.autoDetectFormat.getOrElse(true), m.renderer)
-    val none: Owned = Owned(Set.empty, Set.empty, autoDetect = true, renderer = None)
+      Owned(m.hiddenElements, m.collapsedGroups, m.autoDetectFormat.getOrElse(true), m.renderer, m.extractor, m.locked)
+    val none: Owned = of(DiagramMetadata.empty)
 
   private[library] def messageOf(error: Throwable): String = error match
     case IpcFailure(_, message) => message

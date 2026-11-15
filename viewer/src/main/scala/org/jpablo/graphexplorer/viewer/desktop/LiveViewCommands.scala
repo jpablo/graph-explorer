@@ -191,6 +191,10 @@ object LiveViewCommands:
         Left(Refusal("INVALID_REQUEST", s"'$sessionId' is not a document session id"))
       case Some(id) =>
         state.target match
+          case ViewTarget.File(shown) if shown == id && state.metadata.now().locked =>
+            // A push is an edit of the source. The shell passes on only three
+            // codes of the page, so the refusal uses one of them.
+            Left(Refusal("VIEW_REJECTED", "the diagram is locked, so the view did not take the text; unlock the diagram first"))
           case ViewTarget.File(shown) if shown == id =>
             state.replaceSourceDetectingFormat(text)
             Right(ujson.Null)

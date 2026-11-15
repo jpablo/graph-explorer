@@ -38,7 +38,26 @@ final case class DiagramMetadata(
       * accept a value that it does not know, and then use `None`, because a
       * newer build can have a renderer that this build does not have.
       */
-    renderer: Option[String] = None
+    renderer: Option[String] = None,
+    /** The extractor that the person selected for this diagram: `dot` or
+      * `mermaid` (ADR 0002). `None`: the app finds the extractor from the
+      * content of the data source, or else from the name of the file.
+      *
+      * As for the renderer, a reader must accept a value that it does not
+      * know, and then use `None`.
+      *
+      * `autoDetectFormat` stays, because each stored diagram has it. A
+      * selection here always comes with `autoDetectFormat = Some(false)`.
+      */
+    extractor: Option[String] = None,
+    /** True when the person told Graph Explorer not to write to the data
+      * source of this diagram (CONTEXT.md, "Locked").
+      *
+      * The app and `gx` then refuse each change of the source. A change of
+      * the metadata stays possible, because the metadata is not in the data
+      * source. The app still follows a change that a different tool makes.
+      */
+    locked: Boolean = false
 ) derives CanEqual
 
 object DiagramMetadata:

@@ -13,6 +13,7 @@ import scala.concurrent.Future
   */
 class DotExtractor(graphviz: Graphviz) extends Extractor:
 
+  override def id: String            = "dot"
   override def format: DiagramFormat = DiagramFormat.DOT
 
   override def info: DiagramLanguageInfo = DiagramLanguageInfo(

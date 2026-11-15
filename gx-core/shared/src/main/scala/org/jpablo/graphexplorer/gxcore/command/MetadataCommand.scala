@@ -33,6 +33,10 @@ enum MetadataCommand derives CanEqual:
   case Untag(tags: List[String])
   case SetNotes(notes: String)
 
+  /** The lock of the data source (CONTEXT.md, "Locked"). */
+  case Lock
+  case Unlock
+
 object MetadataCommand:
 
   val tier: Tier = Tier.Metadata

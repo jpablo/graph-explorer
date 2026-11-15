@@ -239,8 +239,11 @@ trait Persistence:
     val restoredDiagram        = persistence.initial
     val restoredViewerSettings = viewerSettings.now()
 
-    restoredDiagram.format
-      .flatMap(format => Try(DiagramFormat.valueOf(format)).toOption)
+    // The extractor that the person selected gives the language. Without a
+    // selection, the store gives it. Before, a file had no stored selection:
+    // a `.dot` file that the person set to Mermaid opened as DOT again.
+    selectedFormat(restoredDiagram.metadata)
+      .orElse(restoredDiagram.format.flatMap(format => Try(DiagramFormat.valueOf(format)).toOption))
       .foreach(formatSelection.set)
     // Do this after the format, not with it. When auto-detect goes on, it gets
     // the language from the text again, and it must do that over the RESTORED
@@ -378,7 +381,11 @@ trait Persistence:
     * name a different store.
     */
   def save()(using ExecutionContext): Future[SaveResult] =
-    persistence.saveNow(snapshot())
+    // A locked file gets no write. This occurs when the lock comes while the
+    // editor holds an edit, for example from `gx lock`.
+    if isFileBacked && metadata.now().locked then
+      Future.successful(SaveResult.Failed("The diagram is locked, so the app did not write the file. Unlock the diagram to save."))
+    else persistence.saveNow(snapshot())
 
   /** Initializes persistence by restoring state and setting up synchronization.
     *
@@ -476,7 +483,11 @@ object DiagramSnapshot:
       // `restorePersistedState` reads None as on.
       autoDetectFormat: Option[Boolean] = None,
       // The id of the selected renderer. None for the renderer of the language.
-      renderer: Option[String] = None
+      renderer: Option[String] = None,
+      // The id of the selected extractor. None while the app finds the extractor.
+      extractor: Option[String] = None,
+      // True when the person locked the diagram.
+      locked: Boolean = false
   ) derives ReadWriter
 
   given ReadWriter[DiagramSnapshot] = readwriter[Stored].bimap[DiagramSnapshot](toStored, fromStored)
@@ -490,7 +501,9 @@ object DiagramSnapshot:
       source = snapshot.source,
       format = snapshot.format,
       autoDetectFormat = m.autoDetectFormat,
-      renderer = m.renderer
+      renderer = m.renderer,
+      extractor = m.extractor,
+      locked = m.locked
     )
 
   private def fromStored(stored: Stored): DiagramSnapshot =
@@ -501,7 +514,9 @@ object DiagramSnapshot:
         hiddenElements = MetadataOps.render(stored.hiddenElements),
         collapsedGroups = stored.collapsedGroups.map(ElementRef.render),
         autoDetectFormat = stored.autoDetectFormat,
-        renderer = stored.renderer
+        renderer = stored.renderer,
+        extractor = stored.extractor,
+        locked = stored.locked
       ),
       name = stored.projectName
     )

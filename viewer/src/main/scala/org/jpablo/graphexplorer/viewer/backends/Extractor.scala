@@ -45,6 +45,11 @@ final case class RenderOnlyDiagram(kind: String, details: String) extends Except
   * asynchronous (Mermaid, which uses Promises).
   */
 trait Extractor:
+  /** The id of this extractor in the metadata of a diagram (`DiagramMetadata.extractor`). It
+    * must not change, because each stored selection holds it.
+    */
+  def id: String
+
   /** The language of the content that this extractor reads. */
   def format: DiagramFormat
 

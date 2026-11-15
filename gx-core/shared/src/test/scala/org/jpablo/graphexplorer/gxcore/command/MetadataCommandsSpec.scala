@@ -72,6 +72,14 @@ class MetadataCommandsSpec extends FunSuite:
     assertEquals(noted.notes, "a note")
     assertEquals(updated(MetadataCommand.SetNotes(""), noted).notes, "")
 
+  test("lock and unlock change only the lock, and each is idempotent"):
+    val before = updated(MetadataCommand.Tag(List("infra")))
+    val locked = updated(MetadataCommand.Lock, before)
+    assertEquals(locked, before.copy(locked = true))
+    assertEquals(updated(MetadataCommand.Lock, locked), locked)
+    assertEquals(updated(MetadataCommand.Unlock, locked), before)
+    assertEquals(updated(MetadataCommand.Unlock, before), before)
+
   test("a command changes only its own field"):
     val before = updated(MetadataCommand.Tag(List("infra")), updated(MetadataCommand.Hide(Set(NodeId("a")))))
     assertEquals(updated(MetadataCommand.SetNotes("n"), before), before.copy(notes = "n"))

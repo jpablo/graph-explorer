@@ -25,6 +25,11 @@ trait DiagramLanguages:
   /** The extractor that reads a source in the given language. */
   def extractor(format: DiagramFormat): Extractor
 
+  /** The extractor with the given id (`Extractor.id`). None for an id that this build does not
+    * have.
+    */
+  def extractorById(id: String): Option[Extractor] = extractors.find(_.id == id)
+
   /** The printer that writes a graph as text in the given language. */
   def printer(format: DiagramFormat): Printer
 

@@ -16,6 +16,7 @@ import org.scalajs.dom
   */
 class MermaidExtractor(using ExecutionContext) extends Extractor:
 
+  override def id: String            = "mermaid"
   override def format: DiagramFormat = DiagramFormat.Mermaid
 
   override def info: DiagramLanguageInfo = DiagramLanguageInfo(

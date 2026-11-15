@@ -439,6 +439,21 @@ class FileSyncSpec extends FunSuite with TestHelpers with LoggedChecks:
         same(conflictOf(open), None, "the session kept the conflict of a view that went away")
         same(sessionOf(open).map(_.revision), Some(shell.hash(theirs)), "the file did not become the base")
 
+  // The purpose of the lock (CONTEXT.md, "Locked"): a tool makes the file
+  // again, and the app shows it. The lock stops only the writes of the app.
+  test("a change of a locked file by a different tool shows in the view"):
+    val path = "/w/locked.dot"
+    withFile(path, base): (open, state) =>
+      val errors = mutable.Buffer.empty[String]
+      state.errorBus.events.foreach(errors += _)(using state.owner)
+      state.metadata.locked.set(true)
+      writeOutside(path, theirs)
+      afterMicrotasks:
+        same(state.sourceText.now(), theirs, "the view does not show the new text of the locked file")
+        same(conflictOf(open), None, "the outside write made a conflict")
+        same(state.documentIsDirty, false)
+        same(errors.toList, Nil, "the adoption of the file gave a message")
+
   // Rule 6: a reopen from the library records the file again
   // (`DesktopLibrary.openPath`). For a view that holds an edit, that is one
   // more version of the file. Before, `record` cleared the conflict and moved
