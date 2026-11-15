@@ -29,6 +29,9 @@ STARTUP_BUDGET_MS=20
 # 17.0.9 — so "the same command" was building with two different compilers, and
 # the resulting numbers were being compared as if it were one.
 GRAALVM_VERSION=17.0.9
+# The Java version is pinned for the same reason: scala-cli 1.19.0 changed its
+# default from Java 17 to Java 25, and `graalvm-java25:17.0.9` does not exist.
+GRAALVM_JAVA_VERSION=17
 
 echo "=== P0: native-image gate on $(uname -s) $(uname -m) ==="
 
@@ -89,7 +92,7 @@ BUILD_START=$(python3 -c 'import time; print(time.time())')
 (cd "$SPIKE" && "$SCALA_CLI" --power package GxSpike.scala \
   --scala 3.7.1 -O -experimental \
   "${JAR_ARGS[@]}" \
-  --native-image --graalvm-version "$GRAALVM_VERSION" \
+  --native-image --graalvm-java-version "$GRAALVM_JAVA_VERSION" --graalvm-version "$GRAALVM_VERSION" \
   --graalvm-args --no-fallback \
   -o gx-spike -f) 2>&1 | tee "$BUILD_LOG"
 BUILD_END=$(python3 -c 'import time; print(time.time())')
