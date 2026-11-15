@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.gxcore.model.{Board, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.gxcore.store.{MetadataMigration, SafeFileName}
 import org.jpablo.graphexplorer.router.Route
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, SourceTitle}
@@ -99,9 +99,12 @@ final class DesktopLibrary private () extends LibraryListing:
 
   def indexNow(): LibraryIndex = toIndex(entries.now(), files.now())
 
+  // A board file has an entry also (ADR 0003), and it is not a diagram. The
+  // list of the diagrams leaves it out, and [[boards]] has it.
   private def toIndex(byKey: Map[String, LibraryEntry], fileStates: Map[String, FileState]): LibraryIndex =
     LibraryIndex(
       byKey.toList
+        .filterNot((_, e) => Board.isBoardPath(e.path))
         .map: (key, e) =>
           DiagramSummary(DiagramId(key), nameOf(e.path, fileStates.get(e.path)), lastModified = e.updatedAt, createdAt = e.createdAt)
         // Newest first, as the browser library gives its list.
@@ -118,6 +121,36 @@ final class DesktopLibrary private () extends LibraryListing:
       .getOrElse(LibraryEntry.nameOf(path))
 
   def diagramExists(id: DiagramId): Boolean = entries.now().contains(id.value)
+
+  // ------------------------------------------------------------ the boards
+
+  /** The board files of the library, newest first. The name of a board is
+    * the name of its file. [[open]] opens a board by its id, as a diagram.
+    */
+  def boards: Signal[List[BoardSummary]] = entries.signal.map(boardsOf)
+
+  def boardsNow(): List[BoardSummary] = boardsOf(entries.now())
+
+  private def boardsOf(byKey: Map[String, LibraryEntry]): List[BoardSummary] =
+    byKey.toList
+      .collect:
+        case (key, e) if Board.isBoardPath(e.path) =>
+          BoardSummary(key, LibraryEntry.nameOf(e.path), lastModified = e.updatedAt, createdAt = e.createdAt)
+      .sortBy(board => (-board.createdAt, board.id))
+
+  /** The number of items of a board, when the library read its file and the
+    * file parses.
+    */
+  def boardItemCount(id: String): Option[Int] =
+    fileState(DiagramId(id))
+      .collect { case FileState.Loaded(text, _) => Board.parse(text).toOption.map(_.items.size) }
+      .flatten
+
+  /** "New board": a new `.gxboard` file in the folder for new diagrams, with
+    * an entry, open on the screen.
+    */
+  def newBoard(name: String): Future[Either[String, Route]] =
+    newFile("board", name, Board.render(Board.empty), s".${Board.Extension}")
 
   /** The path of the file of a diagram in the list. */
   def pathOf(id: DiagramId): Option[String] = entries.now().get(id.value).map(_.path)
@@ -331,13 +364,19 @@ final class DesktopLibrary private () extends LibraryListing:
     * next number is tried.
     */
   def newDiagram(name: String, text: String, extension: String): Future[Either[String, Route]] =
+    newFile("diagram", name, text, extension)
+
+  /** A new file with an entry, open on the screen. `kind` is the word for the
+    * message of a failure.
+    */
+  private def newFile(kind: String, name: String, text: String, extension: String): Future[Either[String, Route]] =
     val created =
       for
         folder <- DesktopIpc.diagramsFolder()
         file   <- createUnique(folder, SafeFileName.of(name), extension, text)
       yield file
     created.transformWith:
-      case Failure(e) => Future.successful(Left(s"Could not make a new diagram: ${messageOf(e)}"))
+      case Failure(e) => Future.successful(Left(s"Could not make a new $kind: ${messageOf(e)}"))
       case Success(file) =>
         val now = js.Date.now().toLong
         keyOf(file.path)

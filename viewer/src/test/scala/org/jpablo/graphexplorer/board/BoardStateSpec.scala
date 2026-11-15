@@ -1,6 +1,8 @@
 package org.jpablo.graphexplorer.board
 
-import com.raquo.airstream.core.{Observer, Signal}
+import com.raquo.airstream.core.{EventStream, Observer, Signal}
+import com.raquo.airstream.eventbus.EventBus
+import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.airstream.state.Val
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.{Board, BoardItem}
@@ -20,6 +22,8 @@ class BoardStateSpec extends FunSuite with TestHelpers:
 
   private final class MemoryStore(start: Either[String, Board], refusal: Option[String] = None) extends BoardStore:
     val saves                                               = mutable.Buffer.empty[Board]
+    val outside                                             = EventBus[Either[String, Board]]()
+    val changes: EventStream[Either[String, Board]]         = outside.events
     val name: Signal[String]                                = Val("Test board")
     def load(): Future[Either[String, Board]]               = Future.successful(start)
     def save(board: Board): Future[Option[String]]          = { saves += board; Future.successful(refusal) }
@@ -28,10 +32,17 @@ class BoardStateSpec extends FunSuite with TestHelpers:
 
   private val two = Board(Vector(BoardItem("a", "a.dot", 0, 0), BoardItem("b", "b.dot", 500, 100)))
 
+  // The owner of the states of one test. The end of the test kills it.
+  private var owner = ManualOwner()
+
+  override def beforeEach(context: BeforeEach): Unit = owner = ManualOwner()
+
+  override def afterEach(context: AfterEach): Unit = owner.killSubscriptions()
+
   /** A state on `store`, after the load. */
   private def loaded(store: MemoryStore): Future[(BoardState, mutable.Buffer[String])] =
     val errors = mutable.Buffer.empty[String]
-    val state  = BoardState(store, Observer[String](errors += _))
+    val state  = BoardState(store, Observer[String](errors += _))(using owner)
     afterMicrotasks((state, errors))
 
   test("the state loads the board from the store, and the load writes nothing"):
@@ -100,6 +111,35 @@ class BoardStateSpec extends FunSuite with TestHelpers:
       .map: state =>
         assertEquals(state.board.now(), Board.empty)
         assertEquals(store.saves.size, 0, "a change wrote over a board that the app cannot read")
+
+  test("a version of the board from a different writer shows, and it gives no write"):
+    val store  = MemoryStore(Right(two))
+    val theirs = two.move("a", 700, 700).remove("b")
+    loaded(store).map: (state, _) =>
+      state.selected.set(Some("b"))
+      store.outside.emit(Right(theirs))
+      assertEquals(state.board.now(), theirs)
+      assertEquals(state.selected.now(), None, "the selection names an item that the board does not have")
+      assertEquals(store.saves.size, 0)
+
+  test("a version that the store cannot read stops the writes, and a later good version starts them again"):
+    val store = MemoryStore(Right(two))
+    loaded(store)
+      .flatMap: (state, _) =>
+        store.outside.emit(Left("the board file is not valid JSON"))
+        assertEquals(state.status.now(), BoardStatus.Failed("the board file is not valid JSON"))
+        state.move("a", 1, 2)
+        state.commit()
+        afterMicrotasks(state)
+      .flatMap: state =>
+        assertEquals(store.saves.size, 0, "a change wrote over a board file that the app cannot read")
+        store.outside.emit(Right(two))
+        assertEquals(state.status.now(), BoardStatus.Ready)
+        state.move("a", 1, 2)
+        state.commit()
+        afterMicrotasks(state)
+      .map: state =>
+        assertEquals(store.saves.toList, List(state.board.now()))
 
   test("a refusal of the store goes to the person"):
     val store = MemoryStore(Right(two), refusal = Some("The browser did not save the board: the storage is full"))

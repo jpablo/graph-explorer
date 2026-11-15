@@ -24,7 +24,7 @@ enum BoardStatus derives CanEqual:
   * The state of each diagram (its source, its graph, its drawing) is not
   * here. The view makes one `ViewerState` for each item.
   */
-final class BoardState(val store: BoardStore, errors: Observer[String])(using ExecutionContext):
+final class BoardState(val store: BoardStore, errors: Observer[String])(using Owner, ExecutionContext):
 
   val board: Var[Board]             = Var(Board.empty)
   val status: Var[BoardStatus]      = Var(BoardStatus.Loading)
@@ -46,6 +46,19 @@ final class BoardState(val store: BoardStore, errors: Observer[String])(using Ex
       board.set(loaded)
       status.set(BoardStatus.Ready)
       fitWhenMeasured()
+    case Left(message) =>
+      status.set(BoardStatus.Failed(message))
+
+  // A different writer changed the board, for example a tool that wrote the
+  // board file. The page shows that version. A version that the store cannot
+  // read stops the writes of this page, so that the text of the person stays.
+  store.changes.foreach:
+    case Right(theirs) =>
+      if theirs != board.now() then
+        board.set(theirs)
+        sizes = sizes.filter((id, _) => theirs.item(id).isDefined)
+        selected.update(_.filter(id => theirs.item(id).isDefined))
+      status.set(BoardStatus.Ready)
     case Left(message) =>
       status.set(BoardStatus.Failed(message))
 

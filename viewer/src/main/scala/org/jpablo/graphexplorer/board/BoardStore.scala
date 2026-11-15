@@ -32,6 +32,11 @@ trait BoardStore:
   /** Write the board. The result is the message of a refusal, if there is one. */
   def save(board: Board): Future[Option[String]]
 
+  /** Each version of the board that this page did not write, or the cause
+    * when the store cannot read that version. The page then shows it.
+    */
+  def changes: EventStream[Either[String, Board]]
+
   /** What a viewer shows for this item. `None` for an item whose data source
     * is missing. The item then stays on the board, marked as missing.
     */
@@ -56,6 +61,9 @@ final class BrowserBoardStore(id: String, languages: DiagramLanguages) extends B
   def load(): Future[Either[String, Board]] = Future.successful(BrowserBoards.read(id))
 
   def save(board: Board): Future[Option[String]] = Future.successful(BrowserBoards.write(id, board))
+
+  // Only this page writes the board of a browser.
+  val changes: EventStream[Either[String, Board]] = EventStream.empty
 
   def target(item: BoardItem): Future[Option[ViewTarget]] =
     Future.successful:

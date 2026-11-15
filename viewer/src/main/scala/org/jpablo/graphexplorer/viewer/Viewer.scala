@@ -3,7 +3,8 @@ package org.jpablo.graphexplorer.viewer
 import buildinfo.BuildInfo
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.board.{BoardView, BrowserBoardStore}
+import org.jpablo.graphexplorer.board.{BoardFileView, BoardView, BrowserBoardStore}
+import org.jpablo.graphexplorer.gxcore.model.Board
 import org.jpablo.graphexplorer.library.{BrowserBoards, DesktopStartup, Library, LibraryNavigation, LibraryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
@@ -218,9 +219,13 @@ object Viewer:
           * file again rather than an empty diagram.
           */
         def fileView(sessionId: String) =
-          DocumentSessionId.parse(sessionId).filter(DesktopDocumentRegistry.get(_).isDefined) match
-            case Some(session) =>
-              diagramView(ViewTarget.File(session), source = None)
+          DocumentSessionId.parse(sessionId).flatMap(DesktopDocumentRegistry.get) match
+            // A board file is a file with a different page (ADR 0003). The
+            // route is the same, so `gx open` and the library open it as a file.
+            case Some(open) if Board.isBoardPath(open.path) =>
+              BoardFileView(open.id, graphviz, router, errors)
+            case Some(open) =>
+              diagramView(ViewTarget.File(open.id), source = None)
             case None =>
               // A bookmark can outlive the session it names, and a person can
               // type this URL. Say so, and offer the way back. Opening an empty
@@ -259,8 +264,8 @@ object Viewer:
                 fileView(sessionId)
 
               case Route.Board(id) =>
-                // Only the web app has boards now. The desktop app will keep a
-                // board as a file, on the route of a file.
+                // A board of the web app. The desktop app keeps a board as a
+                // file, on the route of a file.
                 if !Library.isDesktop && BrowserBoards.exists(id) then
                   BoardView(BrowserBoardStore(id, DefaultDiagramLanguages(graphviz)), graphviz, router, errors)
                 else unknownBoard(routerCmds)

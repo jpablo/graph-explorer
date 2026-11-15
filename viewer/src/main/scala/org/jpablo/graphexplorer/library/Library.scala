@@ -3,7 +3,10 @@ package org.jpablo.graphexplorer.library
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
 import org.jpablo.graphexplorer.viewer.models.DiagramId
+import org.jpablo.graphexplorer.router.Route
 import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ViewerSettings}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 /** The library the app talks to, whichever one it is (D7.3).
   *
@@ -76,6 +79,38 @@ object Library:
   /** Lines that the home page shows to the person until the person closes
     * them: the report of a migration, or a failure of a library operation.
     */
+  // ------------------------------------------------------------ the boards
+  //
+  // A board of the web app is in the browser. A board of the desktop app is a
+  // `.gxboard` file with a library entry (ADR 0003). The id of a board is its
+  // id in the browser, or the key of its entry.
+
+  def boards: Signal[List[BoardSummary]] =
+    desktopLibrary.fold(BrowserBoards.index.map(_.boards.sortBy(-_.lastModified)))(_.boards)
+
+  def boardItemCount(id: String): Option[Int] =
+    desktopLibrary match
+      case Some(desktop) => desktop.boardItemCount(id)
+      case None          => BrowserBoards.read(id).toOption.map(_.items.size)
+
+  /** Make a board, and give the route that shows it, or the message of a failure. */
+  def newBoard()(using ExecutionContext): Future[Either[String, Route]] =
+    desktopLibrary match
+      case Some(desktop) => desktop.newBoard("Board")
+      case None          => Future.successful(BrowserBoards.create(BrowserBoards.nextName()).map(Route.Board(_)))
+
+  /** The route that shows a board of the list, or the message of a failure. */
+  def openBoard(id: String)(using ExecutionContext): Future[Either[String, Route]] =
+    desktopLibrary match
+      case Some(desktop) => desktop.open(DiagramId(id))
+      case None          => Future.successful(Right(Route.Board(id)))
+
+  /** Take a board out of the list. On the desktop, the board file stays. */
+  def deleteBoard(id: String): Unit =
+    desktopLibrary match
+      case Some(desktop) => desktop.deleteDiagram(DiagramId(id))
+      case None          => BrowserBoards.delete(id)
+
   val notice: Var[Option[Vector[String]]] = Var(None)
 
   /** Show `lines` on the home page. A second notice goes below the first. */

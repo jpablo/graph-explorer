@@ -308,8 +308,7 @@ def LibraryView(
       ),
 
       // -------- Boards Section --------
-      // Only the web app has boards now. The desktop app will keep a board as a file.
-      Option.when(!Library.isDesktop)(boardsSection(router)).toSeq,
+      boardsSection(router),
 
       // -------- Examples Section --------
       div(
@@ -506,8 +505,9 @@ private[library] def libraryNotice =
         )
   )
 
-/** The boards of the web app: a control that makes a board, and one card for
-  * each board (ADR 0003).
+/** The boards: a control that makes a board, and one card for each board
+  * (ADR 0003). The web app keeps a board in the browser. The desktop app
+  * keeps it as a `.gxboard` file with a library entry.
   */
 private def boardsSection(router: Router) =
   div(
@@ -523,25 +523,32 @@ private def boardsSection(router: Router) =
         idAttr := "new-board",
         span().plusCircleIcon,
         "New board",
-        onClick --> { _ =>
-          BrowserBoards.create(BrowserBoards.nextName()) match
-            case Right(id)     => router.navigateTo(Route.Board(id))
-            case Left(message) => Library.showNotice(Vector(message))
-        }
+        onClick --> (_ => showBoard(router, Library.newBoard()))
       ).small
     ),
     div(
       cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4",
-      children <-- BrowserBoards.index.map: index =>
-        index.boards.sortBy(-_.lastModified).map(boardCard(router, _))
+      children <-- Library.boards.map(_.map(boardCard(router, _)))
     ),
-    child.maybe <-- BrowserBoards.index.map: index =>
-      Option.when(index.boards.isEmpty):
+    child.maybe <-- Library.boards.map: boards =>
+      Option.when(boards.isEmpty):
         p(cls := "text-sm text-base-content/60", "A board shows many diagrams on one canvas.")
   )
 
+/** Go to the board of `result`. A failure goes to the notice of the home page. */
+private def showBoard(router: Router, result: scala.concurrent.Future[Either[String, Route]]): Unit =
+  result.foreach:
+    case Right(route)  => router.navigateTo(route)
+    case Left(message) => Library.showNotice(Vector(message))
+
 private def boardCard(router: Router, board: BoardSummary) =
-  val items = BrowserBoards.read(board.id).fold(_ => "", read => if read.items.size == 1 then "1 item · " else s"${read.items.size} items · ")
+  val items = Library.boardItemCount(board.id).map(count => if count == 1 then "1 item" else s"$count items")
+  // On the desktop, the time of the entry is not the time of the board file.
+  val modified = Option.when(!Library.isDesktop)(s"Modified ${formatDate(board.lastModified)}")
+  val removeLabel = if Library.isDesktop then "Remove from library" else "Delete board"
+  val removeQuestion =
+    if Library.isDesktop then "Remove this board from the library? The board file stays where it is."
+    else "Delete this board? Its diagrams stay in the library."
   div(
     cls := "board-card card card-sm",
     dataAttr("board-id") := board.id,
@@ -550,16 +557,16 @@ private def boardCard(router: Router, board: BoardSummary) =
       a(
         cls  := "flex-1 min-w-0 flex items-center gap-3 cursor-pointer hover:text-primary transition-colors",
         role := "button",
-        onClick --> (_ => router.navigateTo(Route.Board(board.id))),
+        onClick --> (_ => showBoard(router, Library.openBoard(board.id))),
         i(cls := "bi bi-easel text-lg"),
         div(
           cls := "min-w-0",
           div(cls := "font-medium truncate", board.name),
-          div(cls := "text-xs text-base-content/70", s"${items}Modified ${formatDate(board.lastModified)}")
+          div(cls := "text-xs text-base-content/70", (items ++ modified).mkString(" · "))
         )
       ),
-      IconButton("bi-trash", "Delete board", TooltipPos.left, cls := "danger")(
-        if dom.window.confirm("Delete this board? Its diagrams stay in the library.") then BrowserBoards.delete(board.id)
+      IconButton(if Library.isDesktop then "bi-x-circle" else "bi-trash", removeLabel, TooltipPos.left, cls := "danger")(
+        if dom.window.confirm(removeQuestion) then Library.deleteBoard(board.id)
       )
     )
   )

@@ -40,8 +40,19 @@ private enum ItemContent derives CanEqual:
   * collapsed groups, and the renderer. A double click opens the diagram in
   * its own view, where the person changes it.
   */
-def BoardView(store: BoardStore, graphviz: Graphviz, router: Router, errors: EventBus[String]): Div =
-  val state = BoardState(store, errors.writer)
+def BoardView(
+    store:    BoardStore,
+    graphviz: Graphviz,
+    router:   Router,
+    errors:   EventBus[String],
+    // The desktop connects the board to the open handshake here. The result
+    // takes the connection away, and the unmount calls it.
+    wire: BoardState => () => Unit = _ => () => ()
+): Div =
+  // One owner for this visit of the board. The unmount kills it.
+  val viewOwner = new ManualOwner
+  val state     = BoardState(store, errors.writer)(using viewOwner)
+  val unwire    = wire(state)
 
   val candidates = Var(List.empty[BoardCandidate])
   def readCandidates(): Unit = store.candidates().foreach(candidates.set)
@@ -141,7 +152,10 @@ def BoardView(store: BoardStore, graphviz: Graphviz, router: Router, errors: Eve
       ).amend(cls := "dropdown-end", idAttr := "board-add")
     ),
     canvas,
-    ErrorAlert(errors)
+    ErrorAlert(errors),
+    onUnmountCallback: _ =>
+      unwire()
+      viewOwner.killSubscriptions()
   )
 
 /** Send each later event of this pointer to `element`, also when the pointer

@@ -47,6 +47,12 @@ final class FakeDesktopShell:
     */
   var saveNeedsWatch: Boolean = false
 
+  /** True: `save_document` sends the document event of the save before its
+    * reply, as the real shell does. A page with no document listener gets
+    * nothing.
+    */
+  var saveSendsEvent: Boolean = false
+
   /** The open requests that wait for `complete_open`, by request id: the path,
     * true when this open made the watch, and the answer.
     */
@@ -275,6 +281,9 @@ final class FakeDesktopShell:
             )
           case _ =>
             files(path) = str(a, "text")
+            // The real shell sends the document event of a save before its reply.
+            if saveSendsEvent then
+              dispatch("ge:document.changed", js.Dynamic.literal(text = files(path), path = path, revision = hash(files(path))))
             ok(snapshot(path, files(path)))
 
       case "complete_open" =>
