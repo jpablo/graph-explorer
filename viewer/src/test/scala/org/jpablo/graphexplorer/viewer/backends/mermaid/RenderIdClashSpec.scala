@@ -55,7 +55,7 @@ class RenderIdClashSpec extends FunSuite with LoggedChecks:
     (0 until page.children.length).map(i => page.children(i).outerHTML).toVector
 
   private def render(source: String): Future[dom.svg.SVG] =
-    MermaidBackend().textToSvg(source).map: result =>
+    MermaidRenderer().textToSvg(source).map: result =>
       val svg = result.svg.ref
       // Precondition, not the bug: this test can only show a clash for the ids that it put on the page.
       Option(svg.getAttribute("id")).collect { case s"mermaid-render-$n" if n.toIntOption.exists(_ > IdsOfEarlierSession) => n }

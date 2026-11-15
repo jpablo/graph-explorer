@@ -150,8 +150,8 @@ final class DesktopLibrary private () extends LibraryListing:
         case FileState.Loaded(text, _) =>
           // The same rule as the viewer of the file.
           val format  = DiagramFormat.ofFile(e.path, text).getOrElse(DiagramFormat.DOT)
-          val backend = languages.forFormat(format)
-          DiagramCardInfo(format, backend.extractTitle(text).getOrElse(fileName), backend.diagramKind(text))
+          val extractor = languages.extractor(format)
+          DiagramCardInfo(format, extractor.extractTitle(text).getOrElse(fileName), extractor.diagramKind(text))
         case FileState.Missing =>
           DiagramCardInfo(formatOfPath(e.path), fileName, None, problem = Some(s"The file is missing: ${e.path}"))
         case FileState.Unreadable(message) =>

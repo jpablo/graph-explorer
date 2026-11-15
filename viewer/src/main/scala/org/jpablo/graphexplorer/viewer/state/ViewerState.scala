@@ -139,7 +139,7 @@ case class ViewerState(
   // target starts an empty source with the template.
   private val phasesSource = if source.isEmpty && !isFileBacked then None else Some(source)
 
-  // Registry of diagram backends. InternalPhases depends only on this abstraction, not on concrete backends.
+  // Registry of the extractors, the printers, and the renderers. InternalPhases depends only on this abstraction, not on a concrete part.
   // It is public, so a view of OTHER diagrams (the library sidebar) can ask this registry
   // for their display titles. Without it, that view needs a second copy of the rule.
   val languages = DefaultDiagramLanguages(graphviz)
@@ -233,19 +233,19 @@ case class ViewerState(
         documentSession
           .map(_.fold("")(session => LibraryEntry.nameOf(session.path)))
           .combineWithFn(sourceText.signal, formatSelection.signal): (fileName, source, format) =>
-            languages.forFormat(format).extractTitle(source).getOrElse(fileName)
+            languages.extractor(format).extractTitle(source).getOrElse(fileName)
       case _ =>
         storedName.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
           if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
-          else languages.forFormat(format).extractTitle(source).getOrElse(name)
+          else languages.extractor(format).extractTitle(source).getOrElse(name)
 
   /** Presentation metadata for every available format, in display order (drives the selector UI). */
   lazy val availableFormats: List[(DiagramFormat, DiagramLanguageInfo)] =
-    languages.all.map(backend => backend.format -> backend.info)
+    languages.extractors.map(extractor => extractor.format -> extractor.info)
 
   /** Presentation metadata for a single format. */
   def formatInfo(format: DiagramFormat): DiagramLanguageInfo =
-    languages.forFormat(format).info
+    languages.extractor(format).info
 
   private def elementExists(graph: ViewerGraph, id: ElementId): Boolean =
     id match
@@ -269,7 +269,7 @@ case class ViewerState(
   val mouseAction = MouseActionVar()
 
   // 5. Render visible content to SVG with position data.
-  // Each backend owns its render policy (DOT: synchronous from visibleText; Mermaid: async from
+  // Each renderer owns its render policy (DOT: synchronous from visibleText; Mermaid: async from
   // sourceText, validated), so the format dispatch lives in the registry, not here.
 
   // Paced. `visibleText` already is, by way of the parse behind it, but a
@@ -285,35 +285,35 @@ case class ViewerState(
       .combineWithFn(metadata.collapsedGroups.signal)((hidden, collapsed) => hidden.nonEmpty || collapsed.nonEmpty)
       .distinct
 
-  /** The render inputs for ONE backend, with `visibleText` serialized in THAT
-    * backend's language rather than in whichever one is current.
+  /** The render inputs for ONE renderer, with `visibleText` serialized in THAT
+    * renderer's language rather than in whichever one is current.
     *
     * The shared `phases.visibleText` is derived from `currentFormat`, and so is
-    * the backend selection below — two paths out of one source, and
-    * `flatMapSwitch` makes no promise to swap the backend before the new text
+    * the renderer selection below — two paths out of one source, and
+    * `flatMapSwitch` makes no promise to swap the renderer before the new text
     * reaches the outgoing one. It did not: replacing a DOT document with a
     * Mermaid one handed the still-subscribed Graphviz renderer a Mermaid
     * serialization of the very same graph, which it duly failed to parse.
-    * Deriving per backend makes that mismatch unrepresentable rather than
-    * merely unlikely — whatever a backend receives here, it is its own.
+    * Deriving per renderer makes that mismatch unrepresentable rather than
+    * merely unlikely — whatever a renderer receives here, it is its own.
     */
   private def renderInputsFor(format: DiagramFormat) =
     DiagramRenderInputs(
       visibleText = visibleGraph.map: graph =>
         withLog("4. [visibleGraph -> visibleText]", level = phases.logLevel) {
-          languages.forFormat(format).graphToText(graph, omitInternal = false)
+          languages.printer(format).graphToText(graph, omitInternal = false)
         },
       sourceText = pacedSourceText,
       viewDiffersFromSource = viewDiffersFromSource
     )
 
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    // .distinct matters: the Mermaid backend HOLDS its previous value while an
-    // async render is pending (see MermaidBackend.render), and re-emitting the
+    // .distinct matters: the Mermaid renderer HOLDS its previous value while an
+    // async render is pending (see MermaidRenderer.render), and re-emitting the
     // same instance would re-amend the mounted svg — duplicate binders and
     // event listeners piling up on every render cycle.
     phases.currentFormat
-      .flatMapSwitch(format => languages.forFormat(format).render(renderInputsFor(format)))
+      .flatMapSwitch(format => languages.renderer(format).render(renderInputsFor(format)))
       .distinct
 
   // Extract just the SVG for compatibility

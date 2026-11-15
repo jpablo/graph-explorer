@@ -5,12 +5,42 @@ Graph Explorer shows, edits, and keeps DOT and Mermaid diagrams. The desktop app
 ## Diagrams and the library
 
 **Diagram**:
-A DOT or Mermaid file. In the desktop app and in `gx`, the file is the only copy of the diagram's source. The name of a diagram is the title in its source, or else its file name.
+One graph that Graph Explorer shows, from one data source through one extractor. Most diagrams are a DOT or Mermaid file. In the desktop app and in `gx`, that file is the only copy of the diagram's source. The name of a diagram is the title in its source, or else its file name.
 _Avoid_: project, record, document, loose file, origin, library copy
 
 **Library**:
-The list of diagrams that Graph Explorer has metadata for. A diagram is in the library when it has metadata, and it leaves the library when its metadata is removed. The diagram file stays where it is. In the web app, the library also keeps the source of each diagram, because a browser has no files.
+The list of diagrams that Graph Explorer has metadata for. A diagram is in the library when it has metadata, and it leaves the library when its metadata is removed. The data source of the diagram does not change. In the web app, the library also keeps the source of each diagram, because a browser has no files.
 _Avoid_: store, projects, import
+
+## Data sources and boards
+
+**Data source**:
+The place that holds the raw content of a diagram: a file, a database, or a URL.
+_Avoid_: origin, binding, source (alone)
+
+**Location**:
+The canonical URI of a data source. It holds no secret.
+_Avoid_: path (for a data source that is not a file), connection string
+
+**Extractor**:
+The part that makes the graph of a diagram from the raw content of a data source. The DOT extractor and the Mermaid extractor can also write a graph back.
+_Avoid_: parser, transformer, converter, importer
+
+**Renderer**:
+The part that draws the graph of a diagram: Graphviz, Mermaid, or the 3D scene. A person selects the renderer apart from the extractor.
+_Avoid_: backend, engine, format
+
+**Locked**:
+The choice of a person that Graph Explorer must not write to a data source.
+_Avoid_: read-only, pull mode
+
+**Board**:
+A file that puts many items on one canvas. A board refers to its diagrams, and does not contain them.
+_Avoid_: document, workspace, page, multi-diagram file
+
+**Item**:
+One thing on a board, with its place: a diagram, an image, or a note.
+_Avoid_: element (an element is a part of a diagram), widget, block
 
 ## Elements of a diagram
 

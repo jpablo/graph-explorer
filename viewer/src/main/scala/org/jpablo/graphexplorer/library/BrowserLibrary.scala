@@ -478,11 +478,11 @@ object BrowserLibrary extends DiagramLibrary:
         .flatMap(f => scala.util.Try(DiagramFormat.valueOf(f)).toOption)
         .getOrElse(DiagramFormat.detect(state.source))
       val name    = state.name
-      val backend = languages.forFormat(format)
+      val extractor = languages.extractor(format)
       val displayName =
         if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
-        else backend.extractTitle(state.source).getOrElse(name)
-      Some(DiagramCardInfo(format, displayName, backend.diagramKind(state.source)))
+        else extractor.extractTitle(state.source).getOrElse(name)
+      Some(DiagramCardInfo(format, displayName, extractor.diagramKind(state.source)))
     catch case _: Throwable => None
 
   /** True when the library index has a diagram with this id. */

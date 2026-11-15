@@ -18,7 +18,7 @@ import scala.util.{Failure, Success}
   *
   * MermaidWriterRoundTripSpec (shared) reads the text with the app's own parser. That parser is not Mermaid, and it
   * accepts text that Mermaid rejects. This spec reads the text with the real Mermaid library, as the canvas does:
-  * `MermaidBackend.textToGraph` for the graph, and `MermaidBackend.textToSvg` for the drawing.
+  * `MermaidExtractor.textToGraph` for the graph, and `MermaidRenderer.textToSvg` for the drawing.
   *
   * The writer can give a node a new id when Mermaid cannot use the old id. Thus the checks compare the names that the
   * canvas shows (the label, or the id when there is no label), not the ids.
@@ -120,7 +120,7 @@ class MermaidWriterRealMermaidSpec extends FunSuite with LoggedChecks:
   // ------------------------------------------------------------------ bug 2: the title has no YAML quotes
 
   // The drawing shows the title that real Mermaid reads from the YAML, thus this test reads the title from the
-  // drawing (`text.flowchartTitleText`). `MermaidBackend.textToGraph` reads the title with the app's own reader.
+  // drawing (`text.flowchartTitleText`). `MermaidExtractor.textToGraph` reads the title with the app's own reader.
   test("bug 2: real Mermaid draws the title with a colon, quotes, a hash sign, and a line break"):
     // A double-quoted YAML title keeps a line break as `\n` (`MermaidSourceScan.titleToYaml`).
     val titles = Vector(

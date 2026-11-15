@@ -81,31 +81,31 @@ graph LR
 
 ## Architecture Overview
 
-The Mermaid support is implemented through a modular backend architecture:
+The viewer has three kinds of parts for each language (ADR 0002). An extractor makes a graph from a source. A printer writes a graph as text. A renderer draws text.
 
 ```
-┌─────────────────┐     ┌──────────────────┐
-│ DiagramFormat   │     │ DiagramBackend   │
-│ (enum)          │     │ (trait)          │
-│ - DOT           │     │ - textToGraph()  │
-│ - Mermaid       │     │ - textToSvg()    │
-└─────────────────┘     └──────────────────┘
-                               ▲
-                    ┌──────────┴──────────┐
-                    │                     │
-          ┌─────────┴────────┐  ┌────────┴─────────┐
-          │ GraphvizBackend  │  │ MermaidBackend   │
-          │ (synchronous)    │  │ (asynchronous)   │
-          └──────────────────┘  └──────────────────┘
+              ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+              │ Extractor        │   │ Printer          │   │ Renderer         │
+              │ (trait)          │   │ (trait)          │   │ (trait)          │
+              │ - textToGraph()  │   │ - graphToText()  │   │ - textToSvg()    │
+              └──────────────────┘   └──────────────────┘   └──────────────────┘
+DOT           DotExtractor           DotPrinter             GraphvizRenderer (synchronous)
+Mermaid       MermaidExtractor       MermaidPrinter         MermaidRenderer (asynchronous)
 ```
+
+`DiagramLanguages` is the registry. It gives each part by `DiagramFormat` (DOT or Mermaid).
 
 ### Key Components
 
 | File | Description |
 |------|-------------|
 | `DiagramFormat.scala` | Enum for supported formats with auto-detection logic |
-| `DiagramBackend.scala` | Trait defining the backend interface |
-| `MermaidBackend.scala` | Implementation using Mermaid.js library |
+| `Extractor.scala`, `Printer.scala`, `Renderer.scala` | The traits of the three parts |
+| `DiagramLanguages.scala` | The registry of the parts |
+| `MermaidExtractor.scala` | Reads a Mermaid source into a graph, with the Mermaid.js parser |
+| `MermaidPrinter.scala` | Writes a graph as Mermaid text |
+| `MermaidRenderer.scala` | Draws Mermaid text, with the Mermaid.js library |
+| `MermaidBackend.scala` | What the extractor and the renderer share: the start of Mermaid.js, the queue of its operations, and the changes to its SVG |
 | `MermaidJS.scala` | Scala.js facade for Mermaid.js |
 | `MermaidGraph.scala` | Data models for parsed Mermaid diagrams |
 | `ToViewerGraph.scala` | Converts MermaidGraph to ViewerGraph |

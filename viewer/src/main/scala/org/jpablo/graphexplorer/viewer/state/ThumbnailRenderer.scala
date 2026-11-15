@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidRenderer
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
@@ -146,8 +146,8 @@ object ThumbnailRenderer:
         // which is what the persistent cache buys on every visit after the first.
         def renderMermaid(startedAt: Double): Future[String] =
           log("thumb.mermaid.start", "sourceChars" -> dot.value.length)
-          val backend = MermaidBackend()
-          onIdle(() => backend.textToSvg(dot.value))
+          val renderer = MermaidRenderer()
+          onIdle(() => renderer.textToSvg(dot.value))
             .flatMap(identity)
             .map: r =>
               log("thumb.mermaid.done", "dtMs" -> (Telemetry.nowMs() - startedAt), "ok" -> true)

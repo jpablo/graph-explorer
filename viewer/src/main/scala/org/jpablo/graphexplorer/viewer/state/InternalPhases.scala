@@ -40,7 +40,8 @@ enum DiagramLoadStatus derives CanEqual:
   * This component is backend-agnostic: all format-specific behavior (parsing, serialization, selection
   * strategy, format detection) is injected through the [[DiagramLanguages]] registry. `DiagramFormat`
   * is kept only as an equatable identity tag inside [[GraphState]]; the corresponding behavior is
-  * resolved on demand via `languages.forFormat(format)`.
+  * resolved on demand via `languages.extractor(format)`, `languages.printer(format)` and
+  * `languages.renderer(format)`.
   */
 class InternalPhases(
     languages:     DiagramLanguages,
@@ -122,7 +123,7 @@ class InternalPhases(
         EventStream.fromValue((text, Right(ViewerGraph.minimalWithDirected), format, origin))
       else
         val parseFuture =
-          languages.forFormat(format).textToGraph(text).transform {
+          languages.extractor(format).textToGraph(text).transform {
             case Success(graph) => Success((text, Right(graph), format, origin))
             // Render-only diagram kind: expected, the drawing is fine — an INFO notice.
             // Everything below still treats it as out-of-sync (canvas edits stay ignored).
@@ -267,7 +268,7 @@ class InternalPhases(
           currentState
         case None =>
           val serializedText =
-            languages.forFormat(currentState.format).graphToText(newGraph, omitInternal = true)
+            languages.printer(currentState.format).graphToText(newGraph, omitInternal = true)
           GraphState(
             text = serializedText,
             viewerGraph = newGraph,
@@ -348,12 +349,12 @@ class InternalPhases(
   val visibleText: Signal[String] =
     visibleGraph.combineWithFn(currentFormat): (graph: ViewerGraph, format: DiagramFormat) =>
       withLog("4. [visibleGraph -> visibleText]", level = logLevel) {
-        languages.forFormat(format).graphToText(graph, omitInternal = false)
+        languages.printer(format).graphToText(graph, omitInternal = false)
       }
 
   /** Signal for the selection strategy based on current format. */
   val selectionStrategy: Signal[SelectableElementStrategy] =
-    currentFormat.map(languages.forFormat(_).selectionStrategy)
+    currentFormat.map(languages.renderer(_).selectionStrategy)
 
   /** Why the parse failed, in the most useful terms available.
     *
@@ -460,7 +461,7 @@ class InternalPhases(
       // placeholder before the first parse lands (the restore of a stored format), and
       // the graph of the text before a keystroke. Its emptiness says nothing about the text.
       if currentState.graphInSync && currentState.text.trim.nonEmpty && hasNoElements(currentState.viewerGraph) then
-        val newText = languages.forFormat(newFormat).graphToText(currentState.viewerGraph, omitInternal = true)
+        val newText = languages.printer(newFormat).graphToText(currentState.viewerGraph, omitInternal = true)
         // The new text is the serialization of the graph, so the two agree.
         state.set(GraphState(newText, currentState.viewerGraph, newFormat, currentState.lastOrigin, graphInSync = true))
         parseTextToGraphAsync(newText, newFormat, currentState.lastOrigin)

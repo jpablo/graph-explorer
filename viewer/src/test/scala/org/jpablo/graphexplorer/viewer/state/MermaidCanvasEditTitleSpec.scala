@@ -4,7 +4,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.command.SourceCommand
 import org.jpablo.graphexplorer.library.LoggedChecks
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidExtractor
 import org.jpablo.graphexplorer.viewer.models.{ElementId, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.{TestHelpers, Waits}
 
@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
   *
   * The title of a Mermaid flowchart is in the YAML frontmatter (`title: ...`). A canvas edit writes the whole graph
   * again (`InternalPhases.applyGraphEdit`), and the new text replaces the old text. Thus the graph must keep the
-  * title. The graph comes from real Mermaid (`MermaidBackend.textToGraph`).
+  * title. The graph comes from real Mermaid (`MermaidExtractor.textToGraph`).
   */
 class MermaidCanvasEditTitleSpec extends FunSuite with TestHelpers with LoggedChecks:
 
@@ -45,4 +45,4 @@ class MermaidCanvasEditTitleSpec extends FunSuite with TestHelpers with LoggedCh
           val text = state.sourceText.now()
           check(text != source, s"precondition: the canvas edit did not change the text:\n$text")
           check(text.contains("stroke:red"), s"precondition: the text does not have the edit:\n$text")
-          same(MermaidBackend().extractTitle(text), Some("Release plan"), s"the canvas edit dropped the title:\n$text")
+          same(MermaidExtractor().extractTitle(text), Some("Release plan"), s"the canvas edit dropped the title:\n$text")
