@@ -6,8 +6,9 @@ import scala.scalajs.js
 import scala.scalajs.js.annotation.*
 
 // Hand-written facade for the (small) subset of CodeMirror 6 the source editor
-// binds to: @codemirror/state, @codemirror/view, @codemirror/commands, the
-// `codemirror` meta-package, and @viz-js/lang-dot.
+// binds to: @codemirror/state, @codemirror/view, @codemirror/commands,
+// @codemirror/language, @lezer/highlight, the `codemirror` meta-package, and
+// @viz-js/lang-dot.
 //
 // This replaces the ScalablyTyped-generated `typings.codemirror*` bindings:
 // sbt-converter has no sbt 2.x release, so generated facades were dropped in
@@ -90,6 +91,10 @@ object EditorView extends js.Object:
   val updateListener: UpdateListenerFacet = js.native
   /** The EditorView of a `.cm-editor` element, or null. */
   def findFromDOM(element: dom.Element): EditorView = js.native
+  /** An extension with the CSS rules of `spec`. Each key is a selector in
+    * the scope of the editor, and `&` is the editor element.
+    */
+  def theme(spec: js.Dictionary[js.Any]): Extension = js.native
 
 @js.native
 @JSImport("@codemirror/view", "keymap")
@@ -106,6 +111,48 @@ object commands extends js.Object:
   // structurally (its `dispatch` is already bound).
   def undo(target: EditorView): Boolean = js.native
   def redo(target: EditorView): Boolean = js.native
+
+// ---- @codemirror/language --------------------------------------------------
+
+@js.native
+trait HighlightStyle extends js.Object
+
+@js.native
+trait HighlightStyleStatic extends js.Object:
+  /** Each spec has a `tag` (one tag or an array of tags) and CSS properties. */
+  def define(specs: js.Array[js.Object]): HighlightStyle = js.native
+
+@js.native
+@JSImport("@codemirror/language", JSImport.Namespace)
+object language extends js.Object:
+  val HighlightStyle: HighlightStyleStatic = js.native
+  /** A highlight style from this function replaces the fallback style of
+    * `basicSetup`.
+    */
+  def syntaxHighlighting(style: HighlightStyle): Extension = js.native
+
+// ---- @lezer/highlight ------------------------------------------------------
+
+type Tag = js.Any
+
+/** The highlight tags that the theme of the editor colors. A style for a tag
+  * applies to its sub-tags also: `punctuation` includes brackets and
+  * separators. `literal` includes `string` and `number`, and the style of the
+  * sub-tag has priority.
+  */
+@js.native
+@JSImport("@lezer/highlight", "tags")
+object tags extends js.Object:
+  val keyword: Tag      = js.native
+  val typeName: Tag     = js.native
+  val propertyName: Tag = js.native
+  val literal: Tag      = js.native
+  val string: Tag       = js.native
+  val number: Tag       = js.native
+  val comment: Tag      = js.native
+  val meta: Tag         = js.native
+  val punctuation: Tag  = js.native
+  val invalid: Tag      = js.native
 
 // ---- codemirror meta-package -----------------------------------------------
 

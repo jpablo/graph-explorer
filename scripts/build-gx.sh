@@ -22,6 +22,11 @@ LAUNCHER_DIR="${ROOT_DIR}/gx-cli/native"
 # as though it were one.
 GRAALVM_VERSION="${GRAALVM_VERSION:-17.0.9}"
 
+# The Java version of GraalVM is pinned too. scala-cli 1.19.0 changed its
+# default from Java 17 to Java 25. With no Java version here, it looked for
+# `graalvm-java25:17.0.9`, which does not exist, and the build failed.
+GRAALVM_JAVA_VERSION="${GRAALVM_JAVA_VERSION:-17}"
+
 # Coursier installs `scala-cli.bat` on Windows, and git-bash resolves a bare
 # command name to `.exe` but never to `.bat`.
 SCALA_CLI=""
@@ -105,7 +110,7 @@ rm -rf "${LAUNCHER_DIR}/.scala-build"
 (cd "${LAUNCHER_DIR}" && "${SCALA_CLI}" --power package Launch.scala \
   --scala 3.7.1 -O -experimental \
   "${JAR_ARGS[@]}" \
-  --native-image --graalvm-version "${GRAALVM_VERSION}" \
+  --native-image --graalvm-java-version "${GRAALVM_JAVA_VERSION}" --graalvm-version "${GRAALVM_VERSION}" \
   --graalvm-args --no-fallback \
   -o "${OUT}" -f) 2>&1 | tee "${BUILD_LOG}"
 

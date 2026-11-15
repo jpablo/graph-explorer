@@ -30,6 +30,7 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
       codemirror.basicSetup,
       keymap.of(js.Array(commands.indentWithTab)),
       vizJsLangDot.dot(),
+      EditorTheme.extension,
       wrapping.of(wrapExtension(state.wrapSourceLines.now())),
       EditorView.updateListener.of(updateSource(_))
     )
