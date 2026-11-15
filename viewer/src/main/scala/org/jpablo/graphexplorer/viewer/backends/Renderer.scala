@@ -3,26 +3,31 @@ package org.jpablo.graphexplorer.viewer.backends
 import com.raquo.airstream.core.Signal
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
 import scala.concurrent.Future
 
-/** The reactive text sources a renderer may choose to render from.
+/** The reactive inputs a renderer may choose to render from.
   *
-  * @param visibleText
-  *   The visible graph (hidden nodes removed, groups collapsed) serialized in the language of
-  *   the renderer.
+  * @param visibleGraph
+  *   The visible graph (hidden nodes removed, groups collapsed). A renderer writes it as text
+  *   in its own language, and it knows the name that this text gives to each element. Thus it
+  *   can find the element of the graph for each element that it draws.
   * @param sourceText
   *   The raw editor source text, exactly as the user typed it.
   * @param viewDiffersFromSource
   *   True when the visible graph is not the source graph — elements hidden OR groups
   *   collapsed. Renderers that prefer rendering the raw source for fidelity (Mermaid) must
-  *   switch to `visibleText` while this is true, otherwise hide/show and collapse/expand
+  *   switch to `visibleGraph` while this is true, otherwise hide/show and collapse/expand
   *   operations have no visual effect in that format. (This used to track hidden elements
   *   alone, which made collapsing a group a silent no-op in Mermaid mode.)
+  *   It is also always true when the source is in a different language than the renderer
+  *   draws (a DOT source with the Mermaid renderer). The renderer cannot draw that source, so
+  *   `visibleGraph` is the only input that it can draw.
   */
 final case class DiagramRenderInputs(
-    visibleText: Signal[String],
-    sourceText:  Signal[String],
+    visibleGraph: Signal[ViewerGraph],
+    sourceText:   Signal[String],
     // No default on purpose: Mermaid's hide/show/collapse behavior depends on this signal,
     // and a defaulted-false caller would silently disable it.
     viewDiffersFromSource: Signal[Boolean]
@@ -30,16 +35,26 @@ final case class DiagramRenderInputs(
 
 /** The part that draws the graph of a diagram (ADR 0002).
   *
-  * A renderer draws text in one language: Graphviz draws DOT text, and Mermaid draws Mermaid
-  * text. The [[Printer]] of that language makes the text from a graph. A renderer does not
-  * parse a source into a graph, and it does not write a source: those are the work of an
-  * [[Extractor]] and of a [[Printer]].
+  * A renderer draws a graph. To do so, it writes the graph as text in the language of its
+  * engine: Graphviz draws DOT text, and Mermaid draws Mermaid text. It can also draw a source
+  * in that language directly. A renderer does not parse a source into a graph, and it does not
+  * write a source: those are the work of an [[Extractor]] and of a [[Printer]].
   *
   * The methods return Futures or Signals, because one renderer is synchronous (Graphviz) and
   * one is asynchronous (Mermaid, which uses Promises).
   */
 trait Renderer:
-  /** The language of the text that this renderer draws. */
+  /** The name of this renderer in the metadata of a diagram (`DiagramMetadata.renderer`). It
+    * is a stored value, so it must not change.
+    */
+  def id: String
+
+  /** The name of this renderer in the UI. */
+  def label: String
+
+  /** The language of the text that this renderer draws. A source in this language is the only
+    * source that it can draw directly.
+    */
   def format: DiagramFormat
 
   /** Render diagram text to SVG with position data.

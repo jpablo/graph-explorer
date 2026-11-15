@@ -13,9 +13,10 @@ import scala.concurrent.ExecutionContext
   * from `match`-on-format dispatch. A consumer depends on this trait alone; it never names
   * `Graphviz`, `MermaidRenderer`, or a specific selection strategy.
   *
-  * The three parts are apart, so that a consumer asks only for the part that it uses. For now
-  * the registry gives each part by language. Thus the renderer of a DOT source is Graphviz, and
-  * the renderer of a Mermaid source is Mermaid, as before.
+  * The three parts are apart, so that a consumer asks only for the part that it uses. An
+  * extractor and a printer belong to a language. A renderer does not: a person can select a
+  * renderer for a diagram ([[rendererById]]), and [[renderer]] gives the renderer of a language
+  * for a diagram with no selection.
   */
 trait DiagramLanguages:
   /** All available extractors, in display order. Drives the format selector UI. */
@@ -27,8 +28,18 @@ trait DiagramLanguages:
   /** The printer that writes a graph as text in the given language. */
   def printer(format: DiagramFormat): Printer
 
-  /** The renderer that draws text in the given language. */
+  /** All available renderers, in display order. Drives the renderer selector UI. */
+  def renderers: List[Renderer]
+
+  /** The renderer of a source in the given language, when the person selected no renderer. It
+    * draws text in that language.
+    */
   def renderer(format: DiagramFormat): Renderer
+
+  /** The renderer with the given id (`Renderer.id`). None for an id that this build does not
+    * have.
+    */
+  def rendererById(id: String): Option[Renderer] = renderers.find(_.id == id)
 
 /** Default registry wiring the concrete Graphviz and Mermaid parts.
   *
@@ -51,6 +62,8 @@ class DefaultDiagramLanguages(graphviz: Graphviz)(using ExecutionContext) extend
   override def printer(format: DiagramFormat): Printer = format match
     case DiagramFormat.DOT     => DotPrinter
     case DiagramFormat.Mermaid => MermaidPrinter
+
+  override def renderers: List[Renderer] = List(graphvizRenderer, mermaidRenderer)
 
   override def renderer(format: DiagramFormat): Renderer = format match
     case DiagramFormat.DOT     => graphvizRenderer

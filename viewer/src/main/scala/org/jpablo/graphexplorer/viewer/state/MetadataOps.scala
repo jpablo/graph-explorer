@@ -48,8 +48,14 @@ final class MetadataOps(val metadata: Var[DiagramMetadata])(using owner: Owner):
   val autoDetectFormat: Var[Boolean] =
     metadata.zoomLazy(_.autoDetectFormat.getOrElse(true))((m, on) => m.copy(autoDetectFormat = Some(on))).distinct
 
+  /** The id of the renderer that the person selected (`Renderer.id`). `None` is
+    * the renderer of the language of the source.
+    */
+  val renderer: Var[Option[String]] =
+    metadata.zoomLazy(_.renderer)((m, id) => m.copy(renderer = id)).distinct
+
   // Keep each view running, so that its `now()` is fresh (see the class comment).
-  List[Var[?]](hiddenElements, collapsedGroups, autoDetectFormat).foreach(_.signal.foreach(_ => ()))
+  List[Var[?]](hiddenElements, collapsedGroups, autoDetectFormat, renderer).foreach(_.signal.foreach(_ => ()))
 
 end MetadataOps
 

@@ -14,6 +14,10 @@ import scala.concurrent.Future
   */
 class GraphvizRenderer(graphviz: Graphviz) extends Renderer:
 
+  override def id: String = "graphviz"
+
+  override def label: String = "Graphviz"
+
   override def format: DiagramFormat = DiagramFormat.DOT
 
   override def textToSvg(text: String): Future[SvgWithPositions] =
@@ -24,4 +28,6 @@ class GraphvizRenderer(graphviz: Graphviz) extends Renderer:
   override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =
     // Graphviz is synchronous, so render the visible graph's DOT directly (via map) rather than through
     // a Future. This keeps downstream reads synchronous with the graph edit that triggered them.
-    inputs.visibleText.map(dot => graphviz.textToSvg(DotText(dot)).toOption)
+    // The DOT text keeps each id of the graph, so the SVG has the ids of the graph.
+    inputs.visibleGraph.map: graph =>
+      graphviz.textToSvg(DotText(DotPrinter.graphToText(graph, omitInternal = false))).toOption

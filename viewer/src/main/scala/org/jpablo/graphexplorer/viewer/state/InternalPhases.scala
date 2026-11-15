@@ -4,7 +4,6 @@ import com.raquo.airstream.core.{EventStream, Observer, Signal, Transaction}
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, RenderOnlyDiagram, RoundTripLoss, UnmodeledContent}
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.GroupId
 import org.jpablo.graphexplorer.viewer.logging.*
@@ -351,10 +350,6 @@ class InternalPhases(
       withLog("4. [visibleGraph -> visibleText]", level = logLevel) {
         languages.printer(format).graphToText(graph, omitInternal = false)
       }
-
-  /** Signal for the selection strategy based on current format. */
-  val selectionStrategy: Signal[SelectableElementStrategy] =
-    currentFormat.map(languages.renderer(_).selectionStrategy)
 
   /** Why the parse failed, in the most useful terms available.
     *

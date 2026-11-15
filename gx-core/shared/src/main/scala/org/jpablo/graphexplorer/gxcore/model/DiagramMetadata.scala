@@ -28,7 +28,17 @@ final case class DiagramMetadata(
       * is the value in each diagram from before the mode existed. The viewer
       * reads it as "on".
       */
-    autoDetectFormat: Option[Boolean] = None
+    autoDetectFormat: Option[Boolean] = None,
+    /** The renderer that the person selected for this diagram: `graphviz` or
+      * `mermaid` (ADR 0002). `None` is the renderer of the language of the
+      * source.
+      *
+      * The choice is here and not in the text for the reason of the flag
+      * above: it survives when a tool writes the file again. A reader must
+      * accept a value that it does not know, and then use `None`, because a
+      * newer build can have a renderer that this build does not have.
+      */
+    renderer: Option[String] = None
 ) derives CanEqual
 
 object DiagramMetadata:

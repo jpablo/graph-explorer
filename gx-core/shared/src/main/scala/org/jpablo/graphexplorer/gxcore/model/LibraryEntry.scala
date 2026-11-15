@@ -53,6 +53,11 @@ object LibraryEntry:
     * The sets are sorted vectors, so that one entry always gives the same
     * bytes.
     *
+    * `renderer` is the one field with a default. An entry from before the
+    * field has no `renderer` key, and upickle reads a key that is not there
+    * only when the field has a default. Thus the writer leaves the key out
+    * when no renderer is selected, and such an entry has the bytes of before.
+    *
     * The stored form has no `name` and no `folder`, because a diagram has
     * neither in the library (CONTEXT.md).
     */
@@ -64,7 +69,8 @@ object LibraryEntry:
       collapsedGroups:  Vector[String],
       autoDetectFormat: Option[Boolean],
       createdAt:        Long,
-      updatedAt:        Long
+      updatedAt:        Long,
+      renderer:         Option[String] = None
   ) derives ReadWriter
 
   given ReadWriter[LibraryEntry] = upickle.default.readwriter[Stored].bimap[LibraryEntry](toStored, fromStored)
@@ -79,7 +85,8 @@ object LibraryEntry:
       collapsedGroups = m.collapsedGroups.toVector.sorted,
       autoDetectFormat = m.autoDetectFormat,
       createdAt = e.createdAt,
-      updatedAt = e.updatedAt
+      updatedAt = e.updatedAt,
+      renderer = m.renderer
     )
 
   private def fromStored(s: Stored): LibraryEntry =
@@ -90,7 +97,8 @@ object LibraryEntry:
         collapsedGroups = s.collapsedGroups.toSet,
         tags = s.tags,
         notes = s.notes,
-        autoDetectFormat = s.autoDetectFormat
+        autoDetectFormat = s.autoDetectFormat,
+        renderer = s.renderer
       ),
       createdAt = s.createdAt,
       updatedAt = s.updatedAt

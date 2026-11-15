@@ -471,9 +471,6 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       // Initial text was parsed through the fake backend, producing its canned graph.
       assertEquals(phases.fullGraphV.now(), ViewerGraph.minimal)
 
-      // The selection strategy is resolved via the registry, not hardcoded in the component.
-      assert(phases.selectionStrategy.observe.now() eq GraphvizSelectionStrategy)
-
       // Editing the graph serializes back to text through the fake backend.
       phases.fullGraphV.set(ViewerGraph.basic(NodeId("x") -> NodeId("y")))
       assert(
@@ -646,6 +643,8 @@ object TwoFormatFakeLanguages extends DiagramLanguages:
 
   private class Parts(override val format: DiagramFormat, tag: String) extends Extractor, Printer, Renderer:
     override def info: DiagramLanguageInfo = DiagramLanguageInfo(tag, s"$tag source", "https://example.test", s"$tag docs")
+    override def id: String    = tag.toLowerCase
+    override def label: String = tag
     override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(graphFor(text))
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String =
@@ -663,6 +662,7 @@ object TwoFormatFakeLanguages extends DiagramLanguages:
     case _                     => dotParts
 
   override def extractors: List[Extractor]                 = List(dotParts, mermaidParts)
+  override def renderers: List[Renderer]                   = List(dotParts, mermaidParts)
   override def extractor(format: DiagramFormat): Extractor = parts(format)
   override def printer(format: DiagramFormat): Printer     = parts(format)
   override def renderer(format: DiagramFormat): Renderer   = parts(format)
@@ -672,6 +672,8 @@ object FakeDiagramLanguages extends DiagramLanguages:
   private object FakeParts extends Extractor, Printer, Renderer:
     override def format: DiagramFormat                             = DiagramFormat.DOT
     override def info: DiagramLanguageInfo                         = DiagramLanguageInfo("Fake", "fake source", "https://example.test", "Fake docs")
+    override def id: String                                        = "fake"
+    override def label: String                                     = "Fake"
     override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(ViewerGraph.minimal)
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String = s"FAKE:${graph.nodeIds.size}"
@@ -681,6 +683,7 @@ object FakeDiagramLanguages extends DiagramLanguages:
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
   override def extractors: List[Extractor]                 = List(FakeParts)
+  override def renderers: List[Renderer]                   = List(FakeParts)
   override def extractor(format: DiagramFormat): Extractor = FakeParts
   override def printer(format: DiagramFormat): Printer     = FakeParts
   override def renderer(format: DiagramFormat): Renderer   = FakeParts
@@ -690,6 +693,8 @@ object ClassifyingFakeLanguages extends DiagramLanguages:
   private object Parts extends Extractor, Printer, Renderer:
     override def format: DiagramFormat     = DiagramFormat.DOT
     override def info: DiagramLanguageInfo = DiagramLanguageInfo("Fake", "fake source", "https://example.test", "Fake docs")
+    override def id: String    = "fake"
+    override def label: String = "Fake"
     override def textToGraph(text: String): Future[ViewerGraph] =
       if text.startsWith("renderonly") then
         Future.failed(RenderOnlyDiagram("sequence", "“sequence” diagrams are render-only"))
@@ -703,6 +708,7 @@ object ClassifyingFakeLanguages extends DiagramLanguages:
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
   override def extractors: List[Extractor]                 = List(Parts)
+  override def renderers: List[Renderer]                   = List(Parts)
   override def extractor(format: DiagramFormat): Extractor = Parts
   override def printer(format: DiagramFormat): Printer     = Parts
   override def renderer(format: DiagramFormat): Renderer   = Parts

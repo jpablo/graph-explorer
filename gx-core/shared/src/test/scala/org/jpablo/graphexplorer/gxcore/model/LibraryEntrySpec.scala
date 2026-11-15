@@ -51,6 +51,18 @@ class LibraryEntrySpec extends FunSuite:
   test("a read of the minimal JSON gives the empty metadata"):
     assertEquals(upickle.default.read[LibraryEntry](minimalJson), LibraryEntry(path, DiagramMetadata.empty, 1, 2))
 
+  test("an entry with a selected renderer has the renderer key, after the eight keys"):
+    val entry = LibraryEntry(path, DiagramMetadata(renderer = Some("mermaid")), 1, 2)
+    val json  = upickle.default.write(entry)
+    assertEquals(json, minimalJson.stripSuffix("}") + ""","renderer":"mermaid"}""")
+    assertEquals(upickle.default.read[LibraryEntry](json), entry)
+
+  test("an entry from before the renderer field reads as no selection, and a write gives the same bytes"):
+    // `minimalJson` and `representativeJson` have no `renderer` key.
+    val read = upickle.default.read[LibraryEntry](representativeJson)
+    assertEquals(read.metadata.renderer, None)
+    assertEquals(upickle.default.write(read), representativeJson)
+
   test("a read ignores a name and a folder in the file, and a write does not give them back"):
     val withName = minimalJson.replace("\"tags\":[]", "\"name\":\"Architecture\",\"folder\":{\"segments\":[\"x\"]},\"tags\":[]")
     val read     = upickle.default.read[LibraryEntry](withName)

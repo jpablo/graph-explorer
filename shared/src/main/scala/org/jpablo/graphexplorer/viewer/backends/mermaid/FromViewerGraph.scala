@@ -48,12 +48,12 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
   emitDefaultLinkStyleLine(lines, graph.elements.graphAttributes)
 
   // Get the root group ID to filter it out
-  val rootGroupId = GroupId(ViewerGraphElements.defaultRootId.value)
+  val rootGroupId = flowchartRootGroupId
 
-  val connectedNodeIds = graph.arrows.values.flatMap(_.endpoints).toSet
+  val connectedNodeIds = flowchartConnectedNodeIds(graph)
 
   // One Mermaid id for each node and each group, before the first id is written
-  val ids = MermaidIds(graph, rootGroupId, connectedNodeIds)
+  val ids = flowchartIds(graph)
 
   // Shared indexes: one deterministic group ordering for the three group passes,
   // and one membership pass instead of a scan per group.
@@ -163,6 +163,84 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
 
   lines.toString
 
+private def flowchartRootGroupId: GroupId = GroupId(ViewerGraphElements.defaultRootId.value)
+
+private def flowchartConnectedNodeIds(graph: ViewerGraph): Set[NodeId] =
+  graph.arrows.values.flatMap(_.endpoints).toSet
+
+/** The Mermaid ids of the flowchart text of `graph`. The writer and [[mermaidDrawnIds]] use this one function, so
+  * that they agree.
+  */
+private def flowchartIds(graph: ViewerGraph): MermaidIds =
+  MermaidIds(graph, flowchartRootGroupId, flowchartConnectedNodeIds(graph))
+
+/** The names that the Mermaid text of a graph gives to the elements of the graph, as Mermaid writes them in its SVG.
+  *
+  * The text of [[viewerGraphToMermaidText]] does not always keep the ids of the graph. A node gets a new id when
+  * Mermaid cannot use its id (see [[MermaidIds]]). An arrow has no id in the text: Mermaid names its path
+  * `L_<start>_<end>_<n>`. `n` is 0 for the first arrow between two ends. For a later arrow, `n` is the count of the
+  * earlier arrows with the same two ends, plus 1: thus 0, 2, 3 (Mermaid 11.12, `FlowDB.addSingleLink`). The graph
+  * can number its arrows in a different way (a graph from a DOT source does). Thus a reader of the SVG needs this
+  * map to find the element of the graph for each drawn element.
+  *
+  * @param nodes
+  *   the node of each Mermaid id
+  * @param groups
+  *   the group of each Mermaid subgraph id
+  * @param arrows
+  *   the arrow of each DOM id of a drawn path. A self-loop has three paths (`<node>-cyclic-special-1`, `-mid`, `-2`),
+  *   and Mermaid draws one loop for each node. Thus the three ids give the first self-loop of the node.
+  */
+final case class MermaidDrawnIds(
+    nodes:  Map[String, NodeId] = Map.empty,
+    groups: Map[String, GroupId] = Map.empty,
+    arrows: Map[String, ArrowId] = Map.empty
+)
+
+object MermaidDrawnIds:
+  val empty: MermaidDrawnIds = MermaidDrawnIds()
+
+/** The drawn names of the elements of `graph` in the text of [[viewerGraphToMermaidText]].
+  *
+  * A state diagram gives the empty map. Its drawn names come from Mermaid's parse of the text
+  * (`MermaidStateGraph.nodeIdsByDomId`), because Mermaid names a transition `edge<N>`.
+  */
+def mermaidDrawnIds(graph: ViewerGraph): MermaidDrawnIds =
+  if isMermaidStateDiagram(graph) then MermaidDrawnIds.empty
+  else
+    val ids = flowchartIds(graph)
+    val (arrows, _) =
+      sortedArrows(graph.arrows.values).foldLeft((Map.empty[String, ArrowId], Map.empty[(String, String), Int])):
+        case ((acc, counts), arrow) =>
+          val (src, dst, _, _) = edgeEnds(arrow)
+          val start            = ids.node(src)
+          val end              = ids.node(dst)
+          val earlier          = counts.getOrElse((start, end), 0)
+          val names =
+            if start == end then
+              // Keep the first self-loop of the node
+              Seq("1", "mid", "2").map(part => s"$start-cyclic-special-$part").filterNot(acc.contains)
+            else Seq(s"L_${start}_${end}_${if earlier == 0 then 0 else earlier + 1}")
+          (acc ++ names.map(_ -> arrow.id), counts.updated((start, end), earlier + 1))
+    MermaidDrawnIds(
+      nodes = ids.nodeNames.map((id, name) => name -> id),
+      groups = ids.groupNames.map((id, name) => name -> id),
+      arrows = arrows
+    )
+
+/** The two ends of an arrow in the Mermaid text, and the arrow marks at the start and at the end.
+  *
+  * Mermaid links can carry an end arrow, arrows at BOTH ends, or none — but no
+  * tail-only form. A tail-only edge (the result of "Reverse Arrows Head/Tail Style"
+  * under the app's dir=both theme) is rendered with SWAPPED endpoints and a forward
+  * arrow: visually identical, though the flip becomes structural after the next
+  * parse round-trip (pinned as LossyAs in FeatureParitySpec).
+  */
+private def edgeEnds(arrow: Arrow): (NodeId, NodeId, Boolean, Boolean) =
+  val (startArrow, endArrow) = effectiveEdgeMarkers(arrow.attributes)
+  if startArrow && !endArrow then (arrow.target, arrow.source, false, true)
+  else (arrow.source, arrow.target, startArrow, endArrow)
+
 /** Serialize a node with its shape and label. */
 private def serializeNode(nodeId: NodeId, node: ViewerNode, ids: MermaidIds): String =
   val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
@@ -201,16 +279,7 @@ private def storedFormOf(id: String): String =
 
 /** Serialize an edge with its style and label. */
 private def serializeEdge(arrow: Arrow, ids: MermaidIds): String =
-  val (startArrow, endArrow) = effectiveEdgeMarkers(arrow.attributes)
-
-  // Mermaid links can carry an end arrow, arrows at BOTH ends, or none — but no
-  // tail-only form. A tail-only edge (the result of "Reverse Arrows Head/Tail Style"
-  // under the app's dir=both theme) is rendered with SWAPPED endpoints and a forward
-  // arrow: visually identical, though the flip becomes structural after the next
-  // parse round-trip (pinned as LossyAs in FeatureParitySpec).
-  val (src, dst, start, end) =
-    if startArrow && !endArrow then (arrow.target, arrow.source, false, true)
-    else (arrow.source, arrow.target, startArrow, endArrow)
+  val (src, dst, start, end) = edgeEnds(arrow)
 
   val arrowType = mermaidLinkToken(edgeLineStyle(arrow.attributes), start, end)
 
@@ -273,6 +342,12 @@ private final class MermaidIds private (nodeIds: Map[NodeId, String], groupIds: 
 
   /** True when the group has a new id. Then the writer must write the old id as its title. */
   def renamed(id: GroupId): Boolean = groupIds.get(id).exists(_ != id.value)
+
+  /** The Mermaid id of each node that has an id of its own (not a stand-in for a group). */
+  def nodeNames: Map[NodeId, String] = nodeIds
+
+  /** The Mermaid id of each group. */
+  def groupNames: Map[GroupId, String] = groupIds
 
 private object MermaidIds:
 

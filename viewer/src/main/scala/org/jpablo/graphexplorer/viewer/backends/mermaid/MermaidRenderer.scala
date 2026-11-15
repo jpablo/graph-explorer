@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import org.scalajs.dom
@@ -18,9 +19,24 @@ import scala.util.Try
   */
 class MermaidRenderer(using ExecutionContext) extends Renderer:
 
+  override def id: String = "mermaid"
+
+  override def label: String = "Mermaid"
+
   override def format: DiagramFormat = DiagramFormat.Mermaid
 
   override def textToSvg(text: String): Future[SvgWithPositions] =
+    draw(text, MermaidDrawnIds.empty)
+
+  /** Draw the graph, and stamp the ids of the graph on the SVG.
+    *
+    * The Mermaid text of a graph does not always keep the ids of the graph
+    * (see [[MermaidDrawnIds]]). A graph from a DOT source is the usual case.
+    */
+  private def graphToSvg(graph: ViewerGraph): Future[SvgWithPositions] =
+    draw(MermaidPrinter.graphToText(graph, omitInternal = false), mermaidDrawnIds(graph))
+
+  private def draw(text: String, drawnIds: MermaidDrawnIds): Future[SvgWithPositions] =
     MermaidBackend.ensureInitialized()
     MermaidBackend.enqueue {
       val renderId = MermaidBackend.nextRenderId()
@@ -34,6 +50,8 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
         MermaidBackend.normalizeRenderedSvg(svg.ref, defaultEdgeMarkerColor)
         // Before extractEdgePositions, which reads the ids of the transitions.
         stateDiagram.foreach(MermaidBackend.stampStateElementIds(svg.ref, _))
+        // Before extractEdgePositions also, which reads the ids of the arrows.
+        MermaidBackend.stampDrawnIds(svg.ref, drawnIds)
         val edgePositions = extractEdgePositions(svg.ref)
         // After extractEdgePositions, so the id-less clones don't pollute the positions map
         MermaidBackend.addEdgeHitAreas(svg.ref)
@@ -48,7 +66,7 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
     // the view differs from the source (hidden elements, collapsed groups), render the
     // serialized visible graph instead, otherwise hide/show and collapse/expand operations
     // have no visual effect in Mermaid mode (while exports DO exclude them).
-    // visibleText is only SUBSCRIBED while the view differs: combining it in
+    // The visible graph is only SUBSCRIBED while the view differs: combining it in
     // unconditionally serialized the whole graph on every parse just to discard the text,
     // and its post-parse recompute echoed a second identical mermaid render per keystroke.
     // The .distinct collapses that echo.
@@ -60,27 +78,37 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
     // transition; also the visible re-render blink). The scanLeft holds the
     // previous drawing through the gap and honors every settled value.
     inputs.viewDiffersFromSource
-      .flatMapSwitch(differs => if differs then inputs.visibleText else inputs.sourceText)
+      .flatMapSwitch: differs =>
+        if differs then inputs.visibleGraph.map(Left(_): Either[ViewerGraph, String])
+        else inputs.sourceText.map(Right(_): Either[ViewerGraph, String])
       .distinct
-      .flatMapSwitch: mermaidText =>
-        if mermaidText.trim.isEmpty then
-          Signal.fromValue(Some(None): Option[Option[SvgWithPositions]])
-        else
-          val detected = DiagramFormat.detect(mermaidText)
-          if detected != DiagramFormat.Mermaid then
-            // The registry already routed here by the format TAG; detection is advisory
-            // (its prefix list can lag new Mermaid diagram types), so warn but still try —
-            // a genuine non-Mermaid text fails the render and recovers to None below.
-            dom.console.warn(s"[mermaid] Text does not look like Mermaid (detected: $detected); attempting render anyway")
-          val futureResult = textToSvg(mermaidText).map(Some(_)).recover { case e =>
-            // This recover is the render pipeline's last stop: without the log, a failure
-            // here is a silently blank canvas (that's how the C4 xlink bug hid).
-            dom.console.error(s"[mermaid] render pipeline failed: ${e.getMessage}")
-            None
-          }
-          Signal.fromFuture(futureResult)
+      .flatMapSwitch:
+        case Left(graph) =>
+          Signal.fromFuture(settled("the visible graph", graphToSvg(graph)))
+        case Right(mermaidText) =>
+          if mermaidText.trim.isEmpty then
+            Signal.fromValue(Some(None): Option[Option[SvgWithPositions]])
+          else
+            val detected = DiagramFormat.detect(mermaidText)
+            if detected != DiagramFormat.Mermaid then
+              // The registry already routed here by the format TAG; detection is advisory
+              // (its prefix list can lag new Mermaid diagram types), so warn but still try —
+              // a genuine non-Mermaid text fails the render and recovers to None below.
+              dom.console.warn(s"[mermaid] Text does not look like Mermaid (detected: $detected); attempting render anyway")
+            Signal.fromFuture(settled("the source", textToSvg(mermaidText)))
       .scanLeft((first: Option[Option[SvgWithPositions]]) => first.getOrElse(None)):
         (last, next) => next.getOrElse(last)
+
+  /** The result of a render, with a failure as "no drawing".
+    *
+    * This recover is the render pipeline's last stop: without the log, a failure
+    * here is a silently blank canvas (that's how the C4 xlink bug hid).
+    */
+  private def settled(input: String, result: Future[SvgWithPositions]): Future[Option[SvgWithPositions]] =
+    result.map(Some(_)).recover { case e =>
+      dom.console.error(s"[mermaid] render pipeline failed for $input: ${e.getMessage}")
+      None
+    }
 
   /** The state diagram of `text`, when it is one.
     *

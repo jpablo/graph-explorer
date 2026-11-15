@@ -205,6 +205,38 @@ object MermaidBackend:
     }
 
 
+  /** Stamps the ids of the graph on the drawn elements of a flowchart that the
+    * renderer drew from a graph, so that MermaidSelectionStrategy finds the
+    * elements of the graph.
+    *
+    * A node gets `data-node-id`, a subgraph gets `data-group-id`, and the path
+    * and the label of an arrow get `data-arrow-id`. An element with no name in
+    * `ids` keeps the id that Mermaid gave it. The empty map changes nothing.
+    */
+  private val FlowchartNodeDomId = """flowchart-(.+)-\d+""".r
+
+  private[mermaid] def stampDrawnIds(svg: dom.svg.SVG, ids: MermaidDrawnIds): Unit =
+    val arrowAttr = MermaidSelectionStrategy.arrowIdAttr
+    def attr(e: dom.Element, name: String): Option[String] = Option(e.getAttribute(name)).filter(_.nonEmpty)
+    if ids.nodes.nonEmpty then
+      svg.querySelectorAllT[dom.Element]("g.node").foreach { g =>
+        // Mermaid writes the id of the node in the DOM id (`flowchart-<id>-<n>`), and not always in `data-id`
+        val name = attr(g, "data-id").orElse(Option(g.id).collect { case FlowchartNodeDomId(id) => id })
+        name.flatMap(ids.nodes.get).foreach(id => g.setAttribute("data-node-id", id.value))
+      }
+    if ids.groups.nonEmpty then
+      svg.querySelectorAllT[dom.Element]("g.cluster").foreach { g =>
+        attr(g, "data-id").orElse(Option(g.id).filter(_.nonEmpty)).flatMap(ids.groups.get)
+          .foreach(id => g.setAttribute("data-group-id", id.value))
+      }
+    if ids.arrows.nonEmpty then
+      svg.querySelectorAllT[dom.Element]("path.flowchart-link").foreach { p =>
+        ids.arrows.get(p.id).foreach(id => p.setAttribute(arrowAttr, id.value))
+      }
+      svg.querySelectorAllT[dom.Element](".edgeLabel g.label[data-id]").foreach { label =>
+        ids.arrows.get(label.getAttribute("data-id")).foreach(id => label.setAttribute(arrowAttr, id.value))
+      }
+
   private[mermaid] def normalizeRenderedSvg(svg: dom.svg.SVG, defaultEdgeMarkerColor: Option[String]): Unit =
     fixViewBoxCase(svg)
     normalizeEdgeMarkers(svg, defaultEdgeMarkerColor)

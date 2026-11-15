@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs, Renderer}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.components.resolveTheme
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
@@ -162,8 +162,30 @@ case class ViewerState(
   val visibleGraph    = phases.visibleGraph
   val currentFormat   = phases.currentFormat
   val formatSelection = phases.formatSelection
-  val selectionStrategy = phases.selectionStrategy
-  val loadStatus        = phases.loadStatus
+  val loadStatus      = phases.loadStatus
+
+  /** The renderer that draws the diagram now (ADR 0002).
+    *
+    * It is the renderer that the person selected for this diagram, or else the
+    * renderer of the language of the source. An id that this build does not
+    * have counts as no selection.
+    *
+    * A selected renderer draws the graph of the diagram. A render-only kind (a
+    * Mermaid sequence diagram) has no graph, so only the renderer of its
+    * language can draw it, from the source. Thus the selection does not apply
+    * to that kind.
+    */
+  val currentRenderer: Signal[Renderer] =
+    currentFormat
+      .combineWithFn(metadata.renderer.signal, loadStatus.signal): (format, selected, status) =>
+        val ofLanguage = languages.renderer(format)
+        status match
+          case DiagramLoadStatus.RenderOnly(_) => ofLanguage
+          case _                               => selected.flatMap(languages.rendererById).getOrElse(ofLanguage)
+      .distinct
+
+  /** The drawing comes from the renderer, so the strategy that reads its SVG does also. */
+  val selectionStrategy: Signal[SelectableElementStrategy] = currentRenderer.map(_.selectionStrategy)
 
   // Shared read-once handles. Signal#observe allocates a PERMANENT owner-bound
   // subscription per call, so ad-hoc `.observe.now()` in per-event handlers leaked
@@ -213,6 +235,27 @@ case class ViewerState(
     def select(value: String): Unit =
       if value == auto then autoDetectFormat.set(true)
       else setDiagramFormat(DiagramFormat.valueOf(value))
+
+  /** The options of the renderer selector as ONE string, as [[formatOption]]
+    * does: the sentinel, or the id of a renderer.
+    */
+  object rendererOption:
+    val auto = "Auto"
+
+    val available: List[Renderer] = languages.renderers
+
+    /** An id that this build does not have shows as Auto, and it stays in the
+      * metadata until the person selects a renderer.
+      */
+    val selected: Signal[String] =
+      metadata.renderer.signal.map(_.filter(id => languages.rendererById(id).isDefined).getOrElse(auto))
+
+    /** The renderer that Auto gives now, for the label of the option. */
+    val autoLabel: Signal[String] =
+      currentFormat.map(format => s"$auto — ${languages.renderer(format).label}")
+
+    def select(value: String): Unit =
+      metadata.renderer.set(Option.when(value != auto)(value))
 
   /** The title that the app shows for this diagram.
     *
@@ -297,14 +340,13 @@ case class ViewerState(
     * Deriving per renderer makes that mismatch unrepresentable rather than
     * merely unlikely — whatever a renderer receives here, it is its own.
     */
-  private def renderInputsFor(format: DiagramFormat) =
+  private def renderInputsFor(sourceInItsLanguage: Boolean) =
     DiagramRenderInputs(
-      visibleText = visibleGraph.map: graph =>
-        withLog("4. [visibleGraph -> visibleText]", level = phases.logLevel) {
-          languages.printer(format).graphToText(graph, omitInternal = false)
-        },
+      visibleGraph = visibleGraph,
       sourceText = pacedSourceText,
-      viewDiffersFromSource = viewDiffersFromSource
+      // A renderer cannot draw a source in a different language. Then it must
+      // always draw the text of the visible graph.
+      viewDiffersFromSource = if sourceInItsLanguage then viewDiffersFromSource else Val(true)
     )
 
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
@@ -312,8 +354,10 @@ case class ViewerState(
     // async render is pending (see MermaidRenderer.render), and re-emitting the
     // same instance would re-amend the mounted svg — duplicate binders and
     // event listeners piling up on every render cycle.
-    phases.currentFormat
-      .flatMapSwitch(format => languages.renderer(format).render(renderInputsFor(format)))
+    currentRenderer
+      .combineWithFn(currentFormat)((renderer, sourceFormat) => (renderer, renderer.format == sourceFormat))
+      .distinct
+      .flatMapSwitch((renderer, sourceInItsLanguage) => renderer.render(renderInputsFor(sourceInItsLanguage)))
       .distinct
 
   // Extract just the SVG for compatibility

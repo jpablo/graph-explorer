@@ -474,7 +474,9 @@ object DiagramSnapshot:
       format:         Option[String] = None,
       // None for each diagram that the app saved before the mode existed.
       // `restorePersistedState` reads None as on.
-      autoDetectFormat: Option[Boolean] = None
+      autoDetectFormat: Option[Boolean] = None,
+      // The id of the selected renderer. None for the renderer of the language.
+      renderer: Option[String] = None
   ) derives ReadWriter
 
   given ReadWriter[DiagramSnapshot] = readwriter[Stored].bimap[DiagramSnapshot](toStored, fromStored)
@@ -487,7 +489,8 @@ object DiagramSnapshot:
       projectName = snapshot.name,
       source = snapshot.source,
       format = snapshot.format,
-      autoDetectFormat = m.autoDetectFormat
+      autoDetectFormat = m.autoDetectFormat,
+      renderer = m.renderer
     )
 
   private def fromStored(stored: Stored): DiagramSnapshot =
@@ -497,7 +500,8 @@ object DiagramSnapshot:
       metadata = DiagramMetadata(
         hiddenElements = MetadataOps.render(stored.hiddenElements),
         collapsedGroups = stored.collapsedGroups.map(ElementRef.render),
-        autoDetectFormat = stored.autoDetectFormat
+        autoDetectFormat = stored.autoDetectFormat,
+        renderer = stored.renderer
       ),
       name = stored.projectName
     )
