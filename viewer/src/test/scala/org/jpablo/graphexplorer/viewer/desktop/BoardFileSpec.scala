@@ -4,11 +4,12 @@ import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
 import munit.FunSuite
 import org.jpablo.graphexplorer.board.{BoardCandidate, BoardFileView, FileBoardStore}
+import org.jpablo.graphexplorer.gxcore.command.{LiveViewCommand, LiveViewSelection}
 import org.jpablo.graphexplorer.gxcore.model.{Board, BoardItem, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.library.{DesktopLibrary, FakeDesktopShell, Library, LoggedChecks}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.models.DiagramId
+import org.jpablo.graphexplorer.viewer.models.{DiagramId, ElementId, NodeId}
 import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
@@ -40,6 +41,7 @@ class BoardFileSpec extends FunSuite with TestHelpers with LoggedChecks:
     DesktopDocumentRegistry.reset()
     DesktopBridge.reset()
     DesktopOpenRequests.reset()
+    LiveViewCommands.reset()
     shell = FakeDesktopShell()
     shell.install()
     shell.files("/w/arch.dot") = "digraph G {\n  label=\"Architecture\"\n  a -> b\n}"
@@ -52,6 +54,7 @@ class BoardFileSpec extends FunSuite with TestHelpers with LoggedChecks:
     DesktopDocumentRegistry.reset()
     DesktopBridge.reset()
     DesktopOpenRequests.reset()
+    LiveViewCommands.reset()
     dom.window.history.replaceState(null, "", startHref)
 
   private val boardPath = "/w/boards/plan.gxboard"
@@ -354,3 +357,75 @@ class BoardFileSpec extends FunSuite with TestHelpers with LoggedChecks:
           val style = page.frame("arch").asInstanceOf[dom.HTMLElement].style
           same((style.left, style.top), ("123px", "45px"))
           same(shell.callsOf("save_document").size, 0, "the page wrote the board file after a change from outside")
+
+  // ------------------------------------------------------- live commands
+
+  private def refusal(outcome: Either[LiveViewCommands.Refusal, ujson.Value]): Option[(String, String)] =
+    outcome.left.toOption.map(r => (r.code, r.message))
+
+  /** The board on the screen, with its drawings, and a canvas with a size, so a fit can change the scale. */
+  private def boardShown(page: Page): Future[Unit] =
+    within(5000)(shell.show(boardPath))
+      .flatMap(_ => until(10000)(page.hasDrawing("arch") && page.hasDrawing("flow")))
+      .map: _ =>
+        val canvas = dom.document.querySelector(".board-canvas").asInstanceOf[dom.HTMLElement]
+        canvas.style.width = "800px"
+        canvas.style.height = "600px"
+
+  test("with a board on the screen, a live command for a diagram is refused, and the message names the board"):
+    withPage: page =>
+      boardShown(page).map: _ =>
+        val nodes: Set[ElementId] = Set(NodeId("a"))
+        for command <- Seq(
+            LiveViewCommand.Select("/w/arch.dot", nodes),
+            LiveViewCommand.AddToSelection("/w/arch.dot", nodes),
+            LiveViewCommand.ClearSelection("/w/arch.dot"),
+            LiveViewCommand.ResetView("/w/arch.dot")
+          )
+        do
+          val outcome = refusal(LiveViewCommands.run(command))
+          // Before, the page said "no diagram is open" while it showed the board.
+          same(outcome.map(_._1), Some("VIEW_REJECTED"), s"${command.name}: $outcome")
+          val message = outcome.map(_._2).getOrElse("")
+          check(message.contains(s"the board $boardPath"), s"${command.name}: the refusal does not name the board: $message")
+          check(message.contains("/w/arch.dot"), s"${command.name}: the refusal does not name the file of the command: $message")
+
+  test("with a board on the screen, a push of text is refused"):
+    withPage: page =>
+      boardShown(page).map: _ =>
+        val session = DesktopDocumentRegistry.all.find(_.path == boardPath).getOrElse(fail("the board has no session"))
+        val outcome = refusal(LiveViewCommands.run(LiveViewCommand.PushText(session.id.value, "{}")))
+        same(outcome.map(_._1), Some("VIEW_REJECTED"), s"the push: $outcome")
+        same(shell.callsOf("save_document").size, 0, "the push wrote the board file")
+        same(fileBoard, board)
+
+  test("with a board on the screen, a fit of the board fits the board"):
+    withPage: page =>
+      boardShown(page)
+        .flatMap: _ =>
+          check(LiveViewCommands.run(LiveViewCommand.ResetView(boardPath)).isRight, "the first fit was refused")
+          val fitted = page.scale
+          // A zoom moves the scale away from the fit.
+          dom.document.querySelector("[aria-label='Zoom in']").asInstanceOf[dom.HTMLElement].click()
+          until(2000)(page.scale != fitted).map(zoomed => (fitted, zoomed))
+        .map: (fitted, zoomed) =>
+          check(zoomed, s"the zoom did not change the scale $fitted")
+          val outcome = LiveViewCommands.run(LiveViewCommand.ResetView(boardPath))
+          check(outcome.isRight, s"a fit of the board on the screen was refused: $outcome")
+          check(math.abs(page.scale - fitted) < 1e-9, s"the fit gave the scale ${page.scale}, not $fitted")
+          same(shell.callsOf("save_document").size, 0, "the fit wrote the board file")
+
+  test("with a board on the screen, what is selected names the board, and has no selection"):
+    withPage: page =>
+      boardShown(page).map: _ =>
+        val answer = LiveViewCommands.run(LiveViewCommand.WhatIsSelected).toOption.flatMap(v => LiveViewSelection.decode(v).toOption)
+        same(answer, Some(LiveViewSelection(None, s"the board $boardPath", Vector.empty, board = Some(boardPath))))
+
+  test("after the board leaves the screen, a live command is NO_LIVE_VIEW again"):
+    withPage: page =>
+      boardShown(page)
+        .flatMap: _ =>
+          page.router.navigateTo(Route.Home)
+          until(2000)(page.frames.isEmpty)
+        .map: _ =>
+          same(refusal(LiveViewCommands.run(LiveViewCommand.ResetView(boardPath))).map(_._1), Some("NO_LIVE_VIEW"))

@@ -1452,7 +1452,7 @@ class CliSpec extends FunSuite:
     assertEquals(r.lines, Vector(s"$f  selected: api, api..db"))
     val j = Run(dir, answer = (_, _) => Right(answer))
     assertEquals(j("selection", "--json"), ExitCode.Ok, j.stderr)
-    assertEquals(j.json, ujson.Obj("path" -> f, "selection" -> ujson.Arr("api", "api..db")))
+    assertEquals(j.json, ujson.Obj("path" -> f, "selection" -> ujson.Arr("api", "api..db"), "board" -> ujson.Null))
     val e = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(f), f)))
     assertEquals(e("selection"), ExitCode.Ok, e.stderr)
     assertEquals(e.lines, Vector(s"$f  nothing selected"))
@@ -1467,7 +1467,7 @@ class CliSpec extends FunSuite:
     assertEquals(r.lines, Vector("selected: node:a"))
     val j = Run(dir, answer = (_, _) => Right(answer))
     assertEquals(j("selection", "--json"), ExitCode.Ok, j.stderr)
-    assertEquals(j.json, ujson.Obj("path" -> ujson.Null, "selection" -> ujson.Arr("node:a")))
+    assertEquals(j.json, ujson.Obj("path" -> ujson.Null, "selection" -> ujson.Arr("node:a"), "board" -> ujson.Null))
   }
 
   tmp.test("selection gives the refs when gx cannot read the file on the screen") { dir =>
@@ -1475,14 +1475,14 @@ class CliSpec extends FunSuite:
     val r    = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(gone), gone, "node:a")))
     assertEquals(r("selection", "--json"), ExitCode.Ok, r.stderr)
     assert(r.stderr.contains(gone), r.stderr)
-    assertEquals(r.json, ujson.Obj("path" -> gone, "selection" -> ujson.Arr("node:a")))
+    assertEquals(r.json, ujson.Obj("path" -> gone, "selection" -> ujson.Arr("node:a"), "board" -> ujson.Null))
   }
 
   tmp.test("selection gives the refs when the desktop sends a path that no file can have") { dir =>
     val r = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(UnusablePath), UnusablePath, "node:a")))
     assertEquals(r("selection", "--json"), ExitCode.Ok, r.stderr)
     assert(r.stderr.contains("The selection is in the ref spelling"), r.stderr)
-    assertEquals(r.json, ujson.Obj("path" -> UnusablePath, "selection" -> ujson.Arr("node:a")))
+    assertEquals(r.json, ujson.Obj("path" -> UnusablePath, "selection" -> ujson.Arr("node:a"), "board" -> ujson.Null))
   }
 
   tmp.test("selection with nothing on the screen is exit 2, as before") { dir =>
@@ -1787,6 +1787,139 @@ class CliSpec extends FunSuite:
       val text = Files.readString(dir.resolve(file)).split("## Removed commands").head
       for gone <- Seq("gx import", "gx get", "gx bind", "gx unbind", "gx sync", "gx run", "gx view", "--mode", "--params") do
         assert(!text.contains(gone), s"$file still names '$gone'")
+  }
+
+  // -------------------------------------------------------------- boards
+
+  /** A board file (ADR 0003) with one item. gx does not read a board as a
+    * diagram, but it keeps a board in the library, and the desktop shows it.
+    */
+  private def plan(dir: Path): Path =
+    write(dir, "plan.gxboard", """{ "version": 1, "items": [ { "id": "arch", "location": "arch.dot", "x": 0, "y": 0 } ] }""")
+
+  /** Each command that reads a board as a diagram. */
+  private def DiagramCommands: Seq[Seq[String]] = Seq(
+    Seq("nodes", "plan.gxboard"),
+    Seq("arrows", "plan.gxboard", "--json"),
+    Seq("groups", "plan.gxboard"),
+    Seq("attrs", "plan.gxboard", "arch"),
+    Seq("set", "plan.gxboard", "arch", "color=red"),
+    Seq("reset", "plan.gxboard", "arch"),
+    Seq("group", "plan.gxboard", "arch"),
+    Seq("ungroup", "plan.gxboard", "arch"),
+    Seq("combine-record", "plan.gxboard", "a", "b"),
+    Seq("split-record", "plan.gxboard", "arch"),
+    Seq("transpose-record", "plan.gxboard", "arch"),
+    Seq("hide", "plan.gxboard", "arch"),
+    Seq("unhide", "plan.gxboard", "arch"),
+    Seq("unhide", "plan.gxboard", "--all"),
+    Seq("collapse", "plan.gxboard", "arch"),
+    Seq("expand", "plan.gxboard", "--all"),
+    Seq("select", "plan.gxboard", "arch")
+  )
+
+  tmp.test("a diagram command refuses a board file: exit 4, a message that says what to do, and no change") { dir =>
+    arch(dir)
+    val board = plan(dir)
+    val bytes = Files.readString(board)
+    for args <- DiagramCommands do
+      val r = Run(dir, answer = (_, _) => Right(ujson.Null))
+      assertEquals(r(args*), ExitCode.InvalidPathOrPolicy, s"${args.mkString(" ")}: ${r.stderr}")
+      assert(r.stderr.contains("is a board, not a diagram"), s"${args.mkString(" ")}: ${r.stderr}")
+      assert(r.stderr.contains("gx open " + board.toRealPath()), s"${args.mkString(" ")}: ${r.stderr}")
+      // Before, gx parsed the board as DOT and gave "Expected graphP".
+      assert(!r.stderr.contains("graphP"), s"${args.mkString(" ")}: ${r.stderr}")
+      assertEquals(r.stdout, "", args.mkString(" "))
+      assert(r.sent.isEmpty, s"${args.mkString(" ")} sent ${r.sent}")
+      assertEquals(Files.readString(board), bytes, s"${args.mkString(" ")} changed the board file")
+      assertEquals(r.entry(board), None, s"${args.mkString(" ")} made an entry")
+  }
+
+  tmp.test("the check of a board file looks at the extension, also in capitals") { dir =>
+    write(dir, "PLAN.GXBOARD", "{}")
+    val r = Run(dir)
+    assertEquals(r("nodes", "PLAN.GXBOARD"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("is a board, not a diagram"), r.stderr)
+  }
+
+  tmp.test("ls marks a board, and --json gives the kind of each entry") { dir =>
+    val a = arch(dir).toRealPath().toString
+    val b = plan(dir).toRealPath().toString
+    Run(dir)("add", "arch.dot", "plan.gxboard")
+    Run(dir)("tag", "plan.gxboard", "q3")
+    val r = Run(dir)
+    assertEquals(r("ls"), ExitCode.Ok, r.stderr)
+    assert(r.lines.contains(s"$b  board  tags: q3"), r.stdout)
+    assert(r.lines.contains(a), r.stdout)
+    val j = Run(dir)
+    assertEquals(j("ls", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json.arr.map(e => e("path").str -> e("kind").str).toMap, Map(a -> "diagram", b -> "board"))
+  }
+
+  tmp.test("status counts the boards apart from the diagrams") { dir =>
+    arch(dir)
+    plan(dir)
+    Run(dir)("add", "arch.dot", "plan.gxboard")
+    val r = Run(dir)
+    assertEquals(r("status"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains("diagrams: 1"), r.stdout)
+    assert(r.stdout.contains("boards:   1"), r.stdout)
+    val j = Run(dir)
+    assertEquals(j("status", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json("diagrams").num.toInt, 1)
+    assertEquals(j.json("boards").num.toInt, 1)
+  }
+
+  tmp.test("lock refuses a board, because the desktop does not read a lock for a board") { dir =>
+    val board = plan(dir)
+    val r     = Run(dir)
+    assertEquals(r("lock", "plan.gxboard"), ExitCode.InvalidPathOrPolicy, r.stderr)
+    assert(r.stderr.contains("is a board"), r.stderr)
+    assertEquals(r.entry(board), None, "lock made an entry")
+    // unlock removes a lock, so it is safe on each file.
+    val u = Run(dir)
+    assertEquals(u("unlock", "plan.gxboard"), ExitCode.Ok, u.stderr)
+  }
+
+  tmp.test("tag, note, info, add, remove and open work on a board") { dir =>
+    val board = plan(dir).toRealPath().toString
+    for args <- Seq(
+        Seq("add", "plan.gxboard"),
+        Seq("tag", "plan.gxboard", "q3"),
+        Seq("note", "plan.gxboard", "the plan"),
+        Seq("info", "plan.gxboard"),
+        Seq("untag", "plan.gxboard", "q3"),
+        Seq("remove", "plan.gxboard")
+      )
+    do
+      val r = Run(dir)
+      assertEquals(r(args*), ExitCode.Ok, s"${args.mkString(" ")}: ${r.stderr}")
+    val o = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
+    assertEquals(o("open", "plan.gxboard"), ExitCode.Ok, o.stderr)
+    assertEquals(o.sent.head._2("target")("path").str, board)
+  }
+
+  tmp.test("fit of a board sends the path of the board") { dir =>
+    val board = plan(dir).toRealPath().toString
+    val r     = Run(dir, answer = showing(board))
+    assertEquals(r("fit", "plan.gxboard"), ExitCode.Ok, r.stderr)
+    assertEquals(r.sent.head._2("command").str, "reset-view")
+    assertEquals(r.sent.head._2("params")("path").str, board)
+  }
+
+  tmp.test("selection with a board on the screen names the board, and says how to select") { dir =>
+    val board  = plan(dir).toRealPath().toString
+    val answer = ujson.Obj("path" -> ujson.Null, "shows" -> s"the board $board", "selection" -> ujson.Arr(), "board" -> board)
+    val r      = Run(dir, answer = (_, _) => Right(answer))
+    assertEquals(r("selection"), ExitCode.Ok, r.stderr)
+    assertEquals(r.lines, Vector("nothing selected"))
+    assert(r.stderr.contains(s"the desktop shows the board $board"), r.stderr)
+    assert(r.stderr.contains("gx open <file>"), r.stderr)
+    // A board has no elements, so there is no ref spelling to warn about.
+    assert(!r.stderr.contains("ref spelling"), r.stderr)
+    val j = Run(dir, answer = (_, _) => Right(answer))
+    assertEquals(j("selection", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json, ujson.Obj("path" -> ujson.Null, "selection" -> ujson.Arr(), "board" -> board))
   }
 
   private def repoRoot(): Path =

@@ -129,8 +129,12 @@ file for each diagram, found by the canonical path of the diagram.
     set, `locked` is `false`, and the other fields are empty or `null`.
   - In the text output, an empty value is `(none)` and a `null` is `(not set)`.
   - On a file that does not exist and has no entry, `info` is exit 4.
-- `gx ls`: one line for each entry, `<path>  tags: a, b  missing`. `--json`:
-  `[{"path", "tags", "missing"}]`. An empty library prints `(no diagrams)`, or `[]`.
+- `gx ls`: one line for each entry, `<path>  board  tags: a, b  missing`. `board` marks a
+  board file (`.gxboard`). `--json`: `[{"path", "kind", "tags", "missing"}]`, where `kind`
+  is `diagram` or `board`. An empty library prints `(no diagrams)`, or `[]`.
+- A board file has no elements. Each command that reads elements (the read, change,
+  `hide`, `unhide`, `collapse`, `expand` and `select` commands) refuses it with exit 4, and
+  so does `gx lock`. The other library commands, `gx open` and `gx fit` take it.
 - `gx add --json`: `[{"path", "added"}]`. `gx remove --json`: `[{"path", "removed"}]`.
 
 ### The one-time migration
@@ -148,7 +152,7 @@ command does not run it.
 |---|---|---|
 | `gx open <file>` | `show` with `{"target": {"kind": "file", "path"}}` | `{path, focused}` |
 | `gx select <file> <element>...` | the live view command `select` with the refs and the path | `{path, selected: [refs], names}` |
-| `gx selection` | the live view command `what-is-selected` | `{path, selection: [names]}` |
+| `gx selection` | the live view command `what-is-selected` | `{path, selection: [names], board}` |
 | `gx fit <file>` | the live view command `reset-view` with the path | `{path}` |
 
 - With no desktop, each of these is exit 2. A desktop with no window, or with no diagram on
@@ -166,12 +170,16 @@ command does not run it.
   `path` is `null` when the desktop shows no file (an example, or a browser diagram). Then
   stderr says so, the line has no `<path>`, the selection is in the ref spelling, and the
   exit code is still 0.
+- With a board on the screen, `board` is the path of the board file, `path` is `null`, and
+  the selection is empty. `gx fit <board file>` fits the board. Each other live command is
+  refused with exit 4, and the message names the board (`the desktop shows the board
+  /w/plan.gxboard, not /w/a.dot`). `board` is `null` for each other screen.
 
 ## Other
 
 | Command | Notes |
 |---|---|
-| `gx status [--json]` | the library folder, the number of diagrams (and of missing files), and the desktop: running, starting, or not running. Exit 0 also with no desktop |
+| `gx status [--json]` | the library folder, the number of diagrams (and of missing files), the number of boards (`boards`), and the desktop: running, starting, or not running. Exit 0 also with no desktop |
 | `gx watch <file>... [--json] [--interval MS]` | one line for each change of a file: `changed`, `restored` or `deleted`. `--json`: `{"event", "origin", "hash"}` on each line. It does not stop: run it in the background. `--interval` sets the poll and the debounce, 1 or more (default 50) |
 | `gx skill [<version>] [--latest] [--json]` | where this skill is, pinned to the running binary |
 | `gx --version` | the version of the binary |

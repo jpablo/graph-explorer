@@ -234,6 +234,21 @@ desktop refuses the command (exit **4**), and the message names the diagram on t
 Run `gx open <file>` first, then run the command again. `gx selection` prints the path of
 the diagram on the screen with the names of the selected elements.
 
+## Boards
+
+A board file (`.gxboard`) shows many diagrams on one canvas. It is JSON, and each item
+names the file of a diagram, relative to the board file. A board has no elements.
+
+- `gx open plan.gxboard` shows the board, and `gx fit plan.gxboard` fits it to the window.
+- The library commands (`add`, `remove`, `tag`, `untag`, `note`, `info`) take a board.
+  `gx ls` marks it with `board` (`"kind": "board"` in JSON).
+- Each command that reads elements (`nodes`, `set`, `hide`, `select`, …) refuses a board
+  with exit 4. Give it the file of a diagram on the board.
+- `gx lock` refuses a board with exit 4, because the desktop does not read a lock for a
+  board.
+- With a board on the screen, `gx select <file>` is refused (exit 4), and the message names
+  the board. Run `gx open <file>` for that diagram, then run the command again.
+
 ## Gotchas
 
 - `gx watch <file>... --json` prints one JSON line for each change of a file, and it does
