@@ -33,6 +33,31 @@ final case class DiagramRenderInputs(
     viewDiffersFromSource: Signal[Boolean]
 )
 
+/** The state of the drawing that a renderer gives for its inputs.
+  *
+  * A renderer tells when its render is not complete, and when its last render
+  * gave no drawing. Thus a view does not guess the end of a render with a timer.
+  */
+enum RenderState:
+  /** A render is not complete. `last` is the drawing of an earlier render. The
+    * canvas keeps it until the new render ends, so that the canvas does not blank.
+    */
+  case Pending(last: Option[SvgWithPositions])
+
+  /** The last render ended with this drawing. */
+  case Drawn(svg: SvgWithPositions)
+
+  /** The last render ended with no drawing. `cause` tells why, when the
+    * renderer knows it. An empty source text gives no drawing and no cause.
+    */
+  case NoDrawing(cause: Option[String])
+
+  /** The drawing to show now: the new drawing, or during a render, the drawing of an earlier render. */
+  def drawing: Option[SvgWithPositions] = this match
+    case Pending(last) => last
+    case Drawn(svg)    => Some(svg)
+    case NoDrawing(_)  => None
+
 /** The part that draws the graph of a diagram (ADR 0002).
   *
   * A renderer draws a graph. To do so, it writes the graph as text in the language of its
@@ -74,5 +99,8 @@ trait Renderer:
     * Each renderer decides which input to render (the visible graph vs. the raw source), whether
     * rendering is synchronous or asynchronous, and any validation it needs. This keeps the
     * dispatch out of the consumer (`ViewerState`), which only asks the resolved renderer to render.
+    *
+    * The result is the [[RenderState]] of the last inputs: a render that is not complete, a
+    * drawing, or no drawing with its cause.
     */
-  def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]]
+  def render(inputs: DiagramRenderInputs): Signal[RenderState]

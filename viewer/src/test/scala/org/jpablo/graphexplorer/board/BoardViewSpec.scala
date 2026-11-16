@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.library.{BrowserBoards, Library}
 import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidQueue
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.RightPanelSection
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
@@ -230,6 +231,39 @@ class BoardViewSpec extends FunSuite with TestHelpers:
           p.future
         .map: _ =>
           assertEquals(Library.readViewerSettings().rightPanelTabIndex, before, "a board item changed the stored panel of the window")
+
+  // Review finding. The wait for the drawing of an item started at the mount
+  // of the item, not at the end of its parse. All the Mermaid parses and
+  // renders wait in one queue. Thus an item that waited in the queue longer
+  // than the wait showed a failure, although its render came later. The first
+  // fit of the board could then use the size of that failure.
+  test("a Mermaid item whose render waits in the queue shows no failure before its drawing"):
+    val flow    = Library.createDiagram("Queued flow", mermaid)
+    val release = Promise[Unit]()
+    // Longer than the wait of 10 s, and shorter than the timeout of the queue (15 s).
+    MermaidQueue.holdUntil(release.future)
+    js.timers.setTimeout(10500)(release.trySuccess(()))
+    onBoard(Board(Vector(BoardItem("flow", location(flow), 0, 0)))): page =>
+      // A record of each failure placeholder that the page adds, also one that it removes at once.
+      val failures = mutable.Buffer.empty[String]
+      val observer = new dom.MutationObserver((records, _) =>
+        for
+          record <- records
+          node   <- (0 until record.addedNodes.length).map(record.addedNodes(_))
+        do
+          node match
+            case element: dom.Element =>
+              val failed = element.matches(".bi-exclamation-triangle") || element.querySelector(".bi-exclamation-triangle") != null
+              if failed then failures += element.textContent
+            case _ => ()
+      )
+      observer.observe(page.root, new dom.MutationObserverInit { childList = true; subtree = true })
+      waitFor("the frame has a drawing", timeoutMs = 20000)(page.frames.size == 1 && page.hasDrawing("flow"))
+        .transform: outcome =>
+          observer.disconnect()
+          release.trySuccess(())
+          outcome
+        .map(_ => assert(failures.isEmpty, s"the item showed a failure while its render waited in the queue: ${failures.toList}"))
 
   test("a board that the browser cannot read shows the cause, and no frame"):
     val boardId = BrowserBoards.create("Bad board").fold(message => fail(message), identity)
