@@ -25,8 +25,9 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
 
   override def format: DiagramFormat = DiagramFormat.Mermaid
 
+  /** Draw a Mermaid source. The parse of a flowchart source gives the drawn ids of its arrows. */
   override def textToSvg(text: String): Future[SvgWithPositions] =
-    draw(text, MermaidDrawnIds.empty)
+    draw(text, None)
 
   /** Draw the graph, and stamp the ids of the graph on the SVG.
     *
@@ -34,24 +35,29 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
     * (see [[MermaidDrawnIds]]). A graph from a DOT source is the usual case.
     */
   private def graphToSvg(graph: ViewerGraph): Future[SvgWithPositions] =
-    draw(MermaidPrinter.graphToText(graph, omitInternal = false), mermaidDrawnIds(graph))
+    draw(MermaidPrinter.graphToText(graph, omitInternal = false), Some(mermaidDrawnIds(graph)))
 
-  private def draw(text: String, drawnIds: MermaidDrawnIds): Future[SvgWithPositions] =
+  /** Draw `text`, and stamp the drawn ids on the SVG.
+    *
+    * With no `drawnIds`, the text is the source of the diagram. Then the parse
+    * of a flowchart text gives the drawn ids of its arrows.
+    */
+  private def draw(text: String, drawnIds: Option[MermaidDrawnIds]): Future[SvgWithPositions] =
     MermaidBackend.ensureInitialized()
     MermaidBackend.enqueue {
       val renderId = MermaidBackend.nextRenderId()
       val defaultEdgeMarkerColor = MermaidBackend.extractDefaultEdgeMarkerColor(text)
       dom.console.info(s"[mermaid] textToSvg start id=$renderId len=${text.length}")
       for
-        stateDiagram <- parseStateDiagram(text)
-        svgString    <- renderMermaid(renderId, text)
+        (stateDiagram, sourceIds) <- parseDrawnIds(text, readFlowchart = drawnIds.isEmpty)
+        svgString                 <- renderMermaid(renderId, text)
       yield
         val svg = parseSVG(MermaidBackend.declareMissingXlinkNamespace(svgString))
         MermaidBackend.normalizeRenderedSvg(svg.ref, defaultEdgeMarkerColor)
         // Before extractEdgePositions, which reads the ids of the transitions.
         stateDiagram.foreach(MermaidBackend.stampStateElementIds(svg.ref, _))
         // Before extractEdgePositions also, which reads the ids of the arrows.
-        MermaidBackend.stampDrawnIds(svg.ref, drawnIds)
+        MermaidBackend.stampDrawnIds(svg.ref, drawnIds.getOrElse(sourceIds))
         val edgePositions = extractEdgePositions(svg.ref)
         // After extractEdgePositions, so the id-less clones don't pollute the positions map
         MermaidBackend.addEdgeHitAreas(svg.ref)
@@ -110,24 +116,39 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
       None
     }
 
-  /** The state diagram of `text`, when it is one.
+  /** The state diagram of `text` when it is one, and the drawn ids of the
+    * arrows of `text` when it is a flowchart and `readFlowchart` is true.
     *
-    * The SVG alone does not tell which arrow a drawn transition is: Mermaid
-    * gives it the DOM id `edge<N>`. Thus the render parses the text too, and
-    * stamps the graph ids on the SVG. A failed parse gives None, so that the
-    * render reports the error of Mermaid.
+    * The SVG alone does not tell which arrow a drawn element is. Mermaid gives
+    * a transition the DOM id `edge<N>`. It gives a flowchart arrow the DOM id
+    * `L_<start>_<end>_<n>`, and an `_` in a node id makes this id ambiguous.
+    * Thus the render parses the text too, and stamps the graph ids on the SVG.
+    * A failed parse gives no ids, so that the render reports the error of
+    * Mermaid.
+    *
+    * The ids come from the parse before the render starts, because the render
+    * parses the text again.
     */
-  private def parseStateDiagram(text: String): Future[Option[MermaidStateGraph]] =
-    if !MermaidSourceScan.diagramKind(text).contains("state") then Future.successful(None)
+  private def parseDrawnIds(text: String, readFlowchart: Boolean): Future[(Option[MermaidStateGraph], MermaidDrawnIds)] =
+    val none: (Option[MermaidStateGraph], MermaidDrawnIds) = (None, MermaidDrawnIds.empty)
+    val kind        = MermaidSourceScan.diagramKind(text)
+    val isState     = kind.contains("state")
+    val isFlowchart = readFlowchart && kind.contains("flowchart")
+    if !isState && !isFlowchart then Future.successful(none)
     else
-      val promise = Promise[Option[MermaidStateGraph]]()
+      val promise = Promise[(Option[MermaidStateGraph], MermaidDrawnIds)]()
       MermaidJS.mermaidAPI
         .getDiagramFromText(text)
         .`then`[Unit](
-          diagram => { promise.complete(Try(MermaidBackend.readStateDiagram(text, diagram))); () },
-          (_: Any) => { promise.success(None); () }
+          diagram =>
+            promise.complete(Try(
+              if isState then (MermaidBackend.readStateDiagram(text, diagram), MermaidDrawnIds.empty)
+              else (None, MermaidBackend.sourceDrawnIds(diagram))
+            ))
+            (),
+          (_: Any) => { promise.success(none); () }
         )
-      promise.future.recover { case _ => None }
+      promise.future.recover { case _ => none }
 
   /** Render Mermaid text to SVG asynchronously.
     */

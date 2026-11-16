@@ -389,6 +389,20 @@ class BoardFileSpec extends FunSuite with TestHelpers with LoggedChecks:
           same((style.left, style.top), ("123px", "45px"))
           same(shell.callsOf("save_document").size, 0, "the page wrote the board file after a change from outside")
 
+  // Review finding. An item with no drawing and no failure, for example an
+  // empty Mermaid file, showed "Loading…" for ever. That text gives no size
+  // to the board, so the first fit of the board never came.
+  test("an empty diagram file on a board does not stay at Loading"):
+    shell.files("/w/boards/empty.mmd") = ""
+    shell.files(boardPath) =
+      Board.render(Board(Vector(BoardItem("arch", "../arch.dot", 0, 0), BoardItem("empty", "empty.mmd", 400, 0))))
+    withPage: page =>
+      within(5000)(shell.show(boardPath))
+        .flatMap(_ => until(10000)(page.hasDrawing("arch")))
+        .flatMap(_ => until(3000)(page.frames.size == 2 && !page.frame("empty").textContent.contains("Loading")))
+        .map: settled =>
+          check(settled, s"the empty item still says: ${page.frames.map(_.textContent).mkString(" | ")}")
+
   // ------------------------------------------------------- live commands
 
   private def refusal(outcome: Either[LiveViewCommands.Refusal, ujson.Value]): Option[(String, String)] =

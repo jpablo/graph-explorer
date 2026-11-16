@@ -195,7 +195,8 @@ private def itemFrame(
     .foreach: target =>
       if mounted then
         content.set(target match
-          case Some(shown) => ItemContent.Shown(shown, ViewerState(shown, graphviz, errorBus = errors)(using owner))
+          // An item is an embedded view: it does not change the viewer settings of the window.
+          case Some(shown) => ItemContent.Shown(shown, ViewerState(shown, graphviz, errorBus = errors, embedded = true)(using owner))
           case None        => ItemContent.Missing
         )
 
@@ -230,16 +231,44 @@ private def itemFrame(
 
   def waiting: Div = placeholder("bi-hourglass", "Loading…", last = false)
 
-  def bodyOf(shown: ItemContent): Signal[Node] = shown match
-    case ItemContent.Loading => Val(waiting)
-    case ItemContent.Missing => Val(placeholder("bi-exclamation-triangle", s"Missing: ${initial.location}", last = true))
-    case ItemContent.Shown(_, viewer) =>
-      viewer.drawing.combineWithFn(viewer.loadStatus.signal, item.map(_.width).distinct): (drawing, status, width) =>
-        val node: Node = (drawing, status) match
-          case (Some(svg), _)                           => sized(svg, width)
-          case (None, DiagramLoadStatus.Failed(reason)) => placeholder("bi-exclamation-triangle", reason, last = true)
-          case (None, _)                                => waiting
+  /** The body of an item that has a diagram.
+    *
+    * The body uses the status of the last parse that ended. Before the first
+    * parse ends, the graph of the state is a placeholder graph, and Graphviz
+    * draws it at once. A failed parse also sets that graph. Thus a drawing
+    * counts only after a parse that gave a graph or a render-only kind. A
+    * later parse sets the status to Loading, and the body then keeps the last
+    * result.
+    *
+    * A renderer gives no drawing for an empty source, and no drawing when its
+    * render fails. The body then shows a placeholder that gives a size, so
+    * that the first fit of the board can come.
+    */
+  def diagramBody(viewer: ViewerState): Signal[Node] =
+    def ended(status: DiagramLoadStatus): Option[DiagramLoadStatus] = status match
+      case DiagramLoadStatus.Loading => None
+      case other                     => Some(other)
+    val lastResult = viewer.loadStatus.signal.scanLeft(ended)((last, next) => ended(next).orElse(last)).distinct
+    val emptySource = viewer.sourceText.signal.map(_.trim.isEmpty).distinct
+    // The renderer does not tell when its render fails. After this wait with
+    // no drawing, the body stops the wait.
+    val waitEnded = EventStream.delay(BoardFrame.RenderWaitMs, true, emitOnce = true).startWith(false)
+    viewer.drawing.combineWithFn(lastResult, emptySource, waitEnded, item.map(_.width).distinct):
+      (drawing, result, empty, late, width) =>
+        val node: Node = (result, drawing) match
+          case (None, _)                                  => waiting
+          case (Some(DiagramLoadStatus.Failed(reason)), _) => placeholder("bi-exclamation-triangle", reason, last = true)
+          case (Some(_), _) if empty                      => placeholder("bi-file-earmark", "This diagram is empty.", last = true)
+          case (Some(_), Some(svg))                       => sized(svg, width)
+          case (Some(_), None) if late =>
+            placeholder("bi-exclamation-triangle", "The renderer gave no drawing of this diagram.", last = true)
+          case (Some(_), None) => waiting
         node
+
+  def bodyOf(shown: ItemContent): Signal[Node] = shown match
+    case ItemContent.Loading          => Val(waiting)
+    case ItemContent.Missing          => Val(placeholder("bi-exclamation-triangle", s"Missing: ${initial.location}", last = true))
+    case ItemContent.Shown(_, viewer) => diagramBody(viewer)
 
   // A drag of the title bar moves the item. The value is the place of the
   // pointer and the place of the item at the start of the drag.
@@ -310,3 +339,6 @@ private def itemFrame(
 private object BoardFrame:
   /** The height of the title bar of an item, as the style sheet gives it. */
   val TitleHeight = 28.0
+
+  /** The time in milliseconds that an item waits for the drawing of a parsed source. */
+  val RenderWaitMs = 10000

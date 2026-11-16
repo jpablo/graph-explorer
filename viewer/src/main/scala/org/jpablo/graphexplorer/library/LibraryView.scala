@@ -509,7 +509,7 @@ private[library] def libraryNotice =
   * (ADR 0003). The web app keeps a board in the browser. The desktop app
   * keeps it as a `.gxboard` file with a library entry.
   */
-private def boardsSection(router: Router) =
+private[library] def boardsSection(router: Router) =
   div(
     idAttr := "boards-grid",
     div(
@@ -542,7 +542,8 @@ private def showBoard(router: Router, result: scala.concurrent.Future[Either[Str
     case Left(message) => Library.showNotice(Vector(message))
 
 private def boardCard(router: Router, board: BoardSummary) =
-  val items = Library.boardItemCount(board.id).map(count => if count == 1 then "1 item" else s"$count items")
+  // The count follows the board, so that the card shows the count after a save.
+  val items = Library.boardItemCount(board.id).map(_.map(count => if count == 1 then "1 item" else s"$count items"))
   // On the desktop, the time of the entry is not the time of the board file.
   val modified = Option.when(!Library.isDesktop)(s"Modified ${formatDate(board.lastModified)}")
   val removeLabel = if Library.isDesktop then "Remove from library" else "Delete board"
@@ -562,7 +563,7 @@ private def boardCard(router: Router, board: BoardSummary) =
         div(
           cls := "min-w-0",
           div(cls := "font-medium truncate", board.name),
-          div(cls := "text-xs text-base-content/70", (items ++ modified).mkString(" · "))
+          div(cls := "text-xs text-base-content/70", text <-- items.map(count => (count ++ modified).mkString(" · ")))
         )
       ),
       IconButton(if Library.isDesktop then "bi-x-circle" else "bi-trash", removeLabel, TooltipPos.left, cls := "danger")(

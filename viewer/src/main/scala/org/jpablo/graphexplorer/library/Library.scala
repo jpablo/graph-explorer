@@ -88,10 +88,13 @@ object Library:
   def boards: Signal[List[BoardSummary]] =
     desktopLibrary.fold(BrowserBoards.index.map(_.boards.sortBy(-_.lastModified)))(_.boards)
 
-  def boardItemCount(id: String): Option[Int] =
+  /** The number of items of a board, as a Signal. It is `None` when the
+    * board cannot be read. The count changes when the board changes.
+    */
+  def boardItemCount(id: String): Signal[Option[Int]] =
     desktopLibrary match
-      case Some(desktop) => desktop.boardItemCount(id)
-      case None          => BrowserBoards.read(id).toOption.map(_.items.size)
+      case Some(desktop) => desktop.boardItemCountSignal(id)
+      case None          => BrowserBoards.itemCount(id)
 
   /** Make a board, and give the route that shows it, or the message of a failure. */
   def newBoard()(using ExecutionContext): Future[Either[String, Route]] =

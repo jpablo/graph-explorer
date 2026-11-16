@@ -1,6 +1,10 @@
 package org.jpablo.graphexplorer.gxcore.model
 
+import scala.collection.immutable.VectorMap
+import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
+
+import upickle.core.BufferedValue
 
 /** One thing on a board, with its place (CONTEXT.md, "Item"; ADR 0003).
   *
@@ -11,7 +15,8 @@ import scala.util.control.NonFatal
   * `None` is the natural width of the drawing.
   *
   * `other` holds each key of the item that this build does not know, with its
-  * value as JSON text. A write gives them back. Thus an older build does not
+  * value as JSON text. The text keeps each number as the read gave it. A
+  * write gives them back. Thus an older build does not
   * remove the work of a newer build from a file that the person owns.
   */
 final case class BoardItem(
@@ -100,17 +105,21 @@ object Board:
     */
   def parse(text: String): Either[String, Board] =
     try
-      val root = ujson.read(text).objOpt.getOrElse(throw BadBoard("the board file is not a JSON object"))
+      val root = JsonText.parse(text) match
+        case obj: BufferedValue.Obj => JsonText.fields(obj)
+        case _                      => throw BadBoard("the board file is not a JSON object")
       val version = root.get("version") match
-        case None                 => Version
-        case Some(ujson.Num(n))   => n.toInt
-        case Some(other)          => throw BadBoard(s"the version is not a number: ${other.render()}")
+        case None => Version
+        case Some(value) =>
+          JsonText.toValue(value) match
+            case ujson.Num(n) => n.toInt
+            case _            => throw BadBoard(s"the version is not a number: ${JsonText.render(value)}")
       if version > Version then
         throw BadBoard(s"the board file has version $version, and this build reads version $Version. Use a newer Graph Explorer.")
       val items = root.get("items") match
-        case None                => Vector.empty
-        case Some(ujson.Arr(xs)) => xs.toVector.zipWithIndex.map(parseItem)
-        case Some(other)         => throw BadBoard(s"the items are not a list: ${other.render()}")
+        case None                         => Vector.empty
+        case Some(BufferedValue.Arr(xs, _)) => xs.toVector.zipWithIndex.map(parseItem)
+        case Some(other)                  => throw BadBoard(s"the items are not a list: ${JsonText.render(other)}")
       val twice = items.groupBy(_.id).collect { case (id, same) if same.size > 1 => id }.toVector.sorted
       if twice.nonEmpty then throw BadBoard(s"more than one item has the id ${twice.mkString(", ")}")
       Right(Board(items, unknown(root, Set("version", "items"))))
@@ -122,19 +131,27 @@ object Board:
 
   private val ItemKeys = Set("id", "location", "extractor", "x", "y", "width")
 
-  private def parseItem(value: ujson.Value, index: Int): BoardItem =
+  private def parseItem(value: BufferedValue, index: Int): BoardItem =
     val where = s"item ${index + 1}"
-    val obj   = value.objOpt.getOrElse(throw BadBoard(s"$where is not a JSON object"))
+    val obj = value match
+      case obj: BufferedValue.Obj => JsonText.fields(obj)
+      case _                      => throw BadBoard(s"$where is not a JSON object")
     def text(key: String): Option[String] = obj.get(key) match
-      case None                      => None
-      case Some(value) if value.isNull => None
-      case Some(ujson.Str(s))      => Some(s)
-      case Some(other)             => throw BadBoard(s"the $key of $where is not a text: ${other.render()}")
+      case None                         => None
+      case Some(BufferedValue.Null(_))  => None
+      case Some(BufferedValue.Str(s, _)) => Some(s.toString)
+      case Some(other)                  => throw BadBoard(s"the $key of $where is not a text: ${JsonText.render(other)}")
+    // A write gives each number as a Double. ujson writes a Double that is
+    // not finite as a text, and the reader refuses a text. Thus the reader
+    // also refuses such a number here, for example `1e999`.
     def number(key: String): Option[Double] = obj.get(key) match
-      case None                      => None
-      case Some(value) if value.isNull => None
-      case Some(ujson.Num(n))      => Some(n)
-      case Some(other)             => throw BadBoard(s"the $key of $where is not a number: ${other.render()}")
+      case None                        => None
+      case Some(BufferedValue.Null(_)) => None
+      case Some(other) =>
+        JsonText.toValue(other) match
+          case ujson.Num(n) if n.isFinite => Some(n)
+          case ujson.Num(_)               => throw BadBoard(s"the $key of $where is not a finite number: ${JsonText.render(other)}")
+          case _                          => throw BadBoard(s"the $key of $where is not a number: ${JsonText.render(other)}")
     BoardItem(
       id = text("id").filter(_.nonEmpty).getOrElse(throw BadBoard(s"$where has no id")),
       location = text("location").filter(_.nonEmpty).getOrElse(throw BadBoard(s"$where has no location")),
@@ -145,26 +162,28 @@ object Board:
       other = unknown(obj, ItemKeys)
     )
 
-  private def unknown(obj: collection.Map[String, ujson.Value], known: Set[String]): Vector[(String, String)] =
-    obj.iterator.collect { case (key, value) if !known.contains(key) => key -> value.render() }.toVector
+  /** Each key that is not in `known`, with its JSON text. The text keeps
+    * each number as the read gave it, with each digit.
+    */
+  private def unknown(obj: VectorMap[String, BufferedValue], known: Set[String]): Vector[(String, String)] =
+    obj.iterator.collect { case (key, value) if !known.contains(key) => key -> JsonText.render(value) }.toVector
 
   /** The text of a board file. One board always gives the same bytes: the
     * keys have a fixed order, and each key that this build does not know
     * comes after them, in the order of the read.
     */
   def render(board: Board): String =
-    val root = ujson.Obj("version" -> ujson.Num(Version.toDouble), "items" -> ujson.Arr(board.items.map(renderItem)*))
-    board.other.foreach((key, json) => root(key) = ujson.read(json))
-    root.render(indent = 2) + "\n"
+    val items = BufferedValue.Arr(ArrayBuffer.from(board.items.map(renderItem)), -1)
+    val root  = JsonText.obj(Vector("version" -> JsonText.of(ujson.Num(Version.toDouble)), "items" -> items), board.other)
+    JsonText.render(root, indent = 2) + "\n"
 
-  private def renderItem(item: BoardItem): ujson.Value =
+  private def renderItem(item: BoardItem): BufferedValue =
     val obj = ujson.Obj("id" -> ujson.Str(item.id), "location" -> ujson.Str(item.location))
     item.extractor.foreach(id => obj("extractor") = ujson.Str(id))
     obj("x") = ujson.Num(item.x)
     obj("y") = ujson.Num(item.y)
     item.width.foreach(w => obj("width") = ujson.Num(w))
-    item.other.foreach((key, json) => obj(key) = ujson.read(json))
-    obj
+    JsonText.obj(obj.value.iterator.map((key, value) => key -> JsonText.of(value)).toVector, item.other)
 
 /** The meaning of the location of a board item (ADR 0003).
   *
@@ -187,6 +206,9 @@ object BoardLocation:
 
   private val Drive = "^[A-Za-z]:/".r
 
+  /** The server and the share of a Windows UNC path (`\\server\share`), after [[slashed]]. */
+  private val Share = "^//[^/]+/[^/]+".r
+
   private def slashed(path: String): String = path.replace('\\', '/')
 
   private def isAbsolute(path: String): Boolean =
@@ -197,18 +219,30 @@ object BoardLocation:
     val p = slashed(path)
     p.substring(0, p.lastIndexOf('/').max(0))
 
-  /** Remove each `.` segment, and remove each `..` segment with the segment before it. */
-  private def normalize(path: String): String =
+  /** The root of a path and its segments, with no `.` segment. A `..` segment
+    * removes the segment before it.
+    *
+    * The root is `/`, a Windows drive (`C:/`), a network share
+    * (`//server/share/`), or the empty text for a relative path. A `..` does
+    * not go above a root. A share is a root, because the server and the share
+    * are not folders that a path can leave.
+    */
+  private def parts(path: String): (String, Vector[String]) =
     val (root, rest) =
-      Drive.findPrefixOf(path) match
-        case Some(drive)                => (drive, path.substring(drive.length))
+      Share.findPrefixOf(path).orElse(Drive.findPrefixOf(path)) match
+        case Some(prefix)                 => (prefix.stripSuffix("/") + "/", path.substring(prefix.length))
         case None if path.startsWith("/") => ("/", path.substring(1))
-        case None                       => ("", path)
+        case None                         => ("", path)
     val segments = rest.split('/').foldLeft(Vector.empty[String]):
       case (done, "" | ".")                                   => done
       case (done, "..") if done.nonEmpty && done.last != ".." => done.init
       case (done, "..") if root.nonEmpty                      => done
       case (done, segment)                                    => done :+ segment
+    (root, segments)
+
+  /** Remove each `.` segment, and remove each `..` segment with the segment before it. */
+  private def normalize(path: String): String =
+    val (root, segments) = parts(path)
     root + segments.mkString("/")
 
   /** The data source of `location` in the board file at `boardPath`. */
@@ -228,10 +262,10 @@ object BoardLocation:
     * [[resolve]] of the result gives the file again.
     */
   def relativize(boardPath: String, filePath: String): String =
-    val from = normalize(folderOf(boardPath)).split('/').toVector
-    val to   = normalize(slashed(filePath)).split('/').toVector
-    // The first segment is the root: the empty text, or a Windows drive.
-    if !isAbsolute(slashed(filePath)) || from.headOption != to.headOption then slashed(filePath)
+    // The last `/` makes the root of a board at the root a root: `/`, `C:/`, or `//server/share/`.
+    val (fromRoot, from) = parts(folderOf(boardPath) + "/")
+    val (toRoot, to)     = parts(slashed(filePath))
+    if !isAbsolute(slashed(filePath)) || fromRoot != toRoot then slashed(filePath)
     else
       val common   = from.zip(to).takeWhile(_ == _).size
       val relative = (Vector.fill(from.size - common)("..") ++ to.drop(common)).mkString("/")

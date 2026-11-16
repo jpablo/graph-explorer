@@ -1,5 +1,8 @@
 package org.jpablo.graphexplorer.gxcore.model
 
+import scala.deriving.Mirror
+
+import upickle.core.{BufferedValue, Visitor}
 import upickle.default.ReadWriter
 
 /** The metadata of one diagram file, in the library (ADR 0001).
@@ -10,12 +13,18 @@ import upickle.default.ReadWriter
   *
   * `path` is the canonical path of the file, as `FileOrigins.canonicalize`
   * gives it. The store uses it as the key of the entry.
+  *
+  * `other` holds each key of the entry file that this build does not know,
+  * with its value as JSON text. A write gives them back, after the known
+  * keys. Thus an older build does not remove the metadata of a later build.
+  * A change to an entry must keep `other`: use `copy` on the entry.
   */
 final case class LibraryEntry(
     path:      String,
     metadata:  DiagramMetadata,
     createdAt: Long,
-    updatedAt: Long
+    updatedAt: Long,
+    other:     Vector[(String, String)] = Vector.empty
 ) derives CanEqual:
 
   /** The location of the data source of this diagram: its canonical URI
@@ -84,7 +93,40 @@ object LibraryEntry:
       locked:           Boolean = false
   ) derives ReadWriter
 
-  given ReadWriter[LibraryEntry] = upickle.default.readwriter[Stored].bimap[LibraryEntry](toStored, fromStored)
+  /** The keys of [[Stored]]. A read keeps each other key in `other`. */
+  private val StoredKeys: Set[String] =
+    val m = summon[Mirror.ProductOf[Stored]]
+    compiletime.constValueTuple[m.MirroredElemLabels].toList.map(_.toString).toSet
+
+  /** The keys of an older shape. A read drops them, and a write does not give them back. */
+  private val LegacyKeys = Set("name", "folder")
+
+  /** The reader reads the whole entry as a `BufferedValue`. Thus each value
+    * of an unknown key keeps its exact text, also each digit of a number.
+    */
+  given ReadWriter[LibraryEntry] =
+    // A visitor that builds a `BufferedValue` accepts each sub-value, so the
+    // cast to `Any` for the sub-values is safe. upickle does the same.
+    val reader = BufferedValue.Builder.map(fromBuffered).asInstanceOf[Visitor[Any, LibraryEntry]]
+    new ReadWriter.Delegate[LibraryEntry](reader):
+      def write0[V](out: Visitor[?, V], entry: LibraryEntry): V =
+        BufferedValue.transform(toBuffered(entry), out)
+
+  private def fromBuffered(value: BufferedValue): LibraryEntry =
+    value match
+      case obj: BufferedValue.Obj =>
+        val fields = JsonText.fields(obj)
+        val known  = fields.filter((key, _) => StoredKeys.contains(key))
+        val other  = fields.filter((key, _) => !StoredKeys.contains(key) && !LegacyKeys.contains(key))
+        val stored = BufferedValue.transform(JsonText.obj(known, Nil), upickle.default.reader[Stored])
+        fromStored(stored).copy(other = other.toVector.map((key, json) => key -> JsonText.render(json)))
+      // upickle gives the error for a value that is not an object.
+      case _ => fromStored(BufferedValue.transform(value, upickle.default.reader[Stored]))
+
+  private def toBuffered(entry: LibraryEntry): BufferedValue =
+    upickle.default.writer[Stored].write(BufferedValue.Builder, toStored(entry)) match
+      case obj: BufferedValue.Obj => JsonText.obj(JsonText.fields(obj), entry.other)
+      case value                  => value
 
   private def toStored(e: LibraryEntry): Stored =
     val m = e.metadata

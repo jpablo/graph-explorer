@@ -210,6 +210,38 @@ class RendererChoiceSpec extends FunSuite with TestHelpers:
         // The selection stays in the metadata, for a later source that has a graph.
         assertEquals(f.state.metadata.renderer.now(), Some("graphviz"))
 
+  // Review finding. `currentRenderer` read the load status, and each parse
+  // sets the status to Loading first. Thus a kind of diagram with no graph and
+  // a selected renderer changed to that renderer and back at each parse. The
+  // canvas showed an empty Graphviz drawing, then nothing, then the diagram.
+  test("a kind of diagram with no graph keeps the renderer of its language during a parse"):
+    withViewers: graphviz =>
+      val source =
+        """sequenceDiagram
+          |  Browser->>API: GET /diagrams
+          |""".stripMargin
+      val f    = Fixture("choice-sequence-parse", source, graphviz)
+      val seen = scala.collection.mutable.Buffer.empty[String]
+      f.state.rendererOption.select("graphviz")
+      for
+        _ <- waitFor("Mermaid draws the sequence diagram")(
+          f.renderer.now().id == "mermaid" && f.svgText.contains("aria-roledescription=\"sequence\"")
+        )
+        _ = f.state.currentRenderer.changes.foreach(renderer => seen += renderer.id)
+        // An edit of the text, as a person types it.
+        _ = f.state.sourceText.set(source + "  API-->>Browser: 200 OK\n")
+        _ <- waitFor("Mermaid draws the new text")(f.svgText.contains("200 OK"))
+      yield assert(!seen.contains("graphviz"), s"the renderer changed during the parse: ${seen.toList}")
+
+  // Review finding. An arrow that Mermaid draws from the source has no stamp.
+  // The strategy split its DOM id `L_A_my_node_0` at the last `_` that
+  // matches. Thus the arrow to `my_node` got the id `A_my->node`, and a click
+  // on it selected nothing.
+  test("Mermaid draws a source with an underscore in a node id, and the canvas can select each arrow"):
+    withViewers: graphviz =>
+      val f = Fixture("choice-underscore", "flowchart LR\n  A --> my_node\n  my_node --> B_c\n", graphviz)
+      f.parsed.flatMap(_ => f.drawsTheGraph("mermaid"))
+
   test("an id that this build does not have counts as no selection, and it stays in the metadata"):
     withViewers: graphviz =>
       val f        = Fixture("choice-unknown", dotSource, graphviz)

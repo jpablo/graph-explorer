@@ -93,6 +93,21 @@ class LibraryEntrySpec extends FunSuite:
     assertEquals(read, LibraryEntry(path, DiagramMetadata.empty, 1, 2))
     assertEquals(upickle.default.write(read), minimalJson)
 
+  // Review finding. The entry kept no key that the build did not know. Thus a
+  // metadata write of an older build removed the keys of a newer build, for
+  // example `locked`, and the lock went away with no message. This build must
+  // give back the keys of a later build. The old keys `name` and `folder`
+  // stay out (the test above).
+  test("a write gives back each key of a later build, with its value"):
+    val later = minimalJson.stripSuffix("}") + ""","pinned":true,"layout":{"x":1,"y":[2,3]}}"""
+    val read  = upickle.default.read[LibraryEntry](later)
+    assertEquals(read.metadata, DiagramMetadata.empty)
+    assertEquals(upickle.default.write(read), later)
+    // A change of the metadata keeps the keys too.
+    val tagged = read.copy(metadata = read.metadata.copy(tags = List("infra")))
+    val json   = upickle.default.write(tagged)
+    assert(json.contains(""""pinned":true""") && json.contains(""""layout":{"x":1,"y":[2,3]}"""), json)
+
   test("the base name drops only the last extension, for each separator"):
     assertEquals(LibraryEntry.nameOf("/a/b/arch.dot"), "arch")
     assertEquals(LibraryEntry.nameOf("/a/b/archive.v2.mmd"), "archive.v2")

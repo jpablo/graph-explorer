@@ -62,6 +62,21 @@ class BrowserBoardsSpec extends FunSuite with TestHelpers:
     assertEquals(BrowserBoards.diagramOf("arch.dot"), None)
     assertEquals(BrowserBoards.diagramOf("browser:"), None)
 
+  // Review finding. The list of the boards read as empty when its stored text
+  // did not parse, and the next write wrote that empty list. Thus each other
+  // board left the list, and nothing showed it again.
+  test("a write and a create do not empty a list of boards that the browser cannot read"):
+    val keep = created("Keep")
+    val id   = created("Plan")
+    BrowserLibrary.writeLocalStorage("graph-explorer.boards", """{ "boards": "a shape of a later build" }""")
+    BrowserBoards.write(id, Board.empty)
+    BrowserBoards.create("New")
+    val stored = BrowserLibrary.readKey("graph-explorer.boards").getOrElse("")
+    assert(
+      stored.contains("a shape of a later build") || stored.contains(keep),
+      s"a write replaced the list of the boards that the browser could not read: $stored"
+    )
+
   test("a stored board that does not parse gives its cause"):
     val id = created("Plan")
     BrowserLibrary.writeLocalStorage(s"graph-explorer.board.$id", """{ "version": 9, "items": [] }""")

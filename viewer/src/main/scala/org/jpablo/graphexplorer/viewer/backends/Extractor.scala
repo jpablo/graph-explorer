@@ -77,3 +77,10 @@ trait Extractor:
     * cheapness contract as [[extractTitle]]: runs per library card.
     */
   def diagramKind(text: String): Option[String]
+
+  /** True when the source declares a kind of diagram that this extractor cannot make a graph of
+    * (a render-only kind, see [[RenderOnlyDiagram]]). It is a fast scan of the text, as for
+    * [[diagramKind]]. Thus the app knows the answer before the parse ends. The parse is the
+    * final answer, and a scan can miss a render-only kind.
+    */
+  def declaresRenderOnlyKind(text: String): Boolean = false

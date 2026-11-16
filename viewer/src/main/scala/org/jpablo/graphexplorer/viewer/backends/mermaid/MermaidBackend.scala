@@ -113,6 +113,15 @@ object MermaidBackend:
           .flatMap(parser => parser.yy.toOption.filter(hasFlowchartAccessors))
       )
 
+  /** The drawn ids of a flowchart that Mermaid draws from its own source, from the edges of
+    * the parse of that source (see [[MermaidDrawnIds.ofSourceEdges]]). A diagram that is not a
+    * flowchart gives the empty map.
+    */
+  private[mermaid] def sourceDrawnIds(diagram: Diagram): MermaidDrawnIds =
+    selectDiagramYY(diagram).fold(MermaidDrawnIds.empty): yy =>
+      // Each edge stays in the list, also an edge with no id, because the order gives the numbers.
+      MermaidDrawnIds.ofSourceEdges(yy.getEdges().toList.map(e => (e.id.getOrElse(""), e.start, e.end)))
+
   /** The type that Mermaid gives to a `stateDiagram-v2` diagram. A
     * `stateDiagram` header (no `-v2`) gives the type `state`, which has an older
     * renderer and other DOM ids. That kind stays render-only.
