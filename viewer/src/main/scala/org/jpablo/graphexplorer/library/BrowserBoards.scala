@@ -32,6 +32,9 @@ object BrowserBoards:
 
   private val IndexKey = "graph-explorer.boards"
 
+  private val unreadableIndex =
+    "the browser cannot read the stored list of the boards. A later version of the app possibly wrote it."
+
   private def boardKey(id: String): String = s"graph-explorer.board.$id"
 
   /** The scheme of the location of a diagram in the browser library. */
@@ -47,17 +50,41 @@ object BrowserBoards:
 
   val index: Signal[BoardIndex] = writes.signal.map(_ => indexNow())
 
-  def indexNow(): BoardIndex =
-    Try(BrowserLibrary.readKey(IndexKey)).toOption.flatten
-      .flatMap(json => Try(upickle.default.read[BoardIndex](json)).toOption)
-      .getOrElse(BoardIndex())
+  /** The list of the boards. It is empty when the stored list does not parse.
+    * A write to the list does not use this value ([[updateIndex]]).
+    */
+  def indexNow(): BoardIndex = storedIndex().getOrElse(BoardIndex())
 
-  private def updateIndex(change: List[BoardSummary] => List[BoardSummary]): Try[Unit] =
-    Try(BrowserLibrary.writeLocalStorage(IndexKey, upickle.default.write(BoardIndex(change(indexNow().boards)))))
+  /** The stored list of the boards, or the cause when the browser cannot read
+    * it. No stored list gives an empty list.
+    */
+  private def storedIndex(): Either[String, BoardIndex] =
+    Try(BrowserLibrary.readKey(IndexKey)).toEither.left
+      .map(_ => unreadableIndex)
+      .flatMap:
+        case None       => Right(BoardIndex())
+        case Some(json) => Try(upickle.default.read[BoardIndex](json)).toEither.left.map(_ => unreadableIndex)
+
+  /** Change the stored list of the boards. The result is the cause of a
+    * refusal, if there is a refusal.
+    *
+    * This GUARD prevents the loss of the list. The stored list can have a shape
+    * that this version cannot read: a damaged key, or the shape of a later
+    * version. [[indexNow]] then gives an empty list. A change of that empty
+    * list gives a list of zero or one board, and a write of it replaces the
+    * stored list. The other boards stay in the storage, but no list shows
+    * them. Thus a list that does not parse stays, and the change does not
+    * occur.
+    */
+  private def updateIndex(change: List[BoardSummary] => List[BoardSummary]): Either[String, Unit] =
+    storedIndex()
+      .flatMap: current =>
+        Try(BrowserLibrary.writeLocalStorage(IndexKey, upickle.default.write(BoardIndex(change(current.boards))))).toEither.left
+          .map(_.getMessage)
       .map(_ => writes.update(_ + 1))
 
-  private def refusal(error: Throwable): String =
-    s"The browser did not save the board: ${error.getMessage}"
+  private def refusal(cause: String): String =
+    s"The browser did not save the board: $cause"
 
   def exists(id: String): Boolean = indexNow().boards.exists(_.id == id)
 
@@ -72,16 +99,24 @@ object BrowserBoards:
   def create(name: String): Either[String, String] =
     val id  = DiagramId.random.value
     val now = System.currentTimeMillis()
-    Try(BrowserLibrary.writeLocalStorage(boardKey(id), Board.render(Board.empty)))
-      .flatMap(_ => updateIndex(BoardSummary(id, name, lastModified = now, createdAt = now) :: _))
-      .toEither
-      .left
-      .map(refusal)
-      .map(_ => id)
+    // A check of the list comes first. Thus a refusal writes no board that no list shows.
+    val made =
+      for
+        _ <- storedIndex()
+        _ <- Try(BrowserLibrary.writeLocalStorage(boardKey(id), Board.render(Board.empty))).toEither.left.map(_.getMessage)
+        _ <- updateIndex(BoardSummary(id, name, lastModified = now, createdAt = now) :: _)
+      yield id
+    made.left.map(refusal)
 
   /** The stored text of the board. `None` when the storage has no board. */
   def textOf(id: String): Option[String] =
     Try(BrowserLibrary.readKey(boardKey(id))).toOption.flatten
+
+  /** The number of items of the board, as a Signal. `None` when the board
+    * cannot be read. A write of this tab reads the board again.
+    */
+  def itemCount(id: String): Signal[Option[Int]] =
+    writes.signal.map(_ => read(id).toOption.map(_.items.size)).distinct
 
   /** The board in `text`, or the cause when there is no text or it does not parse. */
   def parse(text: Option[String]): Either[String, Board] =
@@ -105,19 +140,32 @@ object BrowserBoards:
 
   /** Write the board, with no check of the stored text. The result is the
     * message of a refusal, if the browser refused.
+    *
+    * The write of the board does not need the list of the boards. Thus a list
+    * that the browser cannot read stops only the change of the time in the
+    * list. The board stays saved, and the message tells the person.
     */
   def write(id: String, board: Board): Option[String] =
-    Try(BrowserLibrary.writeLocalStorage(boardKey(id), Board.render(board)))
+    Try(BrowserLibrary.writeLocalStorage(boardKey(id), Board.render(board))).toEither.left
+      .map(error => refusal(error.getMessage))
       .flatMap: _ =>
-        updateIndex(_.map(b => if b.id == id then b.copy(lastModified = System.currentTimeMillis()) else b))
-      .failed
+        updateIndex(_.map(b => if b.id == id then b.copy(lastModified = System.currentTimeMillis()) else b)).left
+          .map(cause => s"The browser saved the board, but it did not change the list of the boards: $cause")
+      .left
       .toOption
-      .map(refusal)
 
   def rename(id: String, name: String): Option[String] =
-    updateIndex(_.map(b => if b.id == id then b.copy(name = name) else b)).failed.toOption.map(refusal)
+    updateIndex(_.map(b => if b.id == id then b.copy(name = name) else b)).left.toOption.map(refusal)
 
-  /** Delete the board. The diagrams of its items stay in the library. */
+  /** Delete the board. The diagrams of its items stay in the library.
+    *
+    * When the browser cannot read the list of the boards, the board stays. A
+    * removal of the board would then delete a board that the list possibly
+    * still has.
+    */
   def delete(id: String): Unit =
-    Try(BrowserLibrary.removeLocalStorage(boardKey(id)))
-    updateIndex(_.filterNot(_.id == id)).failed.foreach(error => Library.showNotice(Vector(refusal(error))))
+    storedIndex() match
+      case Left(cause) => Library.showNotice(Vector(s"The browser did not delete the board: $cause"))
+      case Right(_) =>
+        Try(BrowserLibrary.removeLocalStorage(boardKey(id)))
+        updateIndex(_.filterNot(_.id == id)).left.foreach(cause => Library.showNotice(Vector(s"The browser did not delete the board: $cause")))

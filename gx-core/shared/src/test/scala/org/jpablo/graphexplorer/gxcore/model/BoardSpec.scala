@@ -116,6 +116,30 @@ class BoardSpec extends FunSuite:
     assert(moved.contains("\"height\": 300") && moved.contains("\"background\": \"grid\""), moved)
     assert(moved.contains("\"x\": 30"), moved)
 
+  // Review finding. Each number was a Double. ujson reads `1e999` as
+  // Infinity, and it writes Infinity as the text "Infinity". Thus a write made
+  // a board file that the reader then refused.
+  test("a number that is not finite does not give a file that the reader refuses"):
+    val text = """{ "items": [ { "id": "a", "location": "a.dot", "x": 1e999 } ] }"""
+    Board.parse(text) match
+      case Left(message) => assert(message.contains("the x of item 1"), message)
+      case Right(read) =>
+        val written = Board.render(read)
+        assert(Board.parse(written).isRight, s"the reader refuses the file that the writer gave:\n$written")
+
+  // Review finding. A key that this build does not know came back through a
+  // Double. Thus an integer with more than 15 digits changed on a write.
+  test("a write gives back a number of an unknown key with each digit"):
+    val newer =
+      """{
+        |  "version": 1,
+        |  "items": [],
+        |  "rev": 9007199254740993,
+        |  "big": 12345678901234567890
+        |}
+        |""".stripMargin
+    assertEquals(Board.render(parsed(newer)), newer)
+
   test("the reader refuses a version that is newer than the version of this build"):
     val message = refused("""{ "version": 2, "items": [] }""")
     assert(message.contains("version 2"), message)
@@ -209,6 +233,31 @@ class BoardSpec extends FunSuite:
         Resolved.File(filePath.replace('\\', '/')),
         s"$boardPath, $location"
       )
+
+  // Review finding. `normalize` changed the root `//server/share` of a UNC
+  // path to `/server/share`. On Windows, each item of a board on a network
+  // share then resolved to a path on the current drive, and it was missing.
+  test("a board on a Windows network share resolves its items on the same share"):
+    val onShare = """\\fs01\team\boards\plan.gxboard"""
+    assertEquals(BoardLocation.resolve(onShare, "arch.dot"), Resolved.File("//fs01/team/boards/arch.dot"))
+    assertEquals(BoardLocation.resolve(onShare, "../arch.dot"), Resolved.File("//fs01/team/arch.dot"))
+    // A `..` does not go above the share, as a `..` does not go above the root.
+    assertEquals(BoardLocation.resolve(onShare, "../../../arch.dot"), Resolved.File("//fs01/team/arch.dot"))
+    // An absolute location on a share, from a board on a drive.
+    assertEquals(BoardLocation.resolve("C:/w/plan.gxboard", """\\fs01\team\arch.dot"""), Resolved.File("//fs01/team/arch.dot"))
+
+  test("the stored location of a file on a network share resolves to the file"):
+    val cases = List(
+      ("""\\fs01\team\boards\plan.gxboard""", """\\fs01\team\boards\sub\arch.dot""", "sub/arch.dot"),
+      ("""\\fs01\team\boards\plan.gxboard""", """\\fs01\team\arch.dot""", "../arch.dot")
+    )
+    for (boardPath, filePath, location) <- cases do
+      assertEquals(BoardLocation.relativize(boardPath, filePath), location, s"$boardPath, $filePath")
+      assertEquals(BoardLocation.resolve(boardPath, location), Resolved.File(filePath.replace('\\', '/')), s"$boardPath, $location")
+    // A file on a different share, or on a drive, keeps its absolute path.
+    assertEquals(BoardLocation.relativize("""\\fs01\a\plan.gxboard""", """\\fs01\c\x.dot"""), "//fs01/c/x.dot")
+    assertEquals(BoardLocation.relativize("""\\fs01\a\plan.gxboard""", "C:/x.dot"), "C:/x.dot")
+    assertEquals(BoardLocation.relativize("C:/w/plan.gxboard", """\\fs01\a\x.dot"""), "//fs01/a/x.dot")
 
   test("a file on a different drive keeps its absolute path"):
     assertEquals(BoardLocation.relativize("C:/w/plan.gxboard", """D:\x\arch.dot"""), "D:/x/arch.dot")

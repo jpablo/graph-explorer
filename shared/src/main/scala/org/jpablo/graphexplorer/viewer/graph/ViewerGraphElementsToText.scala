@@ -48,6 +48,18 @@ def viewerGraphElementsToText(
   // value goes through here, so no emission site can accidentally skip the escaping.
   def quoted(value: String): String = s""""${escapeDotString(value)}""""
 
+  // An attribute key with no quotes must be a DOT ID with no quotes: letters,
+  // `_`, and digits, with no digit first, or a numeral. A DOT keyword is not
+  // such an ID. Another key gets quotes. For example, the Mermaid reader
+  // gives the key `mermaid_classDef_my-class`, and Graphviz refuses a `-` in
+  // a key with no quotes.
+  val BareId   = "[A-Za-z_][A-Za-z_0-9]*".r
+  val Numeral  = "-?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)".r
+  val Keywords = Set("node", "edge", "graph", "digraph", "subgraph", "strict")
+  def attributeKey(key: String): String =
+    val bare = (BareId.matches(key) && !Keywords.contains(key.toLowerCase)) || Numeral.matches(key)
+    if bare then key else quoted(key)
+
 
   // Helper to format a label value - HTML labels use <> notation, others use quotes
   def formatLabelValue(value: String): String = {
@@ -186,7 +198,7 @@ def viewerGraphElementsToText(
     else {
       val formattedAttrs = attrs.map { case (key, value) =>
         if (key == "label") s"$key=${formatLabelValue(value)}"
-        else s"$key=${quoted(value)}"
+        else s"${attributeKey(key)}=${quoted(value)}"
       }
       s" [${formattedAttrs.mkString(", ")}]"
     }
@@ -215,7 +227,7 @@ def viewerGraphElementsToText(
         } else if (key == "label") {
           s"${padding(level + 1)}$key=${formatLabelValue(value)}$comma"
         } else {
-          s"${padding(level + 1)}$key=${quoted(value)}$comma"
+          s"${padding(level + 1)}${attributeKey(key)}=${quoted(value)}$comma"
         }
       }
       s" [\n${formattedAttrs.mkString("\n")}\n${padding(level)}]"

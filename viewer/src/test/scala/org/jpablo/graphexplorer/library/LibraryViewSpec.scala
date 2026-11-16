@@ -2,10 +2,12 @@ package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
 import munit.FunSuite
-import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.board.FileBoardStore
+import org.jpablo.graphexplorer.gxcore.model.{Board, BoardItem, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
+import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
@@ -74,6 +76,39 @@ class LibraryViewSpec extends FunSuite with TestHelpers with LoggedChecks:
             check(text.contains("Notes.dot"), s"the notice of the migration is not on the page: $text")
             same(removes, 4, "each card and each row has a Remove from library control")
             same(deletes, 0, "the desktop page says Delete")
+      .transform: result =>
+        container.parentNode.removeChild(container)
+        shell.uninstall()
+        result
+
+  // Review finding. The card of a desktop board read the item count one time,
+  // from the file state of the library. A save of the board did not change
+  // that state, and the read of the files at the mount of the page did not
+  // make the card again. Thus the card showed an old count.
+  test("the card of a desktop board shows the item count of the board file after a save"):
+    val shell = FakeDesktopShell()
+    shell.install()
+    val path = "/w/plan.gxboard"
+    shell.files(path) = Board.render(Board.empty)
+    shell.putEntry(LibraryEntry(path, DiagramMetadata(), 1, 1))
+    val container = dom.document.createElement("div")
+    dom.document.body.appendChild(container)
+    DesktopLibrary
+      .load()
+      .flatMap: library =>
+        Library.install(library)
+        library.open(DiagramId(shell.keyOf(path))).flatMap: _ =>
+          val session = DesktopDocumentRegistry.find(path).getOrElse(fail("the board file has no session"))
+          val two     = Board(Vector(BoardItem("a", "a.dot", 0, 0), BoardItem("b", "b.dot", 400, 0)))
+          FileBoardStore(session.id, Some(library)).save(two).flatMap: refusal =>
+            same(refusal, None, "precondition: the save of the board was refused")
+            same(shell.files.get(path), Some(Board.render(two)), "precondition: the save wrote the board file")
+            // The home page shows the boards, and it reads the files at its mount.
+            val root = render(container, boardsSection(Router()))
+            library.readFiles().flatMap(_ => after(400)).map: _ =>
+              val text = container.textContent
+              root.unmount()
+              check(text.contains("2 items"), s"the card does not show the count of the board file: $text")
       .transform: result =>
         container.parentNode.removeChild(container)
         shell.uninstall()

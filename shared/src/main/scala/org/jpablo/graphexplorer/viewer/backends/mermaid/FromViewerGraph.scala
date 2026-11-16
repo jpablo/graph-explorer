@@ -200,6 +200,28 @@ final case class MermaidDrawnIds(
 object MermaidDrawnIds:
   val empty: MermaidDrawnIds = MermaidDrawnIds()
 
+  /** The arrow of each drawn path of a flowchart that Mermaid draws from its own source.
+    *
+    * Each edge is `(domId, start, end)` as Mermaid's parser gives it, in the order of the
+    * parse. The DOM id alone does not give the two ends: `L_A_my_node_0` can be `A` to
+    * `my_node` or `A_my` to `node`, and an edge with its own id (`A e1@--> B`) has the DOM id
+    * `e1`. The arrow ids have the numbering of the extractor ([[flowchartArrowSeqs]]). The
+    * nodes and the groups keep their ids in a source drawing, so the two maps are empty.
+    */
+  def ofSourceEdges(edges: List[(String, String, String)]): MermaidDrawnIds =
+    val seqs = flowchartArrowSeqs(edges.map((_, start, end) => (start, end)))
+    val arrows =
+      edges.zip(seqs).foldLeft(Map.empty[String, ArrowId]):
+        case (acc, ((domId, start, end), seq)) =>
+          val id = Arrow(NodeId(start), NodeId(end), seq = seq).id
+          // Mermaid draws one loop for each node, with three paths. They give the first self-loop.
+          val names =
+            if start == end then Seq("1", "mid", "2").map(part => s"$start-cyclic-special-$part").filterNot(acc.contains)
+            // An empty DOM id names no path.
+            else Seq(domId).filter(_.nonEmpty)
+          acc ++ names.map(_ -> id)
+    MermaidDrawnIds(arrows = arrows)
+
 /** The drawn names of the elements of `graph` in the text of [[viewerGraphToMermaidText]].
   *
   * A state diagram gives the empty map. Its drawn names come from Mermaid's parse of the text

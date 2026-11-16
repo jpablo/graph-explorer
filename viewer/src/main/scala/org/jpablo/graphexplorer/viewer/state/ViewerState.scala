@@ -51,7 +51,13 @@ case class ViewerState(
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
     initialLeftPanelVisible:  Boolean = false,
     clientSize:               ClientSize = Normal,
-    logLevel:                 Level = Level.None
+    logLevel:                 Level = Level.None,
+    /** True for a view inside a different page, for example an item of a
+      * board. Such a view reads the viewer settings of the window one time,
+      * and it does not write them. Thus a change of its panels, for example
+      * the Source panel that a parse error opens, stays in this state.
+      */
+    embedded:                 Boolean = false
 )(
     // All the subscriptions of this state use this owner. Give an owner that you
     // can kill (for example, a ManualOwner that unmount kills). Then a navigation
@@ -166,6 +172,25 @@ case class ViewerState(
   val formatSelection = phases.formatSelection
   val loadStatus      = phases.loadStatus
 
+  /** True when the source is a render-only kind of diagram, which has no graph.
+    *
+    * The load status gives the answer. Each parse sets the status to Loading
+    * first. Thus while the status is Loading, the signal keeps its last answer,
+    * and the renderer does not change for a moment at each parse. Before the
+    * first parse ends, the extractor of the language reads the kind from the
+    * text, so that the first drawing also comes from the correct renderer.
+    */
+  private val sourceHasNoGraph: Signal[Boolean] =
+    def answer(status: DiagramLoadStatus, whileLoading: => Boolean): Boolean = status match
+      case DiagramLoadStatus.RenderOnly(_) => true
+      case DiagramLoadStatus.Loading       => whileLoading
+      case _                               => false
+    loadStatus.signal
+      .combineWith(currentFormat, sourceText.signal)
+      .scanLeft((status, format, text) => answer(status, languages.extractor(format).declaresRenderOnlyKind(text))):
+        (last, next) => answer(next._1, last)
+      .distinct
+
   /** The renderer that draws the diagram now (ADR 0002).
     *
     * It is the renderer that the person selected for this diagram, or else the
@@ -179,11 +204,10 @@ case class ViewerState(
     */
   val currentRenderer: Signal[Renderer] =
     currentFormat
-      .combineWithFn(metadata.renderer.signal, loadStatus.signal): (format, selected, status) =>
+      .combineWithFn(metadata.renderer.signal, sourceHasNoGraph): (format, selected, noGraph) =>
         val ofLanguage = languages.renderer(format)
-        status match
-          case DiagramLoadStatus.RenderOnly(_) => ofLanguage
-          case _                               => selected.flatMap(languages.rendererById).getOrElse(ofLanguage)
+        if noGraph then ofLanguage
+        else selected.flatMap(languages.rendererById).getOrElse(ofLanguage)
       .distinct
 
   /** The drawing comes from the renderer, so the strategy that reads its SVG does also. */

@@ -37,6 +37,11 @@ class MermaidExtractor(using ExecutionContext) extends Extractor:
 
   override def diagramKind(text: String): Option[String] = MermaidSourceScan.diagramKind(text)
 
+  // The parse makes a graph of a flowchart and of a `stateDiagram-v2`. The scan cannot tell
+  // a `stateDiagram` (render-only) from a `stateDiagram-v2`, so it does not count a state diagram.
+  override def declaresRenderOnlyKind(text: String): Boolean =
+    MermaidSourceScan.diagramKind(text).exists(kind => kind != "flowchart" && kind != "state")
+
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future. */
   private def parseMermaid(text: String): Future[ViewerGraph] =
     val promise = Promise[ViewerGraph]()

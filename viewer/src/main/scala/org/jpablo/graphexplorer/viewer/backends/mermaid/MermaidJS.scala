@@ -147,6 +147,9 @@ trait MermaidVertexJS extends js.Object:
 /** An edge (link) as returned by Mermaid's parser. */
 @js.native
 trait MermaidEdgeJS extends js.Object:
+  // The DOM id of the drawn path (Mermaid 11, `FlowDB.addSingleLink`): `L_<start>_<end>_<n>`, or the id
+  // that the source gives to the edge (`A e1@--> B`).
+  val id: js.UndefOr[String]        = js.native
   val start: String                 = js.native
   val end: String                   = js.native
   val `type`: js.UndefOr[String]    = js.native // arrow type (e.g., "arrow_point")

@@ -144,10 +144,20 @@ final class DesktopLibrary private () extends LibraryListing:
   /** The number of items of a board, when the library read its file and the
     * file parses.
     */
-  def boardItemCount(id: String): Option[Int] =
-    fileState(DiagramId(id))
-      .collect { case FileState.Loaded(text, _) => Board.parse(text).toOption.map(_.items.size) }
-      .flatten
+  def boardItemCount(id: String): Option[Int] = itemCountOf(fileState(DiagramId(id)))
+
+  /** The number of items of a board, as a Signal. It changes when the
+    * library reads the board file again, for example at the mount of the home
+    * page. Thus the card of a board shows the count of the file after a save.
+    */
+  def boardItemCountSignal(id: String): Signal[Option[Int]] =
+    entries.signal
+      .combineWith(files.signal)
+      .map((byKey, fileStates) => itemCountOf(byKey.get(id).flatMap(e => fileStates.get(e.path))))
+      .distinct
+
+  private def itemCountOf(state: Option[FileState]): Option[Int] =
+    state.collect { case FileState.Loaded(text, _) => Board.parse(text).toOption.map(_.items.size) }.flatten
 
   /** "New board": a new `.gxboard` file in the folder for new diagrams, with
     * an entry, open on the screen.
@@ -292,13 +302,10 @@ final class DesktopLibrary private () extends LibraryListing:
   ): Future[Unit] =
     val now   = js.Date.now().toLong
     val entry = base.map(_._1)
-    val merged = LibraryEntry(
-      path = entry.fold(path)(_.path),
-      metadata = entry.fold(applyChange(DiagramMetadata.empty, DiagramMetadata.empty, viewer)): e =>
-        applyChange(e.metadata, before, viewer),
-      createdAt = entry.fold(now)(_.createdAt),
-      updatedAt = now
-    )
+    // `copy` keeps each key of the entry that this build does not know.
+    val merged = entry.fold(
+      LibraryEntry(path, applyChange(DiagramMetadata.empty, DiagramMetadata.empty, viewer), createdAt = now, updatedAt = now)
+    )(e => e.copy(metadata = applyChange(e.metadata, before, viewer), updatedAt = now))
     write(key, merged, Some(base.fold(EntryBase.Absent)((_, text) => EntryBase.Present(text)))).recoverWith:
       case IpcFailure("LIBRARY_CONFLICT", _) if tries > 1 =>
         readEntry(key).flatMap(fresh => mergeAndWrite(key, path, before, viewer, fresh, tries - 1))

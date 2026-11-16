@@ -20,6 +20,20 @@ def toViewerGraph(mermaidGraph: MermaidGraph): ViewerGraph =
     tpe = GraphType.digraph // Mermaid flowcharts are always directed
   )
 
+/** The `seq` of the arrow of each edge of a flowchart, in the order of the edges.
+  *
+  * The arrows between the same two ends get 1, 2, 3 in the order of the edges. The extractor and
+  * [[MermaidDrawnIds.ofSourceEdges]] use this one function, so that they give the same arrow ids.
+  */
+def flowchartArrowSeqs(ends: List[(String, String)]): List[Int] =
+  ends
+    .foldLeft((List.empty[Int], Map.empty[(String, String), Int])):
+      case ((seqs, counts), key) =>
+        val seq = counts.getOrElse(key, 0) + 1
+        (seq :: seqs, counts.updated(key, seq))
+    ._1
+    .reverse
+
 /** Converts a MermaidGraph to ViewerGraphElements.
   */
 def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
@@ -45,17 +59,10 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
     }
 
   // Convert edges to arrows
-  // Mermaid assigns edge DOM ids using a per-(source,target) sequence counter.
-  val edgeCounts = scala.collection.mutable.Map[(String, String), Int]().withDefaultValue(0)
-
   val arrows: Map[ArrowId, Arrow] =
-    mermaidGraph.edges.map { edge =>
+    mermaidGraph.edges.zip(flowchartArrowSeqs(mermaidGraph.edges.map(e => (e.start, e.end)))).map { (edge, seq) =>
       val sourceId = NodeId(edge.start)
       val targetId = NodeId(edge.end)
-
-      val key = (edge.start, edge.end)
-      edgeCounts(key) += 1
-      val seq = edgeCounts(key)
 
       val attrs = edgeToAttributes(edge)
       val arrow = Arrow(

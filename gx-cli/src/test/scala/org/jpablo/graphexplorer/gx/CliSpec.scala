@@ -899,6 +899,23 @@ class CliSpec extends FunSuite:
     assertEquals(r.entry(f), None)
   }
 
+  // Review finding. A metadata write kept no key of the entry that this build
+  // does not know. Thus `gx tag` removed each key of a later build, as an
+  // older build removed `locked`.
+  tmp.test("tag keeps each key of the entry that this build does not know, with its value") { dir =>
+    val f = arch(dir)
+    assertEquals(Run(dir)("tag", "arch.dot", "infra"), ExitCode.Ok)
+    val entryFile = metadataDir(dir).resolve(MetadataStore.fileNameOf(f.toRealPath().toString))
+    // A later build adds two keys to the entry.
+    val written = Files.readString(entryFile).trim
+    Files.writeString(entryFile, written.stripSuffix("}").stripTrailing + ",\n  \"pinned\": true,\n  \"rev\": 9007199254740993\n}")
+    val r = Run(dir)
+    assertEquals(r("tag", "arch.dot", "draft"), ExitCode.Ok, r.stderr)
+    assertEquals(r.entry(f).map(_.metadata.tags), Some(List("infra", "draft")))
+    val after = Files.readString(entryFile)
+    assert(after.contains("\"pinned\": true") && after.contains("\"rev\": 9007199254740993"), after)
+  }
+
   tmp.test("note sets the notes from an argument or from stdin, and --clear removes them") { dir =>
     val f = arch(dir)
     val r = Run(dir)

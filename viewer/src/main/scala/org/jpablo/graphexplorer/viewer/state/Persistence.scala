@@ -230,9 +230,15 @@ trait Persistence:
   /** ViewerSettings below is deliberately NOT branched by the target: theme,
     * panel widths and the like are app-wide preferences, and losing a theme
     * change because it was made while looking at an example would be its own bug.
+    *
+    * An embedded view (an item of a board) reads the settings one time, into
+    * a `Var` that does not write to the store. `loadViewerSettings` makes a
+    * subscription on the window owner, and each item of each visit of a board
+    * then added one more.
     */
   private val viewerSettings: Var[ViewerSettings] =
-    Library.loadViewerSettings()
+    if embedded then Var(Library.readViewerSettings())
+    else Library.loadViewerSettings()
 
   /** Restores the persisted state values to the current ViewerState. */
   private def restorePersistedState(): Unit =
@@ -306,6 +312,10 @@ trait Persistence:
         persistence.update(snapshot())
 
     // synchronize ViewerState ~> ViewerSettings
+    // An embedded view does not write the settings of the window.
+    if !embedded then syncViewerSettings()
+
+  private def syncViewerSettings(): Unit =
     Signal
       .combine(
         leftPanelVisible.signal,

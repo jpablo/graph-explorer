@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.models.DiagramId
+import org.jpablo.graphexplorer.viewer.state.RightPanelSection
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import org.scalajs.dom
 
@@ -30,6 +31,9 @@ class BoardViewSpec extends FunSuite with TestHelpers:
 
   private val dot     = "digraph G {\n  label=\"Orders\"\n  a -> b\n}"
   private val mermaid = "flowchart LR\n  A[Start] --> B[End]\n"
+
+  // A DOT source that does not parse.
+  private val brokenDot = "digraph G {\n  a -> \n"
 
   private def waitFor(description: => String, timeoutMs: Int = 15000)(condition: => Boolean): Future[Unit] =
     val p     = Promise[Unit]()
@@ -176,6 +180,56 @@ class BoardViewSpec extends FunSuite with TestHelpers:
           // The id of the item comes from the name of the diagram, not from its opaque location.
           assertEquals(page.stored.items, Vector(BoardItem("stock-levels", location(stock), 0, 0)))
           assertEquals(page.root.querySelector("#board-empty"), null)
+
+  // Review finding. Graphviz draws an empty graph for a DOT item before its
+  // parse ends, and after its parse fails. The view took that drawing as the
+  // drawing of the item. Thus a DOT item with an error showed an empty frame
+  // and no cause.
+  test("a DOT item that does not parse shows the cause, and no drawing"):
+    val broken = Library.createDiagram("Broken", brokenDot)
+    onBoard(Board(Vector(BoardItem("broken", location(broken), 0, 0)))): page =>
+      waitFor(s"the frame shows the cause: ${page.root.innerHTML.take(600)}")(
+        page.frames.size == 1 && page.frame("broken").querySelector(".board-item-placeholder .bi-exclamation-triangle") != null
+      ).map(_ => assert(!page.hasDrawing("broken"), "the frame shows a drawing of a diagram that does not parse"))
+
+  // Review finding. The first fit of a board used the size of that empty
+  // drawing, and the real drawing came later with no new fit. Thus a large
+  // drawing went past the canvas.
+  test("the first view of a board fits the real size of its drawings"):
+    val chain = (1 to 16).map(i => s"node$i").mkString(" -> ")
+    val wide  = Library.createDiagram("Wide", s"digraph G {\n  rankdir=LR\n  $chain\n}")
+    onBoard(Board(Vector(BoardItem("wide", location(wide), 0, 0)))): page =>
+      // The page has no style sheet here, so the canvas gets its size here.
+      val canvas = page.root.querySelector(".board-canvas").asInstanceOf[dom.HTMLElement]
+      canvas.style.width = "800px"
+      canvas.style.height = "600px"
+      waitFor("the frame has a drawing")(page.frames.size == 1 && page.hasDrawing("wide"))
+        .flatMap(_ => afterMicrotasks(()))
+        .map: _ =>
+          val width = page.frame("wide").querySelector(".board-item-body svg").getAttribute("width").toDouble
+          assert(width > 800, s"precondition: the drawing is wider than the canvas: $width")
+          assert(page.scale * width <= 800, s"the first view does not show all of the drawing: the scale is ${page.scale}, the width is $width")
+
+  // Review finding. Each item makes a full ViewerState, and a ViewerState
+  // keeps the viewer settings of the window. An item that does not parse
+  // opens the Source panel of its state. That panel then became the setting
+  // of the next diagram that the person opened.
+  test("an item that does not parse does not change the viewer settings of the window"):
+    // An earlier suite can leave any panel in the stored settings. Start from a known panel that is not the Source panel.
+    val stored = Library.loadViewerSettings()
+    stored.set(stored.now().copy(rightPanelTabIndex = RightPanelSection.none.ordinal))
+    val before = Library.readViewerSettings().rightPanelTabIndex
+    assertEquals(before, RightPanelSection.none.ordinal, "precondition: the stored panel is the panel of the test")
+    val broken = Library.createDiagram("Broken", brokenDot)
+    onBoard(Board(Vector(BoardItem("broken", location(broken), 0, 0)))): page =>
+      waitFor("the frame of the item")(page.frames.size == 1)
+        .flatMap: _ =>
+          // The parse of the item and its notice come after the frame.
+          val p = Promise[Unit]()
+          js.timers.setTimeout(1000)(p.success(()))
+          p.future
+        .map: _ =>
+          assertEquals(Library.readViewerSettings().rightPanelTabIndex, before, "a board item changed the stored panel of the window")
 
   test("a board that the browser cannot read shows the cause, and no frame"):
     val boardId = BrowserBoards.create("Bad board").fold(message => fail(message), identity)

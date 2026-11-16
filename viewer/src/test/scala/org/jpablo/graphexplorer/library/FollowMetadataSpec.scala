@@ -40,13 +40,17 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
   private val text = "digraph G {\n  a -> b\n}"
 
   /** Open `path` with an entry of `metadata`, and run `body` on the viewer. */
-  private def onOpenFile(metadata: DiagramMetadata = DiagramMetadata(), inLibrary: Boolean = true)(
+  private def onOpenFile(
+      metadata:  DiagramMetadata = DiagramMetadata(),
+      inLibrary: Boolean = true,
+      other:     Vector[(String, String)] = Vector.empty
+  )(
       body: (FakeDesktopShell, DesktopLibrary, ViewerState) => Future[Unit]
   ): Future[Unit] =
     val shell = FakeDesktopShell()
     shell.install()
     shell.files(path) = text
-    if inLibrary then shell.putEntry(LibraryEntry(path, metadata, createdAt = 1, updatedAt = 1))
+    if inLibrary then shell.putEntry(LibraryEntry(path, metadata, createdAt = 1, updatedAt = 1, other = other))
     DesktopLibrary
       .load()
       .flatMap: library =>
@@ -154,6 +158,20 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
       afterMicrotasks:
         same(writesOf(shell), 1, "one hide gives one write")
         same(shell.entryOf(path).map(_.metadata.hiddenElements), Some(Set("node:b")))
+
+  // Review finding. Each change in the viewer made a NEW entry from the path,
+  // the metadata, and the times of the old entry. Thus a hide removed each key
+  // of the entry that this build does not know, for example a key of a later
+  // build. An older build removed `locked` in exactly this way.
+  test("a hide in the viewer keeps a key of the entry that this build does not know"):
+    val later = Vector("pinned" -> "true", "rev" -> "9007199254740993")
+    onOpenFile(other = later): (shell, _, state) =>
+      state.hiddenElements.add(Set(NodeId("b")))
+      afterMicrotasks:
+        same(writesOf(shell), 1, "one hide gives one write")
+        val saved = shell.entryOf(path).getOrElse(fail("no entry"))
+        same(saved.metadata.hiddenElements, Set("node:b"), "the hide of the viewer was not saved")
+        same(saved.other, later, "the hide of the viewer removed the keys of a later build")
 
   // ------------------------------------------------- a file with no entry
 

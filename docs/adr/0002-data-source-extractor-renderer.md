@@ -18,7 +18,7 @@ This does not bring back the binding of the old design (ADR 0001). There is stil
 - A Mermaid source with the Mermaid renderer keeps the draw from the raw source. A kind of Mermaid diagram that has no graph (a sequence diagram) works only with that pair.
 - The choice of renderer is metadata. Thus it survives when a tool writes the file again.
 - The key of an entry stays the SHA-256 of the canonical URI, so each current entry stays valid. When an extractor has parameters, the parameters are a part of the key text. Thus two extractors on one database give two diagrams.
-- For a file, the stored entry keeps the `path` key, and the location comes from the path. The `extractor` key and the `locked` key are in the entry only when they have a value. Thus an entry from before has the same bytes, and an older build can read a new entry.
+- For a file, the stored entry keeps the `path` key, and the location comes from the path. The `extractor` key and the `locked` key are in the entry only when they have a value. Thus an entry from before has the same bytes, and an older build can read a new entry. A read keeps each key of the entry that it does not know, and a write gives the key back after the known keys, in the order of the read. Thus a write of this build does not remove the keys of a later build.
 - A locked data source gets no write from the app and no write from `gx`. A change of the metadata stays possible, and the app still shows a change that a different tool makes.
 - A location holds no secret, because the app hashes it and shows it. The parameters of the extractor refer to an environment variable or to the keychain.
 - An extractor for a database runs in `gx`, not in a browser. The web app has only sources that the browser keeps.
