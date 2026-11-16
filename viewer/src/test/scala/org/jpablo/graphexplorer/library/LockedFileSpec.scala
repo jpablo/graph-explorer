@@ -150,6 +150,33 @@ class LockedFileSpec extends FunSuite with TestHelpers with LoggedChecks:
           same(result, SaveResult.Saved)
           same(open.shell.files.get(path), Some(edited))
 
+  // Review finding. `gx lock` writes the entry on the disk, and the mirror does
+  // not know it yet: the shell polls each 400 ms. A hide in the view in that
+  // window merges onto the OLD entry of the mirror, and the shell refuses the
+  // write. The retry merged the old `locked` of the view onto the fresh entry,
+  // so the lock from gx went away with no message.
+  test("a lock from gx that the mirror does not know yet survives the next hide in the view"):
+    onOpenFile(): open =>
+      val current = open.entry.getOrElse(fail("precondition: the file has an entry"))
+      // `gx lock` writes the disk. No refresh follows: the poll did not see it.
+      open.shell.putEntry(current.copy(metadata = current.metadata.copy(locked = true), updatedAt = 2))
+      open.state.hiddenElements.add(Set(NodeId("b")))
+      afterMicrotasks(()).flatMap(_ => afterMicrotasks(())).map: _ =>
+        val saved = open.entry.getOrElse(fail("no entry"))
+        same(saved.metadata.hiddenElements, Set("node:b"), "the hide of the view was not saved")
+        same(saved.metadata.locked, true, "the hide of the view removed the lock that gx wrote on the disk")
+
+  test("an unlock from gx that the mirror does not know yet survives the next hide in the view"):
+    onOpenFile(DiagramMetadata(locked = true)): open =>
+      val current = open.entry.getOrElse(fail("precondition: the file has an entry"))
+      // `gx unlock` writes the disk. No refresh follows: the poll did not see it.
+      open.shell.putEntry(current.copy(metadata = current.metadata.copy(locked = false), updatedAt = 2))
+      open.state.hiddenElements.add(Set(NodeId("b")))
+      afterMicrotasks(()).flatMap(_ => afterMicrotasks(())).map: _ =>
+        val saved = open.entry.getOrElse(fail("no entry"))
+        same(saved.metadata.hiddenElements, Set("node:b"), "the hide of the view was not saved")
+        same(saved.metadata.locked, false, "the hide of the view put back the lock that gx removed on the disk")
+
   test("a hide on a locked file goes to the entry"):
     onOpenFile(DiagramMetadata(locked = true)): open =>
       open.state.hiddenElements.add(Set(NodeId("a")))

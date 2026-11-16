@@ -195,6 +195,37 @@ class BoardFileSpec extends FunSuite with TestHelpers with LoggedChecks:
         owner.killSubscriptions()
         outcome
 
+  // Review finding. A save that waits behind a save in flight rendered its text
+  // at once, but it read the base revision only when it started. A version of
+  // a different tool that came in the wait then became its base. Thus the
+  // compare-and-swap passed, and the save wrote over that version.
+  test("a save that waits behind a save in flight does not write over a version from a different tool"):
+    shell.saveSendsEvent = true
+    DesktopBridge.install()
+    val reply = Promise[Unit]()
+    shell.saveReplyAfter = Some(reply.future)
+    val store = FileBoardStore(openBoard().id, None)
+    val first = board.move("arch", 1, 1)
+    // The shell writes the first save at once, but its reply waits.
+    val one = store.save(first)
+    // The second save waits behind the first save.
+    val two = store.save(first.move("flow", 2, 2))
+    afterMicrotasks(())
+      .flatMap: _ =>
+        same(shell.callsOf("save_document").size, 1, "precondition: the first save is in flight, and the second save waits")
+        same(fileBoard, first, "precondition: the shell wrote the first save")
+        // A different tool adds an item while the first save has no reply.
+        val theirs = Board.render(first.add("other.dot", 0, 500)._1)
+        writeOutside(theirs)
+        reply.success(())
+        for
+          a <- one
+          b <- two
+        yield
+          same(a, None, "the first save was refused")
+          same(shell.files(boardPath), theirs, "the waiting save wrote over the version of the different tool")
+          check(b.exists(_.contains("changed on disk")), s"the waiting save gave no refusal: $b")
+
   // ------------------------------------------------------------- the library
 
   /** The library with an entry for each of `paths`. */

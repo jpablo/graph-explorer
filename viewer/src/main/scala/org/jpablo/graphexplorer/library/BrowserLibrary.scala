@@ -106,7 +106,7 @@ object BrowserLibrary extends DiagramLibrary:
   // (PersistenceSpec pins this). The stored data keeps that prefix, so every raw
   // localStorage access must go through rawKey: then the key format cannot drift
   // between read, write, remove and scan sites.
-  private def rawKey(key: String): String = s"[StoredString]$key"
+  private[library] def rawKey(key: String): String = s"[StoredString]$key"
 
   // The one read of a key. `None` for a key that the storage does not have.
   private[library] def readKey(key: String): Option[String] =

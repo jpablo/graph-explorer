@@ -6,6 +6,7 @@ import org.scalajs.dom
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.scalajs.js
+import scala.scalajs.js.JSConverters.*
 
 /** A stand-in for the desktop shell, over an in-memory file system.
   *
@@ -52,6 +53,12 @@ final class FakeDesktopShell:
     * nothing.
     */
   var saveSendsEvent: Boolean = false
+
+  /** Set: `save_document` writes the file and sends its event at once, but
+    * its reply waits for this future. A test can then act while a save has no
+    * reply.
+    */
+  var saveReplyAfter: Option[Future[Unit]] = None
 
   /** The open requests that wait for `complete_open`, by request id: the path,
     * true when this open made the watch, and the answer.
@@ -284,7 +291,12 @@ final class FakeDesktopShell:
             // The real shell sends the document event of a save before its reply.
             if saveSendsEvent then
               dispatch("ge:document.changed", js.Dynamic.literal(text = files(path), path = path, revision = hash(files(path))))
-            ok(snapshot(path, files(path)))
+            val reply: js.Any = snapshot(path, files(path))
+            saveReplyAfter match
+              case None       => ok(reply)
+              case Some(gate) =>
+                given scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+                gate.map(_ => reply).toJSPromise
 
       case "complete_open" =>
         completeOpen(a)

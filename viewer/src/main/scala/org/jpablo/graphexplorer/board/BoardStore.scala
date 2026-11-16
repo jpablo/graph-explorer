@@ -53,17 +53,64 @@ object BoardStore:
     case ViewTarget.File(session) => Some(Route.File(session.value))
     case ViewTarget.Example(_, _) => None
 
-/** A board of the web app. Its items refer to diagrams of the browser library. */
+/** A board of the web app. Its items refer to diagrams of the browser library.
+  *
+  * A second tab can show the same board and write it. The store keeps the
+  * stored text that this page saw last: the text of the load, of a save, or
+  * of a write of a different tab. A save writes only over that text. When
+  * the storage holds a different text, a different tab wrote the board and
+  * this page did not see it yet. The save then refuses, and [[changes]]
+  * gives the stored version to the page.
+  */
 final class BrowserBoardStore(id: String, languages: DiagramLanguages) extends BoardStore:
 
   val name: Signal[String] = BrowserBoards.index.map(_.boards.find(_.id == id).fold("")(_.name))
 
-  def load(): Future[Either[String, Board]] = Future.successful(BrowserBoards.read(id))
+  // The stored text that this page saw last. `None` before the load, and
+  // when the storage has no board.
+  private var seen: Option[String] = None
 
-  def save(board: Board): Future[Option[String]] = Future.successful(BrowserBoards.write(id, board))
+  // Read the stored text, and keep it as the text that this page saw.
+  private def readStored(): Either[String, Board] =
+    seen = BrowserBoards.textOf(id)
+    BrowserBoards.parse(seen)
 
-  // Only this page writes the board of a browser.
-  val changes: EventStream[Either[String, Board]] = EventStream.empty
+  def load(): Future[Either[String, Board]] = Future.successful(readStored())
+
+  // The stored versions that a save found and did not write over.
+  private val refused = EventBus[Either[String, Board]]()
+
+  private val otherTab = "A different tab changed this board, so the app did not save it. Make the change again."
+
+  def save(board: Board): Future[Option[String]] =
+    val text   = Board.render(board)
+    val stored = BrowserBoards.textOf(id)
+    Future.successful:
+      if stored.contains(text) then
+        seen = stored
+        None
+      else if stored != seen then
+        refused.emit(readStored())
+        Some(otherTab)
+      else
+        val refusal = BrowserBoards.write(id, board)
+        // The browser can refuse the write. Then the storage keeps the old text.
+        seen = BrowserBoards.textOf(id)
+        refusal
+
+  /** Each version of the board that a different tab wrote. The browser tells
+    * this page with a `storage` event. A save that finds a version of a
+    * different tab gives it here also.
+    */
+  val changes: EventStream[Either[String, Board]] =
+    EventStream.merge(
+      BrowserBoards
+        .writesOfOtherTabs(id)
+        // A save of this page can see the version before its event comes.
+        .filter(_ => BrowserBoards.textOf(id) != seen)
+        .map(_ => readStored()),
+      refused.events
+    )
 
   def target(item: BoardItem): Future[Option[ViewTarget]] =
     Future.successful:

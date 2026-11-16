@@ -22,7 +22,11 @@ case class BoardIndex(boards: List[BoardSummary] = Nil) derives ReadWriter
   * location is `browser:<diagram id>` ([[locationOf]]).
   *
   * Each read goes to the storage, and nothing stays in memory. A board is
-  * small, and a second tab can change the storage.
+  * small, and a second tab can change the storage. A write of a second tab
+  * comes to this tab as a `storage` event ([[writesOfOtherTabs]]). [[write]]
+  * does no check of the stored text. The store of a board page
+  * (`BrowserBoardStore`) compares the stored text with [[textOf]] before it
+  * writes, so that it does not write over the board of a second tab.
   */
 object BrowserBoards:
 
@@ -75,13 +79,33 @@ object BrowserBoards:
       .map(refusal)
       .map(_ => id)
 
-  /** The board, or the cause when the storage has no board or its text does not parse. */
-  def read(id: String): Either[String, Board] =
-    Try(BrowserLibrary.readKey(boardKey(id))).toOption.flatten match
+  /** The stored text of the board. `None` when the storage has no board. */
+  def textOf(id: String): Option[String] =
+    Try(BrowserLibrary.readKey(boardKey(id))).toOption.flatten
+
+  /** The board in `text`, or the cause when there is no text or it does not parse. */
+  def parse(text: Option[String]): Either[String, Board] =
+    text match
       case None       => Left("The browser has no such board.")
       case Some(text) => Board.parse(text)
 
-  /** Write the board. The result is the message of a refusal, if the browser refused. */
+  /** The board, or the cause when the storage has no board or its text does not parse. */
+  def read(id: String): Either[String, Board] = parse(textOf(id))
+
+  /** An event for each write of a different tab to the board `id`.
+    *
+    * The browser sends a `storage` event to each other tab of the origin, and
+    * not to the tab that wrote. An event with no key comes from a `clear` of
+    * the storage, so it also has an effect on the board. The listener stays
+    * only while a subscriber stays.
+    */
+  def writesOfOtherTabs(id: String): EventStream[Unit] =
+    val key = BrowserLibrary.rawKey(boardKey(id))
+    windowEvents(_.onStorage).filter(event => event.key == null || event.key == key).mapToUnit
+
+  /** Write the board, with no check of the stored text. The result is the
+    * message of a refusal, if the browser refused.
+    */
   def write(id: String, board: Board): Option[String] =
     Try(BrowserLibrary.writeLocalStorage(boardKey(id), Board.render(board)))
       .flatMap: _ =>

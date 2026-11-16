@@ -34,6 +34,9 @@ class LockedDiagramSpec extends FunSuite with TestHelpers:
       |  b -> c
       |}""".stripMargin
 
+  // A source in a different language, for the tests of the extractor.
+  private val mermaid = "flowchart LR\n  A --> B\n"
+
   private def waitFor(description: => String, timeoutMs: Int = 10000)(condition: => Boolean): Future[Unit] =
     val p     = Promise[Unit]()
     val start = js.Date.now()
@@ -137,6 +140,51 @@ class LockedDiagramSpec extends FunSuite with TestHelpers:
       .transform: outcome =>
         owner.killSubscriptions()
         outcome
+
+  // Review finding. The restore of a diagram takes the language from the
+  // stored extractor first. A paste or a push of a source in a different
+  // language changed the language of the view, but not the extractor. Thus
+  // the next view of the diagram parsed the Mermaid text as DOT.
+
+  /** Select DOT, replace the source with Mermaid text, and open the diagram again. */
+  private def nextViewAfter(name: String)(replace: ViewerState => Unit): Future[Unit] =
+    val owner = ManualOwner()
+    sharedGraphviz
+      .flatMap: graphviz =>
+        val first = Fixture(name, graphviz)(using owner)
+        first.parsed
+          .flatMap: _ =>
+            first.state.setDiagramFormat(DiagramFormat.DOT)
+            replace(first.state)
+            waitFor("the view shows the Mermaid text")(first.state.formatSelection.now() == DiagramFormat.Mermaid)
+          .flatMap(_ => afterMicrotasks(()))
+          .flatMap: _ =>
+            val second = ViewerState(ViewTarget.diagram(name), graphviz)(using owner)
+            afterMicrotasks:
+              assert(second.sourceText.now().contains("A --> B"), s"precondition: the next view has the Mermaid text: ${second.sourceText.now()}")
+              assertEquals(second.formatSelection.now(), DiagramFormat.Mermaid, "the next view has the language of the old extractor")
+      .transform: outcome =>
+        owner.killSubscriptions()
+        outcome
+
+  test("after a paste in a different language, the next view of the diagram has the language of the paste"):
+    nextViewAfter("extractor-after-paste")(_.pasteDiagramFromGesture(mermaid))
+
+  test("after a push of text in a different language, the next view of the diagram has the language of the text"):
+    nextViewAfter("extractor-after-push")(_.replaceSourceDetectingFormat(mermaid))
+
+  test("after an undo to a text in a different language, the next view of the diagram has the language of the text"):
+    nextViewAfter("extractor-after-undo")(_.restoreSource(mermaid))
+
+  test("a replace in the same language does not change the selected extractor"):
+    withViewer("extractor-same-language"): f =>
+      f.state.setDiagramFormat(DiagramFormat.DOT)
+      val writes = mutable.Buffer.empty[Option[String]]
+      f.state.metadata.signal.changes.foreach(m => writes += m.extractor)(using f.state.owner)
+      f.state.replaceSourceDetectingFormat("digraph G {\n  x -> y\n}")
+      afterMicrotasks:
+        assertEquals(f.state.metadata.now().extractor, Some("dot"))
+        assertEquals(writes.toList, Nil, "a replace in the same language wrote the metadata")
 
   test("a selected language sets the extractor, and Auto removes it"):
     withViewer("extractor-selection"): f =>
