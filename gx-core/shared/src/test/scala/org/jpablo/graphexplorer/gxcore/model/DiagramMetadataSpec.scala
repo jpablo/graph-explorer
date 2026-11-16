@@ -16,4 +16,4 @@ class DiagramMetadataSpec extends FunSuite:
   test("the metadata has exactly the fields of plan §3, and no name and no folder"):
     val mirror = summon[Mirror.ProductOf[DiagramMetadata]]
     val fields = constValueTuple[mirror.MirroredElemLabels].toList.map(_.toString)
-    assertEquals(fields, List("hiddenElements", "collapsedGroups", "tags", "notes", "autoDetectFormat"))
+    assertEquals(fields, List("hiddenElements", "collapsedGroups", "tags", "notes", "autoDetectFormat", "renderer", "extractor", "locked"))

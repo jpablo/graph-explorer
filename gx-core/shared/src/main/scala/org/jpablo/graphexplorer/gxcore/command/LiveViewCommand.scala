@@ -2,6 +2,8 @@ package org.jpablo.graphexplorer.gxcore.command
 
 import org.jpablo.graphexplorer.viewer.models.ElementId
 
+import scala.util.chaining.scalaUtilChainingOps
+
 /** The live view tier: operations on the LIVE VIEW, what a desktop window
   * shows now (D7.2).
   *
@@ -153,8 +155,17 @@ object LiveViewCodec:
   *     `VIEW_REJECTED` message uses the same words.
   *   - `selection` has the selected elements in the `ElementRef` spelling.
   *     The caller renders the names against the file.
+  *   - `board` is the canonical path of the board file on the screen (ADR
+  *     0003). A board has no elements, so then `path` is `None` and the
+  *     selection is empty. A page from before the boards sends no `board`
+  *     key, and the key is only in the answer for a board.
   */
-final case class LiveViewSelection(path: Option[String], shows: String, selection: Vector[String]) derives CanEqual
+final case class LiveViewSelection(
+    path:      Option[String],
+    shows:     String,
+    selection: Vector[String],
+    board:     Option[String] = None
+) derives CanEqual
 
 object LiveViewSelection:
 
@@ -163,7 +174,7 @@ object LiveViewSelection:
       "path"      -> answer.path.fold(ujson.Null)(ujson.Str(_)),
       "shows"     -> answer.shows,
       "selection" -> ujson.Arr.from(answer.selection.map(ujson.Str(_)))
-    )
+    ).tap(obj => answer.board.foreach(b => obj("board") = b))
 
   /** A different shape is an answer from a page of a different version. */
   def decode(value: ujson.Value): Either[String, LiveViewSelection] =
@@ -173,5 +184,6 @@ object LiveViewSelection:
     (path, refs) match
       case (Some(p), Some(selection)) if p.isNull || p.strOpt.isDefined =>
         val shows = fields.flatMap(_.get("shows")).flatMap(_.strOpt).orElse(p.strOpt).getOrElse("a diagram that is not a file")
-        Right(LiveViewSelection(p.strOpt, shows, selection))
+        val board = fields.flatMap(_.get("board")).flatMap(_.strOpt)
+        Right(LiveViewSelection(p.strOpt, shows, selection, board))
       case _ => Left(s"the answer has no 'path' and 'selection': ${value.render()}")

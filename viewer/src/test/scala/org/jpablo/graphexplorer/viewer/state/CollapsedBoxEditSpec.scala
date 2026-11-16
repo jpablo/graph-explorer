@@ -110,7 +110,7 @@ class CollapsedBoxEditSpec extends FunSuite with TestHelpers:
   private def checkNoPhantomInText(state: ViewerState): Future[Unit] =
     val text = state.sourceText.now()
     state.languages
-      .forFormat(DiagramFormat.DOT)
+      .extractor(DiagramFormat.DOT)
       .textToGraph(text)
       .map: reparsed =>
         val phantomNodes = reparsed.nodeIds intersect phantomIds

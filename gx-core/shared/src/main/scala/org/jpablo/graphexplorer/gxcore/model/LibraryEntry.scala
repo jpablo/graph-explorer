@@ -16,7 +16,15 @@ final case class LibraryEntry(
     metadata:  DiagramMetadata,
     createdAt: Long,
     updatedAt: Long
-) derives CanEqual
+) derives CanEqual:
+
+  /** The location of the data source of this diagram: its canonical URI
+    * (ADR 0002). The key of the entry is the hash of this text.
+    *
+    * Each entry is for a file now, so the stored form holds the path, and
+    * this value comes from it.
+    */
+  def location: OriginUri = OriginUri.fromCanonicalPath(path)
 
 object LibraryEntry:
 
@@ -53,6 +61,12 @@ object LibraryEntry:
     * The sets are sorted vectors, so that one entry always gives the same
     * bytes.
     *
+    * `renderer`, `extractor`, and `locked` are the fields with a default. An
+    * entry from before a field has no key for it, and upickle reads a key
+    * that is not there only when the field has a default. Thus the writer
+    * leaves a key out when its value is the default, and such an entry has
+    * the bytes of before.
+    *
     * The stored form has no `name` and no `folder`, because a diagram has
     * neither in the library (CONTEXT.md).
     */
@@ -64,7 +78,10 @@ object LibraryEntry:
       collapsedGroups:  Vector[String],
       autoDetectFormat: Option[Boolean],
       createdAt:        Long,
-      updatedAt:        Long
+      updatedAt:        Long,
+      renderer:         Option[String] = None,
+      extractor:        Option[String] = None,
+      locked:           Boolean = false
   ) derives ReadWriter
 
   given ReadWriter[LibraryEntry] = upickle.default.readwriter[Stored].bimap[LibraryEntry](toStored, fromStored)
@@ -79,7 +96,10 @@ object LibraryEntry:
       collapsedGroups = m.collapsedGroups.toVector.sorted,
       autoDetectFormat = m.autoDetectFormat,
       createdAt = e.createdAt,
-      updatedAt = e.updatedAt
+      updatedAt = e.updatedAt,
+      renderer = m.renderer,
+      extractor = m.extractor,
+      locked = m.locked
     )
 
   private def fromStored(s: Stored): LibraryEntry =
@@ -90,7 +110,10 @@ object LibraryEntry:
         collapsedGroups = s.collapsedGroups.toSet,
         tags = s.tags,
         notes = s.notes,
-        autoDetectFormat = s.autoDetectFormat
+        autoDetectFormat = s.autoDetectFormat,
+        renderer = s.renderer,
+        extractor = s.extractor,
+        locked = s.locked
       ),
       createdAt = s.createdAt,
       updatedAt = s.updatedAt

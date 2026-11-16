@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs, Renderer}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.components.resolveTheme
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
@@ -139,7 +139,7 @@ case class ViewerState(
   // target starts an empty source with the template.
   private val phasesSource = if source.isEmpty && !isFileBacked then None else Some(source)
 
-  // Registry of diagram backends. InternalPhases depends only on this abstraction, not on concrete backends.
+  // Registry of the extractors, the printers, and the renderers. InternalPhases depends only on this abstraction, not on a concrete part.
   // It is public, so a view of OTHER diagrams (the library sidebar) can ask this registry
   // for their display titles. Without it, that view needs a second copy of the rule.
   val languages = DefaultDiagramLanguages(graphviz)
@@ -153,6 +153,8 @@ case class ViewerState(
     editorNotice = editorNotice,
     logLevel = logLevel,
     keepTextWhole = () => isFileBacked,
+    // The root `Var`, because its `now()` is always fresh.
+    sourceLocked = () => metadata.now().locked,
     refusedEdits = errorBus.writer
   )
 
@@ -162,8 +164,30 @@ case class ViewerState(
   val visibleGraph    = phases.visibleGraph
   val currentFormat   = phases.currentFormat
   val formatSelection = phases.formatSelection
-  val selectionStrategy = phases.selectionStrategy
-  val loadStatus        = phases.loadStatus
+  val loadStatus      = phases.loadStatus
+
+  /** The renderer that draws the diagram now (ADR 0002).
+    *
+    * It is the renderer that the person selected for this diagram, or else the
+    * renderer of the language of the source. An id that this build does not
+    * have counts as no selection.
+    *
+    * A selected renderer draws the graph of the diagram. A render-only kind (a
+    * Mermaid sequence diagram) has no graph, so only the renderer of its
+    * language can draw it, from the source. Thus the selection does not apply
+    * to that kind.
+    */
+  val currentRenderer: Signal[Renderer] =
+    currentFormat
+      .combineWithFn(metadata.renderer.signal, loadStatus.signal): (format, selected, status) =>
+        val ofLanguage = languages.renderer(format)
+        status match
+          case DiagramLoadStatus.RenderOnly(_) => ofLanguage
+          case _                               => selected.flatMap(languages.rendererById).getOrElse(ofLanguage)
+      .distinct
+
+  /** The drawing comes from the renderer, so the strategy that reads its SVG does also. */
+  val selectionStrategy: Signal[SelectableElementStrategy] = currentRenderer.map(_.selectionStrategy)
 
   // Shared read-once handles. Signal#observe allocates a PERMANENT owner-bound
   // subscription per call, so ad-hoc `.observe.now()` in per-event handlers leaked
@@ -187,9 +211,36 @@ case class ViewerState(
     * describes would be corrected before anyone could read it.
     */
   def setDiagramFormat(format: DiagramFormat): Unit =
-    Var.set(autoDetectFormat -> false, formatSelection -> format)
+    // The selection is the extractor of the language, in the metadata (ADR
+    // 0002). Thus the next open of the diagram uses it. The flag and the
+    // extractor are two fields of one `Var`, so one value sets the two.
+    val selected = metadata.now().copy(autoDetectFormat = Some(false), extractor = Some(languages.extractor(format).id))
+    Var.set(metadata.metadata -> selected, formatSelection -> format)
+
+  /** Let the document select its language again, and remove the selected extractor. */
+  def detectDiagramFormat(): Unit =
+    metadata.metadata.update(_.copy(autoDetectFormat = Some(true), extractor = None))
 
   val autoDetectFormat: Var[Boolean] = metadata.autoDetectFormat
+
+  /** The language that the metadata selects: the language of the selected
+    * extractor. It is `None` while auto-detect is on, and for an extractor
+    * that this build does not have.
+    */
+  private[state] def selectedFormat(m: DiagramMetadata): Option[DiagramFormat] =
+    if m.autoDetectFormat.getOrElse(true) then None
+    else m.extractor.flatMap(languages.extractorById).map(_.format)
+
+  // A different writer can select the extractor, for example a second window
+  // on the same file. Then the language of this view follows the selection.
+  metadata.extractor.signal.changes.foreach: _ =>
+    selectedFormat(metadata.now()).filter(_ != formatSelection.now()).foreach(formatSelection.set)
+
+  /** True when the person locked the diagram (CONTEXT.md, "Locked"). The app
+    * then does not change the source: not from the editor, not from the
+    * canvas, and not with a save. A change of the metadata stays possible.
+    */
+  val sourceLocked: Signal[Boolean] = metadata.locked.signal
 
   /** The format selector's three options as ONE string, since a `<select>` has
     * one value: the sentinel, or a format's name.
@@ -211,8 +262,29 @@ case class ViewerState(
       * that rule, so every path that asserts a language obeys it.
       */
     def select(value: String): Unit =
-      if value == auto then autoDetectFormat.set(true)
+      if value == auto then detectDiagramFormat()
       else setDiagramFormat(DiagramFormat.valueOf(value))
+
+  /** The options of the renderer selector as ONE string, as [[formatOption]]
+    * does: the sentinel, or the id of a renderer.
+    */
+  object rendererOption:
+    val auto = "Auto"
+
+    val available: List[Renderer] = languages.renderers
+
+    /** An id that this build does not have shows as Auto, and it stays in the
+      * metadata until the person selects a renderer.
+      */
+    val selected: Signal[String] =
+      metadata.renderer.signal.map(_.filter(id => languages.rendererById(id).isDefined).getOrElse(auto))
+
+    /** The renderer that Auto gives now, for the label of the option. */
+    val autoLabel: Signal[String] =
+      currentFormat.map(format => s"$auto — ${languages.renderer(format).label}")
+
+    def select(value: String): Unit =
+      metadata.renderer.set(Option.when(value != auto)(value))
 
   /** The title that the app shows for this diagram.
     *
@@ -233,19 +305,19 @@ case class ViewerState(
         documentSession
           .map(_.fold("")(session => LibraryEntry.nameOf(session.path)))
           .combineWithFn(sourceText.signal, formatSelection.signal): (fileName, source, format) =>
-            languages.forFormat(format).extractTitle(source).getOrElse(fileName)
+            languages.extractor(format).extractTitle(source).getOrElse(fileName)
       case _ =>
         storedName.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
           if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
-          else languages.forFormat(format).extractTitle(source).getOrElse(name)
+          else languages.extractor(format).extractTitle(source).getOrElse(name)
 
   /** Presentation metadata for every available format, in display order (drives the selector UI). */
   lazy val availableFormats: List[(DiagramFormat, DiagramLanguageInfo)] =
-    languages.all.map(backend => backend.format -> backend.info)
+    languages.extractors.map(extractor => extractor.format -> extractor.info)
 
   /** Presentation metadata for a single format. */
   def formatInfo(format: DiagramFormat): DiagramLanguageInfo =
-    languages.forFormat(format).info
+    languages.extractor(format).info
 
   private def elementExists(graph: ViewerGraph, id: ElementId): Boolean =
     id match
@@ -269,7 +341,7 @@ case class ViewerState(
   val mouseAction = MouseActionVar()
 
   // 5. Render visible content to SVG with position data.
-  // Each backend owns its render policy (DOT: synchronous from visibleText; Mermaid: async from
+  // Each renderer owns its render policy (DOT: synchronous from visibleText; Mermaid: async from
   // sourceText, validated), so the format dispatch lives in the registry, not here.
 
   // Paced. `visibleText` already is, by way of the parse behind it, but a
@@ -285,36 +357,43 @@ case class ViewerState(
       .combineWithFn(metadata.collapsedGroups.signal)((hidden, collapsed) => hidden.nonEmpty || collapsed.nonEmpty)
       .distinct
 
-  /** The render inputs for ONE backend, with `visibleText` serialized in THAT
-    * backend's language rather than in whichever one is current.
+  /** The render inputs for ONE renderer, with `visibleText` serialized in THAT
+    * renderer's language rather than in whichever one is current.
     *
     * The shared `phases.visibleText` is derived from `currentFormat`, and so is
-    * the backend selection below — two paths out of one source, and
-    * `flatMapSwitch` makes no promise to swap the backend before the new text
+    * the renderer selection below — two paths out of one source, and
+    * `flatMapSwitch` makes no promise to swap the renderer before the new text
     * reaches the outgoing one. It did not: replacing a DOT document with a
     * Mermaid one handed the still-subscribed Graphviz renderer a Mermaid
     * serialization of the very same graph, which it duly failed to parse.
-    * Deriving per backend makes that mismatch unrepresentable rather than
-    * merely unlikely — whatever a backend receives here, it is its own.
+    * Deriving per renderer makes that mismatch unrepresentable rather than
+    * merely unlikely — whatever a renderer receives here, it is its own.
     */
-  private def renderInputsFor(format: DiagramFormat) =
+  private def renderInputsFor(sourceInItsLanguage: Boolean) =
     DiagramRenderInputs(
-      visibleText = visibleGraph.map: graph =>
-        withLog("4. [visibleGraph -> visibleText]", level = phases.logLevel) {
-          languages.forFormat(format).graphToText(graph, omitInternal = false)
-        },
+      visibleGraph = visibleGraph,
       sourceText = pacedSourceText,
-      viewDiffersFromSource = viewDiffersFromSource
+      // A renderer cannot draw a source in a different language. Then it must
+      // always draw the text of the visible graph.
+      viewDiffersFromSource = if sourceInItsLanguage then viewDiffersFromSource else Val(true)
     )
 
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    // .distinct matters: the Mermaid backend HOLDS its previous value while an
-    // async render is pending (see MermaidBackend.render), and re-emitting the
+    // .distinct matters: the Mermaid renderer HOLDS its previous value while an
+    // async render is pending (see MermaidRenderer.render), and re-emitting the
     // same instance would re-amend the mounted svg — duplicate binders and
     // event listeners piling up on every render cycle.
-    phases.currentFormat
-      .flatMapSwitch(format => languages.forFormat(format).render(renderInputsFor(format)))
+    currentRenderer
+      .combineWithFn(currentFormat)((renderer, sourceFormat) => (renderer, renderer.format == sourceFormat))
       .distinct
+      .flatMapSwitch((renderer, sourceInItsLanguage) => renderer.render(renderInputsFor(sourceInItsLanguage)))
+      .distinct
+
+  /** The drawing alone, with no behavior of the canvas. A board shows it for an
+    * item. Only one place can show the element, and that place is not the
+    * canvas of this viewer ([[finalSVG]]).
+    */
+  val drawing: Signal[Option[ReactiveSvgElement[SVG]]] = svgWithPositions.map(_.map(_.svg))
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.

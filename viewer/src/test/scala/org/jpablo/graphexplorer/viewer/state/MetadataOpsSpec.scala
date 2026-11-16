@@ -56,6 +56,14 @@ class MetadataOpsSpec extends FunSuite:
     ops.autoDetectFormat.set(true)
     assertEquals(ops.now().autoDetectFormat, Some(true))
 
+  test("renderer reads None as no selection, and a setter writes the id or None"):
+    val ops = opsOver(DiagramMetadata(tags = List("t")))
+    assertEquals(ops.renderer.now(), None)
+    ops.renderer.set(Some("mermaid"))
+    assertEquals(ops.now(), DiagramMetadata(tags = List("t"), renderer = Some("mermaid")))
+    ops.renderer.set(None)
+    assertEquals(ops.now(), DiagramMetadata(tags = List("t")))
+
   test("a view writes only its own field"):
     val start = DiagramMetadata(
       hiddenElements = Set("node:a"),

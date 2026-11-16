@@ -43,7 +43,7 @@ It exits 0 also when no desktop runs.
 |---|---|---|---|
 | Read | `nodes`, `arrows`, `groups`, `attrs` | nothing | no |
 | Change | `set`, `reset`, `group`, `ungroup`, `combine-record`, `split-record`, `transpose-record` | the **file** | no |
-| Metadata | `hide`, `unhide`, `collapse`, `expand`, `tag`, `untag`, `note`, `info`, `ls`, `add`, `remove` | the **library**, never the file | no |
+| Metadata | `hide`, `unhide`, `collapse`, `expand`, `tag`, `untag`, `note`, `lock`, `unlock`, `info`, `ls`, `add`, `remove` | the **library**, never the file | no |
 | Desktop | `open`, `select`, `selection`, `fit` | nothing | **yes** |
 
 Add `--json` to each command that prints a result. Parse the JSON, not the columns. The
@@ -161,11 +161,26 @@ gx: /path/arch.dot changed after gx read it, so gx did not write it (expected 3f
 
 Run the command again. It reads the new file.
 
+### A locked file
+
+A person can lock a diagram (`gx lock <file>`). The lock tells Graph Explorer not to
+write the file. An example is a file that a tool makes again.
+
+Each change command refuses a locked file. That is exit **4**, and gx writes nothing:
+
+```
+gx: /path/arch.dot is locked, so gx did not write it. To remove the lock, run: gx unlock /path/arch.dot
+```
+
+**The lock is a decision of the user. Report the refusal, and ask before you run
+`gx unlock`.** Ask also before you change the text of the file yourself. The read commands
+and the metadata commands work on a locked file. `gx info <file> --json` gives `"locked"`.
+
 ## Remember about a diagram (metadata)
 
-The library keeps metadata about diagram files: tags, notes, hidden elements and collapsed
-groups. **A metadata command never changes the file.** Thus a file that a tool generates
-again keeps its hidden elements and its collapsed groups.
+The library keeps metadata about diagram files: tags, notes, hidden elements, collapsed
+groups and the lock. **A metadata command never changes the file.** Thus a file that a
+tool generates again keeps its hidden elements and its collapsed groups.
 
 ```bash
 gx hide     arch.dot web web..api
@@ -175,19 +190,25 @@ gx expand   arch.dot --all
 gx tag      arch.dot infra draft
 gx untag    arch.dot draft
 gx note     arch.dot "owned by the platform team"     # or --stdin, or --clear
+gx lock     arch.dot                   # each change command now refuses the file
+gx unlock   arch.dot
 gx info     arch.dot --json
 gx ls --tag infra --json
 gx add      arch.dot other.mmd         # put files in the library
 gx remove   arch.dot                   # take it out; the file stays
 ```
 
-- A command that adds metadata (`hide`, `collapse`, `tag`, `note <text>`, `add`) puts the
-  file in the library when it is not there yet. The file must exist.
-- A command that removes metadata (`unhide`, `expand`, `untag`, `note --clear`) on a file
-  that is not in the library does nothing, and exits 0.
-- `info` prints `path`, `inLibrary`, `tags`, `notes`, `hidden`, `collapsed` and
-  `autoDetectFormat`. It prints the hidden elements and the collapsed groups with their
-  names. When the file does not parse, it prints them as refs (`node:api`).
+- A command that adds metadata (`hide`, `collapse`, `tag`, `note <text>`, `lock`, `add`)
+  puts the file in the library when it is not there yet. The file must exist.
+- A command that removes metadata (`unhide`, `expand`, `untag`, `note --clear`, `unlock`)
+  on a file that is not in the library does nothing, and exits 0.
+- `info` prints `path`, `inLibrary`, `tags`, `notes`, `hidden`, `collapsed`,
+  `autoDetectFormat`, `location`, `extractor`, `renderer` and `locked`. It prints the
+  hidden elements and the collapsed groups with their names. When the file does not parse,
+  it prints them as refs (`node:api`).
+- `location` is the canonical `file:` URI of the file. `extractor` (`dot` or `mermaid`) and
+  `renderer` (`graphviz` or `mermaid`) are the parts that the user selected for the
+  diagram. They are `null` when the user selected none. `locked` is `true` after `gx lock`.
 - `ls` marks an entry whose file is missing with `missing` (`"missing": true` in JSON). The
   entry stays until a person removes it.
 - The library finds a file by its canonical path. **A rename or a move of the file loses
@@ -212,6 +233,21 @@ work. A desktop with no diagram on the screen also gives exit 2.
 desktop refuses the command (exit **4**), and the message names the diagram on the screen.
 Run `gx open <file>` first, then run the command again. `gx selection` prints the path of
 the diagram on the screen with the names of the selected elements.
+
+## Boards
+
+A board file (`.gxboard`) shows many diagrams on one canvas. It is JSON, and each item
+names the file of a diagram, relative to the board file. A board has no elements.
+
+- `gx open plan.gxboard` shows the board, and `gx fit plan.gxboard` fits it to the window.
+- The library commands (`add`, `remove`, `tag`, `untag`, `note`, `info`) take a board.
+  `gx ls` marks it with `board` (`"kind": "board"` in JSON).
+- Each command that reads elements (`nodes`, `set`, `hide`, `select`, …) refuses a board
+  with exit 4. Give it the file of a diagram on the board.
+- `gx lock` refuses a board with exit 4, because the desktop does not read a lock for a
+  board.
+- With a board on the screen, `gx select <file>` is refused (exit 4), and the message names
+  the board. Run `gx open <file>` for that diagram, then run the command again.
 
 ## Gotchas
 

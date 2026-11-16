@@ -138,7 +138,7 @@ The shell does not answer these commands. It sends the frame to the page as a `g
 - A command that changes the live view must give the canonical `path` of its diagram (plan §2). When the window shows a different diagram, the page refuses with `VIEW_REJECTED`, and the message names what the window shows. A command with no `path` gets `INVALID_REQUEST`.
 - In the answer of `what-is-selected`, `path` is the canonical path of the file on the screen. It is `null` when the window shows an example or a browser diagram. `shows` names the diagram on the screen for a person. `selection` holds the refs of the selected elements. `gx selection` changes the refs into element names.
 - With no window, or with no diagram on the screen, the answer is `NO_LIVE_VIEW`.
-- `push-text` puts the text into the editor of one document session. It does not write the file, so the editor then has an unsaved edit. The page refuses it with `VIEW_REJECTED` when the window shows a different session. The socket method `push-text` sends the same command.
+- `push-text` puts the text into the editor of one document session. It does not write the file, so the editor then has an unsaved edit. The page refuses it with `VIEW_REJECTED` when the window shows a different session, and when the diagram is locked. The socket method `push-text` sends the same command.
 - The shell passes on three codes of the page only: `NO_LIVE_VIEW`, `INVALID_REQUEST` and `VIEW_REJECTED`. Each other code of the page becomes `LIVE_VIEW_FAILED`.
 
 ## Tauri IPC commands

@@ -150,6 +150,14 @@ label[for ^= show-ns-kind-] {
       }
     }
 
+    #boards-grid {
+      @apply px-6 mt-8;
+
+      .board-card {
+        @apply bg-base-100 border border-base-300 max-w-xl shadow-xs;
+      }
+    }
+
     #examples-grid {
       @apply px-6 mt-8;
 
@@ -162,6 +170,101 @@ label[for ^= show-ns-kind-] {
           background-size: var(--gx-canvas-size);
         }
 
+      }
+    }
+  }
+}
+
+// The page of one board (ADR 0003): a bar, and a canvas with one frame for
+// each item. The layer of the frames has a CSS transform for the pan and the
+// zoom, so the frames use the units of the board.
+#board-view {
+  @apply bg-base-100 flex flex-col h-screen;
+
+  .board-bar {
+    @apply flex items-center gap-2 px-2 py-1.5 shrink-0 border-b border-base-300;
+
+    .board-name {
+      @apply font-semibold truncate flex items-center;
+    }
+
+    .board-add-menu {
+      @apply z-20 w-72 max-h-96 overflow-y-auto flex-nowrap;
+    }
+  }
+
+  .board-canvas {
+    @apply relative grow overflow-hidden;
+    background-color: var(--gx-canvas-bg);
+    background-image: var(--gx-canvas-img);
+    background-size: var(--gx-canvas-size);
+    cursor: grab;
+    touch-action: none;
+
+    .board-layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: 0 0;
+    }
+
+    .board-message {
+      @apply absolute inset-x-0 top-16 mx-auto w-fit max-w-lg text-sm text-base-content/70 bg-base-100 border border-base-300 rounded-box px-4 py-2;
+      cursor: default;
+    }
+  }
+
+  .board-item {
+    @apply absolute bg-base-100 border border-base-300 rounded-md shadow-sm;
+    cursor: default;
+
+    &.selected {
+      @apply border-primary shadow-md;
+      outline: 1px solid var(--color-primary);
+    }
+
+    &.missing {
+      @apply border-warning border-dashed;
+    }
+
+    // The height is `BoardFrame.TitleHeight` in the view code.
+    .board-item-title {
+      @apply flex items-center gap-1 px-2 border-b border-base-300 bg-base-200 text-sm rounded-t-md;
+      height: 28px;
+      cursor: move;
+      user-select: none;
+      touch-action: none;
+
+      .board-item-name {
+        @apply flex-1 min-w-0 truncate font-medium;
+      }
+
+      .board-item-button {
+        @apply shrink-0 rounded px-1 text-base-content/60 text-xs;
+        cursor: pointer;
+
+        &:hover {
+          @apply bg-base-300 text-base-content;
+        }
+
+        &:disabled {
+          @apply opacity-40;
+          cursor: default;
+        }
+      }
+    }
+
+    .board-item-body {
+      @apply block;
+
+      svg {
+        display: block;
+      }
+
+      .board-item-placeholder {
+        @apply flex items-center justify-center text-center text-sm text-base-content/60 p-4;
+        width: 320px;
+        height: 212px;
       }
     }
   }

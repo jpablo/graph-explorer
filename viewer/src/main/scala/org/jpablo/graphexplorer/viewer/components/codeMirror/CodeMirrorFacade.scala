@@ -30,6 +30,19 @@ trait EditorState extends js.Object:
   def doc: Text = js.native
 
 @js.native
+trait ReadOnlyFacet extends js.Object:
+  def of(readOnly: Boolean): Extension = js.native
+
+// Static members of the EditorState class.
+@js.native
+@JSImport("@codemirror/state", "EditorState")
+object EditorState extends js.Object:
+  /** With `true`, no command of the user changes the document. A dispatch
+    * from code still does, so the editor can show a new text of the file.
+    */
+  val readOnly: ReadOnlyFacet = js.native
+
+@js.native
 @JSImport("@codemirror/state", "Compartment")
 class Compartment() extends js.Object:
   def of(extension: Extension): Extension          = js.native

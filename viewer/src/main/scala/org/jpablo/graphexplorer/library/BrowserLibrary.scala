@@ -106,10 +106,10 @@ object BrowserLibrary extends DiagramLibrary:
   // (PersistenceSpec pins this). The stored data keeps that prefix, so every raw
   // localStorage access must go through rawKey: then the key format cannot drift
   // between read, write, remove and scan sites.
-  private def rawKey(key: String): String = s"[StoredString]$key"
+  private[library] def rawKey(key: String): String = s"[StoredString]$key"
 
   // The one read of a key. `None` for a key that the storage does not have.
-  private def readKey(key: String): Option[String] =
+  private[library] def readKey(key: String): Option[String] =
     Option(dom.window.localStorage.getItem(rawKey(key)))
 
   // One read of a key. `default` is for a key that the storage does not have.
@@ -119,7 +119,7 @@ object BrowserLibrary extends DiagramLibrary:
   /** Physically write a key. It throws when the storage refuses the write (for
     * example, a QuotaExceededError).
     */
-  private def writeLocalStorage(key: String, value: String): Unit =
+  private[library] def writeLocalStorage(key: String, value: String): Unit =
     dom.window.localStorage.setItem(rawKey(key), value)
 
   /** Remove a key from `localStorage`.
@@ -129,7 +129,7 @@ object BrowserLibrary extends DiagramLibrary:
     * nothing, and the payload stays after its diagram goes. Then
     * `storedDiagramPayloadsExist` sees these orphans as a live library.
     */
-  private def removeLocalStorage(key: String): Unit =
+  private[library] def removeLocalStorage(key: String): Unit =
     dom.window.localStorage.removeItem(rawKey(key))
 
   lazy val index: Signal[LibraryIndex] =
@@ -478,11 +478,11 @@ object BrowserLibrary extends DiagramLibrary:
         .flatMap(f => scala.util.Try(DiagramFormat.valueOf(f)).toOption)
         .getOrElse(DiagramFormat.detect(state.source))
       val name    = state.name
-      val backend = languages.forFormat(format)
+      val extractor = languages.extractor(format)
       val displayName =
         if name.trim.nonEmpty && name != DiagramSnapshot.defaultDiagramName then name
-        else backend.extractTitle(state.source).getOrElse(name)
-      Some(DiagramCardInfo(format, displayName, backend.diagramKind(state.source)))
+        else extractor.extractTitle(state.source).getOrElse(name)
+      Some(DiagramCardInfo(format, displayName, extractor.diagramKind(state.source)))
     catch case _: Throwable => None
 
   /** True when the library index has a diagram with this id. */

@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.library
 import munit.FunSuite
 import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
-import org.jpablo.graphexplorer.viewer.models.{DiagramId, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{DiagramId, GroupId, NodeId}
 import org.jpablo.graphexplorer.viewer.state.{SaveResult, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
@@ -121,6 +121,31 @@ class FollowMetadataSpec extends FunSuite with TestHelpers with LoggedChecks:
         val saved = shell.entryOf(path).getOrElse(fail("no entry"))
         same(saved.metadata.hiddenElements, Set("node:b"), "the hide of the viewer was not saved")
         same(saved.metadata.tags, List("infra"), "the hide of the viewer erased the tag that gx wrote on the disk")
+
+  // The same window as above, for a field that the viewer owns. The retry
+  // after LIBRARY_CONFLICT read the fresh entry, and then it wrote ALL the
+  // owned fields of the viewer onto it. The old hidden set of the viewer
+  // removed the hide from gx.
+  test("a hide from gx that the mirror does not know yet survives the next collapse in the viewer"):
+    onOpenFile(): (shell, _, state) =>
+      val current = shell.entryOf(path).getOrElse(fail("precondition: the file has an entry"))
+      // `gx hide` writes the disk. No refresh follows: the poll did not see it.
+      shell.putEntry(current.copy(metadata = current.metadata.copy(hiddenElements = Set("node:a")), updatedAt = 2))
+      state.metadata.collapsedGroups.set(Set(GroupId("g")))
+      afterMicrotasks(()).flatMap(_ => afterMicrotasks(())).map: _ =>
+        val saved = shell.entryOf(path).getOrElse(fail("no entry"))
+        same(saved.metadata.collapsedGroups, Set("group:g"), "the collapse of the viewer was not saved")
+        same(saved.metadata.hiddenElements, Set("node:a"), "the collapse of the viewer removed the hide that gx wrote on the disk")
+
+  test("a hide from gx that the mirror does not know yet survives the next hide in the viewer"):
+    onOpenFile(): (shell, _, state) =>
+      val current = shell.entryOf(path).getOrElse(fail("precondition: the file has an entry"))
+      // `gx hide` writes the disk. No refresh follows: the poll did not see it.
+      shell.putEntry(current.copy(metadata = current.metadata.copy(hiddenElements = Set("node:a")), updatedAt = 2))
+      state.hiddenElements.add(Set(NodeId("b")))
+      afterMicrotasks(()).flatMap(_ => afterMicrotasks(())).map: _ =>
+        val saved = shell.entryOf(path).getOrElse(fail("no entry"))
+        same(saved.metadata.hiddenElements, Set("node:a", "node:b"), "the hide of the viewer removed the hide that gx wrote on the disk")
 
   test("control: a hide in the viewer with no change from gx writes the entry"):
     // Proof that the tests above do not pass because the viewer writes nothing.

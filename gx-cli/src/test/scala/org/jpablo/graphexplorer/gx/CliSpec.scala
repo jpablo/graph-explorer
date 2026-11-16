@@ -671,6 +671,137 @@ class CliSpec extends FunSuite:
     assert(r.env.audit.entries.exists(_.contains("\"denied\"")), r.env.audit.entries.mkString("\n"))
   }
 
+  // ------------------------------------------------------------ the lock
+
+  /** A diagram that each change command can change: a group with two nodes,
+    * a record node, and no comment.
+    */
+  private def Changeable =
+    """digraph G {
+      |  subgraph cluster_svc { label="services"; api; db }
+      |  rec [shape=record, label="x|y"]
+      |  web -> api
+      |}
+      |""".stripMargin
+
+  /** One command line for each change command. Each one changes `Changeable`. */
+  private def ChangeCommands: Seq[Seq[String]] = Seq(
+    Seq("set", "c.dot", "api", "color=red"),
+    Seq("reset", "c.dot", "rec"),
+    Seq("group", "c.dot", "web"),
+    Seq("ungroup", "c.dot", "cluster_svc"),
+    Seq("combine-record", "c.dot", "api", "db"),
+    Seq("split-record", "c.dot", "rec"),
+    Seq("transpose-record", "c.dot", "rec")
+  )
+
+  tmp.test("each change command refuses a locked file, and the bytes of the file stay") { dir =>
+    for args <- ChangeCommands do
+      val line = args.mkString(" ")
+      val f    = write(dir, "c.dot", Changeable)
+      val path = f.toRealPath().toString
+      assertEquals(Run(dir)("lock", "c.dot"), ExitCode.Ok, line)
+      val before = Files.readAllBytes(f).toVector
+      val logged = writes(dir)
+
+      val r = Run(dir)
+      assertEquals(r(args*), ExitCode.InvalidPathOrPolicy, s"$line: ${r.stderr}")
+      assertEquals(
+        r.stderr.linesIterator.toVector,
+        Vector(s"gx: $path is locked, so gx did not write it. To remove the lock, run: gx unlock $path"),
+        line
+      )
+      assertEquals(r.stdout, "", line)
+      assertEquals(Files.readAllBytes(f).toVector, before, s"$line: a refused change wrote the file")
+      assertEquals(writes(dir), logged, s"$line: gx wrote nothing, so the audit log has no new write")
+
+      // After `unlock`, the same command writes the file.
+      assertEquals(Run(dir)("unlock", "c.dot"), ExitCode.Ok, line)
+      val u = Run(dir)
+      assertEquals(u(args*), ExitCode.Ok, s"$line: ${u.stderr}")
+      assertNotEquals(Files.readAllBytes(f).toVector, before, s"$line: the command wrote nothing after the unlock")
+  }
+
+  tmp.test("a change command refuses a locked file also when the change gives the same text") { dir =>
+    val f = arch(dir)
+    assertEquals(Run(dir)("set", "arch.dot", "api", "color=red"), ExitCode.Ok)
+    val text = Files.readString(f)
+    Run(dir)("lock", "arch.dot")
+    val r = Run(dir)
+    assertEquals(r("set", "arch.dot", "api", "color=red"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("is locked"), r.stderr)
+    assertEquals(Files.readString(f), text)
+  }
+
+  tmp.test("the refusal of a locked file comes before the check of the element names") { dir =>
+    arch(dir)
+    Run(dir)("lock", "arch.dot")
+    val r = Run(dir)
+    assertEquals(r("set", "arch.dot", "nope", "color=red"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("is locked"), r.stderr)
+    assert(!r.stderr.contains("nope"), r.stderr)
+  }
+
+  tmp.test("the refusal of a locked file gives the path as one word for a shell") { dir =>
+    val f = write(dir, "my arch.dot", Arch)
+    Run(dir)("lock", "my arch.dot")
+    val r = Run(dir)
+    assertEquals(r("set", "my arch.dot", "api", "color=red"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.trim.endsWith(s"gx unlock '${f.toRealPath()}'"), r.stderr)
+  }
+
+  tmp.test("a read command works on a locked file") { dir =>
+    val f = arch(dir)
+    Run(dir)("lock", "arch.dot")
+    for args <- Seq(Seq("nodes"), Seq("arrows"), Seq("groups"), Seq("attrs", "api")) do
+      val r = Run(dir)
+      assertEquals(r((args.head +: "arch.dot" +: args.tail)*), ExitCode.Ok, s"${args.head}: ${r.stderr}")
+      assert(r.stdout.nonEmpty, args.head)
+    assertEquals(Files.readString(f), Arch)
+  }
+
+  tmp.test("a metadata command works on a locked file, and the lock stays") { dir =>
+    val f = arch(dir)
+    Run(dir)("lock", "arch.dot")
+    for args <- Seq(
+        Seq("hide", "arch.dot", "api"),
+        Seq("unhide", "arch.dot", "--all"),
+        Seq("collapse", "arch.dot", "cluster_svc"),
+        Seq("expand", "arch.dot", "--all"),
+        Seq("tag", "arch.dot", "infra", "draft"),
+        Seq("untag", "arch.dot", "draft"),
+        Seq("note", "arch.dot", "a tool makes this file"),
+        Seq("info", "arch.dot")
+      )
+    do
+      val r = Run(dir)
+      assertEquals(r(args*), ExitCode.Ok, s"${args.mkString(" ")}: ${r.stderr}")
+    val meta = Run(dir).entry(f).map(_.metadata).getOrElse(fail("the entry is gone"))
+    assertEquals(meta.tags, List("infra"))
+    assertEquals(meta.notes, "a tool makes this file")
+    assertEquals(meta.locked, true, "a metadata command removed the lock")
+    assertEquals(Files.readString(f), Arch)
+  }
+
+  tmp.test("a file with an entry and no lock is not locked") { dir =>
+    val f = arch(dir)
+    Run(dir)("add", "arch.dot")
+    val r = Run(dir)
+    assertEquals(r("set", "arch.dot", "api", "color=red"), ExitCode.Ok, r.stderr)
+    assert(Files.readString(f).contains("red"), Files.readString(f))
+  }
+
+  // An entry that gx cannot read can hold a lock. Thus gx does not write the file.
+  tmp.test("a change command writes nothing when gx cannot read the entry of the file") { dir =>
+    val f = arch(dir)
+    Run(dir)("add", "arch.dot")
+    Files.writeString(metadataDir(dir).resolve(MetadataStore.fileNameOf(f.toRealPath().toString)), "not an entry")
+    val r = Run(dir)
+    assertEquals(r("set", "arch.dot", "api", "color=red"), ExitCode.Unknown)
+    assert(r.stderr.contains("cannot be read"), r.stderr)
+    assertEquals(Files.readString(f), Arch)
+  }
+
   // ----------------------------------------------------------- metadata
 
   tmp.test("hide on a file that is not in the library puts it there, and does not change the file") { dir =>
@@ -815,6 +946,65 @@ class CliSpec extends FunSuite:
     assertEquals(r.entry(f).map(_.metadata.notes), Some("--draft"))
   }
 
+  tmp.test("lock sets the lock and puts the file in the library, and unlock removes the lock") { dir =>
+    val f = arch(dir)
+    val r = Run(dir)
+    assertEquals(r("lock", "arch.dot"), ExitCode.Ok, r.stderr)
+    assertEquals(r.stdout.trim, s"${f.toRealPath()}  locked: true")
+    val locked = r.entry(f).getOrElse(fail("lock did not make an entry"))
+    assertEquals(locked.metadata.locked, true)
+    assertEquals(Files.readString(f), Arch, "a metadata command changed the file")
+
+    val again = Run(dir)
+    assertEquals(again("lock", "arch.dot"), ExitCode.Ok, again.stderr)
+    assertEquals(again.entry(f), Some(locked), "a second lock changed the entry")
+
+    val u = Run(dir)
+    assertEquals(u("unlock", "arch.dot"), ExitCode.Ok, u.stderr)
+    assertEquals(u.stdout.trim, s"${f.toRealPath()}  locked: false")
+    assertEquals(u.entry(f).map(_.metadata.locked), Some(false))
+  }
+
+  tmp.test("lock --json and unlock --json give the metadata of the diagram") { dir =>
+    arch(dir)
+    val r = Run(dir)
+    assertEquals(r("lock", "arch.dot", "--json"), ExitCode.Ok, r.stderr)
+    assertEquals(r.json("locked").bool, true)
+    assertEquals(r.json("inLibrary").bool, true)
+    val u = Run(dir)
+    assertEquals(u("unlock", "arch.dot", "--json"), ExitCode.Ok, u.stderr)
+    assertEquals(u.json("locked").bool, false)
+    assertEquals(u.json("inLibrary").bool, true)
+  }
+
+  tmp.test("unlock on a file with no entry does nothing and exits 0") { dir =>
+    val f = arch(dir)
+    val r = Run(dir)
+    assertEquals(r("unlock", "arch.dot"), ExitCode.Ok, r.stderr)
+    assertEquals(r.entry(f), None, "a removal made an entry")
+    assert(r.stdout.contains("not in the library"), r.stdout)
+  }
+
+  tmp.test("lock of a file that does not exist is exit 4, and no entry is made") { dir =>
+    val r = Run(dir)
+    assertEquals(r("lock", "nope.dot"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("nope.dot"), r.stderr)
+    assertEquals(r.library.list(), Vector.empty)
+  }
+
+  tmp.test("lock and unlock take exactly one file") { dir =>
+    val f = arch(dir)
+    write(dir, "b.dot", "digraph { x }")
+    for command <- Seq("lock", "unlock") do
+      val none = Run(dir)
+      assertEquals(none(command), ExitCode.Usage, command)
+      assert(none.stderr.contains("<file>"), none.stderr)
+      val two = Run(dir)
+      assertEquals(two(command, "arch.dot", "b.dot"), ExitCode.Usage, command)
+      assert(two.stderr.contains("exactly one <file>"), two.stderr)
+      assertEquals(two.entry(f), None, s"$command with two files made an entry")
+  }
+
   tmp.test("info prints the metadata, with element names") { dir =>
     val f = arch(dir)
     Run(dir)("hide", "arch.dot", "api..db")
@@ -829,19 +1019,57 @@ class CliSpec extends FunSuite:
     assertEquals(fields.get("hidden"), Some("api..db"))
     assertEquals(fields.get("collapsed"), Some("cluster_svc"))
     assert(fields.contains("notes") && fields.contains("autoDetectFormat"), r.stdout)
+    assertEquals(fields.get("location"), Some(LibraryEntry.keySource(f.toRealPath().toString)))
+    assertEquals(fields.get("extractor"), Some("(not set)"))
+    assertEquals(fields.get("renderer"), Some("(not set)"))
+    assertEquals(fields.get("locked"), Some("false"))
   }
 
-  tmp.test("info --json has exactly the fields of the plan") { dir =>
-    arch(dir)
+  tmp.test("info --json has exactly these fields, in this order") { dir =>
+    val f = arch(dir)
     Run(dir)("hide", "arch.dot", "api")
     val r = Run(dir)
     assertEquals(r("info", "arch.dot", "--json"), ExitCode.Ok, r.stderr)
     assertEquals(
-      r.json.obj.keySet.toSet,
-      Set("path", "inLibrary", "tags", "notes", "hidden", "collapsed", "autoDetectFormat")
+      r.json.obj.keys.toVector,
+      Vector(
+        "path", "inLibrary", "tags", "notes", "hidden", "collapsed", "autoDetectFormat",
+        "location", "extractor", "renderer", "locked"
+      )
     )
     assertEquals(r.json("hidden").arr.map(_.str).toVector, Vector("api"))
     assertEquals(r.json("autoDetectFormat"), ujson.Null)
+    // The location is the canonical `file:` URI of the file.
+    val location = r.json("location").str
+    assertEquals(location, LibraryEntry.keySource(f.toRealPath().toString))
+    assert(location.startsWith("file:///") && location.endsWith("/arch.dot"), location)
+    assertEquals(r.json("extractor"), ujson.Null)
+    assertEquals(r.json("renderer"), ujson.Null)
+    assertEquals(r.json("locked"), ujson.Bool(false))
+  }
+
+  tmp.test("info gives the extractor, the renderer and the lock of an entry") { dir =>
+    val f = arch(dir)
+    val a = Run(dir)
+    assertEquals(a("lock", "arch.dot"), ExitCode.Ok, a.stderr)
+    val entry    = a.entry(f).getOrElse(fail("lock did not make an entry"))
+    val selected = entry.metadata.copy(extractor = Some("dot"), renderer = Some("mermaid"))
+    a.library.put(entry.copy(metadata = selected)).fold(err => fail(s"$err"), identity)
+
+    val r = Run(dir)
+    assertEquals(r("info", "arch.dot", "--json"), ExitCode.Ok, r.stderr)
+    assertEquals(r.json("location").str, entry.location.value)
+    assertEquals(r.json("extractor"), ujson.Str("dot"))
+    assertEquals(r.json("renderer"), ujson.Str("mermaid"))
+    assertEquals(r.json("locked"), ujson.Bool(true))
+
+    val t = Run(dir)
+    assertEquals(t("info", "arch.dot"), ExitCode.Ok, t.stderr)
+    val fields = t.lines.map(l => l.takeWhile(_ != ':') -> l.dropWhile(_ != ':').drop(1).trim).toMap
+    assertEquals(fields.get("location"), Some(entry.location.value))
+    assertEquals(fields.get("extractor"), Some("dot"))
+    assertEquals(fields.get("renderer"), Some("mermaid"))
+    assertEquals(fields.get("locked"), Some("true"))
   }
 
   tmp.test("info on a file that is not in the library says so, and makes no entry") { dir =>
@@ -849,6 +1077,11 @@ class CliSpec extends FunSuite:
     val r = Run(dir)
     assertEquals(r("info", "arch.dot", "--json"), ExitCode.Ok, r.stderr)
     assertEquals(r.json("inLibrary").bool, false)
+    // With no entry, the location is still the URI of the file, and there is no lock.
+    assertEquals(r.json("location").str, LibraryEntry.keySource(f.toRealPath().toString))
+    assertEquals(r.json("extractor"), ujson.Null)
+    assertEquals(r.json("renderer"), ujson.Null)
+    assertEquals(r.json("locked"), ujson.Bool(false))
     assertEquals(r.entry(f), None)
   }
 
@@ -1079,7 +1312,9 @@ class CliSpec extends FunSuite:
         Seq("expand", "arch.dot", "--all"),
         Seq("tag", "arch.dot", "x"),
         Seq("untag", "arch.dot", "x"),
-        Seq("note", "arch.dot", "n")
+        Seq("note", "arch.dot", "n"),
+        Seq("lock", "arch.dot"),
+        Seq("unlock", "arch.dot")
       )
     do
       // Each library command starts with the old records and no metadata/.
@@ -1217,7 +1452,7 @@ class CliSpec extends FunSuite:
     assertEquals(r.lines, Vector(s"$f  selected: api, api..db"))
     val j = Run(dir, answer = (_, _) => Right(answer))
     assertEquals(j("selection", "--json"), ExitCode.Ok, j.stderr)
-    assertEquals(j.json, ujson.Obj("path" -> f, "selection" -> ujson.Arr("api", "api..db")))
+    assertEquals(j.json, ujson.Obj("path" -> f, "selection" -> ujson.Arr("api", "api..db"), "board" -> ujson.Null))
     val e = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(f), f)))
     assertEquals(e("selection"), ExitCode.Ok, e.stderr)
     assertEquals(e.lines, Vector(s"$f  nothing selected"))
@@ -1232,7 +1467,7 @@ class CliSpec extends FunSuite:
     assertEquals(r.lines, Vector("selected: node:a"))
     val j = Run(dir, answer = (_, _) => Right(answer))
     assertEquals(j("selection", "--json"), ExitCode.Ok, j.stderr)
-    assertEquals(j.json, ujson.Obj("path" -> ujson.Null, "selection" -> ujson.Arr("node:a")))
+    assertEquals(j.json, ujson.Obj("path" -> ujson.Null, "selection" -> ujson.Arr("node:a"), "board" -> ujson.Null))
   }
 
   tmp.test("selection gives the refs when gx cannot read the file on the screen") { dir =>
@@ -1240,14 +1475,14 @@ class CliSpec extends FunSuite:
     val r    = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(gone), gone, "node:a")))
     assertEquals(r("selection", "--json"), ExitCode.Ok, r.stderr)
     assert(r.stderr.contains(gone), r.stderr)
-    assertEquals(r.json, ujson.Obj("path" -> gone, "selection" -> ujson.Arr("node:a")))
+    assertEquals(r.json, ujson.Obj("path" -> gone, "selection" -> ujson.Arr("node:a"), "board" -> ujson.Null))
   }
 
   tmp.test("selection gives the refs when the desktop sends a path that no file can have") { dir =>
     val r = Run(dir, answer = (_, _) => Right(selectionAnswer(Some(UnusablePath), UnusablePath, "node:a")))
     assertEquals(r("selection", "--json"), ExitCode.Ok, r.stderr)
     assert(r.stderr.contains("The selection is in the ref spelling"), r.stderr)
-    assertEquals(r.json, ujson.Obj("path" -> UnusablePath, "selection" -> ujson.Arr("node:a")))
+    assertEquals(r.json, ujson.Obj("path" -> UnusablePath, "selection" -> ujson.Arr("node:a"), "board" -> ujson.Null))
   }
 
   tmp.test("selection with nothing on the screen is exit 2, as before") { dir =>
@@ -1443,7 +1678,8 @@ class CliSpec extends FunSuite:
     for command <- Seq(
         "nodes", "arrows", "groups", "attrs", "set", "reset", "group", "ungroup", "combine-record",
         "split-record", "transpose-record", "hide", "unhide", "collapse", "expand", "tag", "untag", "note",
-        "info", "ls", "add", "remove", "open", "select", "selection", "fit", "status", "watch", "skill"
+        "lock", "unlock", "info", "ls", "add", "remove", "open", "select", "selection", "fit", "status", "watch",
+        "skill"
       )
     do assert(r.stdout.contains(s"gx $command"), s"the usage does not name $command")
     for gone <- Seq("gx import", "gx get", "gx bind", "gx sync", "gx run", "gx view", "--mode") do
@@ -1551,6 +1787,139 @@ class CliSpec extends FunSuite:
       val text = Files.readString(dir.resolve(file)).split("## Removed commands").head
       for gone <- Seq("gx import", "gx get", "gx bind", "gx unbind", "gx sync", "gx run", "gx view", "--mode", "--params") do
         assert(!text.contains(gone), s"$file still names '$gone'")
+  }
+
+  // -------------------------------------------------------------- boards
+
+  /** A board file (ADR 0003) with one item. gx does not read a board as a
+    * diagram, but it keeps a board in the library, and the desktop shows it.
+    */
+  private def plan(dir: Path): Path =
+    write(dir, "plan.gxboard", """{ "version": 1, "items": [ { "id": "arch", "location": "arch.dot", "x": 0, "y": 0 } ] }""")
+
+  /** Each command that reads a board as a diagram. */
+  private def DiagramCommands: Seq[Seq[String]] = Seq(
+    Seq("nodes", "plan.gxboard"),
+    Seq("arrows", "plan.gxboard", "--json"),
+    Seq("groups", "plan.gxboard"),
+    Seq("attrs", "plan.gxboard", "arch"),
+    Seq("set", "plan.gxboard", "arch", "color=red"),
+    Seq("reset", "plan.gxboard", "arch"),
+    Seq("group", "plan.gxboard", "arch"),
+    Seq("ungroup", "plan.gxboard", "arch"),
+    Seq("combine-record", "plan.gxboard", "a", "b"),
+    Seq("split-record", "plan.gxboard", "arch"),
+    Seq("transpose-record", "plan.gxboard", "arch"),
+    Seq("hide", "plan.gxboard", "arch"),
+    Seq("unhide", "plan.gxboard", "arch"),
+    Seq("unhide", "plan.gxboard", "--all"),
+    Seq("collapse", "plan.gxboard", "arch"),
+    Seq("expand", "plan.gxboard", "--all"),
+    Seq("select", "plan.gxboard", "arch")
+  )
+
+  tmp.test("a diagram command refuses a board file: exit 4, a message that says what to do, and no change") { dir =>
+    arch(dir)
+    val board = plan(dir)
+    val bytes = Files.readString(board)
+    for args <- DiagramCommands do
+      val r = Run(dir, answer = (_, _) => Right(ujson.Null))
+      assertEquals(r(args*), ExitCode.InvalidPathOrPolicy, s"${args.mkString(" ")}: ${r.stderr}")
+      assert(r.stderr.contains("is a board, not a diagram"), s"${args.mkString(" ")}: ${r.stderr}")
+      assert(r.stderr.contains("gx open " + board.toRealPath()), s"${args.mkString(" ")}: ${r.stderr}")
+      // Before, gx parsed the board as DOT and gave "Expected graphP".
+      assert(!r.stderr.contains("graphP"), s"${args.mkString(" ")}: ${r.stderr}")
+      assertEquals(r.stdout, "", args.mkString(" "))
+      assert(r.sent.isEmpty, s"${args.mkString(" ")} sent ${r.sent}")
+      assertEquals(Files.readString(board), bytes, s"${args.mkString(" ")} changed the board file")
+      assertEquals(r.entry(board), None, s"${args.mkString(" ")} made an entry")
+  }
+
+  tmp.test("the check of a board file looks at the extension, also in capitals") { dir =>
+    write(dir, "PLAN.GXBOARD", "{}")
+    val r = Run(dir)
+    assertEquals(r("nodes", "PLAN.GXBOARD"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("is a board, not a diagram"), r.stderr)
+  }
+
+  tmp.test("ls marks a board, and --json gives the kind of each entry") { dir =>
+    val a = arch(dir).toRealPath().toString
+    val b = plan(dir).toRealPath().toString
+    Run(dir)("add", "arch.dot", "plan.gxboard")
+    Run(dir)("tag", "plan.gxboard", "q3")
+    val r = Run(dir)
+    assertEquals(r("ls"), ExitCode.Ok, r.stderr)
+    assert(r.lines.contains(s"$b  board  tags: q3"), r.stdout)
+    assert(r.lines.contains(a), r.stdout)
+    val j = Run(dir)
+    assertEquals(j("ls", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json.arr.map(e => e("path").str -> e("kind").str).toMap, Map(a -> "diagram", b -> "board"))
+  }
+
+  tmp.test("status counts the boards apart from the diagrams") { dir =>
+    arch(dir)
+    plan(dir)
+    Run(dir)("add", "arch.dot", "plan.gxboard")
+    val r = Run(dir)
+    assertEquals(r("status"), ExitCode.Ok, r.stderr)
+    assert(r.stdout.contains("diagrams: 1"), r.stdout)
+    assert(r.stdout.contains("boards:   1"), r.stdout)
+    val j = Run(dir)
+    assertEquals(j("status", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json("diagrams").num.toInt, 1)
+    assertEquals(j.json("boards").num.toInt, 1)
+  }
+
+  tmp.test("lock refuses a board, because the desktop does not read a lock for a board") { dir =>
+    val board = plan(dir)
+    val r     = Run(dir)
+    assertEquals(r("lock", "plan.gxboard"), ExitCode.InvalidPathOrPolicy, r.stderr)
+    assert(r.stderr.contains("is a board"), r.stderr)
+    assertEquals(r.entry(board), None, "lock made an entry")
+    // unlock removes a lock, so it is safe on each file.
+    val u = Run(dir)
+    assertEquals(u("unlock", "plan.gxboard"), ExitCode.Ok, u.stderr)
+  }
+
+  tmp.test("tag, note, info, add, remove and open work on a board") { dir =>
+    val board = plan(dir).toRealPath().toString
+    for args <- Seq(
+        Seq("add", "plan.gxboard"),
+        Seq("tag", "plan.gxboard", "q3"),
+        Seq("note", "plan.gxboard", "the plan"),
+        Seq("info", "plan.gxboard"),
+        Seq("untag", "plan.gxboard", "q3"),
+        Seq("remove", "plan.gxboard")
+      )
+    do
+      val r = Run(dir)
+      assertEquals(r(args*), ExitCode.Ok, s"${args.mkString(" ")}: ${r.stderr}")
+    val o = Run(dir, answer = (_, _) => Right(ujson.Obj("focused" -> true)))
+    assertEquals(o("open", "plan.gxboard"), ExitCode.Ok, o.stderr)
+    assertEquals(o.sent.head._2("target")("path").str, board)
+  }
+
+  tmp.test("fit of a board sends the path of the board") { dir =>
+    val board = plan(dir).toRealPath().toString
+    val r     = Run(dir, answer = showing(board))
+    assertEquals(r("fit", "plan.gxboard"), ExitCode.Ok, r.stderr)
+    assertEquals(r.sent.head._2("command").str, "reset-view")
+    assertEquals(r.sent.head._2("params")("path").str, board)
+  }
+
+  tmp.test("selection with a board on the screen names the board, and says how to select") { dir =>
+    val board  = plan(dir).toRealPath().toString
+    val answer = ujson.Obj("path" -> ujson.Null, "shows" -> s"the board $board", "selection" -> ujson.Arr(), "board" -> board)
+    val r      = Run(dir, answer = (_, _) => Right(answer))
+    assertEquals(r("selection"), ExitCode.Ok, r.stderr)
+    assertEquals(r.lines, Vector("nothing selected"))
+    assert(r.stderr.contains(s"the desktop shows the board $board"), r.stderr)
+    assert(r.stderr.contains("gx open <file>"), r.stderr)
+    // A board has no elements, so there is no ref spelling to warn about.
+    assert(!r.stderr.contains("ref spelling"), r.stderr)
+    val j = Run(dir, answer = (_, _) => Right(answer))
+    assertEquals(j("selection", "--json"), ExitCode.Ok, j.stderr)
+    assertEquals(j.json, ujson.Obj("path" -> ujson.Null, "selection" -> ujson.Arr(), "board" -> board))
   }
 
   private def repoRoot(): Path =

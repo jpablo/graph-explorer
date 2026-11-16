@@ -7,7 +7,7 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.fromExpandedAttributes
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramLanguages, DiagramRenderInputs, RenderOnlyDiagram}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramLanguages, DiagramRenderInputs, Extractor, Printer, RenderOnlyDiagram, Renderer}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
@@ -471,9 +471,6 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       // Initial text was parsed through the fake backend, producing its canned graph.
       assertEquals(phases.fullGraphV.now(), ViewerGraph.minimal)
 
-      // The selection strategy is resolved via the registry, not hardcoded in the component.
-      assert(phases.selectionStrategy.observe.now() eq GraphvizSelectionStrategy)
-
       // Editing the graph serializes back to text through the fake backend.
       phases.fullGraphV.set(ViewerGraph.basic(NodeId("x") -> NodeId("y")))
       assert(
@@ -615,7 +612,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
         // The graph of the old bug: the node `ghost` is a member of x, but it is not in `nodes`.
         val broken = before.moveToGroup(GroupId("x"), Seq(NodeId("ghost")))
         check(
-          Try(languages.forFormat(DiagramFormat.DOT).graphToText(broken, omitInternal = true)).isFailure,
+          Try(languages.printer(DiagramFormat.DOT).graphToText(broken, omitInternal = true)).isFailure,
           "precondition: the DOT printer throws for the broken graph"
         )
 
@@ -644,8 +641,10 @@ object TwoFormatFakeLanguages extends DiagramLanguages:
     if text.contains("n1") then ViewerGraph.basic(NodeId("n1") -> NodeId("n2"))
     else ViewerGraph.minimalWithDirected
 
-  private class Backend(override val format: DiagramFormat, tag: String) extends DiagramBackend:
+  private class Parts(override val format: DiagramFormat, tag: String) extends Extractor, Printer, Renderer:
     override def info: DiagramLanguageInfo = DiagramLanguageInfo(tag, s"$tag source", "https://example.test", s"$tag docs")
+    override def id: String    = tag.toLowerCase
+    override def label: String = tag
     override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(graphFor(text))
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String =
@@ -655,19 +654,26 @@ object TwoFormatFakeLanguages extends DiagramLanguages:
     override def selectionStrategy: SelectableElementStrategy = GraphvizSelectionStrategy
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
-  private val dotBackend     = Backend(DiagramFormat.DOT, "FAKEDOT")
-  private val mermaidBackend = Backend(DiagramFormat.Mermaid, "FAKEMMD")
+  private val dotParts     = Parts(DiagramFormat.DOT, "FAKEDOT")
+  private val mermaidParts = Parts(DiagramFormat.Mermaid, "FAKEMMD")
 
-  override def all: List[DiagramBackend] = List(dotBackend, mermaidBackend)
-  override def forFormat(format: DiagramFormat): DiagramBackend = format match
-    case DiagramFormat.Mermaid => mermaidBackend
-    case _                     => dotBackend
+  private def parts(format: DiagramFormat): Parts = format match
+    case DiagramFormat.Mermaid => mermaidParts
+    case _                     => dotParts
+
+  override def extractors: List[Extractor]                 = List(dotParts, mermaidParts)
+  override def renderers: List[Renderer]                   = List(dotParts, mermaidParts)
+  override def extractor(format: DiagramFormat): Extractor = parts(format)
+  override def printer(format: DiagramFormat): Printer     = parts(format)
+  override def renderer(format: DiagramFormat): Renderer   = parts(format)
 
 /** Minimal in-memory registry used to prove [[InternalPhases]] needs no real backend. */
 object FakeDiagramLanguages extends DiagramLanguages:
-  private object FakeBackend extends DiagramBackend:
+  private object FakeParts extends Extractor, Printer, Renderer:
     override def format: DiagramFormat                             = DiagramFormat.DOT
     override def info: DiagramLanguageInfo                         = DiagramLanguageInfo("Fake", "fake source", "https://example.test", "Fake docs")
+    override def id: String                                        = "fake"
+    override def label: String                                     = "Fake"
     override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(ViewerGraph.minimal)
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String = s"FAKE:${graph.nodeIds.size}"
@@ -676,14 +682,19 @@ object FakeDiagramLanguages extends DiagramLanguages:
     override def selectionStrategy: SelectableElementStrategy      = GraphvizSelectionStrategy
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
-  override def all: List[DiagramBackend]                        = List(FakeBackend)
-  override def forFormat(format: DiagramFormat): DiagramBackend = FakeBackend
+  override def extractors: List[Extractor]                 = List(FakeParts)
+  override def renderers: List[Renderer]                   = List(FakeParts)
+  override def extractor(format: DiagramFormat): Extractor = FakeParts
+  override def printer(format: DiagramFormat): Printer     = FakeParts
+  override def renderer(format: DiagramFormat): Renderer   = FakeParts
 
 /** Fake registry whose parse outcome is driven by the text, to exercise notice classification. */
 object ClassifyingFakeLanguages extends DiagramLanguages:
-  private object Backend extends DiagramBackend:
+  private object Parts extends Extractor, Printer, Renderer:
     override def format: DiagramFormat     = DiagramFormat.DOT
     override def info: DiagramLanguageInfo = DiagramLanguageInfo("Fake", "fake source", "https://example.test", "Fake docs")
+    override def id: String    = "fake"
+    override def label: String = "Fake"
     override def textToGraph(text: String): Future[ViewerGraph] =
       if text.startsWith("renderonly") then
         Future.failed(RenderOnlyDiagram("sequence", "“sequence” diagrams are render-only"))
@@ -696,5 +707,8 @@ object ClassifyingFakeLanguages extends DiagramLanguages:
     override def selectionStrategy: SelectableElementStrategy                    = GraphvizSelectionStrategy
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
-  override def all: List[DiagramBackend]                        = List(Backend)
-  override def forFormat(format: DiagramFormat): DiagramBackend = Backend
+  override def extractors: List[Extractor]                 = List(Parts)
+  override def renderers: List[Renderer]                   = List(Parts)
+  override def extractor(format: DiagramFormat): Extractor = Parts
+  override def printer(format: DiagramFormat): Printer     = Parts
+  override def renderer(format: DiagramFormat): Renderer   = Parts

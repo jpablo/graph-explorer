@@ -88,7 +88,7 @@ class StateDiagramRoundTripSpec extends FunSuite:
     if !condition then throw AssertionError(message)
 
   private def parse(text: String): Future[ViewerGraph] =
-    MermaidBackend().textToGraph(text).recover { case e =>
+    MermaidExtractor().textToGraph(text).recover { case e =>
       throw AssertionError(s"the text did not parse into a graph: ${e.getMessage}\n$text")
     }
 
@@ -107,9 +107,9 @@ class StateDiagramRoundTripSpec extends FunSuite:
     )
 
   private def drawnIds(text: String, graph: ViewerGraph): Future[Unit] =
-    val backend = MermaidBackend()
-    backend.textToSvg(text).map: rendered =>
-      val drawn       = SelectableElement.findAll(rendered.svg.ref, backend.selectionStrategy)
+    val renderer = MermaidRenderer()
+    renderer.textToSvg(text).map: rendered =>
+      val drawn       = SelectableElement.findAll(rendered.svg.ref, renderer.selectionStrategy)
       val drawnNodes  = drawn.collect { case n: NodeElement => n.elementId }.toSet
       val drawnArrows = drawn.collect { case e: EdgeElement => e.elementId }.toSet
       val drawnGroups = drawn.collect { case c: ClusterElement => c.elementId }.toSet
@@ -124,7 +124,7 @@ class StateDiagramRoundTripSpec extends FunSuite:
     test(s"$name: the printed text parses into the same graph"):
       for
         before <- parse(source)
-        printed = MermaidBackend().graphToText(before, omitInternal = true)
+        printed = MermaidPrinter.graphToText(before, omitInternal = true)
         after <- parse(printed)
       yield
         val (n1, a1, g1, m1, ga1) = comparable(before)
@@ -144,7 +144,7 @@ class StateDiagramRoundTripSpec extends FunSuite:
         source0 =
           before.nodeIds.find(n => !before.groupIds.exists(_.value == n.value) && n.value.endsWith("_start")).getOrElse(NodeId("Idle"))
         (edited, _) = withNode.addArrow(source0, newId)
-        printed     = MermaidBackend().graphToText(edited, omitInternal = true)
+        printed     = MermaidPrinter.graphToText(edited, omitInternal = true)
         _ <- drawnIds(printed, edited)
       yield ()
 
@@ -182,7 +182,7 @@ class StateDiagramRoundTripSpec extends FunSuite:
     for
       graph <- parse(source)
       visible = graph.toVisibleGraph(collapsedGroups = Set(GroupId("Active")))
-      printed = MermaidBackend().graphToText(visible, omitInternal = false)
+      printed = MermaidPrinter.graphToText(visible, omitInternal = false)
       _       = check(printed.startsWith(StateDiagramHeader), s"the visible graph is not a state diagram:\n$printed")
       _ <- drawnIds(printed, visible)
     yield ()

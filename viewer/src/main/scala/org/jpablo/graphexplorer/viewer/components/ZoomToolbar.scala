@@ -24,6 +24,8 @@ def ZoomToolbar(state: ViewerState, commands: Commands) =
     ).tiny.ghost.activeWhen(state.autoFit.signal),
     Button(span().plusIcon, onClick --> commands.all.zoomIn.execute()).tiny.ghost,
     // ---------- render mode ----------
+    // The 3D scene draws the graph itself, so the renderer has no effect there.
+    child.maybe <-- state.view3DActive.map(on => Option.when(!on)(rendererSelect(state))),
     // The whole 3D cluster exists only once the feature is enabled in
     // Preferences — an experiment shouldn't occupy toolbar space for
     // everyone else.
@@ -31,6 +33,22 @@ def ZoomToolbar(state: ViewerState, commands: Commands) =
     // The layout picker and navigation toggle only mean something while the
     // 3D scene is up. Switching layouts morphs the drawing live.
     child.maybe <-- state.view3DActive.map(on => Option.when(on)(threeDControls(state)))
+  )
+
+/** The renderer of this diagram (ADR 0002). Auto is the renderer of the language of the source. */
+private def rendererSelect(state: ViewerState) =
+  SelectBox(
+    SelectVariant.ghost,
+    SelectVariant.xs,
+    idAttr := "renderer-select",
+    cls    := "w-auto",
+    title  := "Renderer",
+    option(value := state.rendererOption.auto, text <-- state.rendererOption.autoLabel),
+    state.rendererOption.available.map(renderer => option(value := renderer.id, renderer.label)),
+    controlled(
+      value <-- state.rendererOption.selected,
+      onChange.mapToValue --> state.rendererOption.select
+    )
   )
 
 private def threeDToggle(state: ViewerState) =

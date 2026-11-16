@@ -4,7 +4,6 @@ import com.raquo.airstream.core.{EventStream, Observer, Signal, Transaction}
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, RenderOnlyDiagram, RoundTripLoss, UnmodeledContent}
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.GroupId
 import org.jpablo.graphexplorer.viewer.logging.*
@@ -40,7 +39,8 @@ enum DiagramLoadStatus derives CanEqual:
   * This component is backend-agnostic: all format-specific behavior (parsing, serialization, selection
   * strategy, format detection) is injected through the [[DiagramLanguages]] registry. `DiagramFormat`
   * is kept only as an equatable identity tag inside [[GraphState]]; the corresponding behavior is
-  * resolved on demand via `languages.forFormat(format)`.
+  * resolved on demand via `languages.extractor(format)`, `languages.printer(format)` and
+  * `languages.renderer(format)`.
   */
 class InternalPhases(
     languages:     DiagramLanguages,
@@ -73,7 +73,15 @@ class InternalPhases(
       * edit, so that the caller decides at the time of the edit.
       */
     keepTextWhole: () => Boolean = () => false,
-    /** Receives one message for each graph edit that [[fullGraphV]] refuses. */
+    /** True when the person locked the data source (CONTEXT.md, "Locked"). Then
+      * the setters of [[sourceText]] and of [[fullGraphV]] refuse each edit. A
+      * caller reads it at each edit, as for `keepTextWhole`.
+      *
+      * [[replaceDocument]] does not read it. A different tool can write the
+      * data source, and the app must show that text.
+      */
+    sourceLocked: () => Boolean = () => false,
+    /** Receives one message for each edit that [[fullGraphV]] or [[sourceText]] refuses. */
     refusedEdits: Observer[String] = Observer.empty
 )(using Owner, ExecutionContext):
 
@@ -122,7 +130,7 @@ class InternalPhases(
         EventStream.fromValue((text, Right(ViewerGraph.minimalWithDirected), format, origin))
       else
         val parseFuture =
-          languages.forFormat(format).textToGraph(text).transform {
+          languages.extractor(format).textToGraph(text).transform {
             case Success(graph) => Success((text, Right(graph), format, origin))
             // Render-only diagram kind: expected, the drawing is fine — an INFO notice.
             // Everything below still treats it as out-of-sync (canvas edits stay ignored).
@@ -205,7 +213,12 @@ class InternalPhases(
     )((currentState: GraphState, newText: String) =>
       withLog("1a. [sourceText -> GraphState]", level = logLevel) {
         // New source of truth: incoming text
-        if newText != currentState.text then
+        if newText != currentState.text && sourceLocked() then
+          // The editor is read-only while the diagram is locked. This is the
+          // safety net for each other writer.
+          refuse(InternalPhases.lockedTextEdit)
+          currentState
+        else if newText != currentState.text then
           val selectedFormat = formatSelection.now()
           // The text lands NOW (this is what persistence observes); the parse
           // it implies is paced.
@@ -258,16 +271,17 @@ class InternalPhases(
   /** The state after a graph edit, when the text and the graph are in sync. */
   private def applyGraphEdit(currentState: GraphState, newGraph: ViewerGraph): GraphState =
     if newGraph != currentState.viewerGraph then
-      lossyEditRefusal(currentState) match
+      editRefusal(currentState) match
         case Some(message) =>
-          // The text would lose content that the graph does not model, and a
-          // file would take that text. Keep the text, and tell the person.
-          simpleLog(s"Refusing a lossy graph edit: $message", logLevel)
+          // The diagram is locked, or the text would lose content that the
+          // graph does not model, and a file would take that text. Keep the
+          // text, and tell the person.
+          simpleLog(s"Refusing a graph edit: $message", logLevel)
           refuse(message)
           currentState
         case None =>
           val serializedText =
-            languages.forFormat(currentState.format).graphToText(newGraph, omitInternal = true)
+            languages.printer(currentState.format).graphToText(newGraph, omitInternal = true)
           GraphState(
             text = serializedText,
             viewerGraph = newGraph,
@@ -290,14 +304,19 @@ class InternalPhases(
 
   /** True when the setter of [[fullGraphV]] applies a graph edit now.
     *
-    * It is false while the graph and the text are out of sync, and while an
-    * edit would drop content from a file. A canvas action reads it just before
+    * It is false while the graph and the text are out of sync, while the
+    * diagram is locked, and while an edit would drop content from a file. A
+    * canvas action reads it just before
     * its update. It does its follow-up (a new selection, a fold, a message)
     * only when the value is true, because a refused edit changed nothing.
     */
   def graphEditApplies: Boolean =
     val current = state.now()
-    current.graphInSync && lossyEditRefusal(current).isEmpty
+    current.graphInSync && editRefusal(current).isEmpty
+
+  /** The message for a graph edit that must not apply now, if there is one. */
+  private def editRefusal(current: GraphState): Option[String] =
+    if sourceLocked() then Some(InternalPhases.lockedCanvasEdit) else lossyEditRefusal(current)
 
   /** The message for a graph edit that would drop content from a file.
     *
@@ -348,12 +367,8 @@ class InternalPhases(
   val visibleText: Signal[String] =
     visibleGraph.combineWithFn(currentFormat): (graph: ViewerGraph, format: DiagramFormat) =>
       withLog("4. [visibleGraph -> visibleText]", level = logLevel) {
-        languages.forFormat(format).graphToText(graph, omitInternal = false)
+        languages.printer(format).graphToText(graph, omitInternal = false)
       }
-
-  /** Signal for the selection strategy based on current format. */
-  val selectionStrategy: Signal[SelectableElementStrategy] =
-    currentFormat.map(languages.forFormat(_).selectionStrategy)
 
   /** Why the parse failed, in the most useful terms available.
     *
@@ -459,8 +474,9 @@ class InternalPhases(
       // Out of sync includes a graph that is not the parse of the text YET: the
       // placeholder before the first parse lands (the restore of a stored format), and
       // the graph of the text before a keystroke. Its emptiness says nothing about the text.
-      if currentState.graphInSync && currentState.text.trim.nonEmpty && hasNoElements(currentState.viewerGraph) then
-        val newText = languages.forFormat(newFormat).graphToText(currentState.viewerGraph, omitInternal = true)
+      // A locked diagram keeps its text, so it also takes the reinterpret path.
+      if currentState.graphInSync && currentState.text.trim.nonEmpty && hasNoElements(currentState.viewerGraph) && !sourceLocked() then
+        val newText = languages.printer(newFormat).graphToText(currentState.viewerGraph, omitInternal = true)
         // The new text is the serialization of the graph, so the two agree.
         state.set(GraphState(newText, currentState.viewerGraph, newFormat, currentState.lastOrigin, graphInSync = true))
         parseTextToGraphAsync(newText, newFormat, currentState.lastOrigin)
@@ -472,3 +488,11 @@ class InternalPhases(
         parseTextToGraphAsync(currentState.text, newFormat, currentState.lastOrigin)
 
 end InternalPhases
+
+object InternalPhases:
+
+  val lockedCanvasEdit: String =
+    "The viewer did not apply the canvas edit, because the diagram is locked. Unlock the diagram to change it."
+
+  val lockedTextEdit: String =
+    "The viewer did not change the text, because the diagram is locked. Unlock the diagram to change it."

@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.router.Router
+import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.{AboutDialog, PreferencesDialog, RouterCommands}
 import org.jpablo.graphexplorer.viewer.state.ViewerSettings
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
@@ -307,6 +307,9 @@ def LibraryView(
         }
       ),
 
+      // -------- Boards Section --------
+      boardsSection(router),
+
       // -------- Examples Section --------
       div(
         idAttr := "examples-grid",
@@ -500,6 +503,72 @@ private[library] def libraryNotice =
           div(cls := "flex-1 text-sm", lines.map(line => p(line))),
           Button("Close", onClick --> Library.notice.set(None)).small
         )
+  )
+
+/** The boards: a control that makes a board, and one card for each board
+  * (ADR 0003). The web app keeps a board in the browser. The desktop app
+  * keeps it as a `.gxboard` file with a library entry.
+  */
+private def boardsSection(router: Router) =
+  div(
+    idAttr := "boards-grid",
+    div(
+      cls := "flex items-center gap-3 mb-4",
+      h1(
+        cls := "text-2xl font-bold gap-2 flex",
+        span(cls := "bi bi-easel"),
+        "Boards"
+      ),
+      Button(
+        idAttr := "new-board",
+        span().plusCircleIcon,
+        "New board",
+        onClick --> (_ => showBoard(router, Library.newBoard()))
+      ).small
+    ),
+    div(
+      cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4",
+      children <-- Library.boards.map(_.map(boardCard(router, _)))
+    ),
+    child.maybe <-- Library.boards.map: boards =>
+      Option.when(boards.isEmpty):
+        p(cls := "text-sm text-base-content/60", "A board shows many diagrams on one canvas.")
+  )
+
+/** Go to the board of `result`. A failure goes to the notice of the home page. */
+private def showBoard(router: Router, result: scala.concurrent.Future[Either[String, Route]]): Unit =
+  result.foreach:
+    case Right(route)  => router.navigateTo(route)
+    case Left(message) => Library.showNotice(Vector(message))
+
+private def boardCard(router: Router, board: BoardSummary) =
+  val items = Library.boardItemCount(board.id).map(count => if count == 1 then "1 item" else s"$count items")
+  // On the desktop, the time of the entry is not the time of the board file.
+  val modified = Option.when(!Library.isDesktop)(s"Modified ${formatDate(board.lastModified)}")
+  val removeLabel = if Library.isDesktop then "Remove from library" else "Delete board"
+  val removeQuestion =
+    if Library.isDesktop then "Remove this board from the library? The board file stays where it is."
+    else "Delete this board? Its diagrams stay in the library."
+  div(
+    cls := "board-card card card-sm",
+    dataAttr("board-id") := board.id,
+    div(
+      cls := "card-body p-3 flex-row items-center gap-3",
+      a(
+        cls  := "flex-1 min-w-0 flex items-center gap-3 cursor-pointer hover:text-primary transition-colors",
+        role := "button",
+        onClick --> (_ => showBoard(router, Library.openBoard(board.id))),
+        i(cls := "bi bi-easel text-lg"),
+        div(
+          cls := "min-w-0",
+          div(cls := "font-medium truncate", board.name),
+          div(cls := "text-xs text-base-content/70", (items ++ modified).mkString(" · "))
+        )
+      ),
+      IconButton(if Library.isDesktop then "bi-x-circle" else "bi-trash", removeLabel, TooltipPos.left, cls := "danger")(
+        if dom.window.confirm(removeQuestion) then Library.deleteBoard(board.id)
+      )
+    )
   )
 
 /** Open a diagram of the list. A failure goes to the notice of the home page. */

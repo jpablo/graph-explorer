@@ -72,6 +72,14 @@ class MetadataCommandsSpec extends FunSuite:
     assertEquals(noted.notes, "a note")
     assertEquals(updated(MetadataCommand.SetNotes(""), noted).notes, "")
 
+  test("lock and unlock change only the lock, and each is idempotent"):
+    val before = updated(MetadataCommand.Tag(List("infra")))
+    val locked = updated(MetadataCommand.Lock, before)
+    assertEquals(locked, before.copy(locked = true))
+    assertEquals(updated(MetadataCommand.Lock, locked), locked)
+    assertEquals(updated(MetadataCommand.Unlock, locked), before)
+    assertEquals(updated(MetadataCommand.Unlock, before), before)
+
   test("a command changes only its own field"):
     val before = updated(MetadataCommand.Tag(List("infra")), updated(MetadataCommand.Hide(Set(NodeId("a")))))
     assertEquals(updated(MetadataCommand.SetNotes("n"), before), before.copy(notes = "n"))
@@ -140,6 +148,14 @@ class MetadataCommandsSpec extends FunSuite:
     )
     assertEquals(LiveViewSelection.encode(answers(1))("path"), ujson.Null)
     assert(LiveViewSelection.decode(ujson.Arr("node:a")).isLeft, "an answer from an older page is not a selection")
+
+  test("the answer for a board on the screen names the board, and an answer with no board key has no board"):
+    val onBoard = LiveViewSelection(None, "the board /w/plan.gxboard", Vector.empty, board = Some("/w/plan.gxboard"))
+    assertEquals(LiveViewSelection.decode(LiveViewSelection.encode(onBoard)), Right(onBoard))
+    assertEquals(LiveViewSelection.encode(onBoard)("board"), ujson.Str("/w/plan.gxboard"))
+    // A page from before the boards sends no `board` key.
+    val old = ujson.Obj("path" -> "/w/arch.dot", "shows" -> "/w/arch.dot", "selection" -> ujson.Arr())
+    assertEquals(LiveViewSelection.decode(old).map(_.board), Right(None))
 
   test("a push names the document it is aimed at, and is refused without one"):
     // The whole point of the field. A push used to carry text alone, and the

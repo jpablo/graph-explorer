@@ -13,13 +13,13 @@ object RealMermaid:
   def attempt[A](body: => Future[A])(using ExecutionContext): Future[Try[A]] =
     Future.unit.flatMap(_ => body).transform(result => Success(result))
 
-  /** Read the text with real Mermaid, as the canvas does (`MermaidBackend.textToGraph`). */
+  /** Read the text with real Mermaid, as the canvas does (`MermaidExtractor.textToGraph`). */
   def readWithMermaid(text: String)(using ExecutionContext): Future[Try[ViewerGraph]] =
-    attempt(MermaidBackend().textToGraph(text))
+    attempt(MermaidExtractor().textToGraph(text))
 
-  /** Draw the text with real Mermaid, as the canvas does (`MermaidBackend.textToSvg`). */
+  /** Draw the text with real Mermaid, as the canvas does (`MermaidRenderer.textToSvg`). */
   def drawWithMermaid(text: String)(using ExecutionContext): Future[Try[dom.svg.SVG]] =
-    attempt(MermaidBackend().textToSvg(text).map(_.svg.ref))
+    attempt(MermaidRenderer().textToSvg(text).map(_.svg.ref))
 
   /** Run `f` on each item, one item after the other. Mermaid keeps global state. */
   def oneByOne[A, B](items: Seq[A])(f: A => Future[B])(using ExecutionContext): Future[Vector[B]] =

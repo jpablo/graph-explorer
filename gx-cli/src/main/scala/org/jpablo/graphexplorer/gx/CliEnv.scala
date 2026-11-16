@@ -71,7 +71,8 @@ object ExitCode:
 
   /** A path, an element, or the content of a file is not usable: the file
     * does not exist or does not parse, the policy refuses the path, an
-    * element name names nothing, or a change would remove content.
+    * element name names nothing, a change would remove content, or the file
+    * is locked.
     */
   val InvalidPathOrPolicy = 4
 

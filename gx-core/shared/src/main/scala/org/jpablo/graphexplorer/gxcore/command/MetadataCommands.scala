@@ -55,5 +55,11 @@ object MetadataCommands:
       case MetadataCommand.SetNotes(notes) =>
         meta.copy(notes = notes)
 
+      case MetadataCommand.Lock =>
+        meta.copy(locked = true)
+
+      case MetadataCommand.Unlock =>
+        meta.copy(locked = false)
+
   // Iterable, not Set: Set is invariant, so a Set[GroupId] is not a Set[ElementId].
   private def refs(ids: Iterable[ElementId]): Set[String] = ids.iterator.map(ElementRef.render).toSet

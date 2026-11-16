@@ -55,6 +55,13 @@ def SourceTab(state: ViewerState) =
         // row (overflow-y-auto, so the x axis computes to `auto` too) became
         // horizontally scrollable: a scrollbar under the whole window and empty space
         // to scroll into. Same trap IconButtonTitled documents for the breadcrumbs.
+        IconToggle(
+          "bi-lock",
+          "Lock: do not change the source",
+          state.metadata.locked,
+          TooltipPos.bottomEnd,
+          idAttr := "source-lock"
+        ),
         IconToggle("bi-text-wrap", "Wrap long lines", state.wrapSourceLines, TooltipPos.bottomEnd),
         IconButton("bi-clipboard", "Copy source", TooltipPos.bottomEnd)(state.copySourceText()),
         // Paste's home is next to Copy, on the panel that owns the text: the
@@ -109,7 +116,7 @@ def SourceTab(state: ViewerState) =
                 ).primary.tiny,
                 Button(
                   "Always detect",
-                  onClick --> (_ => state.autoDetectFormat.set(true))
+                  onClick --> (_ => state.detectDiagramFormat())
                 ).tiny
               )
           )

@@ -61,6 +61,12 @@ These write the file. Each one takes `--json` and `--reformat`.
   `direction` lines in subgraphs. `--reformat` accepts the rewrite.
 - **Conflict:** gx writes the file only if it has the hash that gx read. Else it writes
   nothing, and the exit code is 5. Run the command again.
+- **Lock:** a change to a locked file (`gx lock`) is exit 4, and gx writes nothing. This
+  check comes after the read of the file and before the check of the element names. Thus it
+  applies also to a change that gives the same text. The message is one line:
+  `gx: <path> is locked, so gx did not write it. To remove the lock, run: gx unlock <path>`.
+  A file with no library entry is not locked. When gx cannot read the entry of the file, it
+  writes nothing, and the exit code is 6.
 - A write keeps the line endings of the file (LF or CRLF) and its end (a final newline, or
   none). It leaves out an empty label on an arrow or on the graph, because that is the
   default of Graphviz.
@@ -87,26 +93,48 @@ file for each diagram, found by the canonical path of the diagram.
 | `gx tag <file> <tag>...` | the tags keep their order, with no duplicates |
 | `gx untag <file> <tag>...` | |
 | `gx note <file> (<text> \| --stdin \| --clear)` | exactly one. One `<text>`: put it in quotes. `--stdin` removes the last line endings |
+| `gx lock <file>` | exactly one file. After it, each change command refuses the file |
+| `gx unlock <file>` | exactly one file. It removes the lock |
 | `gx info <file>` | the metadata of one file |
 | `gx ls [--tag T]` | each entry, or each entry with the tag `T` |
 | `gx add <file>...` | put files in the library. A file that does not exist is exit 4, and gx adds none of the files |
 | `gx remove <file>...` | take files out of the library. The files stay. It works on a missing file too |
 
-- A command that adds metadata (`hide`, `collapse`, `tag`, `note <text>`, `add`) makes the
-  entry when there is none. The file must exist (else exit 4).
-- A command that removes metadata (`unhide`, `expand`, `untag`, `note --clear`) on a file
-  with no entry does nothing and exits 0. It prints `not in the library; nothing to change`.
+- A command that adds metadata (`hide`, `collapse`, `tag`, `note <text>`, `lock`, `add`)
+  makes the entry when there is none. The file must exist (else exit 4).
+- A command that removes metadata (`unhide`, `expand`, `untag`, `note --clear`, `unlock`)
+  on a file with no entry does nothing and exits 0. It prints
+  `not in the library; nothing to change`.
+- The lock stops only the change commands. The read commands and the metadata commands
+  work on a locked file. The lock is in the library entry, so the desktop app reads the
+  same lock.
 - gx stores the elements in the ref spelling (`node:api`, `group:svc`). `info` prints them
   as names when the file parses, else as refs. `unhide` and `expand` take a ref of an
   element that the file no longer has.
-- **Output** of `hide`, `unhide`, `collapse`, `expand`, `tag`, `untag`, `note`: one line,
-  `<path>  <field>: <value>`. `--json`: the same object as `gx info --json`.
+- **Output** of `hide`, `unhide`, `collapse`, `expand`, `tag`, `untag`, `note`, `lock`,
+  `unlock`: one line, `<path>  <field>: <value>` (for example `<path>  locked: true`).
+  `--json`: the same object as `gx info --json`.
 - `gx info --json`: `{"path", "inLibrary", "tags", "notes", "hidden", "collapsed",
-  "autoDetectFormat"}`. `autoDetectFormat` is `null` when it is not set. On a file that is
-  not in the library, `inLibrary` is `false` and the other fields are empty. On a file that
-  does not exist and has no entry, `info` is exit 4.
-- `gx ls`: one line for each entry, `<path>  tags: a, b  missing`. `--json`:
-  `[{"path", "tags", "missing"}]`. An empty library prints `(no diagrams)`, or `[]`.
+  "autoDetectFormat", "location", "extractor", "renderer", "locked"}`, in this order.
+  - `autoDetectFormat` is `null` when it is not set.
+  - `location` is always a string: the canonical `file:` URI of the file, for example
+    `file:///w/arch.dot`.
+  - `extractor` is the extractor that the user selected (`dot` or `mermaid`), or `null`.
+    `renderer` is the renderer that the user selected (`graphviz` or `mermaid`), or `null`.
+    With no extractor, the app finds it from the content of the file, or else from the
+    name of the file. With no renderer, the app uses the renderer of the language of the
+    source. A newer app can store an id that is not in this list.
+  - `locked` is a boolean.
+  - On a file that is not in the library, `inLibrary` is `false`, `path` and `location` are
+    set, `locked` is `false`, and the other fields are empty or `null`.
+  - In the text output, an empty value is `(none)` and a `null` is `(not set)`.
+  - On a file that does not exist and has no entry, `info` is exit 4.
+- `gx ls`: one line for each entry, `<path>  board  tags: a, b  missing`. `board` marks a
+  board file (`.gxboard`). `--json`: `[{"path", "kind", "tags", "missing"}]`, where `kind`
+  is `diagram` or `board`. An empty library prints `(no diagrams)`, or `[]`.
+- A board file has no elements. Each command that reads elements (the read, change,
+  `hide`, `unhide`, `collapse`, `expand` and `select` commands) refuses it with exit 4, and
+  so does `gx lock`. The other library commands, `gx open` and `gx fit` take it.
 - `gx add --json`: `[{"path", "added"}]`. `gx remove --json`: `[{"path", "removed"}]`.
 
 ### The one-time migration
@@ -124,7 +152,7 @@ command does not run it.
 |---|---|---|
 | `gx open <file>` | `show` with `{"target": {"kind": "file", "path"}}` | `{path, focused}` |
 | `gx select <file> <element>...` | the live view command `select` with the refs and the path | `{path, selected: [refs], names}` |
-| `gx selection` | the live view command `what-is-selected` | `{path, selection: [names]}` |
+| `gx selection` | the live view command `what-is-selected` | `{path, selection: [names], board}` |
 | `gx fit <file>` | the live view command `reset-view` with the path | `{path}` |
 
 - With no desktop, each of these is exit 2. A desktop with no window, or with no diagram on
@@ -142,12 +170,16 @@ command does not run it.
   `path` is `null` when the desktop shows no file (an example, or a browser diagram). Then
   stderr says so, the line has no `<path>`, the selection is in the ref spelling, and the
   exit code is still 0.
+- With a board on the screen, `board` is the path of the board file, `path` is `null`, and
+  the selection is empty. `gx fit <board file>` fits the board. Each other live command is
+  refused with exit 4, and the message names the board (`the desktop shows the board
+  /w/plan.gxboard, not /w/a.dot`). `board` is `null` for each other screen.
 
 ## Other
 
 | Command | Notes |
 |---|---|
-| `gx status [--json]` | the library folder, the number of diagrams (and of missing files), and the desktop: running, starting, or not running. Exit 0 also with no desktop |
+| `gx status [--json]` | the library folder, the number of diagrams (and of missing files), the number of boards (`boards`), and the desktop: running, starting, or not running. Exit 0 also with no desktop |
 | `gx watch <file>... [--json] [--interval MS]` | one line for each change of a file: `changed`, `restored` or `deleted`. `--json`: `{"event", "origin", "hash"}` on each line. It does not stop: run it in the background. `--interval` sets the poll and the debounce, 1 or more (default 50) |
 | `gx skill [<version>] [--latest] [--json]` | where this skill is, pinned to the running binary |
 | `gx --version` | the version of the binary |
@@ -173,7 +205,7 @@ place, and do not change the environment. Report the refusal, and let the user d
 | 0 | ok | |
 | 1 | usage: a bad command line, a **malformed** element name, an unknown or removed flag or command | correct the command line; the message says how |
 | 2 | needs a desktop: only `open`, `select`, `selection` and `fit`. Also a desktop with no window, or with no diagram on the screen | start the desktop, or continue without it |
-| 4 | a path, an element or a file is not usable: the file does not exist or does not parse, the policy refuses the path, a name names nothing or the wrong kind, or a change would remove comments or `strict`. Also each other refusal of the desktop, for example `VIEW_REJECTED` | read the message; use `gx nodes`/`arrows`/`groups` for names; `--reformat` for a refusal; `gx open <file>` for `VIEW_REJECTED` |
+| 4 | a path, an element or a file is not usable: the file does not exist or does not parse, the policy refuses the path, a name names nothing or the wrong kind, a change would remove comments or `strict`, or the file is locked. Also each other refusal of the desktop, for example `VIEW_REJECTED` | read the message; use `gx nodes`/`arrows`/`groups` for names; `--reformat` for a refusal; `gx open <file>` for `VIEW_REJECTED`; for a locked file, ask the user before `gx unlock <file>` |
 | 5 | conflict: the file changed after gx read it, and gx wrote nothing | run the command again |
 | 6 | unexpected, or gx cannot read or write the library (for example, the one-time migration failed) | read the message, and report it |
 

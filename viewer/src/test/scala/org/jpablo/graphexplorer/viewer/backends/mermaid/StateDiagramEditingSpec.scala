@@ -71,7 +71,7 @@ class StateDiagramEditingSpec extends FunSuite with TestHelpers:
     p.future
 
   private def parse(text: String): Future[ViewerGraph] =
-    MermaidBackend().textToGraph(text).recover { case e =>
+    MermaidExtractor().textToGraph(text).recover { case e =>
       throw AssertionError(s"the state diagram did not parse into a graph: ${e.getMessage}\n$text")
     }
 
@@ -162,12 +162,12 @@ class StateDiagramEditingSpec extends FunSuite with TestHelpers:
       check(NamedTransitions.subsetOf(found), s"the edit lost transitions: ${NamedTransitions -- found}; source:\n$text")
 
   test("each drawn state and transition is an element of the graph, and each element is drawn"):
-    val backend = MermaidBackend()
+    val renderer = MermaidRenderer()
     for
       graph    <- parse(Editor)
-      rendered <- backend.textToSvg(Editor)
+      rendered <- renderer.textToSvg(Editor)
     yield
-      val drawn = SelectableElement.findAll(rendered.svg.ref, backend.selectionStrategy)
+      val drawn = SelectableElement.findAll(rendered.svg.ref, renderer.selectionStrategy)
       val drawnNodes  = drawn.collect { case n: NodeElement => n.elementId }.toSet
       val drawnArrows = drawn.collect { case e: EdgeElement => e.elementId }.toSet
       check(drawnNodes == graph.nodeIds.toSet, s"drawn states $drawnNodes, graph states ${graph.nodeIds.toSet}")

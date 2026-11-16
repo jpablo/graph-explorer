@@ -29,7 +29,20 @@ object LiveViewCommands:
   private val ReplyCommand = "live_view_reply"
 
   private var installed = false
-  private var target: Option[ViewerState] = None
+  private var target: Option[Target] = None
+
+  /** What the live view tier answers for: one diagram, or one board. */
+  private enum Target:
+    case Viewer(state: ViewerState)
+
+    /** A board file (ADR 0003). `path` is the canonical path of the board
+      * file, and `fit` shows the whole board.
+      */
+    case Board(key: AnyRef, path: () => Option[String], fit: () => Unit)
+
+    def is(key: AnyRef): Boolean = this match
+      case Viewer(state)     => state eq key
+      case Board(own, _, _) => own eq key
 
   /** Start listening, whether or not a diagram is open.
     *
@@ -52,7 +65,22 @@ object LiveViewCommands:
   /** Point the tier at the diagram now on screen. */
   def attach(state: ViewerState): Unit =
     install()
-    target = Some(state)
+    target = Some(Target.Viewer(state))
+
+  /** Point the tier at the board now on screen. `key` identifies the board
+    * for [[detachBoard]]. A board has no elements, so a command for a diagram
+    * gets a refusal that names the board, and `fit` of the board file fits
+    * the board.
+    */
+  def attachBoard(key: AnyRef, path: () => Option[String], fit: () => Unit): Unit =
+    install()
+    target = Some(Target.Board(key, path, fit))
+
+  /** Let go of a board that is unmounting. The check of the identity has the
+    * reason of [[detach]].
+    */
+  def detachBoard(key: AnyRef): Unit =
+    if target.exists(_.is(key)) then target = None
 
   /** Let go of a viewer that is unmounting, so the tier answers "nothing is
     * open" rather than reporting on a diagram that left the screen.
@@ -64,13 +92,13 @@ object LiveViewCommands:
     * unmounts, so an unconditional clear would discard the live target.
     */
   def detach(state: ViewerState): Unit =
-    if target.exists(_ eq state) then target = None
+    if target.exists(_.is(state)) then target = None
 
   private[desktop] def reset(): Unit =
     installed = false
     target = None
 
-  private[desktop] def currentTarget: Option[ViewerState] = target
+  private[desktop] def currentTarget: Option[ViewerState] = target.collect { case Target.Viewer(state) => state }
 
   private def handle(event: dom.Event): Unit =
     val detail = event.asInstanceOf[js.Dynamic].selectDynamic("detail")
@@ -112,7 +140,11 @@ object LiveViewCommands:
         // answering "nothing is selected" — which is true but misleading.
         Refusal("NO_LIVE_VIEW", "no diagram is open").pipe(Left(_))
 
-      case Some(state) =>
+      case Some(Target.Board(_, path, fit)) =>
+        try onBoard(path(), fit, command)
+        catch case NonFatal(e) => Left(Refusal("LIVE_VIEW_FAILED", s"${command.name} failed: ${e.getMessage}"))
+
+      case Some(Target.Viewer(state)) =>
         try
           command match
             case LiveViewCommand.Select(path, targets) =>
@@ -134,6 +166,30 @@ object LiveViewCommands:
               val refs = state.selection.now().ids.toVector.map(ElementRef.render).sorted
               Right(LiveViewSelection.encode(LiveViewSelection(shownPath(state), describe(state), refs)))
         catch case NonFatal(e) => Left(Refusal("LIVE_VIEW_FAILED", s"${command.name} failed: ${e.getMessage}"))
+
+  /** A command with a board on the screen.
+    *
+    * Before, the page answered "no diagram is open" while it showed a board.
+    * That was false, and the caller did not learn what to do. Now each
+    * refusal names the board, and `VIEW_REJECTED` tells `gx` to show the file
+    * of the command first.
+    */
+  private def onBoard(path: Option[String], fit: () => Unit, command: LiveViewCommand): Either[Refusal, ujson.Value] =
+    val shows = path.fold("a board that is no longer open")(p => s"the board $p")
+    def notThis(other: String) = Left(Refusal("VIEW_REJECTED", s"the desktop shows $shows, not $other"))
+    command match
+      case LiveViewCommand.ResetView(other) if path.exists(samePath(_, other)) =>
+        fit()
+        Right(ujson.Null)
+      case LiveViewCommand.Select(other, _)         => notThis(other)
+      case LiveViewCommand.AddToSelection(other, _) => notThis(other)
+      case LiveViewCommand.ClearSelection(other)    => notThis(other)
+      case LiveViewCommand.ResetView(other)         => notThis(other)
+      case LiveViewCommand.PushText(sessionId, _) =>
+        // The shell passes on only three codes of the page.
+        Left(Refusal("VIEW_REJECTED", s"the desktop shows $shows, and a push of text is for a diagram, not document session '$sessionId'"))
+      case LiveViewCommand.WhatIsSelected =>
+        Right(LiveViewSelection.encode(LiveViewSelection(None, shows, Vector.empty, board = path)))
 
   /** Change the live view only when it shows the file at `path` (plan §2).
     *
@@ -191,6 +247,10 @@ object LiveViewCommands:
         Left(Refusal("INVALID_REQUEST", s"'$sessionId' is not a document session id"))
       case Some(id) =>
         state.target match
+          case ViewTarget.File(shown) if shown == id && state.metadata.now().locked =>
+            // A push is an edit of the source. The shell passes on only three
+            // codes of the page, so the refusal uses one of them.
+            Left(Refusal("VIEW_REJECTED", "the diagram is locked, so the view did not take the text; unlock the diagram first"))
           case ViewTarget.File(shown) if shown == id =>
             state.replaceSourceDetectingFormat(text)
             Right(ujson.Null)

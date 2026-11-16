@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.utils.ShareUrl
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import scala.scalajs.js
 
-import Router.{app, diagrams, documents, example}
+import Router.{app, boards, diagrams, documents, example}
 
 enum Route derives CanEqual:
   case Home
@@ -35,6 +35,11 @@ enum Route derives CanEqual:
     * diagram. `DesktopDocumentRegistry` maps the id back to the file.
     */
   case File(sessionId: String)
+
+  /** A board of the web app: many diagrams on one canvas (ADR 0003). The
+    * browser keeps the board, and the id names it there.
+    */
+  case Board(id: String)
 
 class Router:
   given Owner = unsafeWindowOwner
@@ -177,6 +182,7 @@ class Router:
       // the same way that it does not read the library for `diagrams`. The view
       // holds that check, because only the view can show the answer.
       case `documents` :: session :: Nil => Route.File(session)
+      case `boards` :: id :: Nil         => Route.Board(id)
       case _                             => Route.Home
 
   private def buildPath(route: Route): String =
@@ -185,6 +191,7 @@ class Router:
       case Route.Diagram(id, _)  => s"/$diagrams/$id"
       case Route.Example(slug)   => s"/$example/$slug"
       case Route.File(sessionId) => s"/$documents/$sessionId"
+      case Route.Board(id)       => s"/$boards/$id"
 
 object Router:
   /** The library. On the web, `/` is the product page, which Netlify serves
@@ -207,3 +214,5 @@ object Router:
     * `/documents/<opaque-session-id>`.
     */
   val documents = "documents"
+
+  val boards = "boards"

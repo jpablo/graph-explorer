@@ -152,8 +152,10 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
     Option(e.getAttribute(name)).filter(_.nonEmpty)
 
   override def extractNodeId(e: dom.Element): NodeId =
-    dataAttr(e, "data-id")
-      .orElse(dataAttr(e, "data-node-id"))
+    // `data-node-id` is the id of the graph, which the renderer stamps. `data-id`
+    // is the id in the Mermaid text, and it can be a different id.
+    dataAttr(e, "data-node-id")
+      .orElse(dataAttr(e, "data-id"))
       .map(NodeId(_))
       .getOrElse {
         val svgId = e.id
@@ -183,7 +185,11 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
           // match the old `L-(.+)-(.+)-(\d+)` form as source "cyclic",
           // target "special".
           case mermaidSelfLoopIdPattern(n)        => Some((n, n, 1))
-          case mermaidEdgeIdPatternV11(s, t, idx) => Some((s, t, idx.toInt + 1))
+          // Mermaid 11 numbers the arrows between two ends 0, 2, 3 (`FlowDB.addSingleLink`:
+          // the first is 0, and a later one is the count of the earlier ones plus 1). The
+          // graph numbers them 1, 2, 3 (`toViewerGraph`). With `idx + 1`, the second arrow
+          // and each later one got an id that the graph does not have.
+          case mermaidEdgeIdPatternV11(s, t, idx) => Some((s, t, if idx.toInt == 0 then 1 else idx.toInt))
           case mermaidEdgeIdPattern(s, t, idx)    => Some((s, t, idx.toInt + 1))
           case _                                  => None
       // LS-/LE- classes (old renderers) are authoritative when present; otherwise
@@ -215,8 +221,9 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
       }
 
   override def extractGroupId(e: dom.Element): GroupId =
-    dataAttr(e, "data-id")
-      .orElse(dataAttr(e, "data-group-id"))
+    // As for a node: the stamped id of the graph comes first.
+    dataAttr(e, "data-group-id")
+      .orElse(dataAttr(e, "data-id"))
       .map(GroupId(_))
       .getOrElse {
         val svgId = e.id

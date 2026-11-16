@@ -60,7 +60,7 @@ class MermaidTitleSpec extends FunSuite with TestHelpers:
     * so this shows what the front matter means, not what our scan reads.
     */
   private def drawnTitle(text: String): Future[Option[String]] =
-    MermaidBackend()
+    MermaidRenderer()
       .textToSvg(text)
       .recover { case e => throw new AssertionError(s"Mermaid cannot draw this source: ${e.getMessage}\n$text") }
       .map: drawing =>
@@ -95,10 +95,10 @@ class MermaidTitleSpec extends FunSuite with TestHelpers:
   // ------------------------------------------------- the front-matter title
 
   test("the parsed graph has the front-matter title as its label"):
-    MermaidBackend()
+    MermaidExtractor()
       .textToGraph(titled)
       .map: graph =>
-        val text = MermaidBackend().graphToText(graph, omitInternal = false)
+        val text = MermaidPrinter.graphToText(graph, omitInternal = false)
         check(text.contains("title: My chart"), s"the printed graph has no title:\n$text")
 
   test("a canvas edit on a flowchart keeps its front-matter title"):

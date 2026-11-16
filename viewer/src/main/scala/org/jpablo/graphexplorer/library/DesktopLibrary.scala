@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.gxcore.model.{Board, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.gxcore.store.{MetadataMigration, SafeFileName}
 import org.jpablo.graphexplorer.router.Route
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, SourceTitle}
@@ -81,7 +81,10 @@ final class DesktopLibrary private () extends LibraryListing:
   private var lastChange: Map[String, Long] = Map.empty
 
   private var hashing: Map[String, Future[String]]       = Map.empty
-  private var waitingWrites: Map[String, DiagramMetadata] = Map.empty
+  /** The writes that wait for the key of their path: the metadata of the
+    * viewer before the first change of the burst, and the latest metadata.
+    */
+  private var waitingWrites: Map[String, (DiagramMetadata, DiagramMetadata)] = Map.empty
 
   private val onLibraryChanged: js.Function1[dom.Event, Unit] = _ => { refresh(); () }
 
@@ -99,9 +102,12 @@ final class DesktopLibrary private () extends LibraryListing:
 
   def indexNow(): LibraryIndex = toIndex(entries.now(), files.now())
 
+  // A board file has an entry also (ADR 0003), and it is not a diagram. The
+  // list of the diagrams leaves it out, and [[boards]] has it.
   private def toIndex(byKey: Map[String, LibraryEntry], fileStates: Map[String, FileState]): LibraryIndex =
     LibraryIndex(
       byKey.toList
+        .filterNot((_, e) => Board.isBoardPath(e.path))
         .map: (key, e) =>
           DiagramSummary(DiagramId(key), nameOf(e.path, fileStates.get(e.path)), lastModified = e.updatedAt, createdAt = e.createdAt)
         // Newest first, as the browser library gives its list.
@@ -118,6 +124,36 @@ final class DesktopLibrary private () extends LibraryListing:
       .getOrElse(LibraryEntry.nameOf(path))
 
   def diagramExists(id: DiagramId): Boolean = entries.now().contains(id.value)
+
+  // ------------------------------------------------------------ the boards
+
+  /** The board files of the library, newest first. The name of a board is
+    * the name of its file. [[open]] opens a board by its id, as a diagram.
+    */
+  def boards: Signal[List[BoardSummary]] = entries.signal.map(boardsOf)
+
+  def boardsNow(): List[BoardSummary] = boardsOf(entries.now())
+
+  private def boardsOf(byKey: Map[String, LibraryEntry]): List[BoardSummary] =
+    byKey.toList
+      .collect:
+        case (key, e) if Board.isBoardPath(e.path) =>
+          BoardSummary(key, LibraryEntry.nameOf(e.path), lastModified = e.updatedAt, createdAt = e.createdAt)
+      .sortBy(board => (-board.createdAt, board.id))
+
+  /** The number of items of a board, when the library read its file and the
+    * file parses.
+    */
+  def boardItemCount(id: String): Option[Int] =
+    fileState(DiagramId(id))
+      .collect { case FileState.Loaded(text, _) => Board.parse(text).toOption.map(_.items.size) }
+      .flatten
+
+  /** "New board": a new `.gxboard` file in the folder for new diagrams, with
+    * an entry, open on the screen.
+    */
+  def newBoard(name: String): Future[Either[String, Route]] =
+    newFile("board", name, Board.render(Board.empty), s".${Board.Extension}")
 
   /** The path of the file of a diagram in the list. */
   def pathOf(id: DiagramId): Option[String] = entries.now().get(id.value).map(_.path)
@@ -150,8 +186,8 @@ final class DesktopLibrary private () extends LibraryListing:
         case FileState.Loaded(text, _) =>
           // The same rule as the viewer of the file.
           val format  = DiagramFormat.ofFile(e.path, text).getOrElse(DiagramFormat.DOT)
-          val backend = languages.forFormat(format)
-          DiagramCardInfo(format, backend.extractTitle(text).getOrElse(fileName), backend.diagramKind(text))
+          val extractor = languages.extractor(format)
+          DiagramCardInfo(format, extractor.extractTitle(text).getOrElse(fileName), extractor.diagramKind(text))
         case FileState.Missing =>
           DiagramCardInfo(formatOfPath(e.path), fileName, None, problem = Some(s"The file is missing: ${e.path}"))
         case FileState.Unreadable(message) =>
@@ -182,59 +218,74 @@ final class DesktopLibrary private () extends LibraryListing:
     *
     * The viewer owns the hidden elements, the collapsed groups and the
     * language mode. The entry owns the rest: the tags and the notes, which the
-    * viewer has no UI for, and `createdAt`. The write merges the fields of the
-    * viewer onto the entry.
+    * viewer has no UI for, and `createdAt`.
+    *
+    * The write is a three-way merge. `before` is the metadata that the viewer
+    * had before this change, and `viewer` is the metadata after it. The write
+    * applies only the change of the viewer onto the entry
+    * ([[DesktopLibrary.applyChange]]). A field that the viewer did not change
+    * keeps the value of the entry. A hidden element or a collapsed group that
+    * the viewer did not add or remove also keeps its state in the entry. Thus
+    * a `gx lock`, `gx unlock` or `gx hide` stays after the next hide in the
+    * viewer. A file with no entry gets all the fields of the viewer.
     *
     * The mirror can be older than the disk: the shell polls the store, and
     * the refresh needs one more round trip. Thus the write is a
     * compare-and-swap on the text of the entry that the merge used. When `gx`
-    * changed the entry in the meantime (`gx tag`, `gx hide`), the shell
-    * refuses the write. The page then reads the entry again, merges onto it,
-    * and tries again ([[MaxWriteTries]] times). Thus a `gx tag` that the
-    * mirror does not know yet stays after the next hide in the viewer.
+    * changed the entry in the meantime (`gx tag`, `gx lock`), the shell
+    * refuses the write. The page then reads the entry again, applies the SAME
+    * change onto it, and tries again ([[MaxWriteTries]] times). Thus a change
+    * from `gx` that the mirror does not know yet stays after the next change
+    * in the viewer.
     *
-    * Only a change of the viewer writes. `before` is the metadata that the
-    * viewer had before this change. When the fields of the viewer did not
+    * Only a change of the viewer writes. When the fields of the viewer did not
     * change (an edit of the source, a visit), the write does not occur. A
     * keystroke thus cannot put back an entry that `gx remove` removed. When
-    * the viewer gives what the entry already holds (the adoption of an
+    * the change gives what the entry already holds (the adoption of an
     * outside change), the write does not occur either, because a write would
     * move `updatedAt`. A file with no entry gets one on the first change of
     * its metadata, and that puts it in the library, as `gx hide` does.
+    *
+    * While the key of the path comes from the shell, a burst of changes gives
+    * one write. That write has the `before` of the first change of the burst
+    * and the `viewer` of the last change.
     */
   def writeMetadata(path: String, before: DiagramMetadata, viewer: DiagramMetadata): Unit =
     if Owned.of(before) != Owned.of(viewer) then
       keys.now().get(path) match
         case Some(key) =>
-          putMetadata(key, path, viewer)
+          putMetadata(key, path, before, viewer)
           ()
         case None =>
-          // The key comes from the shell. Keep only the latest value while it
-          // comes, so that a burst of changes gives one write.
-          waitingWrites += path -> viewer
+          // The key comes from the shell. Keep the first `before` and the
+          // latest value while it comes, so that a burst gives one write.
+          val first = waitingWrites.get(path).fold(before)(_._1)
+          waitingWrites += path -> (first, viewer)
           keyOf(path).foreach: key =>
-            waitingWrites.get(path).foreach: latest =>
+            waitingWrites.get(path).foreach: (firstBefore, latest) =>
               waitingWrites -= path
-              putMetadata(key, path, latest)
+              putMetadata(key, path, firstBefore, latest)
 
-  private def putMetadata(key: String, path: String, viewer: DiagramMetadata): Future[Unit] =
-    val current = entries.now().get(key)
+  private def putMetadata(key: String, path: String, before: DiagramMetadata, viewer: DiagramMetadata): Future[Unit] =
+    val current   = entries.now().get(key)
     val unchanged = current match
-      case Some(e) => Owned.of(e.metadata) == Owned.of(viewer)
+      case Some(e) => Owned.of(applyChange(e.metadata, before, viewer)) == Owned.of(e.metadata)
       case None    => Owned.of(viewer) == Owned.none
     if unchanged then Future.unit
     else
       val base = for entry <- current; text <- texts.get(key) yield (entry, text)
-      mergeAndWrite(key, path, viewer, base, MaxWriteTries).andThen(reportWriteFailure(path))
+      mergeAndWrite(key, path, before, viewer, base, MaxWriteTries).andThen(reportWriteFailure(path))
 
-  /** Merge the fields of the viewer onto `base`, and write the result with
-    * the text of `base` as the base of the compare-and-swap. `base` is the
-    * entry and its exact text, or `None` when there is no entry. On a refusal,
-    * read the entry again and try again, `tries` times in all.
+  /** Apply the change of the viewer (from `before` to `viewer`) onto `base`,
+    * and write the result with the text of `base` as the base of the
+    * compare-and-swap. `base` is the entry and its exact text, or `None` when
+    * there is no entry. On a refusal, read the entry again and apply the same
+    * change onto it, `tries` times in all.
     */
   private def mergeAndWrite(
       key: String,
       path: String,
+      before: DiagramMetadata,
       viewer: DiagramMetadata,
       base: Option[(LibraryEntry, String)],
       tries: Int
@@ -243,19 +294,14 @@ final class DesktopLibrary private () extends LibraryListing:
     val entry = base.map(_._1)
     val merged = LibraryEntry(
       path = entry.fold(path)(_.path),
-      metadata = entry
-        .fold(DiagramMetadata.empty)(_.metadata)
-        .copy(
-          hiddenElements = viewer.hiddenElements,
-          collapsedGroups = viewer.collapsedGroups,
-          autoDetectFormat = viewer.autoDetectFormat
-        ),
+      metadata = entry.fold(applyChange(DiagramMetadata.empty, DiagramMetadata.empty, viewer)): e =>
+        applyChange(e.metadata, before, viewer),
       createdAt = entry.fold(now)(_.createdAt),
       updatedAt = now
     )
     write(key, merged, Some(base.fold(EntryBase.Absent)((_, text) => EntryBase.Present(text)))).recoverWith:
       case IpcFailure("LIBRARY_CONFLICT", _) if tries > 1 =>
-        readEntry(key).flatMap(fresh => mergeAndWrite(key, path, viewer, fresh, tries - 1))
+        readEntry(key).flatMap(fresh => mergeAndWrite(key, path, before, viewer, fresh, tries - 1))
 
   /** The entry of `key` as the disk holds it now, with its exact text. */
   private def readEntry(key: String): Future[Option[(LibraryEntry, String)]] =
@@ -328,13 +374,19 @@ final class DesktopLibrary private () extends LibraryListing:
     * next number is tried.
     */
   def newDiagram(name: String, text: String, extension: String): Future[Either[String, Route]] =
+    newFile("diagram", name, text, extension)
+
+  /** A new file with an entry, open on the screen. `kind` is the word for the
+    * message of a failure.
+    */
+  private def newFile(kind: String, name: String, text: String, extension: String): Future[Either[String, Route]] =
     val created =
       for
         folder <- DesktopIpc.diagramsFolder()
         file   <- createUnique(folder, SafeFileName.of(name), extension, text)
       yield file
     created.transformWith:
-      case Failure(e) => Future.successful(Left(s"Could not make a new diagram: ${messageOf(e)}"))
+      case Failure(e) => Future.successful(Left(s"Could not make a new $kind: ${messageOf(e)}"))
       case Success(file) =>
         val now = js.Date.now().toLong
         keyOf(file.path)
@@ -601,11 +653,44 @@ object DesktopLibrary:
   /** The fields of the metadata that the viewer owns. `None` and `Some(true)`
     * of the language mode are the same value: the viewer reads `None` as on.
     */
-  private final case class Owned(hidden: Set[String], collapsed: Set[String], autoDetect: Boolean) derives CanEqual
+  private final case class Owned(
+      hidden:     Set[String],
+      collapsed:  Set[String],
+      autoDetect: Boolean,
+      renderer:   Option[String],
+      extractor:  Option[String],
+      locked:     Boolean
+  ) derives CanEqual
 
   private object Owned:
-    def of(m: DiagramMetadata): Owned = Owned(m.hiddenElements, m.collapsedGroups, m.autoDetectFormat.getOrElse(true))
-    val none: Owned                   = Owned(Set.empty, Set.empty, autoDetect = true)
+    def of(m: DiagramMetadata): Owned =
+      Owned(m.hiddenElements, m.collapsedGroups, m.autoDetectFormat.getOrElse(true), m.renderer, m.extractor, m.locked)
+    val none: Owned = of(DiagramMetadata.empty)
+
+  /** Apply the change of the viewer, from `before` to `viewer`, onto `base`
+    * ([[DesktopLibrary.writeMetadata]]).
+    *
+    * Only the fields that the viewer owns change. A field that has the same
+    * value in `before` and in `viewer` keeps the value of `base`. A different
+    * writer can have changed that field after the viewer read it. For the
+    * hidden elements and the collapsed groups, the merge is for each element:
+    * the elements that the viewer added go in, the elements that the viewer
+    * removed go out, and the other elements of `base` stay.
+    */
+  private[library] def applyChange(base: DiagramMetadata, before: DiagramMetadata, viewer: DiagramMetadata): DiagramMetadata =
+    def set(baseSet: Set[String], beforeSet: Set[String], viewerSet: Set[String]): Set[String] =
+      baseSet -- (beforeSet -- viewerSet) ++ (viewerSet -- beforeSet)
+    def field[A](baseValue: A, beforeValue: A, viewerValue: A)(using CanEqual[A, A]): A =
+      if beforeValue == viewerValue then baseValue else viewerValue
+    val (b, v) = (Owned.of(before), Owned.of(viewer))
+    base.copy(
+      hiddenElements = set(base.hiddenElements, before.hiddenElements, viewer.hiddenElements),
+      collapsedGroups = set(base.collapsedGroups, before.collapsedGroups, viewer.collapsedGroups),
+      autoDetectFormat = if b.autoDetect == v.autoDetect then base.autoDetectFormat else viewer.autoDetectFormat,
+      renderer = field(base.renderer, before.renderer, viewer.renderer),
+      extractor = field(base.extractor, before.extractor, viewer.extractor),
+      locked = field(base.locked, before.locked, viewer.locked)
+    )
 
   private[library] def messageOf(error: Throwable): String = error match
     case IpcFailure(_, message) => message

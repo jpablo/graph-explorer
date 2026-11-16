@@ -2,8 +2,10 @@ package org.jpablo.graphexplorer.viewer.desktop
 
 import com.raquo.airstream.ownership.Subscription
 import com.raquo.laminar.api.L.unsafeWindowOwner
+import com.raquo.airstream.ownership.Owner
+import org.jpablo.graphexplorer.board.{BoardState, BoardStatus}
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, ViewTarget, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, DocumentSessionId, ViewTarget, ViewerState}
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext
@@ -35,7 +37,12 @@ object DesktopOpenRequests:
   private var listener: Option[js.Function1[dom.Event, Unit]] = None
   private var routeChanges: Option[Subscription] = None
 
-  private var current: Option[ViewerState] = None
+  private var current: Option[Shown] = None
+
+  /** The view on the screen, as the handshake sees it: what it shows, and the
+    * state of its load. `key` is the state object of the view, for the detach.
+    */
+  private final class Shown(val key: AnyRef, val target: ViewTarget, val status: () => DiagramLoadStatus)
   private var pending = Map.empty[Long, Pending]
 
   private case class Pending(route: Route, view: js.Object)
@@ -96,12 +103,28 @@ object DesktopOpenRequests:
     * acknowledgment means an immediate `gx view` call has a live target.
     */
   def attach(state: ViewerState)(using ExecutionContext): Unit =
-    current = Some(state)
+    current = Some(Shown(state, state.target, () => state.loadStatus.now()))
     state.loadStatus.signal.changes.foreach(_ => settlePending())(using state.owner)
     settlePending()
 
+  /** The page of a board file attaches, as a viewer does. The open of a board
+    * file is "displayed" when the page read the board, and it is rejected when
+    * the board file does not parse.
+    */
+  def attachBoard(session: DocumentSessionId, board: BoardState)(using Owner, ExecutionContext): Unit =
+    def status(): DiagramLoadStatus = board.status.now() match
+      case BoardStatus.Loading         => DiagramLoadStatus.Loading
+      case BoardStatus.Ready           => DiagramLoadStatus.Ready
+      case BoardStatus.Failed(message) => DiagramLoadStatus.Failed(message)
+    current = Some(Shown(board, ViewTarget.File(session), () => status()))
+    board.status.signal.changes.foreach(_ => settlePending())
+    settlePending()
+
+  def detachBoard(board: BoardState): Unit =
+    if current.exists(_.key eq board) then current = None
+
   def detach(state: ViewerState): Unit =
-    if current.exists(_ eq state) then current = None
+    if current.exists(_.key eq state) then current = None
 
   /** Answer each request that waits for a route that is not `onScreen`.
     *
@@ -122,7 +145,7 @@ object DesktopOpenRequests:
   private def settlePending()(using ExecutionContext): Unit =
     current.foreach: state =>
       pending.toVector.foreach: (requestId, request) =>
-        activation(request.route, state.target, state.loadStatus.now()) match
+        activation(request.route, state.target, state.status()) match
           case Activation.Waiting                 => ()
           case Activation.Displayed               => complete(requestId, "displayed", view = Some(request.view))
           case Activation.Rejected(code, message) => complete(requestId, "rejected", Some(code), Some(message))

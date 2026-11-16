@@ -70,7 +70,7 @@ class GroupWithOwnMemberSpec extends FunSuite with TestHelpers with LoggedChecks
           // The text that the viewer writes must give the same structure.
           val text = state.sourceText.now()
           state.languages
-            .forFormat(DiagramFormat.DOT)
+            .extractor(DiagramFormat.DOT)
             .textToGraph(text)
             .map: reparsed =>
               check(Set(n, m).subsetOf(reparsed.nodeIds), s"the text lost the node n or m:\n$text")

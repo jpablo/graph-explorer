@@ -25,6 +25,10 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
   def wrapExtension(enabled: Boolean): Extension =
     if enabled then EditorView.lineWrapping else js.Array[Any]()
 
+  // A locked diagram has a read-only editor. The person can still select, copy
+  // and search, and the editor still shows a new text of the file.
+  val readOnly = new Compartment()
+
   lazy val baseExtensions =
     js.Array[Any](
       codemirror.basicSetup,
@@ -32,6 +36,7 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
       vizJsLangDot.dot(),
       EditorTheme.extension,
       wrapping.of(wrapExtension(state.wrapSourceLines.now())),
+      readOnly.of(EditorState.readOnly.of(state.metadata.now().locked)),
       EditorView.updateListener.of(updateSource(_))
     )
 
@@ -70,6 +75,11 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
     for wrap <- state.wrapSourceLines.signal.changes do
       editorView.dispatch(new TransactionSpec {
         effects = wrapping.reconfigure(wrapExtension(wrap))
+      })
+
+    for locked <- state.sourceLocked.changes do
+      editorView.dispatch(new TransactionSpec {
+        effects = readOnly.reconfigure(EditorState.readOnly.of(locked))
       })
 
     for _ <- state.undoEvent.events do

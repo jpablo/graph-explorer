@@ -18,7 +18,31 @@ trait ImportOps:
     * observable under the incoming backend, which every consumer then fails on.
     */
   def replaceSource(text: String, format: DiagramFormat): Unit =
+    val languageChanges = format != formatSelection.now()
     phases.replaceDocument(text, format)
+    if languageChanges then selectExtractorOf(format)
+
+  /** Make the selected extractor follow a new language of the whole document.
+    *
+    * The paste, the push of text, and the undo of a whole document come here.
+    * The restore of a diagram takes the language from the selected extractor
+    * first. If the extractor stays on the old language, the next view parses
+    * the new text in the old language, and the parse fails.
+    *
+    * The person selected a language by hand, and the new text is the newer
+    * instruction (see `setDiagramFormat`). Thus the selection stays, but it
+    * changes to the new language. Auto-detect stays off. With no selection,
+    * this writes nothing.
+    *
+    * This writes the metadata after `replaceDocument`. Thus the view already
+    * has the new language when the extractor changes, and the observer of the
+    * extractor does nothing.
+    */
+  private def selectExtractorOf(format: DiagramFormat): Unit =
+    val current  = metadata.now()
+    val selected = current.extractor.isDefined || !current.autoDetectFormat.getOrElse(true)
+    val id       = languages.extractor(format).id
+    if selected && !current.extractor.contains(id) then metadata.metadata.update(_.copy(extractor = Some(id)))
 
   /** As [[replaceSource]], with the language read off the text itself. */
   def replaceSourceDetectingFormat(text: String): DiagramFormat =
@@ -72,5 +96,8 @@ trait ImportOps:
       case None         => infoBus.emit("The clipboard holds no DOT or Mermaid diagram")
 
   private def applyPaste(pasted: PastedDiagram): Unit =
-    replaceSource(pasted.source, pasted.format)
-    infoBus.emit(s"Pasted ${pasted.format.displayName} diagram from the clipboard")
+    if metadata.now().locked then
+      errorBus.emit("The viewer did not paste the diagram, because the diagram is locked. Unlock the diagram to change it.")
+    else
+      replaceSource(pasted.source, pasted.format)
+      infoBus.emit(s"Pasted ${pasted.format.displayName} diagram from the clipboard")

@@ -5,7 +5,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.library.LoggedChecks
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidRenderer
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
@@ -263,7 +263,7 @@ class ThumbnailDrawingSpec extends FunSuite with TestHelpers with LoggedChecks:
 
   for (kind, source) <- MermaidSamples do
     test(s"the Mermaid render of the $kind sample holds a drawing"):
-      MermaidBackend().textToSvg(source).map: result =>
+      MermaidRenderer().textToSvg(source).map: result =>
         val svg = result.svg.ref
         check(ThumbnailRenderer.hasDrawing(asStored(svg)), s"the check finds no drawing in: ${head(svg)}")
 

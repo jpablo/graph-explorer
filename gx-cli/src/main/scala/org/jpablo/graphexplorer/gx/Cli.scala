@@ -14,7 +14,7 @@ import org.jpablo.graphexplorer.gxcore.command.{
   SourceCommands
 }
 import org.jpablo.graphexplorer.gxcore.fs.*
-import org.jpablo.graphexplorer.gxcore.model.{ContentHash, DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.gxcore.model.{Board, ContentHash, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 import org.jpablo.graphexplorer.gxcore.store.{MetadataError, MetadataMigrationExecutor, MetadataMigrationResult}
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, RoundTripLoss, UnmodeledContent}
@@ -34,11 +34,16 @@ import scala.util.control.NonFatal
   *   - A read command (`nodes`, `arrows`, `groups`, `attrs`) parses the file.
   *   - A change command (`set`, `group`, …) writes the file. It writes only
   *     when the file still has the hash that gx read. It refuses a write that
-  *     removes comments or `strict`, unless the caller adds `--reformat`.
+  *     removes comments or `strict`, unless the caller adds `--reformat`. It
+  *     refuses a locked file (`gx lock`).
   *   - A metadata command (`hide`, `tag`, …) writes the library entry of the
   *     file, and never the file.
   *   - A desktop command (`open`, `select`, `selection`, `fit`) needs a running
   *     desktop. Each other command works with no desktop.
+  *   - A board file (`.gxboard`, ADR 0003) shows many diagrams, and it has no
+  *     elements. `open`, `fit` and the library commands take it. Each command
+  *     that reads elements refuses it (`requireDiagram`), and so does `lock`,
+  *     because the desktop does not read a lock for a board.
   *
   * Most callers are agents. Thus each result has `--json`, and each error
   * names what is wrong and what to do.
@@ -68,6 +73,8 @@ object Cli:
       |  gx collapse <file> <group>...      gx expand <file> (<group>... | --all)
       |  gx tag      <file> <tag>...        gx untag  <file> <tag>...
       |  gx note     <file> (<text> | --stdin | --clear)
+      |  gx lock     <file>                 gx unlock <file>
+      |                                     gx does not change a locked file
       |  gx info     <file> [--json]        the metadata of a diagram
       |  gx ls [--tag T] [--json]           the library
       |  gx add <file>...                   put a diagram in the library
@@ -78,6 +85,9 @@ object Cli:
       |  gx select    <file> <element>...
       |  gx selection [--json]              what is selected, and in which diagram
       |  gx fit       <file>                show the whole diagram
+      |
+      |A board file (.gxboard) shows many diagrams. open, fit and the library
+      |commands take it. The commands that read elements refuse it.
       |
       |Other
       |  gx status    gx watch <file>... [--json]    gx skill    gx --version
@@ -120,6 +130,8 @@ object Cli:
     Command("tag", "gx tag <file> <tag>...", Json, Set.empty, true, tag),
     Command("untag", "gx untag <file> <tag>...", Json, Set.empty, true, untag),
     Command("note", "gx note <file> (<text> | --stdin | --clear)", Json ++ Set("stdin", "clear"), Set.empty, true, note),
+    Command("lock", "gx lock <file> [--json]", Json, Set.empty, true, lock),
+    Command("unlock", "gx unlock <file> [--json]", Json, Set.empty, true, unlock),
     Command("info", "gx info <file> [--json]", Json, Set.empty, true, info),
     Command("ls", "gx ls [--tag T] [--json]", Json, Set("tag"), true, ls),
     Command("add", "gx add <file>... [--json]", Json, Set.empty, true, add),
@@ -330,7 +342,22 @@ object Cli:
           case Right(diagram) => Right(Loaded(path, doc, diagram))
 
   private def loadFile(command: Command, args: Args, env: CliEnv): Either[Int, Loaded] =
-    fileArg(command, args, env).flatMap(load(_, env))
+    fileArg(command, args, env).flatMap(requireDiagram(command, _, env)).flatMap(load(_, env))
+
+  /** Refuse a board file (exit 4) in a command that reads elements. A board
+    * has no elements, and before this check gx parsed it as DOT and gave
+    * "Expected graphP". The check uses the extension, as the desktop does, so
+    * it comes before the read of the file.
+    */
+  private def requireDiagram(command: Command, path: Path, env: CliEnv): Either[Int, Path] =
+    if !Board.isBoardPath(path.toString) then Right(path)
+    else
+      env.err(
+        s"gx: $path is a board, not a diagram, so '${command.name}' cannot use it. " +
+          "Give the file of a diagram on the board. " +
+          s"To show the board, run: gx open ${shellWord(path.toString)}"
+      )
+      Left(ExitCode.InvalidPathOrPolicy)
 
   // ---------------------------------------------------- element names
 
@@ -626,7 +653,9 @@ object Cli:
 
   /** The steps of each change (plan §2):
     *
-    *   1. Read the file and its hash, and parse it.
+    *   1. Read the file and its hash, and parse it. Then refuse a locked file
+    *      (`requireUnlocked`). This check comes before step 2, so a locked
+    *      file gives the same refusal for each change.
     *   2. Make the change on the graph.
     *   3. Render the text. If a save of it gives the same text as a save of
     *      the file over itself, write nothing (`LineEnding.sameOnDisk`). The
@@ -645,7 +674,13 @@ object Cli:
   private def change(command: Command, args: Args, env: CliEnv)(
       edit: Loaded => Either[Int, (ViewerGraph, Vector[(String, String)])]
   ): Int =
-    loadFile(command, args, env).flatMap(loaded => edit(loaded).map(loaded -> _)) match
+    val edited =
+      for
+        loaded <- loadFile(command, args, env)
+        _      <- requireUnlocked(loaded.path, env)
+        result <- edit(loaded)
+      yield loaded -> result
+    edited match
       case Left(code) => code
       case Right((loaded, (graph, extra))) =>
         val text      = DiagramText.render(graph, loaded.format)
@@ -690,6 +725,25 @@ object Cli:
       val notes = Option.unless(changed)("unchanged").toVector ++ extra.map((k, v) => s"$k $v")
       env.out((Vector(path.toString, hash.hex) ++ notes).mkString("  "))
     ExitCode.Ok
+
+  /** Refuse a change of a locked file (CONTEXT.md, "Locked"). The lock is in
+    * the entry of the file, so a file with no entry is not locked.
+    *
+    * An entry that gx cannot read is also a refusal (`entryOf`), because such
+    * an entry can hold a lock.
+    *
+    * This check only reads the store. It does not run the migration: an old
+    * record has no lock.
+    */
+  private def requireUnlocked(path: Path, env: CliEnv): Either[Int, Unit] =
+    entryOf(path, env).flatMap:
+      case Some(entry) if entry.metadata.locked =>
+        env.err(
+          s"gx: $path is locked, so gx did not write it. " +
+            s"To remove the lock, run: gx unlock ${shellWord(path.toString)}"
+        )
+        Left(ExitCode.InvalidPathOrPolicy)
+      case _ => Right(())
 
   // ---------------------------------------------------------- metadata
 
@@ -762,6 +816,10 @@ object Cli:
   /** The fields of `info`, in the order of the output. Each value is a
     * function, so that a caller can build one field only. Only `hidden` and
     * `collapsed` evaluate `names`, and only when they have a ref.
+    *
+    * `location` is the canonical `file:` URI of the file (ADR 0002). A file
+    * with no entry has a location too. `extractor` and `renderer` are `null`
+    * when the person selected none.
     */
   private def infoFields(
       path:  Path,
@@ -776,7 +834,11 @@ object Cli:
       "notes"            -> (() => ujson.Str(meta.map(_.notes).getOrElse(""))),
       "hidden"           -> (() => strings(displayed(meta.toVector.flatMap(_.hiddenElements), names))),
       "collapsed"        -> (() => strings(displayed(meta.toVector.flatMap(_.collapsedGroups), names))),
-      "autoDetectFormat" -> (() => meta.flatMap(_.autoDetectFormat).map(ujson.Bool(_)).getOrElse(ujson.Null))
+      "autoDetectFormat" -> (() => meta.flatMap(_.autoDetectFormat).map(ujson.Bool(_)).getOrElse(ujson.Null)),
+      "location"         -> (() => ujson.Str(entry.fold(LibraryEntry.keySource(path.toString))(_.location.value))),
+      "extractor"        -> (() => optional(meta.flatMap(_.extractor))),
+      "renderer"         -> (() => optional(meta.flatMap(_.renderer))),
+      "locked"           -> (() => ujson.Bool(meta.exists(_.locked)))
     )
 
   private def infoJson(path: Path, entry: Option[LibraryEntry], names: => Option[ElementNames]): ujson.Obj =
@@ -850,7 +912,7 @@ object Cli:
       stored: DiagramMetadata => Set[String]
   )(make: (Option[ElementNames], Vector[ElementId]) => Either[Int, MetadataCommand]): Int =
     val texts = args.positional.drop(1)
-    fileArg(command, args, env) match
+    fileArg(command, args, env).flatMap(requireDiagram(command, _, env)) match
       case Left(code) => code
       case Right(_) if texts.isEmpty && !args.has("all") =>
         usage(command, s"${command.name} needs elements or --all", env)
@@ -939,6 +1001,34 @@ object Cli:
           updateEntry(path, create = note.nonEmpty, env)(MetadataCommands.run(_, MetadataCommand.SetNotes(note)))
             .fold(identity, entry => reportEntry(path, entry, None, "notes", args, env))
 
+  /** `lock` makes the entry when there is none, as each command that adds
+    * metadata does. After it, each change command refuses the file
+    * (`requireUnlocked`).
+    */
+  private def lock(command: Command, args: Args, env: CliEnv): Int =
+    withOneFile(command, args, env): path =>
+      // A lock that nothing obeys gives a false promise. `unlock` stays open
+      // for a board, because it only removes a lock.
+      if Board.isBoardPath(path.toString) then
+        env.err(s"gx: $path is a board. The desktop does not read a lock for a board, so gx does not set one.")
+        Left(ExitCode.InvalidPathOrPolicy)
+      else updateEntry(path, create = true, env)(MetadataCommands.run(_, MetadataCommand.Lock))
+
+  private def unlock(command: Command, args: Args, env: CliEnv): Int =
+    withOneFile(command, args, env): path =>
+      updateEntry(path, create = false, env)(MetadataCommands.run(_, MetadataCommand.Unlock))
+
+  /** `lock` and `unlock`: exactly one file, and no other argument. */
+  private def withOneFile(command: Command, args: Args, env: CliEnv)(
+      update: Path => Either[Int, Option[LibraryEntry]]
+  ): Int =
+    fileArg(command, args, env) match
+      case Left(code) => code
+      case Right(_) if args.positional.sizeIs > 1 =>
+        usage(command, s"${command.name} takes exactly one <file>", env)
+      case Right(path) =>
+        update(path).fold(identity, entry => reportEntry(path, entry, None, "locked", args, env))
+
   private def info(command: Command, args: Args, env: CliEnv): Int =
     fileArg(command, args, env).flatMap(path => entryOf(path, env).map(path -> _)) match
       case Left(code) => code
@@ -969,16 +1059,27 @@ object Cli:
       if args.json then
         printJson(
           rows.map((e, missing) =>
-            ujson.Obj("path" -> e.path, "tags" -> strings(e.metadata.tags), "missing" -> missing)
+            ujson.Obj(
+              "path"    -> e.path,
+              "kind"    -> (if isBoard(e) then "board" else "diagram"),
+              "tags"    -> strings(e.metadata.tags),
+              "missing" -> missing
+            )
           ),
           env
         )
       else if rows.isEmpty then env.out("(no diagrams)")
       else
         for (e, missing) <- rows do
-          val tags = Option.when(e.metadata.tags.nonEmpty)(s"tags: ${e.metadata.tags.mkString(", ")}")
-          env.out((Vector(e.path) ++ tags ++ Option.when(missing)("missing")).mkString("  "))
+          val tags  = Option.when(e.metadata.tags.nonEmpty)(s"tags: ${e.metadata.tags.mkString(", ")}")
+          val words = Vector(e.path) ++ Option.when(isBoard(e))("board") ++ tags ++ Option.when(missing)("missing")
+          env.out(words.mkString("  "))
       ExitCode.Ok
+
+  /** True for the entry of a board file. `ls` and `status` use this one
+    * function, so they agree.
+    */
+  private def isBoard(entry: LibraryEntry): Boolean = Board.isBoardPath(entry.path)
 
   /** True when the file of the entry is missing. An entry path that no local
     * file can have (`FileOrigins.toPath` gives `None`) is also missing. An
@@ -1094,14 +1195,22 @@ object Cli:
             env.err(s"gx: use the same version of Graph Explorer Desktop and gx (this gx is ${buildinfo.BuildInfo.version})")
             ExitCode.Unknown
           case Right(answer) =>
-            val names = answer.path match
-              case None =>
+            val names = (answer.path, answer.board) match
+              case (None, Some(_)) =>
+                // A board has no elements, so there is no ref spelling to warn about.
+                env.err(s"gx: the desktop shows ${answer.shows}. A board has no selection.")
+                env.err("gx: to select, show a diagram of the board: gx open <file>")
+                None
+              case (None, None) =>
                 env.err(s"gx: the desktop shows ${answer.shows}, and it is not a file. The selection is in the ref spelling.")
                 None
-              case Some(path) => selectionNames(path, env)
+              case (Some(path), _) => selectionNames(path, env)
             val shown = answer.selection.map(nameOfRef(_, names))
             if args.json then
-              env.out(ujson.Obj("path" -> optional(answer.path), "selection" -> strings(shown)).render(indent = 2))
+              env.out(
+                ujson.Obj("path" -> optional(answer.path), "selection" -> strings(shown), "board" -> optional(answer.board))
+                  .render(indent = 2)
+              )
             else
               val what = if shown.isEmpty then "nothing selected" else s"selected: ${shown.mkString(", ")}"
               env.out(answer.path.fold(what)(path => s"$path  $what"))
@@ -1206,8 +1315,8 @@ object Cli:
   private def status(command: Command, args: Args, env: CliEnv): Int =
     if args.positional.nonEmpty then usage(command, s"${command.name} takes no file", env)
     else
-      val entries = env.library.list()
-      val missing = entries.count(isMissing)
+      val (boards, entries) = env.library.list().partition(isBoard)
+      val missing           = entries.count(isMissing)
 
       val desktop    = env.rpc("status", ujson.Obj()).toOption.flatMap(_.objOpt)
       val watchItems = desktop.flatMap(_.get("watches")).flatMap(_.arrOpt).toVector.flatten
@@ -1227,6 +1336,7 @@ object Cli:
             "library"           -> env.library.root.toString,
             "diagrams"          -> entries.size,
             "missing"           -> missing,
+            "boards"            -> boards.size,
             "desktopRunning"    -> running,
             "desktopStarting"   -> starting,
             "desktopWatches"    -> watchItems.size,
@@ -1236,6 +1346,7 @@ object Cli:
       else
         env.out(s"library:  ${env.library.root}")
         env.out(s"diagrams: ${entries.size}" + (if missing > 0 then s" ($missing missing)" else ""))
+        env.out(s"boards:   ${boards.size}")
         // NOT "open": this is the WATCH registry of the desktop. A watched
         // file need not be on the screen.
         if running then env.out(s"desktop:  running (${watching(watchItems.size)})")
