@@ -11,7 +11,9 @@ import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
+import scala.scalajs.js
+import scala.util.Try
 
 /** The state of a board on the screen: the items, their places, and the
   * writes to the store (ADR 0003).
@@ -31,6 +33,9 @@ class BoardStateSpec extends FunSuite with TestHelpers:
     def candidates(): Future[List[BoardCandidate]]          = Future.successful(Nil)
 
   private val two = Board(Vector(BoardItem("a", "a.dot", 0, 0), BoardItem("b", "b.dot", 500, 100)))
+
+  // A short wait for the first fit, so that the tests of the wait are fast.
+  private val fitWaitMs = 200.0
 
   // The owner of the states of one test. The end of the test kills it.
   private var owner = ManualOwner()
@@ -187,6 +192,71 @@ class BoardStateSpec extends FunSuite with TestHelpers:
       state.itemSize("c", 200, 100)
       // The items go from (0, 0) to (800, 300), and the new item is at x = 860.
       assertEquals(state.viewport.now(), BoardViewport.fit(BoardBounds(0, 0, 1060, 300), 1000, 600))
+
+  // Review finding of PR #62. The first fit waited for the size of each item,
+  // with no limit. An item gives its size only when its render ends, and all
+  // the Mermaid renders wait in one queue. Thus a board with many slow items
+  // showed no first fit for a long time.
+
+  /** A state on `store` with a short wait for the first fit, after the load. */
+  private def loadedWithWait(store: MemoryStore): Future[BoardState] =
+    val state = BoardState(store, Observer.empty, fitWaitMs)(using owner)
+    state.canvasSize = () => (1000, 600)
+    afterMicrotasks(state)
+
+  private def after[A](ms: Double)(block: => A): Future[A] =
+    val p = Promise[A]()
+    js.timers.setTimeout(ms)(p.complete(Try(block)))
+    p.future
+
+  test("the first view shows all of the board after the wait, also when an item has no size"):
+    val store = MemoryStore(Right(two))
+    loadedWithWait(store)
+      .flatMap: state =>
+        state.itemSize("a", 400, 300)
+        after(fitWaitMs + 300)(state)
+      .map: state =>
+        // The item "b" has the default size: it goes from (500, 100) to (820, 340).
+        assertEquals(state.viewport.now(), BoardViewport.fit(BoardBounds(0, 0, 820, 340), 1000, 600), "the first fit did not come after the wait")
+
+  test("after the wait, the size of the last item gives a new fit"):
+    val store = MemoryStore(Right(two))
+    loadedWithWait(store)
+      .flatMap: state =>
+        state.itemSize("a", 400, 300)
+        after(fitWaitMs + 300)(state)
+      .map: state =>
+        state.itemSize("b", 1500, 900)
+        assertEquals(state.viewport.now(), BoardViewport.fit(BoardBounds(0, 0, 2000, 1000), 1000, 600), "the size of the last item gave no fit")
+
+  test("the wait does not move a view that the person moved"):
+    val store = MemoryStore(Right(two))
+    loadedWithWait(store)
+      .flatMap: state =>
+        state.panBy(15, 25)
+        val moved = state.viewport.now()
+        after(fitWaitMs + 300)((state, moved))
+      .map: (state, moved) =>
+        assertEquals(state.viewport.now(), moved, "the end of the wait moved the view of the person")
+        state.itemSize("a", 400, 300)
+        state.itemSize("b", 1500, 900)
+        assertEquals(state.viewport.now(), moved, "a later size moved the view of the person")
+
+  test("after an add, the view shows all of the board after the wait, also when the new item has no size"):
+    val store = MemoryStore(Right(two))
+    loadedWithWait(store)
+      .flatMap: state =>
+        state.itemSize("a", 400, 300)
+        state.itemSize("b", 300, 200)
+        state.panBy(-5000, 0)
+        state.add("c.dot")
+        after(fitWaitMs + 300)(state)
+      .map: state =>
+        // The items go from (0, 0) to (800, 300). The new item is at x = 860,
+        // and it has the default size.
+        assertEquals(state.viewport.now(), BoardViewport.fit(BoardBounds(0, 0, 1180, 300), 1000, 600), "the fit after the add did not come after the wait")
+        state.itemSize("c", 200, 100)
+        assertEquals(state.viewport.now(), BoardViewport.fit(BoardBounds(0, 0, 1060, 300), 1000, 600), "the size of the new item gave no fit")
 
   test("the zoom controls change the scale at the center of the canvas"):
     val store = MemoryStore(Right(two))

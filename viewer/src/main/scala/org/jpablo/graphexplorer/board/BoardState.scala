@@ -1,9 +1,11 @@
 package org.jpablo.graphexplorer.board
 
+import com.raquo.airstream.ownership.Subscription
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.gxcore.model.{Board, BoardItem}
 
 import scala.concurrent.ExecutionContext
+import scala.scalajs.js
 
 /** The state of the load of a board. */
 enum BoardStatus derives CanEqual:
@@ -24,7 +26,11 @@ enum BoardStatus derives CanEqual:
   * The state of each diagram (its source, its graph, its drawing) is not
   * here. The view makes one `ViewerState` for each item.
   */
-final class BoardState(val store: BoardStore, errors: Observer[String])(using Owner, ExecutionContext):
+final class BoardState(
+    val store: BoardStore,
+    errors: Observer[String],
+    fitWaitMs: Double = BoardState.FitWaitMs
+)(using Owner, ExecutionContext):
 
   val board: Var[Board]             = Var(Board.empty)
   val status: Var[BoardStatus]      = Var(BoardStatus.Loading)
@@ -40,6 +46,19 @@ final class BoardState(val store: BoardStore, errors: Observer[String])(using Ow
   // True after the first fit, and after the person moved the view. A new item
   // makes it false again, so that the view shows the new item.
   private var viewSettled = false
+
+  // The timer of the limited wait for the sizes. `waitEnded` is true after
+  // the end of the current wait, so that a new size starts no new wait.
+  private var fitTimer: Option[js.timers.SetTimeoutHandle] = None
+  private var waitEnded                                   = false
+
+  // True after the end of the owner. A timer then does nothing.
+  private var killed = false
+
+  new Subscription(summon[Owner], () =>
+    killed = true
+    stopWait()
+  )
 
   store.load().foreach:
     case Right(loaded) =>
@@ -89,19 +108,42 @@ final class BoardState(val store: BoardStore, errors: Observer[String])(using Ow
       viewport.set(BoardViewport.fit(all, width, height))
 
   // The first view of a board shows all of it. The fit waits for the size of
-  // each item, because the size of a drawing comes after its render.
+  // each item, because the size of a drawing comes after its render. All the
+  // Mermaid renders go in one queue, thus the sizes can come late. The wait
+  // has a limit of `fitWaitMs`. At the end of the wait, the fit uses the
+  // default size for an item with no size. That fit does not settle the view,
+  // thus the size of the last item gives a new fit.
   private def fitWhenMeasured(): Unit =
     val items = board.now().items
-    if !viewSettled && status.now() == BoardStatus.Ready && items.nonEmpty && items.forall(item => sizes.contains(item.id)) then
-      viewSettled = true
-      fit()
+    if !viewSettled && ready && items.nonEmpty then
+      if items.forall(item => sizes.contains(item.id)) then
+        settle()
+        fit()
+      else if fitTimer.isEmpty && !waitEnded && !killed then
+        fitTimer = Some(js.timers.setTimeout(fitWaitMs)(endWait()))
+
+  // The wait for the sizes ended before the last size came.
+  private def endWait(): Unit =
+    fitTimer = None
+    waitEnded = true
+    if !killed && !viewSettled && ready then fit()
+
+  // The view does not move again by itself, thus the wait stops.
+  private def settle(): Unit =
+    viewSettled = true
+    stopWait()
+
+  private def stopWait(): Unit =
+    fitTimer.foreach(js.timers.clearTimeout)
+    fitTimer = None
+    waitEnded = false
 
   def panBy(dx: Double, dy: Double): Unit =
-    viewSettled = true
+    settle()
     viewport.update(_.panBy(dx, dy))
 
   def zoomAt(px: Double, py: Double, factor: Double): Unit =
-    viewSettled = true
+    settle()
     viewport.update(_.zoomAt(px, py, factor))
 
   /** Zoom at the center of the canvas. */
@@ -131,8 +173,10 @@ final class BoardState(val store: BoardStore, errors: Observer[String])(using Ow
       board.set(next)
       selected.set(Some(item.id))
       // The new item can be outside the view. The fit comes when the view
-      // measured the item.
+      // measured the item, or at the end of a new limited wait.
+      stopWait()
       viewSettled = false
+      fitWhenMeasured()
       commit()
 
   /** Move an item, with no write. [[commit]] ends the move. */
@@ -153,3 +197,9 @@ object BoardState:
 
   /** The space between the items of the board and a new item. */
   val Gap = 60.0
+
+  /** The maximum time in milliseconds that the first fit waits for the sizes
+    * of the items. After this time, the board fits with the default size for
+    * an item with no size. The size of the last item then gives a new fit.
+    */
+  val FitWaitMs = 3000.0
