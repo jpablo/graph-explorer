@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.state.TestSetup
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.scalajs.js
 import scala.util.Try
 
 trait TestHelpers:
@@ -36,3 +37,32 @@ trait TestHelpers:
 
       override def afterEach(context: AfterEach): Unit =
         TestSetup.cleanupMockStorage()
+
+/** The timers of the specs that run in the browser.
+  *
+  * This is a different trait from [[TestHelpers]], because many specs that
+  * use [[TestHelpers]] have their own `after` or `waitFor`.
+  */
+trait TimerHelpers:
+
+  /** The value of `block` after `ms` milliseconds. A failure of `block`
+    * fails the future, and not the test run.
+    */
+  def after[A](ms: Double)(block: => A): Future[A] =
+    val p = Promise[A]()
+    js.timers.setTimeout(ms)(p.complete(Try(block)))
+    p.future
+
+  /** Wait until `condition` is true. The future fails after `timeoutMs`
+    * milliseconds, with `description` in its message.
+    */
+  def waitFor(description: => String, timeoutMs: Int = 15000)(condition: => Boolean): Future[Unit] =
+    val p     = Promise[Unit]()
+    val start = js.Date.now()
+    def loop(): Unit =
+      if condition then p.trySuccess(())
+      else if js.Date.now() - start >= timeoutMs then
+        p.tryFailure(new RuntimeException(s"Timed out after ${timeoutMs}ms. Expected: $description"))
+      else js.timers.setTimeout(20)(loop())
+    loop()
+    p.future
