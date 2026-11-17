@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs, Renderer}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs, RenderState, Renderer}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.components.resolveTheme
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
@@ -402,20 +402,28 @@ case class ViewerState(
       viewDiffersFromSource = if sourceInItsLanguage then viewDiffersFromSource else Val(true)
     )
 
-  private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    // .distinct matters: the Mermaid renderer HOLDS its previous value while an
-    // async render is pending (see MermaidRenderer.render), and re-emitting the
-    // same instance would re-amend the mounted svg — duplicate binders and
-    // event listeners piling up on every render cycle.
+  /** The state of the render of the current renderer: a render that is not
+    * complete, a drawing, or no drawing with its cause. A board reads it for an
+    * item, so that it can tell a render that waits from a render that failed.
+    */
+  val renderState: Signal[RenderState] =
     currentRenderer
       .combineWithFn(currentFormat)((renderer, sourceFormat) => (renderer, renderer.format == sourceFormat))
       .distinct
       .flatMapSwitch((renderer, sourceInItsLanguage) => renderer.render(renderInputsFor(sourceInItsLanguage)))
       .distinct
 
-  /** The drawing alone, with no behavior of the canvas. A board shows it for an
-    * item. Only one place can show the element, and that place is not the
-    * canvas of this viewer ([[finalSVG]]).
+  private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
+    // .distinct matters: the Mermaid renderer HOLDS its previous value while an
+    // async render is pending (see MermaidRenderer.render), and re-emitting the
+    // same instance would re-amend the mounted svg — duplicate binders and
+    // event listeners piling up on every render cycle. A Pending state holds
+    // the previous drawing, and this .distinct drops that repeated drawing.
+    renderState.map(_.drawing).distinct
+
+  /** The drawing alone, with no behavior of the canvas. Only one place can
+    * show the element, and that place is not the canvas of this viewer
+    * ([[finalSVG]]).
     */
   val drawing: Signal[Option[ReactiveSvgElement[SVG]]] = svgWithPositions.map(_.map(_.svg))
 

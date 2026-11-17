@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import com.raquo.airstream.core.Signal
-import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramRenderInputs, Renderer}
+import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramRenderInputs, RenderState, Renderer}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElementStrategy}
@@ -67,7 +67,7 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
 
   override def selectionStrategy: SelectableElementStrategy = MermaidSelectionStrategy
 
-  override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =
+  override def render(inputs: DiagramRenderInputs): Signal[RenderState] =
     // Render the raw source text for fidelity (the Mermaid round-trip is lossy) — but when
     // the view differs from the source (hidden elements, collapsed groups), render the
     // serialized visible graph instead, otherwise hide/show and collapse/expand operations
@@ -76,13 +76,15 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
     // unconditionally serialized the whole graph on every parse just to discard the text,
     // and its post-parse recompute echoed a second identical mermaid render per keystroke.
     // The .distinct collapses that echo.
-    // Inner protocol: None = STILL RENDERING, Some(x) = settled (x is None for
+    // Inner protocol: None = STILL RENDERING, Some(x) = settled (x is NoDrawing for
     // empty text or a failed render). Signal.fromFuture emits None until the
     // future completes — flattening that into the output used to blank the
     // canvas for every async gap, which unmounted the previous svg and starved
     // the layout-stability hooks (no connected old svg ⇒ no anchoring, no
-    // transition; also the visible re-render blink). The scanLeft holds the
-    // previous drawing through the gap and honors every settled value.
+    // transition; also the visible re-render blink). The scanLeft turns the
+    // gap into Pending, which keeps the previous drawing, and honors every
+    // settled value. Thus a view knows that a render waits, for example in the
+    // queue of MermaidBackend, and it does not take the wait as a failure.
     inputs.viewDiffersFromSource
       .flatMapSwitch: differs =>
         if differs then inputs.visibleGraph.map(Left(_): Either[ViewerGraph, String])
@@ -93,27 +95,27 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
           Signal.fromFuture(settled("the visible graph", graphToSvg(graph)))
         case Right(mermaidText) =>
           if mermaidText.trim.isEmpty then
-            Signal.fromValue(Some(None): Option[Option[SvgWithPositions]])
+            Signal.fromValue(Some(RenderState.NoDrawing(None)): Option[RenderState])
           else
             val detected = DiagramFormat.detect(mermaidText)
             if detected != DiagramFormat.Mermaid then
               // The registry already routed here by the format TAG; detection is advisory
               // (its prefix list can lag new Mermaid diagram types), so warn but still try —
-              // a genuine non-Mermaid text fails the render and recovers to None below.
+              // a genuine non-Mermaid text fails the render and recovers to NoDrawing below.
               dom.console.warn(s"[mermaid] Text does not look like Mermaid (detected: $detected); attempting render anyway")
             Signal.fromFuture(settled("the source", textToSvg(mermaidText)))
-      .scanLeft((first: Option[Option[SvgWithPositions]]) => first.getOrElse(None)):
-        (last, next) => next.getOrElse(last)
+      .scanLeft((first: Option[RenderState]) => first.getOrElse(RenderState.Pending(None))):
+        (last, next) => next.getOrElse(RenderState.Pending(last.drawing))
 
-  /** The result of a render, with a failure as "no drawing".
+  /** The result of a render, with a failure as "no drawing" and its cause.
     *
     * This recover is the render pipeline's last stop: without the log, a failure
     * here is a silently blank canvas (that's how the C4 xlink bug hid).
     */
-  private def settled(input: String, result: Future[SvgWithPositions]): Future[Option[SvgWithPositions]] =
-    result.map(Some(_)).recover { case e =>
+  private def settled(input: String, result: Future[SvgWithPositions]): Future[RenderState] =
+    result.map(RenderState.Drawn(_)).recover { case e =>
       dom.console.error(s"[mermaid] render pipeline failed for $input: ${e.getMessage}")
-      None
+      RenderState.NoDrawing(Option(e.getMessage))
     }
 
   /** The state diagram of `text` when it is one, and the drawn ids of the

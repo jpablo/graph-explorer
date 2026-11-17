@@ -7,7 +7,7 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.fromExpandedAttributes
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramLanguages, DiagramRenderInputs, Extractor, Printer, RenderOnlyDiagram, Renderer}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramLanguages, DiagramRenderInputs, Extractor, Printer, RenderOnlyDiagram, RenderState, Renderer}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
@@ -652,7 +652,7 @@ object TwoFormatFakeLanguages extends DiagramLanguages:
     override def extractTitle(text: String): Option[String]   = None
     override def diagramKind(text: String): Option[String]    = None
     override def selectionStrategy: SelectableElementStrategy = GraphvizSelectionStrategy
-    override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
+    override def render(inputs: DiagramRenderInputs): Signal[RenderState] = Signal.fromValue(RenderState.NoDrawing(None))
 
   private val dotParts     = Parts(DiagramFormat.DOT, "FAKEDOT")
   private val mermaidParts = Parts(DiagramFormat.Mermaid, "FAKEMMD")
@@ -680,7 +680,7 @@ object FakeDiagramLanguages extends DiagramLanguages:
     override def extractTitle(text: String): Option[String]        = None
     override def diagramKind(text: String): Option[String]         = None
     override def selectionStrategy: SelectableElementStrategy      = GraphvizSelectionStrategy
-    override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
+    override def render(inputs: DiagramRenderInputs): Signal[RenderState] = Signal.fromValue(RenderState.NoDrawing(None))
 
   override def extractors: List[Extractor]                 = List(FakeParts)
   override def renderers: List[Renderer]                   = List(FakeParts)
@@ -705,7 +705,7 @@ object ClassifyingFakeLanguages extends DiagramLanguages:
     override def extractTitle(text: String): Option[String]                      = None
     override def diagramKind(text: String): Option[String]                       = None
     override def selectionStrategy: SelectableElementStrategy                    = GraphvizSelectionStrategy
-    override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
+    override def render(inputs: DiagramRenderInputs): Signal[RenderState] = Signal.fromValue(RenderState.NoDrawing(None))
 
   override def extractors: List[Extractor]                 = List(Parts)
   override def renderers: List[Renderer]                   = List(Parts)

@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.{title as titleAttr, *}
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.gxcore.model.BoardItem
 import org.jpablo.graphexplorer.router.{Route, Router}
+import org.jpablo.graphexplorer.viewer.backends.RenderState
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.components.ErrorAlert
 import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, ViewerState, ViewTarget}
@@ -209,8 +210,12 @@ private def itemFrame(
     case ItemContent.Shown(_, viewer) => viewer.displayTitle
     case _                            => Val(initial.location)
 
-  /** The drawing with the size that the item gives it, and the size of the frame to the board. */
-  def sized(drawing: ReactiveSvgElement[dom.svg.SVG], width: Option[Double]): ReactiveSvgElement[dom.svg.SVG] =
+  /** The drawing with the size that the item gives it. `last` is true when no
+    * render comes after this drawing. Then the size of the frame goes to the
+    * board, for the first fit of the view. The old drawing of a pending render
+    * gives no size, so the fit waits for the new drawing.
+    */
+  def sized(drawing: ReactiveSvgElement[dom.svg.SVG], width: Option[Double], last: Boolean): ReactiveSvgElement[dom.svg.SVG] =
     val box     = drawing.ref.viewBox.baseVal
     val natural = if box != null && box.width > 0 && box.height > 0 then (box.width, box.height) else BoardState.DefaultSize
     val factor  = width.fold(1.0)(_ / natural._1)
@@ -218,7 +223,7 @@ private def itemFrame(
     drawing.ref.setAttribute("height", (natural._2 * factor).toString)
     // Mermaid sets a maximum width in the style of the drawing.
     drawing.ref.style.maxWidth = "none"
-    state.itemSize(id, natural._1 * factor, natural._2 * factor + BoardFrame.TitleHeight)
+    if last then state.itemSize(id, natural._1 * factor, natural._2 * factor + BoardFrame.TitleHeight)
     drawing
 
   /** The text in the place of a drawing. `last` is true when no drawing comes
@@ -240,9 +245,13 @@ private def itemFrame(
     * later parse sets the status to Loading, and the body then keeps the last
     * result.
     *
-    * A renderer gives no drawing for an empty source, and no drawing when its
-    * render fails. The body then shows a placeholder that gives a size, so
-    * that the first fit of the board can come.
+    * The renderer tells the state of its render ([[RenderState]]). A render
+    * can wait for a long time, for example in the queue of the Mermaid
+    * renderer. While it waits, the body shows the earlier drawing, or the text
+    * for the wait. A render that ended with no drawing shows a placeholder
+    * with the cause of the renderer. An empty source also gives no drawing.
+    * These placeholders give a size, so that the first fit of the board can
+    * come.
     */
   def diagramBody(viewer: ViewerState): Signal[Node] =
     def ended(status: DiagramLoadStatus): Option[DiagramLoadStatus] = status match
@@ -250,19 +259,18 @@ private def itemFrame(
       case other                     => Some(other)
     val lastResult = viewer.loadStatus.signal.scanLeft(ended)((last, next) => ended(next).orElse(last)).distinct
     val emptySource = viewer.sourceText.signal.map(_.trim.isEmpty).distinct
-    // The renderer does not tell when its render fails. After this wait with
-    // no drawing, the body stops the wait.
-    val waitEnded = EventStream.delay(BoardFrame.RenderWaitMs, true, emitOnce = true).startWith(false)
-    viewer.drawing.combineWithFn(lastResult, emptySource, waitEnded, item.map(_.width).distinct):
-      (drawing, result, empty, late, width) =>
-        val node: Node = (result, drawing) match
+    viewer.renderState.combineWithFn(lastResult, emptySource, item.map(_.width).distinct):
+      (render, result, empty, width) =>
+        val node: Node = (result, render) match
           case (None, _)                                  => waiting
           case (Some(DiagramLoadStatus.Failed(reason)), _) => placeholder("bi-exclamation-triangle", reason, last = true)
           case (Some(_), _) if empty                      => placeholder("bi-file-earmark", "This diagram is empty.", last = true)
-          case (Some(_), Some(svg))                       => sized(svg, width)
-          case (Some(_), None) if late =>
-            placeholder("bi-exclamation-triangle", "The renderer gave no drawing of this diagram.", last = true)
-          case (Some(_), None) => waiting
+          case (Some(_), RenderState.Drawn(drawn))        => sized(drawn.svg, width, last = true)
+          case (Some(_), RenderState.Pending(Some(earlier))) => sized(earlier.svg, width, last = false)
+          case (Some(_), RenderState.Pending(None))       => waiting
+          case (Some(_), RenderState.NoDrawing(cause)) =>
+            val text = cause.filter(_.trim.nonEmpty).getOrElse("The renderer gave no drawing of this diagram.")
+            placeholder("bi-exclamation-triangle", text, last = true)
         node
 
   def bodyOf(shown: ItemContent): Signal[Node] = shown match
@@ -339,6 +347,3 @@ private def itemFrame(
 private object BoardFrame:
   /** The height of the title bar of an item, as the style sheet gives it. */
   val TitleHeight = 28.0
-
-  /** The time in milliseconds that an item waits for the drawing of a parsed source. */
-  val RenderWaitMs = 10000
