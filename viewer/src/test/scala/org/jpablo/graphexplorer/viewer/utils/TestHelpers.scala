@@ -40,6 +40,9 @@ trait TestHelpers:
 
 object TestHelpers:
 
+  /** The maximum time in milliseconds for one build of the shared Graphviz. */
+  val BuildLimitMs = 10000.0
+
   /** One Graphviz for all the specs of the test run, as the app has one.
     *
     * Each `Graphviz.build()` makes a new viz-js instance, and each instance
@@ -47,8 +50,37 @@ object TestHelpers:
     * made many instances. Then the promise of an instance sometimes did not
     * complete, and a test stopped at its timeout of 30 s. `Graphviz` keeps no
     * state of its own, so the specs can share one instance.
+    *
+    * Each build has a limit of [[BuildLimitMs]]. After a build that does not
+    * complete in that time, one more build starts. If that build also does not
+    * complete, the future fails with the cause. Thus each Graphviz test fails
+    * with that cause, and not at its timeout with no cause.
     */
-  lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
+  lazy val sharedGraphviz: Future[Graphviz] =
+    given ExecutionContext = ExecutionContext.global
+    buildWithin(BuildLimitMs).recoverWith:
+      case _: GraphvizTimeout =>
+        buildWithin(BuildLimitMs).recoverWith:
+          case _: GraphvizTimeout =>
+            Future.failed(
+              GraphvizTimeout(
+                s"Two builds of the shared Graphviz did not complete in ${BuildLimitMs.toInt} ms each: " +
+                  "the promise of the viz-js instance (VizJS.instance(), the wasm instantiation) did not complete."
+              )
+            )
+
+  private final class GraphvizTimeout(message: String) extends RuntimeException(message)
+
+  // A build of Graphviz that fails after `limitMs` milliseconds. A build that
+  // completes after that time has no effect.
+  private def buildWithin(limitMs: Double)(using ExecutionContext): Future[Graphviz] =
+    val p     = Promise[Graphviz]()
+    val timer = js.timers.setTimeout(limitMs):
+      p.tryFailure(GraphvizTimeout(s"The build of the shared Graphviz did not complete in ${limitMs.toInt} ms."))
+    Graphviz.build().onComplete: outcome =>
+      js.timers.clearTimeout(timer)
+      p.tryComplete(outcome)
+    p.future
 
 /** The timers of the specs that run in the browser.
   *

@@ -31,8 +31,6 @@ class BoardFileSpec extends FunSuite with TestHelpers with LoggedChecks:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  private lazy val sharedGraphviz: Future[Graphviz] = TestHelpers.sharedGraphviz
-
   private var shell     = FakeDesktopShell()
   private var startHref = ""
 
@@ -328,7 +326,7 @@ class BoardFileSpec extends FunSuite with TestHelpers with LoggedChecks:
       ()
 
   private def withPage(body: Page => Future[Unit]): Future[Unit] =
-    sharedGraphviz.flatMap: graphviz =>
+    TestHelpers.sharedGraphviz.flatMap: graphviz =>
       val page = Page(graphviz)
       Future
         .delegate(body(page))

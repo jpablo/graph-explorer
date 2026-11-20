@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.board
 
-import com.raquo.airstream.core.{EventStream, Observer, Signal}
+import com.raquo.airstream.core.{EventStream, Observer, Signal, Transaction}
 import com.raquo.airstream.eventbus.EventBus
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.airstream.state.Val
@@ -342,6 +342,77 @@ class BoardStateSpec extends FunSuite with TestHelpers with TimerHelpers:
         assertEquals(state.viewport.now(), zoomed, "the end of the wait moved the view of the person")
         state.itemSize("b", 1500, 900)
         assertEquals(state.viewport.now(), zoomed, "a later size moved the view of the person")
+
+  // Review findings of PR #64.
+
+  test("a move to the same place, as in a click on the title, does not stop the fit"):
+    val store = MemoryStore(Right(two))
+    loadedWithWait(store)
+      .flatMap: state =>
+        state.itemSize("a", 400, 300)
+        // A click on the title of "a" gives a pointer move of less than one pixel.
+        state.move("a", 0.3, -0.2)
+        after(fitWaitMs + 300)(state)
+      .map: state =>
+        assertEquals(state.board.now().item("a"), Some(BoardItem("a", "a.dot", 0, 0)), "precondition: the item moved")
+        assertEquals(state.viewport.now(), defaultFit, "a click on the title stopped the first fit")
+        state.itemSize("b", 1500, 900)
+        assertEquals(state.viewport.now(), BoardViewport.fit(BoardBounds(0, 0, 2000, 1000), 1000, 600), "a click on the title stopped the last fit")
+
+  test("a move to a different place during the wait stops the fit"):
+    val store = MemoryStore(Right(two))
+    loadedWithWait(store)
+      .flatMap: state =>
+        state.itemSize("a", 400, 300)
+        // The person drags the item "a" before the end of the wait.
+        state.move("a", 10.4, 9.6)
+        after(fitWaitMs + 300)(state)
+      .map: state =>
+        assertEquals(state.board.now().item("a"), Some(BoardItem("a", "a.dot", 10, 10)), "precondition: the item did not move")
+        assertEquals(state.viewport.now(), BoardViewport.start, "the end of the wait moved the view during the work of the person")
+        state.itemSize("b", 1500, 900)
+        assertEquals(state.viewport.now(), BoardViewport.start, "the size of the last item moved the view during the work of the person")
+
+  test("a remove in a transaction gives the fit of the real sizes"):
+    val store = MemoryStore(Right(two))
+    loadedWithWait(store)
+      .flatMap: state =>
+        state.itemSize("a", 400, 300)
+        after(fitWaitMs + 300)(state)
+      .flatMap: state =>
+        assertEquals(state.viewport.now(), defaultFit)
+        Transaction(_ => state.remove("b"))
+        afterMicrotasks(state)
+      .map: state =>
+        assertEquals(state.board.now().items.map(_.id), Vector("a"), "precondition: the remove did not change the board")
+        assertEquals(state.viewport.now(), BoardViewport.fit(BoardBounds(0, 0, 400, 300), 1000, 600), "the remove in a transaction gave no fit")
+
+  test("an add and a remove in a transaction write the new board"):
+    val store = MemoryStore(Right(two))
+    loaded(store)
+      .flatMap: (state, _) =>
+        Transaction(_ => state.add("c.dot"))
+        afterMicrotasks(state)
+      .flatMap: state =>
+        assertEquals(store.saves.toList.map(_.items.map(_.id)), List(Vector("a", "b", "c")), "the add in a transaction wrote the old board")
+        Transaction(_ => state.remove("a"))
+        afterMicrotasks(state)
+      .map: state =>
+        assertEquals(store.saves.toList.map(_.items.map(_.id)), List(Vector("a", "b", "c"), Vector("b", "c")), "the remove in a transaction wrote the old board")
+
+  test("an add in a transaction waits for the size of the new item"):
+    val store = MemoryStore(Right(two))
+    loadedWithWait(store)
+      .flatMap: state =>
+        state.itemSize("a", 400, 300)
+        state.itemSize("b", 300, 200)
+        Transaction(_ => state.add("c.dot"))
+        afterMicrotasks(state)
+      .map: state =>
+        assertEquals(state.board.now().items.map(_.id), Vector("a", "b", "c"), "precondition: the add did not change the board")
+        state.itemSize("c", 200, 100)
+        // The items go from (0, 0) to (800, 300), and the new item is at x = 860.
+        assertEquals(state.viewport.now(), BoardViewport.fit(BoardBounds(0, 0, 1060, 300), 1000, 600), "the add in a transaction gave no fit for the new item")
 
   test("the zoom controls change the scale at the center of the canvas"):
     val store = MemoryStore(Right(two))

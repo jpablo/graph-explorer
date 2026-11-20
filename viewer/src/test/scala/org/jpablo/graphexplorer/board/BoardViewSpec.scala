@@ -6,7 +6,6 @@ import org.jpablo.graphexplorer.gxcore.model.{Board, BoardItem}
 import org.jpablo.graphexplorer.library.{BrowserBoards, Library}
 import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidQueue
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.RightPanelSection
@@ -25,8 +24,6 @@ import scala.scalajs.js
   * Mermaid. The store is the storage of the browser.
   */
 class BoardViewSpec extends FunSuite with TestHelpers with TimerHelpers:
-
-  private lazy val sharedGraphviz: Future[Graphviz] = TestHelpers.sharedGraphviz
 
   override def munitFixtures = List(mockStorageFixture())
 
@@ -74,7 +71,7 @@ class BoardViewSpec extends FunSuite with TestHelpers with TimerHelpers:
     val errors = mutable.Buffer.empty[String]
     val bus    = EventBus[String]()
     val sub    = bus.events.foreach(errors += _)(using unsafeWindowOwner)
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val store   = BrowserBoardStore(boardId, DefaultDiagramLanguages(graphviz))
         val mounted = render(container, BoardView(store, graphviz, Router(), bus))
@@ -257,7 +254,7 @@ class BoardViewSpec extends FunSuite with TestHelpers with TimerHelpers:
     dom.window.localStorage.setItem(s"[StoredString]graph-explorer.board.$boardId", """{ "version": 9, "items": [] }""")
     val container = dom.document.createElement("div")
     dom.document.body.appendChild(container)
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val store   = BrowserBoardStore(boardId, DefaultDiagramLanguages(graphviz))
         val mounted = render(container, BoardView(store, graphviz, Router(), EventBus[String]()))

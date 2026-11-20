@@ -184,22 +184,32 @@ final class BoardState(
       // wait starts.
       viewSettled = false
       waitEnded = false
-      fitWhenMeasured()
-      commit()
+      afterChange()
 
   /** Move an item, with no write. [[commit]] ends the move. The person moves
-    * the item, thus the view does not move again by itself.
+    * the item, thus the view does not move again by itself. A move to the
+    * same place, as in a click on the title, does not change the view.
     */
   def move(id: String, x: Double, y: Double): Unit =
     if ready then
-      settle()
-      board.update(_.move(id, x.round.toDouble, y.round.toDouble))
+      val (toX, toY) = (x.round.toDouble, y.round.toDouble)
+      if board.now().item(id).exists(item => item.x != toX || item.y != toY) then
+        settle()
+        board.update(_.move(id, toX, toY))
 
   def remove(id: String): Unit =
     if ready then
       board.update(_.remove(id))
       sizes = sizes.removed(id)
       selected.update(_.filterNot(_ == id))
+      afterChange()
+
+  // The fit and the write after an add or a remove. Inside a transaction, a
+  // `Var` gets its new value in a later transaction. Thus the fit and the
+  // write come after that transaction, so that they read the new board.
+  // Outside a transaction, they come at once.
+  private def afterChange(): Unit =
+    Transaction: _ =>
       fitWhenMeasured()
       commit()
 

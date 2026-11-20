@@ -22,17 +22,16 @@ import scala.scalajs.js
   */
 class RendererChoiceSpec extends FunSuite with TestHelpers:
 
-  /** One Graphviz for the spec, and one owner for each test.
+  /** The specs share one Graphviz for the whole test run (see
+    * `TestHelpers.sharedGraphviz`). Each test has one owner.
     *
     * The end of a test ends each subscription of its viewers. A viewer that
     * stays alive keeps its Graphviz instance and its drawings, and the specs
     * that run after this one then time out.
     */
-  private lazy val sharedGraphviz: Future[Graphviz] = TestHelpers.sharedGraphviz
-
   private def withViewers(body: Owner ?=> Graphviz => Future[Unit]): Future[Unit] =
     val owner = ManualOwner()
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap(graphviz => body(using owner)(graphviz))
       .transform: outcome =>
         owner.killSubscriptions()
