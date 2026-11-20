@@ -4,7 +4,8 @@
 // latest release on GitHub. The script adds four things:
 //   1. direct links to the files of the latest release, from the GitHub API;
 //   2. a download button for the visitor's platform;
-//   3. "Open your library" for a visitor who has diagrams in the web app;
+//   3. for a visitor who has diagrams in the web app: the number of diagrams
+//      under the buttons, and a bar that says where the web app is now;
 //   4. the explorable diagram in the "desktop" section.
 
 const REPO = "jpablo/graph-explorer";
@@ -125,7 +126,7 @@ function showRelease(release, platform) {
     if (own) {
         primary.href = own.url;
         primary.dataset.file = own.name;
-        primary.textContent = `Download for ${PLATFORM_NAMES[platform]}`;
+        primary.querySelector("[data-download-label]").textContent = `Download for ${PLATFORM_NAMES[platform]}`;
     }
     const others = Object.keys(PLATFORM_NAMES).filter((name) => name !== platform).map((name) => PLATFORM_NAMES[name]);
     const line = document.querySelector("[data-release-line]");
@@ -163,20 +164,55 @@ function setUpDownloads() {
 
 // The web app keeps its library in localStorage on this origin, under the
 // key that ProjectsStorage.scala writes (laminext adds the prefix).
-function hasWebLibrary() {
+function webLibrarySize() {
     try {
         const raw = localStorage.getItem("[StoredString]graph-explorer.projects");
-        return (JSON.parse(raw)?.projects?.length ?? 0) > 0;
+        return JSON.parse(raw)?.projects?.length ?? 0;
+    } catch {
+        return 0;
+    }
+}
+
+// Set when the visitor closes the bar. The bar then stays closed in this
+// browser.
+const MOVED_BAR_KEY = "graph-explorer.site.moved-bar-closed";
+
+function movedBarClosed() {
+    try {
+        return localStorage.getItem(MOVED_BAR_KEY) !== null;
     } catch {
         return false;
     }
 }
 
-function setUpLibraryLinks() {
-    if (!hasWebLibrary()) return;
-    for (const link of document.querySelectorAll(".button[data-library-link]")) {
-        link.textContent = "Open your library";
+function closeMovedBar(bar) {
+    bar.hidden = true;
+    try {
+        localStorage.setItem(MOVED_BAR_KEY, new Date().toISOString());
+    } catch {
+        // No storage: the bar shows again at the next visit.
     }
+}
+
+// A visitor with a web library used the web app before. A bookmark to the
+// root of the site used to open the app, and now opens this page. So tell the
+// visitor where the app is, and that the diagrams are still there.
+function setUpReturningVisitor() {
+    const count = webLibrarySize();
+    if (count === 0) return;
+    const diagrams = count === 1 ? "1 diagram" : `${count} diagrams`;
+
+    const note = document.querySelector("[data-library-note]");
+    note.textContent = `Your library in this browser has ${diagrams}. The web app opens ${count === 1 ? "it" : "them"}.`;
+    note.hidden = false;
+
+    if (movedBarClosed()) return;
+    const bar = document.querySelector("[data-moved-bar]");
+    const place = `${location.host}/app`;
+    bar.querySelector("[data-moved-text]").textContent =
+        `The web app moved to ${place}. Your ${diagrams} ${count === 1 ? "is" : "are"} there.`;
+    bar.querySelector("[data-moved-close]").addEventListener("click", () => closeMovedBar(bar));
+    bar.hidden = false;
 }
 
 // ── The explorable diagram ─────────────────────────────────────────────────
@@ -277,5 +313,5 @@ function drawOnce(svg, nodes, edges) {
 }
 
 setUpDownloads();
-setUpLibraryLinks();
+setUpReturningVisitor();
 setUpFlow();
