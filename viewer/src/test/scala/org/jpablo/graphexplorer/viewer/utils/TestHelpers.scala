@@ -11,10 +11,10 @@ import scala.util.Try
 trait TestHelpers:
 
   def withGraphviz(block: Graphviz => Unit)(implicit ec: ExecutionContext): Future[Unit] =
-    Graphviz.build().map(block)
+    TestHelpers.sharedGraphviz.map(block)
 
   def withGraphvizAsync(block: Graphviz => Future[Unit])(implicit ec: ExecutionContext): Future[Unit] =
-    Graphviz.build().flatMap(block)
+    TestHelpers.sharedGraphviz.flatMap(block)
 
   /** Delays execution until the next microtask, allowing already-resolved Futures to propagate.
     *
@@ -37,6 +37,18 @@ trait TestHelpers:
 
       override def afterEach(context: AfterEach): Unit =
         TestSetup.cleanupMockStorage()
+
+object TestHelpers:
+
+  /** One Graphviz for all the specs of the test run, as the app has one.
+    *
+    * Each `Graphviz.build()` makes a new viz-js instance, and each instance
+    * compiles the Graphviz wasm module again. In a full test run, the specs
+    * made many instances. Then the promise of an instance sometimes did not
+    * complete, and a test stopped at its timeout of 30 s. `Graphviz` keeps no
+    * state of its own, so the specs can share one instance.
+    */
+  lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
 
 /** The timers of the specs that run in the browser.
   *

@@ -4,7 +4,6 @@ import com.raquo.airstream.ownership.ManualOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.library.LoggedChecks
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidRenderer
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
@@ -299,7 +298,7 @@ class ThumbnailDrawingSpec extends FunSuite with TestHelpers with LoggedChecks:
     val owner = ManualOwner()
     storedRecord(format, source, "precondition: the disk cache does not hold the record")(_ == record)
       .flatMap: _ =>
-        Graphviz.build().flatMap: graphviz =>
+        TestHelpers.sharedGraphviz.flatMap: graphviz =>
           val thumbnail = ThumbnailRenderer.processDotText(graphviz, DotText(source)).observe(using owner)
           eventually("the thumbnail left its skeleton"): () =>
             Some(thumbnail.now().ref).filterNot(_.classList.contains("skeleton"))

@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
@@ -68,7 +67,7 @@ class MermaidTitleSpec extends FunSuite with TestHelpers:
 
   /** Parse `source` in a viewer, add a node on the canvas, and give the new source. */
   private def editOnCanvas(id: String, source: String): Future[String] =
-    Graphviz.build().flatMap: graphviz =>
+    TestHelpers.sharedGraphviz.flatMap: graphviz =>
       val state = ViewerState(ViewTarget.diagram(id), graphviz, initialSource = Some(source))
       waitFor(state.fullGraphNow().nodes.contains(NodeId("B")), "the Mermaid parse")
         .flatMap: _ =>

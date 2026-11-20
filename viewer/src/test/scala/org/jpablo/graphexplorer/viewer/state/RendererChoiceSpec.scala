@@ -28,7 +28,7 @@ class RendererChoiceSpec extends FunSuite with TestHelpers:
     * stays alive keeps its Graphviz instance and its drawings, and the specs
     * that run after this one then time out.
     */
-  private lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
+  private lazy val sharedGraphviz: Future[Graphviz] = TestHelpers.sharedGraphviz
 
   private def withViewers(body: Owner ?=> Graphviz => Future[Unit]): Future[Unit] =
     val owner = ManualOwner()

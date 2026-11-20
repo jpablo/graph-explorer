@@ -24,7 +24,7 @@ import scala.scalajs.js
 class LockedDiagramSpec extends FunSuite with TestHelpers:
 
   // One Graphviz for the spec, and one owner for each test (see `RendererChoiceSpec`).
-  private lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
+  private lazy val sharedGraphviz: Future[Graphviz] = TestHelpers.sharedGraphviz
 
   override def munitFixtures = List(mockStorageFixture())
 

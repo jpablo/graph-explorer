@@ -29,7 +29,7 @@ class BrowserBoardStoreSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  private lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
+  private lazy val sharedGraphviz: Future[Graphviz] = TestHelpers.sharedGraphviz
 
   private val start = Board(Vector(BoardItem("y", "browser:y", 0, 0)))
 

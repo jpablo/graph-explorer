@@ -26,7 +26,7 @@ import scala.scalajs.js
   */
 class BoardViewSpec extends FunSuite with TestHelpers with TimerHelpers:
 
-  private lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
+  private lazy val sharedGraphviz: Future[Graphviz] = TestHelpers.sharedGraphviz
 
   override def munitFixtures = List(mockStorageFixture())
 
