@@ -29,8 +29,6 @@ class BrowserBoardStoreSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  private lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
-
   private val start = Board(Vector(BoardItem("y", "browser:y", 0, 0)))
 
   /** The board page of one tab, with the messages that it gives. */
@@ -41,7 +39,7 @@ class BrowserBoardStoreSpec extends FunSuite with TestHelpers:
   /** A board in the storage, and one tab on it after the load. */
   private def withTab(body: (String, Tab) => Future[Unit]): Future[Unit] =
     val owner = ManualOwner()
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val id = BrowserBoards.create("Plan").fold(message => fail(s"the browser refused the board: $message"), identity)
         assertEquals(BrowserBoards.write(id, start), None)

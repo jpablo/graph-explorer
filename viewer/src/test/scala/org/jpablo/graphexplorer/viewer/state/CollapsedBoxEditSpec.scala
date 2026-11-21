@@ -5,7 +5,6 @@ import com.raquo.laminar.api.L.EventBus
 import org.jpablo.graphexplorer.viewer.components.selection.NodeElement
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Color
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ArrowEndpointId, AttributeUpdates, ElementIds, GroupId, NodeId}
@@ -78,7 +77,7 @@ class CollapsedBoxEditSpec extends FunSuite with TestHelpers:
     val owner = ManualOwner()
     owners = owner :: owners
     // `withGraphvizAsync` gives a `Future[Unit]`, and this helper gives a value.
-    Graphviz.build().flatMap: graphviz =>
+    TestHelpers.sharedGraphviz.flatMap: graphviz =>
       val errors = EventBus[String]()
       val infos  = EventBus[String]()
       val errorMessages = collect(errors, owner)

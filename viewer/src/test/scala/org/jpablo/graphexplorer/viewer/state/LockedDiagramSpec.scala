@@ -23,8 +23,8 @@ import scala.scalajs.js
   */
 class LockedDiagramSpec extends FunSuite with TestHelpers:
 
-  // One Graphviz for the spec, and one owner for each test (see `RendererChoiceSpec`).
-  private lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
+  // The specs share one Graphviz for the whole test run (see
+  // `TestHelpers.sharedGraphviz`). Each test has one owner (see `RendererChoiceSpec`).
 
   override def munitFixtures = List(mockStorageFixture())
 
@@ -60,7 +60,7 @@ class LockedDiagramSpec extends FunSuite with TestHelpers:
 
   private def withViewer(name: String)(body: Fixture => Future[Unit]): Future[Unit] =
     val owner = ManualOwner()
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val fixture = Fixture(name, graphviz)(using owner)
         fixture.parsed.flatMap(_ => body(fixture))
@@ -127,7 +127,7 @@ class LockedDiagramSpec extends FunSuite with TestHelpers:
 
   test("the lock is in the stored diagram, and the next view of the diagram has it"):
     val owner = ManualOwner()
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val first = Fixture("locked-stored", graphviz)(using owner)
         first.parsed
@@ -149,7 +149,7 @@ class LockedDiagramSpec extends FunSuite with TestHelpers:
   /** Select DOT, replace the source with Mermaid text, and open the diagram again. */
   private def nextViewAfter(name: String)(replace: ViewerState => Unit): Future[Unit] =
     val owner = ManualOwner()
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val first = Fixture(name, graphviz)(using owner)
         first.parsed

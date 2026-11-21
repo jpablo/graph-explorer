@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.{Val, Var}
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.{DiagramRenderInputs, RenderState}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.utils.TimerHelpers
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -17,24 +18,13 @@ import scala.scalajs.js
   * Mermaid parses and renders wait in one queue, so a render can wait for a
   * long time. These tests use the real Mermaid in the browser.
   */
-class MermaidRenderStateSpec extends FunSuite:
+class MermaidRenderStateSpec extends FunSuite with TimerHelpers:
 
   private val flowchart = "flowchart LR\n  A[Start] --> B[End]\n"
   private val other     = "flowchart TD\n  C[One] --> D[Two]\n"
 
   // Mermaid cannot read this text, so its render fails.
   private val broken = "flowchart LR\n  A -->\n"
-
-  private def waitFor(description: => String, timeoutMs: Int = 15000)(condition: => Boolean): Future[Unit] =
-    val p     = Promise[Unit]()
-    val start = js.Date.now()
-    def loop(): Unit =
-      if condition then p.trySuccess(())
-      else if js.Date.now() - start >= timeoutMs then
-        p.tryFailure(new RuntimeException(s"Timed out after ${timeoutMs}ms. Expected: $description"))
-      else js.timers.setTimeout(20)(loop())
-    loop()
-    p.future
 
   /** A render of the source text in `source`, and a record of each state that it gives. */
   private final class Recorded(val source: Var[String]):

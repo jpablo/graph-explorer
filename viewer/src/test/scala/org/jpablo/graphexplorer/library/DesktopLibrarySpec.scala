@@ -6,7 +6,6 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.RouterCommands
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguages}
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot
@@ -42,7 +41,7 @@ class DesktopLibrarySpec extends FunSuite with TestHelpers with LoggedChecks:
 
   /** The backends, for the title and the kind of a card. */
   private def withLanguages[A](f: DiagramLanguages => Future[A]): Future[A] =
-    Graphviz.build().flatMap(graphviz => f(DefaultDiagramLanguages(graphviz)))
+    TestHelpers.sharedGraphviz.flatMap(graphviz => f(DefaultDiagramLanguages(graphviz)))
 
   private def idOf(shell: FakeDesktopShell, path: String) = DiagramId(shell.keyOf(path))
 

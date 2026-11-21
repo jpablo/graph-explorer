@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.board
 
+import com.raquo.airstream.core.Transaction
 import com.raquo.airstream.ownership.Subscription
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.gxcore.model.{Board, BoardItem}
@@ -43,22 +44,19 @@ final class BoardState(
   // The size of each item on the board, as the view measured it.
   private var sizes: Map[String, (Double, Double)] = Map.empty
 
-  // True after the first fit, and after the person moved the view. A new item
-  // makes it false again, so that the view shows the new item.
+  // True after the first fit, and after the person moved the view or an item.
+  // A new item makes it false again, so that the view shows the new item.
   private var viewSettled = false
 
   // The timer of the limited wait for the sizes. `waitEnded` is true after
-  // the end of the current wait, so that a new size starts no new wait.
+  // the end of the current wait, so that a new size starts no new wait. It is
+  // never true while a timer runs. Only an add starts a new wait after it.
   private var fitTimer: Option[js.timers.SetTimeoutHandle] = None
   private var waitEnded                                   = false
 
-  // True after the end of the owner. A timer then does nothing.
-  private var killed = false
-
-  new Subscription(summon[Owner], () =>
-    killed = true
-    stopWait()
-  )
+  // The end of the owner kills this subscription. It stops the wait, and
+  // after it no new wait starts.
+  private val life = new Subscription(summon[Owner], () => stopWait())
 
   store.load().foreach:
     case Right(loaded) =>
@@ -71,6 +69,7 @@ final class BoardState(
   // A different writer changed the board, for example a tool that wrote the
   // board file. The page shows that version. A version that the store cannot
   // read stops the writes of this page, so that the text of the person stays.
+  // A good version can give the fit, or a new wait for the sizes.
   store.changes.foreach:
     case Right(theirs) =>
       if theirs != board.now() then
@@ -78,6 +77,9 @@ final class BoardState(
         sizes = sizes.filter((id, _) => theirs.item(id).isDefined)
         selected.update(_.filter(id => theirs.item(id).isDefined))
       status.set(BoardStatus.Ready)
+      // The event comes in a transaction. Thus the `Var`s get the new values
+      // in a later transaction, and the fit must come after that transaction.
+      Transaction(_ => fitWhenMeasured())
     case Left(message) =>
       status.set(BoardStatus.Failed(message))
 
@@ -112,21 +114,25 @@ final class BoardState(
   // Mermaid renders go in one queue, thus the sizes can come late. The wait
   // has a limit of `fitWaitMs`. At the end of the wait, the fit uses the
   // default size for an item with no size. That fit does not settle the view,
-  // thus the size of the last item gives a new fit.
+  // thus the last size, or the remove of the last item with no size, gives a
+  // new fit.
   private def fitWhenMeasured(): Unit =
     val items = board.now().items
     if !viewSettled && ready && items.nonEmpty then
       if items.forall(item => sizes.contains(item.id)) then
         settle()
         fit()
-      else if fitTimer.isEmpty && !waitEnded && !killed then
+      else if fitTimer.isEmpty && !waitEnded && !life.isKilled then
         fitTimer = Some(js.timers.setTimeout(fitWaitMs)(endWait()))
 
-  // The wait for the sizes ended before the last size came.
+  // The wait for the sizes ended before the last size came. If the store
+  // cannot read the board, the wait does not count. The next good version
+  // of the board then starts a new wait.
   private def endWait(): Unit =
     fitTimer = None
-    waitEnded = true
-    if !killed && !viewSettled && ready then fit()
+    if !viewSettled && ready then
+      waitEnded = true
+      fit()
 
   // The view does not move again by itself, thus the wait stops.
   private def settle(): Unit =
@@ -173,21 +179,38 @@ final class BoardState(
       board.set(next)
       selected.set(Some(item.id))
       // The new item can be outside the view. The fit comes when the view
-      // measured the item, or at the end of a new limited wait.
-      stopWait()
+      // measured the item, or at the end of a limited wait. A wait that did
+      // not end stays, thus an add does not put off the first fit. Else a new
+      // wait starts.
       viewSettled = false
-      fitWhenMeasured()
-      commit()
+      waitEnded = false
+      afterChange()
 
-  /** Move an item, with no write. [[commit]] ends the move. */
+  /** Move an item, with no write. [[commit]] ends the move. The person moves
+    * the item, thus the view does not move again by itself. A move to the
+    * same place, as in a click on the title, does not change the view.
+    */
   def move(id: String, x: Double, y: Double): Unit =
-    if ready then board.update(_.move(id, x.round.toDouble, y.round.toDouble))
+    if ready then
+      val (toX, toY) = (x.round.toDouble, y.round.toDouble)
+      if board.now().item(id).exists(item => item.x != toX || item.y != toY) then
+        settle()
+        board.update(_.move(id, toX, toY))
 
   def remove(id: String): Unit =
     if ready then
       board.update(_.remove(id))
       sizes = sizes.removed(id)
       selected.update(_.filterNot(_ == id))
+      afterChange()
+
+  // The fit and the write after an add or a remove. Inside a transaction, a
+  // `Var` gets its new value in a later transaction. Thus the fit and the
+  // write come after that transaction, so that they read the new board.
+  // Outside a transaction, they come at once.
+  private def afterChange(): Unit =
+    Transaction: _ =>
+      fitWhenMeasured()
       commit()
 
 object BoardState:

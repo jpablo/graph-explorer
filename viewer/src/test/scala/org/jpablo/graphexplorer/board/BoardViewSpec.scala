@@ -6,11 +6,10 @@ import org.jpablo.graphexplorer.gxcore.model.{Board, BoardItem}
 import org.jpablo.graphexplorer.library.{BrowserBoards, Library}
 import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidQueue
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.RightPanelSection
-import org.jpablo.graphexplorer.viewer.utils.TestHelpers
+import org.jpablo.graphexplorer.viewer.utils.{TestHelpers, TimerHelpers}
 import org.scalajs.dom
 
 import scala.collection.mutable
@@ -24,9 +23,7 @@ import scala.scalajs.js
   * These tests use the real page elements, the real Graphviz, and the real
   * Mermaid. The store is the storage of the browser.
   */
-class BoardViewSpec extends FunSuite with TestHelpers:
-
-  private lazy val sharedGraphviz: Future[Graphviz] = Graphviz.build()
+class BoardViewSpec extends FunSuite with TestHelpers with TimerHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
@@ -35,17 +32,6 @@ class BoardViewSpec extends FunSuite with TestHelpers:
 
   // A DOT source that does not parse.
   private val brokenDot = "digraph G {\n  a -> \n"
-
-  private def waitFor(description: => String, timeoutMs: Int = 15000)(condition: => Boolean): Future[Unit] =
-    val p     = Promise[Unit]()
-    val start = js.Date.now()
-    def loop(): Unit =
-      if condition then p.trySuccess(())
-      else if js.Date.now() - start >= timeoutMs then
-        p.tryFailure(new RuntimeException(s"Timed out after ${timeoutMs}ms. Expected: $description"))
-      else js.timers.setTimeout(20)(loop())
-    loop()
-    p.future
 
   /** A mounted board view, and a handle on its page elements. */
   private final class Page(val boardId: String, val root: dom.Element, val errors: mutable.Buffer[String]):
@@ -85,7 +71,7 @@ class BoardViewSpec extends FunSuite with TestHelpers:
     val errors = mutable.Buffer.empty[String]
     val bus    = EventBus[String]()
     val sub    = bus.events.foreach(errors += _)(using unsafeWindowOwner)
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val store   = BrowserBoardStore(boardId, DefaultDiagramLanguages(graphviz))
         val mounted = render(container, BoardView(store, graphviz, Router(), bus))
@@ -226,9 +212,7 @@ class BoardViewSpec extends FunSuite with TestHelpers:
       waitFor("the frame of the item")(page.frames.size == 1)
         .flatMap: _ =>
           // The parse of the item and its notice come after the frame.
-          val p = Promise[Unit]()
-          js.timers.setTimeout(1000)(p.success(()))
-          p.future
+          after(1000)(())
         .map: _ =>
           assertEquals(Library.readViewerSettings().rightPanelTabIndex, before, "a board item changed the stored panel of the window")
 
@@ -270,7 +254,7 @@ class BoardViewSpec extends FunSuite with TestHelpers:
     dom.window.localStorage.setItem(s"[StoredString]graph-explorer.board.$boardId", """{ "version": 9, "items": [] }""")
     val container = dom.document.createElement("div")
     dom.document.body.appendChild(container)
-    sharedGraphviz
+    TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val store   = BrowserBoardStore(boardId, DefaultDiagramLanguages(graphviz))
         val mounted = render(container, BoardView(store, graphviz, Router(), EventBus[String]()))
