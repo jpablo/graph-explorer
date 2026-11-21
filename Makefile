@@ -1,5 +1,5 @@
 .PHONY: setup dev-compile dev-serve test build \
-        desktop-build desktop-run gx-build gx-status gx-watch
+        desktop-build desktop-run desktop-dev gx-build gx-status gx-watch
 
 DESKTOP_BIN  := desktop/src-tauri/target/release/graph-explorer-desktop
 GX           := gx-cli/target/gx
@@ -46,6 +46,13 @@ desktop-run: desktop-build
 		kill "$$pid"; \
 	fi
 	$(DESKTOP_BIN)
+
+# Live-reload desktop window: Tauri dev mode against the vite dev server.
+# Run dev-compile and dev-serve first. The script finds the vite port, because
+# other projects often hold 5173. Override with DEV_URL=http://localhost:NNNN.
+# Set GX_HOME to keep `gx` away from a release desktop that runs at the same time.
+desktop-dev:
+	./scripts/desktop-dev.sh
 
 # --- gx ------------------------------------------------------------------
 #
