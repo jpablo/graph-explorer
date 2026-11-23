@@ -854,6 +854,17 @@ svg {
     @starting-style {
       opacity: 0;
     }
+
+    // Each picker panel gets its own compositing layer. WebKit 27 (Safari and
+    // the macOS desktop window) clips the backdrop-blur layer of the strip to
+    // the strip box in BOTH directions, because of `overflow-x-clip`. The open
+    // animation gives the panel a layer for 0.2 s, so the panel showed for
+    // 0.2 s and then disappeared. With its own layer, the panel stays on the
+    // screen, and the strip keeps its blur and its horizontal clip.
+    // scripts/webkit-dropdown-paint-check.sh shows the bug.
+    .dropdown-content {
+      will-change: transform;
+    }
   }
 
   // The floating cards anchor to the same top edge the strip overlays; while the
