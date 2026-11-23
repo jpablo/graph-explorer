@@ -30,7 +30,9 @@ trait SvgTransformOps:
   private var panRafId   = Option.empty[Int]
   private var lastStepMs = 0.0
 
-  private val zoomValue = Var(1.0)
+  // A diagram opens with the frame of the Fit button (see [[resetView]]).
+  // An embedded view (an item of a board) keeps a zoom of 1.
+  private val zoomValue = Var(if embedded then 1.0 else SvgTransformOps.FitZoom)
   private val minZoom   = 0.05
 
   /** Time constant of the pan filter, in milliseconds.
@@ -53,22 +55,32 @@ trait SvgTransformOps:
     * invisible at any zoom this canvas allows. */
   private val PanEpsilon = 0.01
 
-  // Off by default: Auto is a framing POLICY the user opts into. In 2D it
-  // re-frames on every re-layout (overriding anchoring), and in 3D it is a
-  // continuous per-frame fit — both take framing away from the user, so
-  // neither should be the out-of-the-box behavior. Loads still frame: 2D's
-  // initial transform and 3D's setGraph fit are unconditional.
-  val autoFit = Var(false)
+  // On when a diagram opens. Then the whole diagram is visible, and the zoom
+  // toolbar does not hide a part of it. In 2D, Auto fits again after each
+  // layout (anchoring stops). In 3D, Auto fits the camera in each frame. In 2D
+  // and in 3D, a zoom or a pan of the user sets Auto to off (see
+  // [[userMoved]]). A move of the app (Fit, the anchor after a layout, the
+  // keyboard scroll to the selection) keeps Auto as it is. An embedded view
+  // (an item of a board) starts with Auto off, because the board shows its
+  // drawing directly.
+  val autoFit = Var(!embedded)
 
   val fitDiagram = EventBus[Unit]()
 
   def autoFitToggle() =
     autoFit.update(!_)
 
+  // The user moved the view. Set Auto to off, so that the next layout keeps
+  // the zoom and the pan of the user.
+  private def userMoved(): Unit =
+    if autoFit.now() then autoFit.set(false)
+
   def zoomOut() =
+    userMoved()
     zoomValue.update(_ * .9 max minZoom)
 
   def zoomIn() =
+    userMoved()
     zoomValue.update(_ * 1.1)
 
   val transform =
@@ -128,7 +140,7 @@ trait SvgTransformOps:
     cancelPanChase()
     targetXY = SvgPoint.origin
     Var.set(
-      zoomValue   -> 0.90,
+      zoomValue   -> SvgTransformOps.FitZoom,
       translateXY -> SvgPoint.origin
     )
 
@@ -164,6 +176,8 @@ trait SvgTransformOps:
   def handleWheel(wEv: dom.WheelEvent, viewBox: dom.SVGRect, mainGroup: dom.svg.G) =
     val clientHeight = dom.window.innerHeight max 1
     val clientWidth  = dom.window.innerWidth max 1
+    // A wheel event is a zoom or a pan of the user.
+    userMoved()
 
     if wEv.metaKey && wEv.deltaY != 0 then
       val oldZoom = zoomValue.now()
@@ -188,6 +202,9 @@ trait SvgTransformOps:
       panBy(SvgPoint(wEv.deltaX * scale / z, wEv.deltaY * scale / z))
 
 private[state] object SvgTransformOps:
+  /** The zoom of the Fit button. It is also the zoom when a diagram opens. */
+  val FitZoom = 0.90
+
   def anchoredPan(currentPan: SvgPoint, anchor: SvgPoint, origin: SvgPoint, oldZoom: Double, newZoom: Double): SvgPoint =
     val ratio = oldZoom / newZoom
     SvgPoint(

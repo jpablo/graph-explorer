@@ -966,11 +966,12 @@ final class GraphScene3D(state: ViewerState):
   /** Mirrors the toolbar's Auto toggle (the same Var the 2D canvas honors).
     * ON: the fit runs every frame — the user owns the ROTATION, the fit owns
     * target and distance, so every part of the drawing stays visible through
-    * orbits, morphs and simulation alike. OFF (the default): only a graph
-    * load frames. The mount-time binder overwrites this with the Var's value;
-    * the initial only matters for the frames before that, so it matches.
+    * orbits, morphs and simulation alike. OFF: only a graph load frames.
+    * A diagram opens with Auto on (see `SvgTransformOps.autoFit`). The binder
+    * at the mount writes the value of the Var here. This initial value is
+    * for the frames before that, so it reads the same Var.
     */
-  private var autoFitOn = false
+  private var autoFitOn = state.autoFit.now()
 
   /** With Auto off, a fresh graph still has to END UP framed, not merely start
     * framed: the load-time snap fit sees iteration 0, and the simulation then
