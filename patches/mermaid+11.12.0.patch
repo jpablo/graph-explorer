@@ -1,0 +1,193 @@
+diff --git a/node_modules/mermaid/dist/chunks/mermaid.core/dagre-6UL2VRFP.mjs b/node_modules/mermaid/dist/chunks/mermaid.core/dagre-6UL2VRFP.mjs
+index 018f1ca..300016c 100644
+--- a/node_modules/mermaid/dist/chunks/mermaid.core/dagre-6UL2VRFP.mjs
++++ b/node_modules/mermaid/dist/chunks/mermaid.core/dagre-6UL2VRFP.mjs
+@@ -19,9 +19,12 @@ import {
+   getSubGraphTitleMargins
+ } from "./chunk-CVBHYZKI.mjs";
+ import "./chunk-ATLVNIR6.mjs";
+-import "./chunk-JA3XYJ7Z.mjs";
++import {
++  createText
++} from "./chunk-JA3XYJ7Z.mjs";
+ import "./chunk-S3R3BYOJ.mjs";
+ import {
++  evaluate,
+   getConfig2 as getConfig
+ } from "./chunk-ABZYJK2D.mjs";
+ import {
+@@ -381,8 +384,161 @@ var sorter = /* @__PURE__ */ __name((graph, nodes) => {
+ }, "sorter");
+ var sortNodesByHierarchy = /* @__PURE__ */ __name((graph) => sorter(graph, graph.children()), "sortNodesByHierarchy");
+ 
++// graph-explorer patch (patches/mermaid+11.12.0.patch): the space for a group title.
++// Dagre keeps the space of one title line above the content of a group. A long
++// title wraps to more lines, and the first nodes of the group covered the lines
++// after the first line. This pass measures each title after the layout. Then it
++// moves the content of the group down by the height of the lines after the first
++// line, and it moves down all that is below the group by the same height.
++// A group with a title of one line does not change.
++var measureClusterTitle = /* @__PURE__ */ __name(async (parent, node, text, useHtmlLabels) => {
++  const shapeSvg = parent.insert("g").attr("class", "cluster " + (node.cssClasses ?? ""));
++  try {
++    const labelEl = shapeSvg.insert("g").attr("class", "cluster-label ");
++    const label = await createText(labelEl, text, {
++      style: node.labelStyle,
++      useHtmlLabels,
++      isNode: true
++    });
++    // Measure as the rect cluster shape measures its label.
++    return useHtmlLabels ? label.children[0].getBoundingClientRect().height : label.getBBox().height;
++  } finally {
++    shapeSvg.remove();
++  }
++}, "measureClusterTitle");
++var reserveClusterTitleSpace = /* @__PURE__ */ __name(async (graph, parent, siteConfig) => {
++  const useHtmlLabels = evaluate(siteConfig.flowchart?.htmlLabels);
++  const { subGraphTitleBottomMargin } = getSubGraphTitleMargins(siteConfig);
++  const isCluster = /* @__PURE__ */ __name((v) => graph.children(v).length > 0 && !graph.node(v)?.clusterNode, "isCluster");
++  const itemsOf = /* @__PURE__ */ __name((ctx) => (ctx === void 0 ? graph.children() : graph.children(ctx)).filter((v) => graph.node(v)), "itemsOf");
++  // The boxes before this pass. All the calculations use these boxes.
++  const box = /* @__PURE__ */ new Map();
++  graph.nodes().forEach((v) => {
++    const n = graph.node(v);
++    if (n && typeof n.x === "number" && typeof n.y === "number") {
++      box.set(v, { top: n.y - n.height / 2, bottom: n.y + n.height / 2, left: n.x - n.width / 2, right: n.x + n.width / 2 });
++    }
++  });
++  const clusters = graph.nodes().filter((v) => isCluster(v) && box.has(v));
++  // The extra height that each group adds above its content.
++  const extra = /* @__PURE__ */ new Map();
++  for (const v of clusters) {
++    const node = graph.node(v);
++    if ((node.shape ?? "rect") !== "rect" || !node.label) {
++      continue;
++    }
++    const contentTops = graph.children(v).filter((c) => box.has(c)).map((c) => box.get(c).top);
++    if (contentTops.length === 0) {
++      continue;
++    }
++    const titleHeight = await measureClusterTitle(parent, node, node.label, useHtmlLabels);
++    const lineHeight = await measureClusterTitle(parent, node, "M", useHtmlLabels);
++    if (!(titleHeight > lineHeight + 0.5)) {
++      continue;
++    }
++    // Dagre keeps this space above the content. A title of one line uses it.
++    const space = Math.min(...contentTops) - box.get(v).top + subGraphTitleBottomMargin;
++    extra.set(v, titleHeight - Math.min(space, lineHeight));
++  }
++  if (extra.size === 0) {
++    return;
++  }
++  // In a context (a group, or the root for `undefined`), a group that grows moves
++  // down each item that is fully below it. `growth` is how much the bottom of a
++  // group moves relative to its top. `drop` is how much an item moves relative
++  // to the content of its context.
++  const growth = /* @__PURE__ */ new Map();
++  const drop = /* @__PURE__ */ new Map();
++  const dropBelow = /* @__PURE__ */ __name((ctx, y) => {
++    let d = 0;
++    for (const k of itemsOf(ctx)) {
++      if ((growth.get(k) ?? 0) > 0 && box.get(k).bottom <= y + 0.5) {
++        d = Math.max(d, drop.get(k) + growth.get(k));
++      }
++    }
++    return d;
++  }, "dropBelow");
++  const layoutContext = /* @__PURE__ */ __name((ctx) => {
++    const items = itemsOf(ctx).filter((v) => box.has(v));
++    items.forEach((v) => {
++      if (isCluster(v)) {
++        layoutContext(v);
++      }
++    });
++    items.sort((a, b) => box.get(a).top - box.get(b).top);
++    let bottomDrop = 0;
++    for (const v of items) {
++      // The items above `v` have their drop already, because the sort is by top.
++      const d = dropBelow(ctx, box.get(v).top);
++      drop.set(v, d);
++      bottomDrop = Math.max(bottomDrop, d + (growth.get(v) ?? 0));
++    }
++    if (ctx !== void 0) {
++      growth.set(ctx, (extra.get(ctx) ?? 0) + bottomDrop);
++    }
++  }, "layoutContext");
++  layoutContext(void 0);
++  // The absolute move of the top of each item.
++  const shift = /* @__PURE__ */ new Map();
++  const contentShift = /* @__PURE__ */ __name((ctx) => ctx === void 0 ? 0 : shift.get(ctx) + (extra.get(ctx) ?? 0), "contentShift");
++  const assign = /* @__PURE__ */ __name((ctx) => {
++    for (const v of itemsOf(ctx).filter((v2) => box.has(v2))) {
++      shift.set(v, contentShift(ctx) + drop.get(v));
++      if (isCluster(v)) {
++        assign(v);
++      }
++    }
++  }, "assign");
++  assign(void 0);
++  // The move of a point of an edge: find the deepest group that contains the point.
++  const pointShift = /* @__PURE__ */ __name((p) => {
++    let ctx = void 0;
++    for (; ; ) {
++      const inner = itemsOf(ctx).find((k) => {
++        const b = box.get(k);
++        return isCluster(k) && b && p.y > b.top && p.y < b.bottom && p.x >= b.left && p.x <= b.right;
++      });
++      if (inner === void 0) {
++        break;
++      }
++      ctx = inner;
++    }
++    return contentShift(ctx) + dropBelow(ctx, p.y);
++  }, "pointShift");
++  // Calculate all moves from the boxes before this pass, then apply them.
++  const edgeUpdates = graph.edges().map((e) => {
++    const edge = graph.edge(e);
++    const points = (edge.points ?? []).map((p, i, all) => {
++      const s = i === 0 ? shift.get(e.v) ?? pointShift(p) : i === all.length - 1 ? shift.get(e.w) ?? pointShift(p) : pointShift(p);
++      return { ...p, y: p.y + s };
++    });
++    const labelShift = typeof edge.x === "number" && typeof edge.y === "number" ? pointShift(edge) : 0;
++    return { edge, points, labelShift };
++  });
++  graph.nodes().forEach((v) => {
++    const n = graph.node(v);
++    if (!shift.has(v)) {
++      return;
++    }
++    if (isCluster(v)) {
++      const top = box.get(v).top + shift.get(v);
++      const bottom = box.get(v).bottom + shift.get(v) + growth.get(v);
++      n.y = (top + bottom) / 2;
++      n.height = bottom - top;
++    } else {
++      n.y += shift.get(v);
++    }
++  });
++  edgeUpdates.forEach(({ edge, points, labelShift }) => {
++    if (edge.points) {
++      edge.points = points;
++    }
++    edge.y = typeof edge.y === "number" ? edge.y + labelShift : edge.y;
++  });
++}, "reserveClusterTitleSpace");
++
+ // src/rendering-util/layout-algorithms/dagre/index.js
+-var recursiveRender = /* @__PURE__ */ __name(async (_elem, graph, diagramType, id, parentCluster, siteConfig) => {
++var recursiveRender =/* @__PURE__ */ __name(async (_elem, graph, diagramType, id, parentCluster, siteConfig) => {
+   log.warn("Graph in recursive render:XAX", graphlibJson2.write(graph), parentCluster);
+   const dir = graph.graph().rankdir;
+   log.trace("Dir in recursive render - dir:", dir);
+@@ -495,6 +651,11 @@ var recursiveRender = /* @__PURE__ */ __name(async (_elem, graph, diagramType, i
+   log.info("###                Layout                 ### XXX");
+   log.info("############################################# XXX");
+   dagreLayout(graph);
++  try {
++    await reserveClusterTitleSpace(graph, clusters, siteConfig);
++  } catch (error) {
++    log.warn("graph-explorer patch: the title space of the groups did not change", error);
++  }
+   log.info("Graph after layout:", JSON.stringify(graphlibJson2.write(graph)));
+   let diff = 0;
+   let { subGraphTitleTotalMargin } = getSubGraphTitleMargins(siteConfig);
