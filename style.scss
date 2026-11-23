@@ -38,6 +38,10 @@
   --gx-canvas-size: 5px 5px;
   --gx-shadow-deep: rgba(0, 0, 0, 0.6);
   --gx-label-scrim: rgba(232, 232, 232, 0.7); // behind mermaid edge labels
+  // The sheet behind a Mermaid drawing (MermaidBackend.addSheet). A theme can
+  // change it, but it must stay light: the default Mermaid theme draws dark
+  // lines. An exported SVG has no stylesheet and uses the inline white fill.
+  --gx-sheet: #ffffff;
 
   // ── Attribute form columns ─────────────────────────────────────────────────
   // The two column widths every attribute row uses, wherever it is rendered: the
@@ -1622,6 +1626,20 @@ svg.gx-transitioning .edge-endpoint-disk,
 // slab, and a slab parked over the wrong node is not a subtle artifact.
 svg.gx-transitioning #record-cell-overlay {
   visibility: hidden;
+}
+
+// ── The sheet behind a Mermaid drawing ───────────────────────────────────────
+// MermaidBackend.addSheet puts a `rect.gx-sheet` behind each Mermaid drawing.
+// It is global, not in #canvas-container: board items and library thumbnails
+// show the sheet too. The setting `mermaidSheet` puts `gx-no-sheet` on the
+// canvas, on a board item, and on the library page when it is off.
+svg rect.gx-sheet {
+  fill: var(--gx-sheet);
+  pointer-events: none;
+}
+
+.gx-no-sheet rect.gx-sheet {
+  display: none;
 }
 
 // ── App-native themes: beyond-token treatments ───────────────────────────────

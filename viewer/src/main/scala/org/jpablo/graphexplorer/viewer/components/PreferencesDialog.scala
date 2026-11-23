@@ -19,7 +19,8 @@ def PreferencesDialog(
     currentTheme:             Signal[Option[String]],
     onSelectTheme:            String => Unit,
     promptLabelBeforeNewNode: Var[Boolean],
-    enable3D:                 Var[Boolean]
+    enable3D:                 Var[Boolean],
+    mermaidSheet:             Var[Boolean]
 ): HtmlElement =
   SimpleDialog(
     open,
@@ -52,6 +53,11 @@ def PreferencesDialog(
         cls := "flex items-center justify-between gap-6 cursor-pointer",
         span(cls := "text-sm", "3D view (experimental)"),
         Toggle(enable3D)
+      ),
+      label(
+        cls := "flex items-center justify-between gap-6 cursor-pointer",
+        span(cls := "text-sm", "Sheet behind Mermaid drawings"),
+        Toggle(mermaidSheet)
       )
     )
   )
@@ -65,5 +71,6 @@ def PreferencesDialog(state: ViewerState): HtmlElement =
     currentTheme = state.currentTheme.signal,
     onSelectTheme = theme => state.currentTheme.set(Some(theme)),
     promptLabelBeforeNewNode = state.promptLabelBeforeNewNode,
-    enable3D = state.enable3D
+    enable3D = state.enable3D,
+    mermaidSheet = state.mermaidSheet
   )

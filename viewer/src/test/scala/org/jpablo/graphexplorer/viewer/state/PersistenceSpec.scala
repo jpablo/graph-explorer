@@ -63,6 +63,25 @@ class PersistenceSpec extends FunSuite with TestHelpers:
     assertEquals(settings.wrapSourceLines, false)
     assertEquals(settings.promptLabelBeforeNewNode, true)
 
+  /** The sheet behind a Mermaid drawing is on by default. Settings that were
+    * stored before the field existed must load with the sheet on, and must keep
+    * each other field. A failed read would reset each setting to `empty`.
+    */
+  test("settings stored before mermaidSheet existed load with the sheet on and keep the other fields"):
+    val old = read[ViewerSettings](
+      """{"leftPanelVisible":false,"rightPanelTabIndex":2,"currentTheme":"drafting","enable3D":true,"schemaVersion":2}"""
+    )
+    assertEquals(old.mermaidSheet, true)
+    assertEquals(old.leftPanelVisible, false)
+    assertEquals(old.rightPanelTabIndex, 2)
+    assertEquals(old.currentTheme, Some("drafting"))
+    assertEquals(old.enable3D, true)
+    assertEquals(old.schemaVersion, ViewerSettings.currentSchemaVersion)
+
+  test("the sheet setting off round-trips"):
+    val settings = read[ViewerSettings](write(ViewerSettings(mermaidSheet = false)))
+    assertEquals(settings.mermaidSheet, false)
+
   test("a stored width round-trips"):
     val settings = read[ViewerSettings](write(ViewerSettings(rightPanelWidth = Some(512))))
     assertEquals(settings.rightPanelWidth, Some(512))

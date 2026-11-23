@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidRenderer
+import org.jpablo.graphexplorer.viewer.backends.mermaid.{MermaidBackend, MermaidRenderer}
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
@@ -63,9 +63,13 @@ object ThumbnailRenderer:
     else dom.window.setTimeout(run, 0) // Safari < 16.4 and friends
     p.future
 
-  /** The SVG elements that put marks on the screen. */
+  /** The SVG elements that put marks on the screen.
+    *
+    * The sheet behind a Mermaid drawing (MermaidBackend.addSheet) is not a
+    * mark of the drawing. Thus an SVG with only a sheet holds no drawing.
+    */
   private val DrawableSelector =
-    "path, rect, circle, ellipse, line, polyline, polygon, text, image, use, foreignObject"
+    s"path, rect:not(.${MermaidBackend.sheetClass}), circle, ellipse, line, polyline, polygon, text, image, use, foreignObject"
 
   /** True when `svg` holds at least one element that draws a mark.
     *
@@ -185,6 +189,10 @@ object ThumbnailRenderer:
               Try(parseSVG(stored).ref).toOption.filter(hasDrawing) match
                 case Some(proto) =>
                   log("thumb.disk.hit", "format" -> format.toString, "bytes" -> stored.length)
+                  // A record from before the sheet has no sheet. The key stays
+                  // the same until the source changes, so the record stays too.
+                  // addSheet adds no second sheet to a record that has one.
+                  if format == DiagramFormat.Mermaid then MermaidBackend.addSheet(proto)
                   Future.successful(proto)
                 case None =>
                   log("thumb.disk.noDrawing", "format" -> format.toString, "bytes" -> stored.length)

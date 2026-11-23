@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ChildNode
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
 import org.jpablo.graphexplorer.viewer.state.{EditorNotice, ViewerState}
@@ -27,6 +28,9 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,
+    // The setting hides the sheet behind a Mermaid drawing. The renderer
+    // always adds the sheet, thus a change of the setting does not render again.
+    cls(MermaidBackend.noSheetClass) <-- state.mermaidSheet.signal.map(!_),
     state.fitDiagram.events --> state.resetView(),
     // the main canvas!! Either the engine's SVG or the experimental three.js
     // scene — a fresh Scene3D per toggle-on, so 3D state never outlives the

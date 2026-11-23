@@ -330,6 +330,73 @@ object MermaidBackend:
       }
     }
 
+  /** The class of the sheet behind a Mermaid drawing (see [[addSheet]]). */
+  val sheetClass = "gx-sheet"
+
+  /** A container with this class hides each sheet in it. The setting
+    * `ViewerSettings.mermaidSheet` puts the class on the canvas, on a board
+    * item, and on the library page when the setting is off.
+    */
+  val noSheetClass = "gx-no-sheet"
+
+  /** The color of the sheet when no stylesheet applies, for example in an
+    * exported SVG. The default Mermaid theme draws dark lines, thus the sheet
+    * must stay light.
+    */
+  private val SheetFill = "#ffffff"
+
+  /** The children of an SVG root that draw nothing. The sheet goes after them. */
+  private val NonDrawingTags = Set("defs", "style", "title", "desc", "metadata", "script")
+
+  /** Put a sheet behind the drawing, as Graphviz does with its white polygon.
+    *
+    * Mermaid draws with no background, so the grid of the canvas shows
+    * through. A sequence diagram has mostly thin lines and small text, and it
+    * is hard to read on the grid.
+    *
+    * The sheet is a `rect` that covers the viewBox. It is the first drawn child
+    * of the SVG. Thus it paints below all of the drawing, and the canvas puts it
+    * in the same group as the drawing (`CanvasRoot.mainGroup`). A pan or a
+    * zoom then moves the sheet with the drawing.
+    *
+    * The inline `fill` is the base color, for an SVG with no app stylesheet.
+    * The app stylesheet can change it through `--gx-sheet`. The sheet has
+    * `pointer-events="none"`, so a click on the sheet is a click on the canvas.
+    *
+    * An SVG with no viewBox, or with an empty viewBox, gets no sheet. A failed
+    * render can give such an SVG (see `ThumbnailRenderer.hasDrawing`).
+    */
+  private[viewer] def addSheet(svg: dom.svg.SVG): Unit =
+    val box = svg.viewBox.baseVal
+    if box != null && box.width > 0 && box.height > 0 && svg.querySelector(s":scope > .$sheetClass") == null then
+      val sheet = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
+      sheet.setAttribute("class", sheetClass)
+      sheet.setAttribute("x", box.x.toString)
+      sheet.setAttribute("y", box.y.toString)
+      sheet.setAttribute("width", box.width.toString)
+      sheet.setAttribute("height", box.height.toString)
+      sheet.setAttribute("fill", SheetFill)
+      sheet.setAttribute("stroke", "none")
+      sheet.setAttribute("pointer-events", "none")
+      val firstDrawn =
+        (0 until svg.children.length)
+          .map(svg.children.item)
+          .find(child => !NonDrawingTags.contains(child.tagName.toLowerCase))
+      svg.insertBefore(sheet, firstDrawn.orNull)
+
+  /** The text of `svg` for an export.
+    *
+    * When `keepSheet` is false, the text has no sheet (see [[addSheet]]). The
+    * function removes the sheet from a copy, and the SVG on the screen does
+    * not change.
+    */
+  def exportText(svg: dom.svg.SVG, keepSheet: Boolean): String =
+    if keepSheet || svg.querySelector(s".$sheetClass") == null then svg.outerHTML
+    else
+      val copy = svg.cloneNode(deep = true).asInstanceOf[dom.Element]
+      copy.querySelectorAllT[dom.Element](s".$sheetClass").foreach(_.remove())
+      copy.outerHTML
+
   /** Mermaid 10 emits class-level rules with `!important` for classDef, but inline `style` declarations without it.
     * In the browser, classDef can therefore override inline style. We promote inline declarations to `!important`
     * so element-level style behaves like Mermaid Live.

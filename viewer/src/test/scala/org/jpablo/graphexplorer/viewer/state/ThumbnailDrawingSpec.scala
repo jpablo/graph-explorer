@@ -55,6 +55,12 @@ class ThumbnailDrawingSpec extends FunSuite with TestHelpers with LoggedChecks:
     ).ref
     check(!ThumbnailRenderer.hasDrawing(svg), s"the check finds a drawing in: ${head(svg)}")
 
+  test("an SVG with only the sheet of a Mermaid drawing holds no drawing"):
+    val svg = parseSVG(
+      s"""<svg $Svg viewBox="0 0 10 10"><style>g{}</style><rect class="gx-sheet" width="10" height="10" fill="#ffffff"/><g/></svg>"""
+    ).ref
+    check(!ThumbnailRenderer.hasDrawing(svg), s"the check finds a drawing in: ${head(svg)}")
+
   // --- Each drawable element counts ---
 
   for element <- Seq(
@@ -265,6 +271,21 @@ class ThumbnailDrawingSpec extends FunSuite with TestHelpers with LoggedChecks:
       MermaidRenderer().textToSvg(source).map: result =>
         val svg = result.svg.ref
         check(ThumbnailRenderer.hasDrawing(asStored(svg)), s"the check finds no drawing in: ${head(svg)}")
+
+    // Each kind gets the sheet behind its drawing (MermaidBackend.addSheet),
+    // and the sheet covers the viewBox.
+    test(s"the Mermaid render of the $kind sample has one sheet that covers the viewBox"):
+      MermaidRenderer().textToSvg(source).map: result =>
+        val svg    = asStored(result.svg.ref).asInstanceOf[dom.svg.SVG]
+        val sheets = svg.querySelectorAll("rect.gx-sheet")
+        check(sheets.length == 1, s"${sheets.length} sheets in: ${head(svg)}")
+        val box   = svg.viewBox.baseVal
+        val sheet = sheets(0)
+        def attr(name: String) = sheet.getAttribute(name).toDouble
+        check(
+          attr("x") == box.x && attr("y") == box.y && attr("width") == box.width && attr("height") == box.height,
+          s"the sheet ${sheet.outerHTML} does not cover the viewBox ${box.x} ${box.y} ${box.width} ${box.height}"
+        )
 
   // --- The card of a stored record that it cannot show ---
 

@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.scalajs.dom
 
@@ -125,9 +126,19 @@ object LayoutTransition:
     * references are kept: they become the exit ghosts.
     */
   /** The background sheet: graphviz emits the graph's bounding box as a
-    * polygon directly under the root group. */
+    * polygon directly under the root group. A Mermaid drawing has a `rect`
+    * sheet (MermaidBackend.addSheet), which the canvas puts directly under the
+    * root group too.
+    *
+    * A hidden sheet (the setting `mermaidSheet` is off) has no client box. A
+    * tween divides by the size of the new box, thus a hidden sheet gets no
+    * tween.
+    */
   private def sheetOf(svg: dom.svg.SVG): Option[dom.Element] =
-    Option(svg.querySelector(":scope > g > polygon"))
+    Option(svg.querySelector(s":scope > g > polygon, :scope > g > rect.${MermaidBackend.sheetClass}"))
+      .filter: sheet =>
+        val r = sheet.getBoundingClientRect()
+        r.width > 0 && r.height > 0
 
   /** Keys for an edge's decorations: its i-th `<text>` (labels) and i-th
     * `<polygon>`/`<ellipse>` (arrowheads), paired by index across renders. */
