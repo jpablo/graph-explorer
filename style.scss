@@ -1223,9 +1223,9 @@ svg {
         background-color: var(--gx-label-scrim) !important;
       }
 
+      // The canvas code sets the scale origin of the drawing group inline
+      // (`CanvasRoot.centerScaleOrigin`), for DOT and for Mermaid.
       g#graph0 {
-        transform-origin: 50% -50%;
-
         .node {
           ellipse, polygon, path {
             pointer-events: all;

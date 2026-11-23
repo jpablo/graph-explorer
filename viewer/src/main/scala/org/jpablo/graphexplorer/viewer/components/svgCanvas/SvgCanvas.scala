@@ -47,6 +47,8 @@ def SvgCanvas(
   val magicY    = -0.4
   val viewBox   = rawSvg.ref.viewBox.baseVal
   val bbox      = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
+  // The zoom scales the drawing around the center of the viewBox below.
+  CanvasRoot.centerScaleOrigin(mainGroup, bbox)
 
   // State for double-click detection
   val doubleClickThreshold                    = 300.0 // milliseconds
