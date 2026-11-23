@@ -108,3 +108,23 @@ class ClusterHtmlLabelSpec extends FunSuite with TestHelpers:
         val texts = drawn.get.svg.ref.querySelectorAll("g.edge text")
         val shown = (0 until texts.length).map(texts(_).textContent).toSet
         check(Set("0..*", "owner", "1").subsetOf(shown), s"the edges show only: $shown")
+
+  /** A plain label with HTML entities, as tools that write DOT give for
+    * generic types. The canvas showed the raw text, for example
+    * `Vec&lt;T&gt;`.
+    */
+  private val entityLabels =
+    """digraph G {
+      |  subgraph cluster_x { label="Map&lt;K, V&gt;"; a; }
+      |  a [label="Vec&lt;T&gt; &amp; Option"];
+      |  a -> b [label="&lt;use&gt;"];
+      |}""".stripMargin
+
+  test("the canvas shows the decoded text of plain labels with entities"):
+    withGraphvizAsync: graphviz =>
+      DotExtractor(graphviz).textToGraph(entityLabels).map: graph =>
+        val drawn = graphviz.textToSvg(DotText(DotPrinter.graphToText(graph, omitInternal = false)))
+        check(drawn.isSuccess, s"the canvas gets no drawing: ${drawn.failed.toOption.map(_.getMessage)}")
+        val texts = drawn.get.svg.ref.querySelectorAll("text")
+        val shown = (0 until texts.length).map(texts(_).textContent).toSet
+        check(Set("Map<K, V>", "Vec<T> & Option", "<use>").subsetOf(shown), s"the canvas shows: $shown")

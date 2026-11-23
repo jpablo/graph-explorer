@@ -746,18 +746,24 @@ enforce the deferral halves of it):
       `a -> a [label=L]; a -> b`, the bb height is 109 in gv and 108 in the
       port.
   The work on the end labels (2026-11-23, 295–305) found three more gaps:
-  22. **HTML entities in a plain label.** `make_label` calls
-      `htmlEntityUTF8`, thus `&amp;` in a plain node or edge label is `&`
-      (one character, drawn as `&amp;`). The port decodes the entities only
-      in `headlabel`/`taillabel` (`XLabels.htmlEntityUTF8`). Other plain
-      labels keep the raw text: `a [label="x &amp; y"]` is too wide, and
-      the svg shows `&amp;amp;`.
+  22. ~~**HTML entities in a plain label.**~~ CLOSED: see the §7 entry
+      "306–311". Some code points stay open: gv writes 0x7F, 0x7FF and each
+      value above 0xFFFF (`&#65536;`) as bytes that are not correct UTF-8.
+      The port writes the correct character. viz-js shows U+FFFD there.
   23. **A 2-cycle with a third path.** `a -> b; a -> c; b -> c; c -> a;
       c -> d` gives other x coordinates in gv (the bb is 118 wide, the port
       gives 109). The labels do not cause it.
   24. **The user's UML diagram** (23 KB: clusters, HTML nodes, `dir=back`)
       has another layout in the port also without its end labels (gv bb
       2577×1514, port 2475×1476). The set of `<text>` contents is the same.
+  The work on the entities (2026-11-23, 306–311) found two more gaps:
+  25. **A `\l`/`\r` line in a record field that grows.** `resize_reclbl`
+      adds the growth of the field to `lp->space.x`, and `emit_label` puts a
+      `\l` line at the left side of that space. The port uses the width of
+      the text. Example: `r [shape=record, label="{ Map | + get(K) \l| +
+      put(K, V, W)\l }"]` gives x=8 in gv and x=25.31 in the port.
+  26. **`\E`, `\T`, `\H` and `\L`** (strdup_and_subst_obj0). The port
+      expands only `\N` and `\G`. The other escapes show their letter.
 
 ## 1. Goal & locked decisions
 
@@ -3499,4 +3505,47 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   probes found the open items 22–24 (§0). Backing test: `EdgeEndLabelSpec`
   (its numbers are now the 13.0.1 values; gv 14.1.5 gives other ones).
   graphvizJVM 1198/1198, viewer 670/670.
+- **2026-11-23 (306–311)** — **HTML entities in each plain label.**
+  `make_label` (labels.c) calls `htmlEntityUTF8` for each plain label. The
+  port did this for `headlabel`/`taillabel` only. A node, edge, xlabel,
+  cluster, root or record label showed its raw text (`Vec&lt;T&gt;` on the
+  screen, `&amp;lt;` in the svg), and its size came from the raw text.
+  Ported, as in gv 13.0.1:
+  - **One place.** `NodeSize.labelLinesJust` is the make_label path of
+    each plain label kind, in the order of C: `strdup_and_subst_obj0`
+    (`\N`, `\G`; each other escape stays), then `htmlEntityUTF8` (or
+    `latin1ToUTF8`), then `make_simple_label` (`\n`/`\l`/`\r`, a newline
+    character, `\c` → `c`). Thus `&#92;n` is a line break, and `\N` gives
+    the node name with its entities decoded. `NodeSize.LabelCtx` carries
+    the names and the charset. For an edge or a graph, `\N` stays and
+    shows `N` (before, it gave ""). In a cluster label, `\G` is the name
+    of the cluster. The decoder is in `Entities`; `XLabels.endLabel` now
+    keeps the raw text.
+  - **`htmlEntity` (utils.c).** A name has at most 8 characters before the
+    `;` (`ENTITY_NAME_LENGTH_MAX`), thus `&thetasym;` stays. `&#` takes at
+    most 6 decimal digits, `&#x` at most 5 hex digits. A `;` is necessary.
+    `&#;`, `&#x;` and `&#0;` give `&` and drop the rest. An unknown name, a
+    bare `&` and `&amp` (no `;`) stay as they are.
+  - **`charset=latin1`** (findCharset, input.c): `latin1ToUTF8` reads each
+    byte as a Latin-1 character, thus `café` shows `cafÃ©`. The json
+    writers (`stoj`) then call `latin1ToUTF8` for each name and value, so
+    `"label": "x<y"` for `x&lt;y`. Without latin1 the json keeps the RAW
+    attribute.
+  - **svg.** The text spans escape the decoded text (`{raw}`: `Vec&lt;T&gt;
+    &amp; Option`). A plain cluster label now goes through `textLines`
+    (before, `textAt` drew one raw line). The names in `<title>` and in the
+    comments keep an entity (`xml_isentity`, flag `raw` not set):
+    `n&amp;m`, not `n&amp;amp;m`. `xmlHref` uses the same test.
+  - **Tooltips.** A default tooltip is the text of make_label (`lp->text`:
+    decoded, `\N` expanded, `\l` kept). An explicit tooltip goes through
+    `preprocessTooltip` (emit.c): the entities, `interpretCRNL`, then
+    `strdup_and_subst_obj`.
+  Probes: 306 (node, edge, xlabel, end, cluster and root labels; named,
+  decimal and hex entities), 307 (entities with `\N`, `\G`, `\l`, `\r`,
+  `&#92;n`, a newline character, node names with entities), 308 (record and
+  Mrecord fields), 309 (unknown and bad entities, a bare `&`), 310
+  (`charset=latin1`), 311 (default and explicit tooltips). All byte-exact
+  in svg, json0 and dot_json. The probes found the open items 25–26 (§0).
+  Backing test: `PlainLabelEntitySpec`. graphvizJVM 1222/1222, viewer
+  671/671.
 - _(append dated entries as milestones land)_

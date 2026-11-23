@@ -1,0 +1,64 @@
+digraph "G&amp;" {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 190.4 257.82 190.4 257.82 0 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 128.91 8.2 0 52.87 11 -café & té ",
+		bb="0,0,257.82,190.4",
+		charset=latin1,
+		label="caf&eacute; &amp; t&#233;",
+		lheight=0.23,
+		lp="128.91,12.4",
+		lwidth=0.73,
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	subgraph cluster_q {
+		graph [_draw_="c 7 -#000000 p 4 8 105.6 8 182.4 78 182.4 78 105.6 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 43 165.8 0 21 2 -Q& ",
+			bb="8,105.6,78,182.4",
+			label="Q&amp;",
+			lheight=0.23,
+			lp="43,170",
+			lwidth=0.29
+		];
+		c	[_draw_="c 7 -#000000 e 43 131.6 27 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 43 127.4 0 6.21 1 -c ",
+			height=0.5,
+			pos="43,131.6",
+			width=0.75];
+	}
+	"n&amp;m"	[_draw_="c 7 -#000000 e 119 131.6 30.89 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 119 127.4 0 28.78 3 -n&m ",
+		height=0.5,
+		pos="119,131.6",
+		width=0.858];
+	b	[_draw_="c 7 -#000000 e 119 42.8 27 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 119 38.6 0 7 1 -b ",
+		height=0.5,
+		pos="119,42.8",
+		width=0.75];
+	"n&amp;m" -> b	[_draw_="c 7 -#000000 B 4 119 113.45 119 101.76 119 85.99 119 72.42 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 122.5 72.72 119 62.72 115.5 72.72 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 129.95 83 0 21.9 3 -x<y ",
+		label="x&lt;y",
+		lp="129.95,87.2",
+		pos="e,119,61.21 119,113.45 119,101.76 119,85.992 119,72.418"];
+	a	[URL=u,
+		_draw_="c 7 -#000000 e 213 131.6 44.82 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 213 127.4 0 48.98 10 -& é café ",
+		height=0.5,
+		label="&amp; &#233; caf&eacute;",
+		pos="213,131.6",
+		tooltip="t&amp;",
+		width=1.245];
+	e	[_draw_="c 7 -#000000 e 213 42.8 32.48 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 213 38.6 0 31.09 7 -cafÃ© ",
+		height=0.5,
+		label=café,
+		pos="213,42.8",
+		width=0.90227];
+	a -> e	[_draw_="c 7 -#000000 B 4 213 113.45 213 101.76 213 85.99 213 72.42 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 216.5 72.72 213 62.72 209.5 72.72 ",
+		_hldraw_="F 14 11 -Times-Roman c 7 -#000000 T 209.5 65.41 0 7 2 -α ",
+		head_lp="209.5,69.61",
+		headlabel="&#945;",
+		pos="e,213,61.21 213,113.45 213,101.76 213,85.992 213,72.418"];
+}

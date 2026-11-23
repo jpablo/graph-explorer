@@ -3,8 +3,9 @@ package org.jpablo.graphexplorer.graphviz.html
 /** HTML-4.0 named character entities (GENERATED from gv's
   * `lib/common/entities.html`, the source of `entities.h` — see
   * `entities.py`). Maps entity name → Unicode code point. Used by
-  * [[HtmlParser]] exactly like gv's `scanEntity`/`htmlEntityUTF8`
-  * (unknown names stay literal). 252 entries.
+  * [[HtmlParser]] (gv's `scanEntity`; unknown names stay literal), and by
+  * [[htmlEntityUTF8]]/[[latin1ToUTF8]] for each plain label, the json
+  * strings of a Latin-1 graph, and the tooltips. 252 entries.
   */
 private[graphexplorer] object Entities:
   val codepoints: Map[String, Int] = Map(
@@ -51,4 +52,89 @@ private[graphexplorer] object Entities:
     "uml" -> 168, "upsih" -> 978, "upsilon" -> 965, "uuml" -> 252, "weierp" -> 8472, "xi" -> 958,
     "yacute" -> 253, "yen" -> 165, "yuml" -> 255, "zeta" -> 950, "zwj" -> 8205, "zwnj" -> 8204
   )
+
+  /** ENTITY_NAME_LENGTH_MAX (entities.h). htmlEntity reads at most 8
+    * characters of a name, and the `;` must come in these 8 characters. Thus
+    * `&thetasym;` (8 letters) stays as it is in gv. */
+  private val NameLengthMax = 8
+
+  /** htmlEntity (lib/common/utils.c) for the entity after an `&` at `s(i - 1)`.
+    * @return the code point (0 when no entity is decoded) and the index after
+    *         the entity. A numeric entity with a `;` moves the index also when
+    *         its value is 0 (`&#;`, `&#x;`, `&#0;`). Then gv keeps the `&` and
+    *         drops the rest. Each other failure keeps the index at `i`. */
+  private def htmlEntity(s: String, i: Int): (Int, Int) =
+    def at(k: Int): Char = if k < s.length then s(k) else '\u0000'
+    if at(i) == '#' then
+      // `&#x` + at most 5 hex digits, or `&#` + at most 6 decimal digits (i < 8)
+      val hex = at(i + 1) == 'x' || at(i + 1) == 'X'
+      var k = if hex then 2 else 1
+      var n = 0
+      var stop = false
+      while !stop && k < 8 do
+        val ch = at(i + k)
+        val d =
+          if ch >= '0' && ch <= '9' then ch - '0'
+          else if hex && ch >= 'a' && ch <= 'f' then ch - 'a' + 10
+          else if hex && ch >= 'A' && ch <= 'F' then ch - 'A' + 10
+          else -1
+        if d >= 0 then { n = n * (if hex then 16 else 10) + d; k += 1 }
+        else stop = true
+      if stop && at(i + k) == ';' then (n, i + k + 1) else (0, i)
+    else
+      var k = 0
+      while k < NameLengthMax do
+        val ch = at(i + k)
+        if ch == '\u0000' then return (0, i)
+        if ch == ';' then
+          return codepoints.get(s.substring(i, i + k)) match
+            case Some(v) => (v, i + k + 1)
+            case None    => (0, i)
+        k += 1
+      (0, i)
+
+  /** The loop of htmlEntityUTF8 and latin1ToUTF8 (lib/common/utils.c): each
+    * entity becomes its character, and each `&` that does not start an
+    * entity stays. */
+  private def decode(s: String): String =
+    if s.indexOf('&') < 0 then return s
+    val sb = new StringBuilder
+    var i  = 0
+    while i < s.length do
+      val c = s(i)
+      i += 1
+      if c != '&' then sb += c
+      else
+        val (v, next) = htmlEntity(s, i)
+        i = next
+        if v != 0 then sb.appendAll(Character.toChars(v)) else sb += '&'
+    sb.toString
+
+  /** htmlEntityUTF8 (lib/common/utils.c): the text of a plain label for the
+    * charset UTF-8. make_label (labels.c) calls it after
+    * strdup_and_subst_obj0 and before make_simple_label. `&name;`, `&#N;`
+    * and `&#xH;` become their characters.
+    *
+    * Not ported: gv writes the code points 0x7F, 0x7FF and those above
+    * 0xFFFF as bytes that are not correct UTF-8. The port writes the correct
+    * character. A Java string cannot hold the bad UTF-8 that gv reads as
+    * Latin-1. */
+  private[graphexplorer] def htmlEntityUTF8(s: String): String = decode(s)
+
+  /** latin1ToUTF8 (lib/common/utils.c): the text of a plain label for the
+    * charset Latin-1. Each byte of the input is a Latin-1 character, thus a
+    * UTF-8 `é` (2 bytes) becomes the 2 characters `Ã©`. The entities decode
+    * as in [[htmlEntityUTF8]]. */
+  private[graphexplorer] def latin1ToUTF8(s: String): String =
+    val latin =
+      if s.forall(_ < 0x80) then s
+      else new String(s.getBytes(java.nio.charset.StandardCharsets.UTF_8), java.nio.charset.StandardCharsets.ISO_8859_1)
+    decode(latin)
+
+  /** findCharset (lib/common/input.c): true when the `charset` of the root
+    * graph names Latin-1. */
+  private[graphexplorer] def isLatin1(charset: Option[String]): Boolean =
+    charset.exists(c => LatinNames.contains(c.toLowerCase))
+
+  private val LatinNames = Set("latin-1", "latin1", "l1", "iso-8859-1", "iso_8859-1", "iso8859-1", "iso-ir-100")
 end Entities

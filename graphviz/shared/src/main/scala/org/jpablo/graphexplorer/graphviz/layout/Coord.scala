@@ -156,8 +156,8 @@ object Coord:
     val lbl = e.attrs.getOrElse("label", "")
     val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
     val fn  = e.attrs.getOrElse("fontname", "Times")
-    def plain = (NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse("")),
-                 NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse("")))
+    def plain = (NodeSize.labelWidthPt(lbl, fs, fn, NodeSize.LabelCtx.of(g)),
+                 NodeSize.labelHeightPt(lbl, fs, NodeSize.LabelCtx.of(g)))
     if e.attrs.isHtml("label") then
       HtmlParser.parse(lbl).map(h => HtmlLayout.size(h, fs, fn, g.images)).getOrElse(plain)
     else plain
@@ -493,7 +493,7 @@ object Coord:
     g.rootAttrs.get("label").filter(_.nonEmpty).map { lbl =>
       val fs = g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
       val fn = g.rootAttrs.getOrElse("fontname", "Times")
-      NodeSize.graphLabelDimPt(lbl, g.rootAttrs.isHtml("label"), fs, fn, g.name.getOrElse(""), g.images)
+      NodeSize.graphLabelDimPt(lbl, g.rootAttrs.isHtml("label"), fs, fn, NodeSize.LabelCtx.of(g), g.images)
     }
 
   /** `labelloc=t` — the root label sits above the drawing (default: below). */

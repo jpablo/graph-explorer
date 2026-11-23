@@ -1,0 +1,17 @@
+digraph G {
+  label="\G &amp; root\lleft &lt;\rright &gt;\n";
+  subgraph cluster_q {
+    label="\G &amp; one\ntwo &lt;";
+    "n&amp;m";
+    a [label="\N &lt;\l&amp; left\l"];
+  }
+  b [label="&lt;\N&gt;\r&#92;nright &amp;\r"];
+  "x&#60;y" [shape=box];
+  c [label="one&#92;ntwo&#92;lthree"];
+  d [label="\\N &amp;\\ \G"];
+  e [label="raw
+newline&#10;and &amp;"];
+  a -> b [label="\N &amp; \G\nline 2"];
+  b -> c [xlabel="&lt;\N&gt;"];
+  c -> d [headlabel="&#945;\N", taillabel="t&amp;\lu"];
+}

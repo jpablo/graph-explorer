@@ -1,0 +1,77 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 342 530",
+  "label": "\\G &amp; root\\lleft &lt;\\rright &gt;\\n",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_q",
+      "label": "\\G &amp; one\\ntwo &lt;",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "n&amp;m",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "label": "\\N &lt;\\l&amp; left\\l"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "label": "&lt;\\N&gt;\\r&#92;nright &amp;\\r"
+    },
+    {
+      "_gvid": 4,
+      "name": "x&#60;y",
+      "label": "\\N",
+      "shape": "box"
+    },
+    {
+      "_gvid": 5,
+      "name": "c",
+      "label": "one&#92;ntwo&#92;lthree"
+    },
+    {
+      "_gvid": 6,
+      "name": "d",
+      "label": "\\\\N &amp;\\\\ \\G"
+    },
+    {
+      "_gvid": 7,
+      "name": "e",
+      "label": "raw\nnewline&#10;and &amp;"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "label": "\\N &amp; \\G\\nline 2"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 5,
+      "label": "",
+      "xlabel": "&lt;\\N&gt;"
+    },
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 6,
+      "headlabel": "&#945;\\N",
+      "label": "",
+      "taillabel": "t&amp;\\lu"
+    }
+  ]
+}

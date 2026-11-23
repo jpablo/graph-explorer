@@ -1,0 +1,12 @@
+digraph G {
+  label="Root &amp; &#169; &#x2014; end";
+  subgraph cluster_a {
+    label="Map&lt;K, V&gt; &#38; &#x26;";
+    a [label="Vec&lt;T&gt; &amp; Option"];
+    b [label="&alpha;&beta;&gamma; &#956; &#x3BB;", xlabel="x&quot;q&quot;"];
+  }
+  c [label="&copy; 2026 &mdash; &#8226; &bull;"];
+  a -> b [label="&lt;uses&gt;", xlabel="&#x2192;"];
+  b -> c [label="a &amp;&amp; b", headlabel="&#42;", taillabel="0..&infin;"];
+  a -> c [label="&quot;quoted&quot; &apos; &#39;"];
+}

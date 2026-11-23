@@ -1,0 +1,10 @@
+digraph G {
+  a [label="&bogus; & x &amp y"];
+  b [label="&#;p &#0;q &#x;r &;s"];
+  c [label="&thetasym; &alefsym; &zwnj;."];
+  d [label="&#1234567; &#12345; &#xABCDE0; &#x2603;"];
+  e [label="& amp; &AMP; &Amp; &#x41&#65;"];
+  a -> b [label="&nope; &&amp;"];
+  c -> d [headlabel="&x;", taillabel="&#;"];
+  d -> e [xlabel="&lt &gt;"];
+}

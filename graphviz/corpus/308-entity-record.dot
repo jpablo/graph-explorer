@@ -1,0 +1,10 @@
+digraph G {
+  node [shape=record];
+  r1 [label="<f0> Vec&lt;T&gt; | <f1> &amp;mut | { a &#38; b | &#x3B1; }"];
+  r2 [label="{ Map&lt;K,V&gt; | + get(&amp;K) | + put(K, V) }"];
+  "s&amp;t";
+  m [shape=Mrecord, label="&lt;init&gt; | &copy; | <p> x &gt; y"];
+  r1:f0 -> r2;
+  r1:f1 -> m:p;
+  r2 -> "s&amp;t";
+}

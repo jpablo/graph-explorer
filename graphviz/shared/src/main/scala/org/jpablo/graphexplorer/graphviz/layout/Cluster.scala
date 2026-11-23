@@ -208,7 +208,9 @@ object Cluster:
       // <br/> lines, tables), as a node label does.
       val (lw, lh) =
         if s.label.nonEmpty then
-          NodeSize.graphLabelDimPt(s.label, s.labelHtml, fs, fn, g.name.getOrElse(""), g.images)
+          // `\G` in a cluster label is the name of the cluster
+          // (strdup_and_subst_obj0 takes agnameof of the subgraph).
+          NodeSize.graphLabelDimPt(s.label, s.labelHtml, fs, fn, NodeSize.LabelCtx.of(g).copy(graphName = s.id), g.images)
         else (0.0, 0.0)
       // input.c:844 — a cluster's labelloc defaults to TOP (the root's to
       // BOTTOM); labeljust takes only the first character.

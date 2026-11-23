@@ -60,7 +60,9 @@ object XLabels:
   /** The text and the font of a `headlabel` or a `taillabel`
     * (common_init_edge, utils.c:530; initFontLabelEdgeAttr, utils.c:461).
     * `labelfontsize`/`labelfontname`/`labelfontcolor` default to the font of
-    * the edge. */
+    * the edge. `text` is the RAW attribute. A plain end label goes through
+    * make_label as each other plain label: [[NodeSize.labelLinesJust]]
+    * decodes its entities (htmlEntityUTF8) for the size and the drawn text. */
   final case class EndLabel(text: String, html: Boolean, fontSize: Double, fontName: String, fontColor: String)
 
   /** C `strtod` on the start of `s`: the longest numeric prefix, or None. */
@@ -86,51 +88,11 @@ object XLabels:
       val fs  = lateDouble(e.attrs.get("fontsize"), 14.0, 1.0)
       val fn  = nn("fontname").getOrElse("Times-Roman")
       val fc  = nn("fontcolor").getOrElse("black")
-      EndLabel(if e.attrs.isHtml(key) then text else htmlEntityUTF8(text), e.attrs.isHtml(key),
+      EndLabel(text, e.attrs.isHtml(key),
         lateDouble(e.attrs.get("labelfontsize"), fs, 1.0),
         nn("labelfontname").getOrElse(fn),
         nn("labelfontcolor").getOrElse(fc))
     }
-
-  /** htmlEntityUTF8 (utils.c:1179) for a plain label: `&name;`, `&#N;` and
-    * `&#xH;` become their characters (make_label, labels.c). A `&` that does
-    * not start such an entity stays as it is. */
-  private[graphviz] def htmlEntityUTF8(s: String): String =
-    if !s.contains('&') then return s
-    val sb = new StringBuilder
-    var i  = 0
-    while i < s.length do
-      val c = s(i)
-      i += 1
-      if c != '&' then sb += c
-      else
-        // htmlEntity: the value and the index after the entity, or 0
-        var n = 0; var next = i
-        if i < s.length && s(i) == '#' then
-          val hex = i + 1 < s.length && (s(i + 1) == 'x' || s(i + 1) == 'X')
-          var k = if hex then 2 else 1
-          var stop = false
-          var last = -1 // the char at which the scan stopped
-          while !stop && k < 8 do
-            val ch = if i + k < s.length then s(i + k) else '\u0000'
-            val d  = if hex then Character.digit(ch, 16) else if ch >= '0' && ch <= '9' then ch - '0' else -1
-            if d >= 0 && ch < 128 then { n = n * (if hex then 16 else 10) + d; k += 1 }
-            else { last = ch; stop = true }
-          if stop && last == ';' then next = i + k + 1 else n = 0
-        else
-          var k = 0; var done = false
-          while !done && k < 8 do
-            val ch = if i + k < s.length then s(i + k) else '\u0000'
-            if ch == '\u0000' then done = true
-            else if ch == ';' then
-              org.jpablo.graphexplorer.graphviz.html.Entities.codepoints.get(s.substring(i, i + k)).foreach { v =>
-                n = v; next = i + k + 1
-              }
-              done = true
-            else k += 1
-        if n != 0 then { sb.appendAll(Character.toChars(n)); i = next }
-        else sb += '&'
-    sb.toString
 
   /** True when the graph declares `labelangle` or `labeldistance` for edges
     * (`E_labelangle || E_labeldistance`). Then the dotsplines.c:454 loop runs.
@@ -606,9 +568,10 @@ object XLabels:
 
   // ── addXLabels driver ──────────────────────────────────────────────────────
   /** Label (w, h) in pt, final frame — HTML-aware like `Coord.edgeLabelDim`. */
-  private def labelDim(raw: String, isHtml: Boolean, fs: Double, fn: String, g: RGraph): (Double, Double) =
-    def plain = (NodeSize.labelWidthPt(raw, fs, fn, g.name.getOrElse("")),
-                 NodeSize.labelHeightPt(raw, fs, g.name.getOrElse("")))
+  private def labelDim(raw: String, isHtml: Boolean, fs: Double, fn: String, g: RGraph,
+                       ctx: NodeSize.LabelCtx): (Double, Double) =
+    def plain = (NodeSize.labelWidthPt(raw, fs, fn, ctx),
+                 NodeSize.labelHeightPt(raw, fs, ctx))
     if isHtml then
       HtmlParser.parse(raw).map(h => HtmlLayout.size(h, fs, fn, g.images)).getOrElse(plain)
     else plain
@@ -644,7 +607,7 @@ object XLabels:
 
   /** The (w, h) of an end label in pt, final frame (make_label). */
   private def endLabelDim(l: EndLabel, g: RGraph): (Double, Double) =
-    labelDim(l.text, l.html, l.fontSize, l.fontName, g)
+    labelDim(l.text, l.html, l.fontSize, l.fontName, g, NodeSize.LabelCtx.of(g))
 
   private def placeImpl(g: RGraph): Result =
     val empty = Result(Map.empty, Map.empty)
@@ -707,7 +670,7 @@ object XLabels:
         val xl = xlabelOf(n.attrs).map { raw =>
           val fs = n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
           val fn = n.attrs.getOrElse("fontname", "Times")
-          val (w, h)   = labelDim(raw, n.attrs.isHtml("xlabel"), fs, fn, g)
+          val (w, h)   = labelDim(raw, n.attrs.isHtml("xlabel"), fs, fn, g, NodeSize.LabelCtx.of(g, Some(n.id)))
           val (cw, ch) = swapped(w, h)
           new XL(cw, ch, Owner.NodeX(n.id))
         }.orNull
@@ -746,7 +709,7 @@ object XLabels:
           spls.get(idx).foreach { spl =>
             val fs = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
             val fn = e.attrs.getOrElse("fontname", "Times")
-            val (w, h)   = labelDim(raw, e.attrs.isHtml("xlabel"), fs, fn, g)
+            val (w, h)   = labelDim(raw, e.attrs.isHtml("xlabel"), fs, fn, g, NodeSize.LabelCtx.of(g))
             val (cw, ch) = swapped(w, h)
             val xl  = new XL(cw, ch, Owner.EdgeX(idx))
             val mid = edgeMidpoint(spl)

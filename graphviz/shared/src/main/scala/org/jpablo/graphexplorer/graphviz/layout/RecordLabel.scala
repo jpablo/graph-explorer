@@ -132,12 +132,15 @@ object RecordLabel:
 
   // ── size_reclbl ──────────────────────────────────────────────────────────
   // Field text sizes through the SAME label machinery as node labels
-  // (make_label): \n/\l/\r line splits AND \N/\G object substitution —
-  // parse_reclbl hands the raw escapes through (an unlabeled record node is
-  // the raw `\N`, which must measure as the node NAME, not as `\N`).
+  // (make_label): \N/\G object substitution, the entities, and the
+  // \n/\l/\r line splits — parse_reclbl hands the raw escapes through (an
+  // unlabeled record node is the raw `\N`, which must measure as the node
+  // NAME, not as `\N`). parse_reclbl calls make_label(LT_NONE) for each
+  // field, thus `&lt;` in a field is `<` (htmlEntityUTF8). The `<` and `>`
+  // of a port are not entities, so the entities cannot make a port.
   private def textDimen(text: String, fontSizePt: Double, fontName: String,
-                        nodeId: String, graphName: String): (Double, Double) =
-    val lines  = NodeSize.labelLinesJust(text, nodeId, graphName).map(_._1)
+                        ctx: NodeSize.LabelCtx): (Double, Double) =
+    val lines  = NodeSize.labelLinesJust(text, ctx).map(_._1)
     val w = lines.iterator.map(l =>
       if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
     ).maxOption.getOrElse(0.0)
@@ -147,7 +150,7 @@ object RecordLabel:
     (w, h)
 
   private def sizeOf(f: Field, fontSizePt: Double, fontName: String, margin: Option[(Double, Double)],
-                     html: Boolean, imgs: ImageDim.Table, nodeId: String, graphName: String): Unit =
+                     html: Boolean, imgs: ImageDim.Table, ctx: NodeSize.LabelCtx): Unit =
     if f.isLeaf then
       // HTML-in-record: the field label is LT_HTML (make_label in
       // parse_reclbl) — its dimen comes from the HTML sizing path; the
@@ -158,8 +161,8 @@ object RecordLabel:
             case Some(lbl) =>
               f.htmlLbl = Some(lbl)
               HtmlLayout.size(lbl, fontSizePt, fontName, imgs)
-            case None => textDimen(f.text.getOrElse(" "), fontSizePt, fontName, nodeId, graphName)
-        else textDimen(f.text.getOrElse(" "), fontSizePt, fontName, nodeId, graphName)
+            case None => textDimen(f.text.getOrElse(" "), fontSizePt, fontName, ctx)
+        else textDimen(f.text.getOrElse(" "), fontSizePt, fontName, ctx)
       if tw > 0.0 || th > 0.0 then
         margin match
           case Some((mx, my)) => f.sx = tw + 2 * mx; f.sy = th + 2 * my
@@ -168,7 +171,7 @@ object RecordLabel:
     else
       var x = 0.0; var y = 0.0
       f.flds.foreach { c =>
-        sizeOf(c, fontSizePt, fontName, margin, html, imgs, nodeId, graphName)
+        sizeOf(c, fontSizePt, fontName, margin, html, imgs, ctx)
         if f.lr then { x += c.sx; y = math.max(y, c.sy) }
         else { y += c.sy; x = math.max(x, c.sx) }
       }
@@ -220,10 +223,10 @@ object RecordLabel:
       label: String, topLR: Boolean, fontSizePt: Double, fontName: String,
       minWIn: Double, minHIn: Double, fixed: Boolean, margin: Option[(Double, Double)],
       html: Boolean = false, imgs: ImageDim.Table = ImageDim.empty,
-      nodeId: String = "", graphName: String = ""
+      ctx: NodeSize.LabelCtx = NodeSize.LabelCtx.Plain
   ): (In, In, Field) =
     val root = parse(label, topLR, html)
-    sizeOf(root, fontSizePt, fontName, margin, html, imgs, nodeId, graphName)
+    sizeOf(root, fontSizePt, fontName, margin, html, imgs, ctx)
     val mw = minWIn * Pt; val mh = minHIn * Pt
     val sx = if fixed then mw else math.max(root.sx, mw)
     val sy = if fixed then mh else math.max(root.sy, mh)

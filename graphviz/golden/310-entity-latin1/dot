@@ -1,0 +1,43 @@
+digraph "G&amp;" {
+	graph [bb="0,0,257.82,190.4",
+		charset=latin1,
+		label="caf&eacute; &amp; t&#233;",
+		lheight=0.23,
+		lp="128.91,12.4",
+		lwidth=0.73
+	];
+	node [label="\N"];
+	subgraph cluster_q {
+		graph [bb="8,105.6,78,182.4",
+			label="Q&amp;",
+			lheight=0.23,
+			lp="43,170",
+			lwidth=0.29
+		];
+		c	[height=0.5,
+			pos="43,131.6",
+			width=0.75];
+	}
+	"n&amp;m"	[height=0.5,
+		pos="119,131.6",
+		width=0.858];
+	b	[height=0.5,
+		pos="119,42.8",
+		width=0.75];
+	"n&amp;m" -> b	[label="x&lt;y",
+		lp="129.95,87.2",
+		pos="e,119,61.21 119,113.45 119,101.76 119,85.992 119,72.418"];
+	a	[URL=u,
+		height=0.5,
+		label="&amp; &#233; caf&eacute;",
+		pos="213,131.6",
+		tooltip="t&amp;",
+		width=1.245];
+	e	[height=0.5,
+		label=café,
+		pos="213,42.8",
+		width=0.90227];
+	a -> e	[head_lp="209.5,69.61",
+		headlabel="&#945;",
+		pos="e,213,61.21 213,113.45 213,101.76 213,85.992 213,72.418"];
+}
