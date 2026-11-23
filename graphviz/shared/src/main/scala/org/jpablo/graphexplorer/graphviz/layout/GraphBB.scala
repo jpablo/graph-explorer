@@ -154,9 +154,11 @@ object GraphBB:
     minX = gx0; minY = gy0; maxX = gx1; maxY = gy1
     // addXLabels (gv_postprocess): placed external labels grow the canonical
     // bb (updateBB/addLabelBB per label) BEFORE the root-label pad below.
+    // The end labels that place_portlabel sets (dotsplines.c:454) grow it
+    // too, and so do the `stray` boxes of the head labels that it does not set.
     locally {
       val xl = XLabels.place(g)
-      (xl.nodes.valuesIterator ++ xl.edges.valuesIterator).foreach { p =>
+      (xl.all ++ xl.stray.iterator).foreach { p =>
         val (w, h) = if Rank.flip(g) then (p.h, p.w) else (p.w, p.h)
         minX = math.min(minX, p.cx - w / 2.0); maxX = math.max(maxX, p.cx + w / 2.0)
         minY = math.min(minY, p.cy - h / 2.0); maxY = math.max(maxY, p.cy + h / 2.0)

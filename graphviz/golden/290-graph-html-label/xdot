@@ -1,0 +1,26 @@
+digraph G {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 139 64.49 139 64.49 0 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 t 1 T 18.25 15.4 -1 27.99 5 -Title F 9 11 -Times-Roman c 7 -#000000 t 0 T 8 5.9 -1 48.49 15 -a \
+subtitle line ",
+		bb="0,0,64.489,139",
+		label=<<b>Title</b><br/><font point-size="9">a subtitle line</font>>,
+		lheight=0.32,
+		lp="32.245,15.5",
+		lwidth=0.67,
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	a	[_draw_="c 7 -#000000 e 32.24 121 27 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 32.24 116.8 0 6.21 1 -a ",
+		height=0.5,
+		pos="32.245,121",
+		width=0.75];
+	b	[_draw_="c 7 -#000000 e 32.24 49 27 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 32.24 44.8 0 7 1 -b ",
+		height=0.5,
+		pos="32.245,49",
+		width=0.75];
+	a -> b	[_draw_="c 7 -#000000 B 4 32.24 102.7 32.24 95.41 32.24 86.73 32.24 78.54 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 35.74 78.62 32.24 68.62 28.74 78.62 ",
+		pos="e,32.245,67.104 32.245,102.7 32.245,95.407 32.245,86.726 32.245,78.536"];
+}

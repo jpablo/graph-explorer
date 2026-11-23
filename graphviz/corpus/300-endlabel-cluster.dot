@@ -1,0 +1,14 @@
+digraph G {
+  subgraph cluster_a {
+    label="Model";
+    a; b;
+    a -> b [headlabel="1", taillabel="owner"];
+  }
+  subgraph cluster_b {
+    label="Store";
+    c; d;
+    c -> d [headlabel="0..*"];
+  }
+  b -> c [headlabel="many", taillabel="one"];
+  a -> d [taillabel="t", headlabel="h"];
+}

@@ -1,0 +1,15 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 27 17",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<font color=\"red\"><b><i><u><s><sup>x<\/sup><\/s><\/u><\/i><\/b><\/font> <s>y<\/s> <u><sub>z<\/sub><\/u>",
+      "shape": "plain"
+    }
+  ]
+}

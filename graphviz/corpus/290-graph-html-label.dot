@@ -1,0 +1,4 @@
+digraph G {
+  graph [label=<<b>Title</b><br/><font point-size="9">a subtitle line</font>>];
+  a -> b;
+}

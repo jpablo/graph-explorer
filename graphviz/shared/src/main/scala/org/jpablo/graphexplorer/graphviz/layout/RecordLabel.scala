@@ -137,11 +137,9 @@ object RecordLabel:
   // the raw `\N`, which must measure as the node NAME, not as `\N`).
   private def textDimen(text: String, fontSizePt: Double, fontName: String,
                         nodeId: String, graphName: String): (Double, Double) =
-    val bold   = fontName.toLowerCase.contains("bold")
-    val italic = fontName.toLowerCase.contains("italic") || fontName.toLowerCase.contains("oblique")
     val lines  = NodeSize.labelLinesJust(text, nodeId, graphName).map(_._1)
     val w = lines.iterator.map(l =>
-      if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, bold, italic)
+      if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
     ).maxOption.getOrElse(0.0)
     val h = lines.iterator.map(l =>
       if l.isEmpty then (fontSizePt * LineSpace).toInt.toDouble else fontSizePt * LineSpace

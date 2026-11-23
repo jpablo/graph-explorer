@@ -1,0 +1,47 @@
+digraph G {
+	graph [bb="0,0,259.77,169.6"];
+	node [label="\N"];
+	subgraph cluster_a {
+		graph [bb="62.214,78.6,132.21,161.6",
+			fontname="Helvetica-Bold",
+			label=<<b>bold</b> <i>it</i><br/><font point-size="9">plain</font>>,
+			labeljust=l,
+			labelloc=t,
+			lheight=0.32,
+			lp="89.084,146.1",
+			lwidth=0.52
+		];
+		a	[height=0.5,
+			pos="97.214,104.6",
+			width=0.75];
+	}
+	n	[fontname="Helvetica-Bold",
+		height=0.23333,
+		label=<<b>x</b> <i>y</i> z>,
+		pos="13.214,25.3",
+		shape=plain,
+		width=0.36705];
+	a -> n	[pos="e,19.152,33.326 80.393,90.204 67.626,79.805 49.837,64.812 35.214,50.6 32.357,47.824 29.418,44.749 26.655,41.746"];
+	m	[fontname="Helvetica-Oblique",
+		height=0.23333,
+		label=<<i>x</i> <b>y</b> <b><i>w</i></b>>,
+		pos="59.214,25.3",
+		shape=plain,
+		width=0.41044];
+	a -> m	[pos="e,62.695,33.382 89.155,87.207 82.819,74.318 74.021,56.422 67.602,43.364"];
+	q	[fontname="Times-Bold",
+		height=0.5,
+		label="Quoted Bold",
+		pos="136.21,25.3",
+		shape=box,
+		width=1.2214];
+	a -> q	[pos="e,127.41,43.744 105.48,87.207 110.36,77.534 116.67,65.041 122.29,53.889"];
+	r	[fontname="Helvetica-BoldOblique",
+		height=0.70278,
+		label="{Record|Oblique}",
+		pos="229.21,25.3",
+		rects="198.66,25.3,259.77,50.1 198.66,0.5,259.77,25.3",
+		shape=record,
+		width=0.84866];
+	a -> r	[pos="e,198.25,45.209 117.39,92.154 134.26,82.549 159.14,68.29 188.55,50.947"];
+}

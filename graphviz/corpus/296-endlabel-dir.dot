@@ -1,0 +1,8 @@
+digraph G {
+  edge [arrowtail=diamond];
+  a -> b [dir=back, arrowhead=none, headlabel="1", taillabel="0..*"];
+  a -> c [dir=both, headlabel="head", taillabel="tail"];
+  b -> c [dir=none, headlabel="n", taillabel="m"];
+  c -> e [dir=back, headlabel="up", taillabel="down"];
+  c -> d [arrowhead=odot, headlabel="end"];
+}

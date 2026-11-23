@@ -1,0 +1,66 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 126 230",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N",
+      "xlabel": "ax"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "label": "\\N",
+      "xlabel": "dx"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "headlabel": "1",
+      "label": "assoc",
+      "taillabel": "0..*"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "headlabel": "h",
+      "label": "",
+      "taillabel": "t",
+      "xlabel": "xl"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "headlabel": "head",
+      "label": "lbl",
+      "taillabel": "tail",
+      "xlabel": "xx"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 3,
+      "headlabel": "hd",
+      "label": ""
+    }
+  ]
+}

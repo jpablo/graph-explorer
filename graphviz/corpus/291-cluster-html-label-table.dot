@@ -1,0 +1,12 @@
+digraph G {
+  subgraph cluster_a {
+    label=<<table border="0" cellborder="1"><tr><td><b>head</b></td><td>x</td></tr></table>>;
+    labeljust=r; labelloc=b; color=blue;
+    a; b;
+  }
+  subgraph cluster_b {
+    label=<<i>plain</i> text>;
+    c;
+  }
+  a -> b; c -> b;
+}

@@ -1,0 +1,74 @@
+digraph G {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 169.6 259.77 169.6 259.77 0 ",
+		bb="0,0,259.77,169.6",
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	subgraph cluster_a {
+		graph [_draw_="c 7 -#000000 p 4 62.21 78.6 62.21 161.6 132.21 161.6 132.21 78.6 ",
+			_ldraw_="F 14 14 -Helvetica-Bold c 7 -#000000 t 1 T 70.21 146 -1 26.46 4 -bold F 14 14 -Helvetica-Bold c 7 -#000000 t 0 T 96.68 146 -1 3.5 \
+1 -  F 14 14 -Helvetica-Bold c 7 -#000000 t 2 T 100.18 146 -1 7.78 2 -it F 9 14 -Helvetica-Bold c 7 -#000000 t 0 T 80.09 136.5 -1 \
+18 5 -plain ",
+			bb="62.214,78.6,132.21,161.6",
+			fontname="Helvetica-Bold",
+			label=<<b>bold</b> <i>it</i><br/><font point-size="9">plain</font>>,
+			labeljust=l,
+			labelloc=t,
+			lheight=0.32,
+			lp="89.084,146.1",
+			lwidth=0.52
+		];
+		a	[_draw_="c 7 -#000000 e 97.21 104.6 27 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 97.21 100.4 0 6.21 1 -a ",
+			height=0.5,
+			pos="97.214,104.6",
+			width=0.75];
+	}
+	n	[_ldraw_="F 14 14 -Helvetica-Bold c 7 -#000000 t 1 T 0 22.1 -1 7 1 -x F 14 14 -Helvetica-Bold c 7 -#000000 t 0 T 7 22.1 -1 3.5 1 -  F 14 14 \
+-Helvetica-Bold c 7 -#000000 t 2 T 10.5 22.1 -1 6.21 1 -y F 14 14 -Helvetica-Bold c 7 -#000000 t 0 T 16.71 22.1 -1 9.71 2 - z ",
+		fontname="Helvetica-Bold",
+		height=0.23333,
+		label=<<b>x</b> <i>y</i> z>,
+		pos="13.214,25.3",
+		shape=plain,
+		width=0.36705];
+	a -> n	[_draw_="c 7 -#000000 B 7 80.39 90.2 67.63 79.81 49.84 64.81 35.21 50.6 32.36 47.82 29.42 44.75 26.65 41.75 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 29.42 39.59 20.16 34.46 24.2 44.25 ",
+		pos="e,19.152,33.326 80.393,90.204 67.626,79.805 49.837,64.812 35.214,50.6 32.357,47.824 29.418,44.749 26.655,41.746"];
+	m	[_ldraw_="F 14 17 -Helvetica-Oblique c 7 -#000000 t 2 T 44.44 22.1 -1 6.21 1 -x F 14 17 -Helvetica-Oblique c 7 -#000000 t 0 T 50.65 22.1 -1 \
+3.5 1 -  F 14 17 -Helvetica-Oblique c 7 -#000000 t 1 T 54.15 22.1 -1 7 1 -y F 14 17 -Helvetica-Oblique c 7 -#000000 t 0 T 61.15 \
+22.1 -1 3.5 1 -  F 14 17 -Helvetica-Oblique c 7 -#000000 t 3 T 64.65 22.1 -1 9.34 1 -w ",
+		fontname="Helvetica-Oblique",
+		height=0.23333,
+		label=<<i>x</i> <b>y</b> <b><i>w</i></b>>,
+		pos="59.214,25.3",
+		shape=plain,
+		width=0.41044];
+	a -> m	[_draw_="c 7 -#000000 B 4 89.16 87.21 82.82 74.32 74.02 56.42 67.6 43.36 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 70.92 42.17 63.36 34.74 64.63 45.26 ",
+		pos="e,62.695,33.382 89.155,87.207 82.819,74.318 74.021,56.422 67.602,43.364"];
+	q	[_draw_="c 7 -#000000 p 4 180.18 43.3 92.24 43.3 92.24 7.3 180.18 7.3 ",
+		_ldraw_="F 14 10 -Times-Bold c 7 -#000000 T 136.21 21.1 0 71.94 11 -Quoted Bold ",
+		fontname="Times-Bold",
+		height=0.5,
+		label="Quoted Bold",
+		pos="136.21,25.3",
+		shape=box,
+		width=1.2214];
+	a -> q	[_draw_="c 7 -#000000 B 4 105.48 87.21 110.36 77.53 116.67 65.04 122.29 53.89 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 125.35 55.6 126.73 45.1 119.1 52.45 ",
+		pos="e,127.41,43.744 105.48,87.207 110.36,77.534 116.67,65.041 122.29,53.889"];
+	r	[_draw_="c 7 -#000000 p 4 198.66 0.5 198.66 50.1 259.77 50.1 259.77 0.5 c 7 -#000000 L 2 198.66 25.3 259.77 25.3 ",
+		_ldraw_="F 14 21 -Helvetica-BoldOblique c 7 -#000000 T 229.21 33.5 0 40.43 6 -Record F 14 21 -Helvetica-BoldOblique c 7 -#000000 T 229.21 \
+8.7 0 45.1 7 -Oblique ",
+		fontname="Helvetica-BoldOblique",
+		height=0.70278,
+		label="{Record|Oblique}",
+		pos="229.21,25.3",
+		rects="198.66,25.3,259.77,50.1 198.66,0.5,259.77,25.3",
+		shape=record,
+		width=0.84866];
+	a -> r	[_draw_="c 7 -#000000 B 4 117.39 92.15 134.26 82.55 159.14 68.29 188.55 50.95 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 190.12 54.08 196.95 45.98 186.56 48.06 ",
+		pos="e,198.25,45.209 117.39,92.154 134.26,82.549 159.14,68.29 188.55,50.947"];
+}

@@ -1,0 +1,86 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 377 114",
+  "label": "",
+  "rankdir": "LR",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_a",
+      "label": "Domain",
+      "rankdir": "LR",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "A",
+      "label": "\\N",
+      "shape": "box"
+    },
+    {
+      "_gvid": 2,
+      "name": "B",
+      "label": "\\N",
+      "shape": "box"
+    },
+    {
+      "_gvid": 3,
+      "name": "C",
+      "label": "\\N",
+      "shape": "box"
+    },
+    {
+      "_gvid": 4,
+      "name": "D",
+      "label": "\\N",
+      "shape": "box"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "arrowtail": "odiamond",
+      "dir": "back",
+      "headlabel": "0..*",
+      "label": "",
+      "taillabel": "1"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 3,
+      "headlabel": "1",
+      "label": "",
+      "labelfontsize": "10",
+      "taillabel": "n"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 3,
+      "headlabel": "angled",
+      "label": "",
+      "labelangle": "30",
+      "labeldistance": "2"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 4,
+      "headlabel": "hd",
+      "label": "uses",
+      "taillabel": "tl",
+      "xlabel": "xl"
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,277.92,90",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,45",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "117,72",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "117,18",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "207,45",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "head_lp": "81.483,73.031",
+      "headlabel": "0..*",
+      "pos": "e,91.983,64.631 52.046,52.378 60.971,55.116 71.285,58.281 80.99,61.258",
+      "tail_lp": "69.54,60.778",
+      "taillabel": "owner"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "dir": "back",
+      "head_lp": "88.483,16.969",
+      "headlabel": "1",
+      "pos": "s,52.046,37.622 63.042,34.249 72.748,31.271 83.061,28.106 91.983,25.369",
+      "tail_lp": "69.536,29.222",
+      "taillabel": "parent"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "head_lp": "173.15,47.683",
+      "headlabel": "ang",
+      "labelangle": "45",
+      "pos": "e,181.98,52.369 142.05,64.622 150.97,61.884 161.29,58.719 170.99,55.742",
+      "tail_lp": "150.88,69.308",
+      "taillabel": "ang"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 3,
+      "head_lp": "225.91,29.231",
+      "headlabel": "wide head label",
+      "pos": "e,181.98,37.631 142.05,25.378 150.97,28.116 161.29,31.281 170.99,34.258",
+      "tail_lp": "143.99,33.778",
+      "taillabel": "t"
+    }
+  ]
+}

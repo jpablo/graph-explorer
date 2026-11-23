@@ -1,0 +1,115 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,376.61,114.4",
+  "label": "",
+  "rankdir": "LR",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_a",
+      "bb": "8,29.4,169,106.4",
+      "label": "Domain",
+      "lheight": "0.23",
+      "lp": "88.5,94",
+      "lwidth": "0.63",
+      "rankdir": "LR",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "A",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "43,55.4",
+      "shape": "box",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "B",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "134,55.4",
+      "shape": "box",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "C",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "225,21.4",
+      "shape": "box",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "D",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "339.11,21.4",
+      "shape": "box",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "arrowtail": "odiamond",
+      "dir": "back",
+      "head_lp": "96.158,47",
+      "headlabel": "0..*",
+      "label": "",
+      "pos": "s,70.222,55.4 83.184,55.4 91.124,55.4 99.292,55.4 106.66,55.4",
+      "tail_lp": "73.722,47",
+      "taillabel": "1"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 3,
+      "head_lp": "195.16,25.463",
+      "headlabel": "1",
+      "label": "",
+      "labelfontsize": "10",
+      "pos": "e,197.66,31.463 161.22,45.383 169.3,42.298 178.35,38.841 187,35.534",
+      "tail_lp": "163.72,39.383",
+      "taillabel": "n"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 3,
+      "head_lp": "180.3,10.373",
+      "headlabel": "angled",
+      "label": "",
+      "labelangle": "30",
+      "labeldistance": "2",
+      "pos": "e,197.6,20.412 70.283,41.729 81.327,36.627 94.494,31.359 107,28.4 132.97,22.256 163.03,20.57 186.19,20.386"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 4,
+      "head_lp": "304.99,13",
+      "headlabel": "hd",
+      "label": "uses",
+      "lp": "282.06,29.8",
+      "pos": "e,311.99,21.4 252.28,21.4 266.76,21.4 284.97,21.4 300.89,21.4",
+      "tail_lp": "256.17,13",
+      "taillabel": "tl",
+      "xlabel": "xl",
+      "xlp": "276.5,13"
+    }
+  ]
+}

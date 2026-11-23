@@ -1,0 +1,8 @@
+digraph G {
+  a [xlabel="ax"];
+  a -> b [label="assoc", headlabel="1", taillabel="0..*"];
+  a -> c [xlabel="xl", headlabel="h", taillabel="t"];
+  b -> d [label="lbl", xlabel="xx", headlabel="head", taillabel="tail"];
+  c -> d [headlabel="hd"];
+  d [xlabel="dx"];
+}

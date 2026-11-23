@@ -204,6 +204,19 @@ object NodeSize:
       if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
     }.maxOption.getOrElse(0.0)
 
+  /** Label box (width, height) in points of a graph or cluster label
+    * (`make_label` `dimen`, before PAD). An HTML-like label (`html` = true)
+    * gets the size of its parsed content (`make_html_label`), as a node label
+    * does. A markup that does not parse falls back to the plain-text size,
+    * because Graphviz then also uses the raw string as a plain label. */
+  def graphLabelDimPt(raw: String, html: Boolean, fontSizePt: Double, fontName: String,
+                      graphName: String, imgs: org.jpablo.graphexplorer.graphviz.html.ImageDim.Table)
+      : (Double, Double) =
+    def plain = (labelWidthPt(raw, fontSizePt, fontName, graphName),
+                 labelHeightPt(raw, fontSizePt, graphName))
+    if html then HtmlParser.parse(raw).map(HtmlLayout.size(_, fontSizePt, fontName, imgs)).getOrElse(plain)
+    else plain
+
   /** @return the node bounding box in inches, or `None` for shapes not yet
     *         ported (record/Mrecord/unknown).
     */
@@ -243,9 +256,6 @@ object NodeSize:
   private def polyMetrics(n: RNode, g: RGraph, shape: ShapeKind): Metrics =
     val fontSize = dbl(n, "fontsize", DefFontSize)
     val fontName = n.attrs.getOrElse("fontname", DefFontName)
-    val fnCanon  = fontName.toLowerCase
-    val bold     = fnCanon.contains("bold")
-    val italic   = fnCanon.contains("italic") || fnCanon.contains("oblique")
 
     val rawLabel = n.attrs.getOrElse("label", "\\N")
     // label="" ⇒ NO label box at all (dimen 0,0 — an empty-label plain node
@@ -255,8 +265,10 @@ object NodeSize:
 
     // estimate_textspan_size: width = fontsize * width@1pt; height per line =
     // fontsize*LINESPACING (non-empty) or (int)(fontsize*LINESPACING) (empty).
+    // A plain label has no <b>/<i> flags, so it uses the regular widths. The
+    // font name (for example `Times-Bold`) does not select the bold widths.
     val lineW = lines.map(l =>
-      if l.isEmpty then 0.0 else fontSize * FontMetrics.estimateTextWidth1pt(fontName, l, bold, italic)
+      if l.isEmpty then 0.0 else fontSize * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
     )
     val lineH = lines.map(l =>
       if l.isEmpty then (fontSize * LineSpacing).toInt.toDouble else fontSize * LineSpacing

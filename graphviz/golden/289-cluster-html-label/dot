@@ -1,0 +1,21 @@
+digraph G {
+	graph [bb="0,0,165,171"];
+	node [label="\N"];
+	subgraph cluster_discovery {
+		graph [bb="8,8,157,163",
+			label=<<b>agent-skills::discovery</b><br/><font point-size="9">rust/agent-skills/src/discovery.rs</font>>,
+			labeljust=l,
+			labelloc=t,
+			lheight=0.32,
+			lp="82.883,147.5",
+			lwidth=1.86
+		];
+		a	[height=0.5,
+			pos="82,106",
+			width=0.75];
+		b	[height=0.5,
+			pos="82,34",
+			width=0.75];
+		a -> b	[pos="e,82,52.104 82,87.697 82,80.407 82,71.726 82,63.536"];
+	}
+}

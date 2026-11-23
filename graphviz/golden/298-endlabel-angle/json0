@@ -1,0 +1,136 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,126,332.4",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "63,314.4",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,242.4",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,242.4",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "44,170.4",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "71,98.4",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "f",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "71,26.4",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "head_lp": "33.092,269.3",
+      "headlabel": "0..*",
+      "labelangle": "40",
+      "pos": "e,35.304,259.55 54.65,297.16 50.425,288.95 45.192,278.77 40.419,269.49",
+      "tail_lp": "56.863,287.41",
+      "taillabel": "owner"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "head_lp": "89.729,284.53",
+      "headlabel": "far",
+      "labeldistance": "2.5",
+      "pos": "e,90.696,259.55 71.35,297.16 75.575,288.95 80.808,278.77 85.581,269.49",
+      "tail_lp": "72.316,272.18",
+      "taillabel": "t"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "head_lp": "50.658,199.03",
+      "headlabel": "neg",
+      "labelangle": "-60",
+      "labeldistance": "1.5",
+      "pos": "e,39.805,188.68 31.115,224.45 32.926,217 35.102,208.04 37.146,199.62",
+      "tail_lp": "20.262,214.1",
+      "taillabel": "neg"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 3,
+      "head_lp": "49.994,179.03",
+      "headlabel": "clamped",
+      "labelangle": "-400",
+      "pos": "e,56.172,186.89 86.794,225.86 79.887,217.07 71.092,205.88 63.275,195.93"
+    },
+    {
+      "_gvid": 4,
+      "tail": 2,
+      "head": 4,
+      "head_lp": "96.548,124.99",
+      "headlabel": "noangle",
+      "pos": "e,74.389,116.59 95.623,224.27 90.893,200.28 82.238,156.39 76.552,127.56",
+      "tail_lp": "84.747,215.87",
+      "taillabel": "free"
+    },
+    {
+      "_gvid": 5,
+      "tail": 3,
+      "head": 4,
+      "dir": "back",
+      "head_lp": "55.194,112.59",
+      "headlabel": "back",
+      "labelangle": "90",
+      "pos": "s,50.536,152.45 54.585,141.96 57.94,133.26 61.548,123.91 64.524,116.19",
+      "tail_lp": "59.866,156.05",
+      "taillabel": "tb"
+    },
+    {
+      "_gvid": 6,
+      "tail": 4,
+      "head": 5,
+      "arrowhead": "none",
+      "head_lp": "71,44.504",
+      "headlabel": "plain",
+      "labeldistance": "0",
+      "pos": "71,80.097 71,69.246 71,55.317 71,44.504",
+      "tail_lp": "71,80.097",
+      "taillabel": "ps"
+    }
+  ]
+}

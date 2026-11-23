@@ -1,0 +1,98 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 126 332",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "f",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "headlabel": "0..*",
+      "labelangle": "40",
+      "taillabel": "owner"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "headlabel": "far",
+      "labeldistance": "2.5",
+      "taillabel": "t"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "headlabel": "neg",
+      "labelangle": "-60",
+      "labeldistance": "1.5",
+      "taillabel": "neg"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 3,
+      "headlabel": "clamped",
+      "labelangle": "-400"
+    },
+    {
+      "_gvid": 4,
+      "tail": 2,
+      "head": 4,
+      "headlabel": "noangle",
+      "taillabel": "free"
+    },
+    {
+      "_gvid": 5,
+      "tail": 3,
+      "head": 4,
+      "dir": "back",
+      "headlabel": "back",
+      "labelangle": "90",
+      "taillabel": "tb"
+    },
+    {
+      "_gvid": 6,
+      "tail": 4,
+      "head": 5,
+      "arrowhead": "none",
+      "headlabel": "plain",
+      "labeldistance": "0",
+      "taillabel": "ps"
+    }
+  ]
+}

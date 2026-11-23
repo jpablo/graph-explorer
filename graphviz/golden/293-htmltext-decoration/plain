@@ -1,0 +1,3 @@
+graph 1 0.37797 0.23333
+node a 0.18899 0.11667 0.37797 0.23333 <<font color="red"><b><i><u><s><sup>x</sup></s></u></i></b></font> <s>y</s> <u><sub>z</sub></u>> solid plain black lightgrey
+stop

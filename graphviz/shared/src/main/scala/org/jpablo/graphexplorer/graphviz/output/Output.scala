@@ -77,17 +77,13 @@ object Output:
     attrs.toVector.filter { case (k, v) => v.nonEmpty || k == "label" }.sortBy(_._1)
 
   private val Gap         = 4.0  // const.h GAP (YPAD = 2*GAP)
-  private val DefFontSize = 14.0
 
   // ── root graph label (`do_graph_label`) ─────────────────────────────────
   // Geometry (pad + labelloc) lives in Coord — the layout computes it once,
   // exactly as gv stores GD_label; the writers only read it.
   private def rootLabelText(g: RGraph): Option[String] = g.rootAttrs.get("label").filter(_.nonEmpty)
-  private def labelFontSize(g: RGraph): Double =
-    g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
   private def labelTop(g: RGraph): Boolean = Coord.graphLabelTop(g)
-  private def labelHtPt(g: RGraph, lbl: String): Double =
-    NodeSize.labelHeightPt(lbl, labelFontSize(g), g.name.getOrElse(""))
+  private def labelHtPt(g: RGraph): Double = Coord.graphLabelDim(g).fold(0.0)(_._2)
   private def gLabelPad(g: RGraph): Double = Coord.graphLabelPad(g)
   /** C `printf("%.2f")` — the `lwidth`/`lheight`/`lp`-dimension format. */
   private def f2(x: Double): String = cFixed(x, 2)
@@ -394,9 +390,9 @@ object Output:
     // alphabetically into the write_attrs stream (do_graph_label).
     val rootKv = scala.collection.mutable.LinkedHashMap.empty[String, String]
     d.rootAttrs.foreach { case (k, v) => rootKv(k) = s""""${esc(v)}"""" }
-    rootLabelText(g).foreach { lbl =>
-      val lhPt = labelHtPt(g, lbl)
-      val lwIn = NodeSize.labelWidthPt(lbl, labelFontSize(g), g.rootAttrs.getOrElse("fontname", "Times"), g.name.getOrElse("")) / 72.0
+    rootLabelText(g).foreach { _ =>
+      val lhPt = labelHtPt(g)
+      val lwIn = Coord.graphLabelDim(g).fold(0.0)(_._1) / 72.0
       rootKv("lheight") = s""""${f2(lhPt / 72.0)}""""
       rootKv("lp")      = s""""${g5((lx + ux) / 2.0 + dx)},${g5((if labelTop(g) then uy - Gap - lhPt / 2.0 else Gap + lhPt / 2.0) + dy)}""""
       rootKv("lwidth")  = s""""${f2(lwIn)}""""
@@ -491,6 +487,21 @@ object Output:
       lps.get(e.idx).foreach { p => val (lpx, lpy) = tf(p.x, p.y); kv("lp") = s""""${g5(lpx)},${g5(lpy)}"""" }
       org.jpablo.graphexplorer.graphviz.layout.XLabels.place(g).edges.get(e.idx).foreach { p =>
         val (x, y) = tf(p.cx, p.cy); kv("xlp") = s""""${g5(x)},${g5(y)}""""
+      }
+      // output.c:385: `head_lp`/`tail_lp` for each edge with an end label.
+      // gv writes the pos also for a label that it did not set: (0,0).
+      locally {
+        import org.jpablo.graphexplorer.graphviz.layout.XLabels
+        val xl = XLabels.place(g)
+        val ge = g.edges(e.idx)
+        def endLp(key: String, head: Boolean, placed: Map[Int, XLabels.Placed]): Unit =
+          XLabels.endLabel(ge, head).foreach { _ =>
+            val (cx, cy) = placed.get(e.idx).fold((0.0, 0.0))(p => (p.cx, p.cy))
+            val (x, y)   = tf(cx, cy)
+            kv(key) = s""""${g5(x)},${g5(y)}""""
+          }
+        endLp("head_lp", true, xl.heads)
+        endLp("tail_lp", false, xl.tails)
       }
       spl.get(e.idx).foreach { es =>
         def m(p: Spline.XY): (Double, Double) = tf(p.x, p.y)

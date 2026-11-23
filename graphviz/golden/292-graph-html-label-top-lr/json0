@@ -1,0 +1,53 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,313.91,140",
+  "label": "<b>A wide title in bold that is wider than the drawing<\/b><br\/>second line",
+  "labelloc": "t",
+  "lheight": "0.39",
+  "lp": "156.96,122",
+  "lwidth": "4.14",
+  "rankdir": "LR",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_x",
+      "bb": "84.955,8,154.96,96",
+      "label": "<u>x<\/u><br align=\"left\"\/>left line",
+      "labelloc": "t",
+      "lheight": "0.39",
+      "lp": "119.96,78",
+      "lwidth": "0.60",
+      "rankdir": "LR",
+      "_gvid": 0,
+      "nodes": [
+        1
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "119.96,34",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "209.96,34",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "pos": "e,182.57,34 147.36,34 154.84,34 163.14,34 171.15,34"
+    }
+  ]
+}

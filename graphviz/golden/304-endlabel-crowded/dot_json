@@ -1,0 +1,101 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 308 226",
+  "label": "",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_x",
+      "label": "Crowded",
+      "_gvid": 0,
+      "nodes": [
+        2
+      ]
+    },
+    {
+      "name": "cluster_y",
+      "label": "Leaves",
+      "labelloc": "b",
+      "_gvid": 1,
+      "nodes": [
+        5,6
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "hub",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "d",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "e",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "headlabel": "0..1",
+      "taillabel": "1"
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4,
+      "headlabel": "0..*",
+      "taillabel": "1"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 5,
+      "headlabel": "1..*",
+      "taillabel": "0..1"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 6,
+      "headlabel": "*",
+      "taillabel": "1"
+    },
+    {
+      "_gvid": 4,
+      "tail": 2,
+      "head": 7,
+      "headlabel": "2",
+      "taillabel": "many"
+    },
+    {
+      "_gvid": 5,
+      "tail": 3,
+      "head": 4,
+      "headlabel": "x",
+      "taillabel": "y"
+    }
+  ]
+}

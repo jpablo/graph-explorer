@@ -1,0 +1,26 @@
+digraph G {
+	graph [bb="0,0,313.91,140",
+		label=<<b>A wide title in bold that is wider than the drawing</b><br/>second line>,
+		labelloc=t,
+		lheight=0.39,
+		lp="156.96,122",
+		lwidth=4.14,
+		rankdir=LR
+	];
+	node [label="\N"];
+	subgraph cluster_x {
+		graph [bb="84.955,8,154.96,96",
+			label=<<u>x</u><br align="left"/>left line>,
+			lheight=0.39,
+			lp="119.96,78",
+			lwidth=0.60
+		];
+		a	[height=0.5,
+			pos="119.96,34",
+			width=0.75];
+	}
+	b	[height=0.5,
+		pos="209.96,34",
+		width=0.75];
+	a -> b	[pos="e,182.57,34 147.36,34 154.84,34 163.14,34 171.15,34"];
+}

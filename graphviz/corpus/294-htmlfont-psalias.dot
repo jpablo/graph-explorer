@@ -1,0 +1,16 @@
+digraph G {
+  subgraph cluster_a {
+    fontname="Helvetica-Bold";
+    label=<<b>bold</b> <i>it</i><br/><font point-size="9">plain</font>>;
+    labeljust=l; labelloc=t;
+    a;
+  }
+  n [shape=plain, fontname="Helvetica-Bold", label=<<b>x</b> <i>y</i> z>];
+  m [shape=plain, fontname="Helvetica-Oblique", label=<<i>x</i> <b>y</b> <b><i>w</i></b>>];
+  q [shape=box, fontname="Times-Bold", label="Quoted Bold"];
+  r [shape=record, fontname="Helvetica-BoldOblique", label="{Record|Oblique}"];
+  a -> n;
+  a -> m;
+  a -> q;
+  a -> r;
+}

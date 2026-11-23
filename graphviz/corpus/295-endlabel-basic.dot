@@ -1,0 +1,9 @@
+digraph G {
+  a -> b [headlabel="0..*", taillabel="owner"];
+  a -> c [headlabel="1"];
+  b -> d [taillabel="items"];
+  c -> d [headlabel="many\nlines", taillabel="x"];
+  a -> d [headlabel="h", taillabel="t"];
+  a -> d [headlabel="h2"];
+  d -> d [headlabel="self", taillabel="loop"];
+}

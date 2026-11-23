@@ -1,0 +1,51 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,165,171",
+  "label": "",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_discovery",
+      "bb": "8,8,157,163",
+      "label": "<b>agent-skills::discovery<\/b><br\/><font point-size=\"9\">rust\/agent-skills\/src\/discovery.rs<\/font>",
+      "labeljust": "l",
+      "labelloc": "t",
+      "lheight": "0.32",
+      "lp": "82.883,147.5",
+      "lwidth": "1.86",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "82,106",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "82,34",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "pos": "e,82,52.104 82,87.697 82,80.407 82,71.726 82,63.536"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+digraph G {
+  a -> b [headlabel="0..*", taillabel="owner", labelangle=40];
+  a -> c [headlabel="far", taillabel="t", labeldistance=2.5];
+  b -> d [headlabel="neg", taillabel="neg", labelangle=-60, labeldistance=1.5];
+  c -> d [headlabel="clamped", labelangle=-400];
+  c -> e [headlabel="noangle", taillabel="free"];
+  d -> e [dir=back, headlabel="back", taillabel="tb", labelangle=90];
+  e -> f [arrowhead=none, headlabel="plain", taillabel="ps", labeldistance=0];
+}

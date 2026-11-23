@@ -1,0 +1,6 @@
+digraph G {
+  a -> b [URL="http://e.com/", headlabel="h", taillabel="t"];
+  a -> c [headURL="http://h.com/", headlabel="hu", tailtooltip="tip", taillabel="tt", headtarget="_top"];
+  b -> c [headtooltip="ht", headlabel="x"];
+  c -> d [taillabel="&amp;[ ]", headlabel="&#945; &lt; &beta; &bogus; & x"];
+}

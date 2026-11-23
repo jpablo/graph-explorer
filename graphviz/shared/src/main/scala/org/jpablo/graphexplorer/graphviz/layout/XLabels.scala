@@ -17,21 +17,126 @@ import scala.collection.mutable
   * scans, else the least-overlap position (kept when `forcelabels`, default
   * true).
   *
-  * gv accelerates the intersection query with a Hilbert-loaded R-tree; the
-  * candidate set is `Overlap(labelRect, objplpmks(obj))` — reproduced here
-  * with a linear scan over the same expanded rects. Leaf-visit ORDER only
-  * matters through `intrsx` bucket replacement on the no-zero-overlap path
-  * (all candidates land in bucket 5 while the label is unset); scan order =
-  * object order. Head/tail port labels (`headlabel`/`taillabel`) also route
-  * through gv's addXLabels — not modelled (no corpus exercise).
+  * gv finds the intersection candidates with a Hilbert-loaded R-tree. The
+  * port uses the same R-tree (see [[RTree]]), because the order of the leaf
+  * list changes the result on the no-zero-overlap path: `intrsx` keeps the
+  * first object of bucket 5. Until 2026-11-23 the port used a linear scan in
+  * object order. That order is correct only by chance.
+  *
+  * The labels at the ends of an edge (`headlabel`/`taillabel`) have two
+  * paths, the same as in gv:
+  *  - When the graph declares `labelangle` or `labeldistance` for edges,
+  *    `place_portlabel` (lib/common/splines.c:1338) puts the label of each
+  *    edge that has a value for one of them. The dotsplines.c:454 loop calls
+  *    it after edge_normalize. Such a label is SET: addXLabels uses it as an
+  *    obstacle.
+  *  - Each other end label is an external label. Its anchor is the end of the
+  *    spline (`edgeTailpoint`/`edgeHeadpoint`, postproc.c:240).
+  * Per out-edge, the object order is label, tail label, head label, xlabel
+  * (postproc.c:491-552). The set labels of the clusters come after all
+  * nodes and edges (addClusterObj, postorder).
   */
 object XLabels:
 
   /** A placed external label: canonical-frame CENTER (`lp->pos` after
     * `centerPt`) + FINAL-frame dimen (unswapped `lp->dimen`). */
   final case class Placed(cx: Double, cy: Double, w: Double, h: Double)
-  final case class Result(nodes: Map[String, Placed], edges: Map[Int, Placed]):
-    def isEmpty: Boolean = nodes.isEmpty && edges.isEmpty
+  /** @param edges  the placed `xlabel`s, by edge index.
+    * @param heads  the placed `headlabel`s, by edge index (both paths).
+    * @param tails  the placed `taillabel`s, by edge index (both paths).
+    * @param stray  boxes that only grow the graph bb. See [[strayHeads]]. */
+  final case class Result(
+      nodes: Map[String, Placed],
+      edges: Map[Int, Placed],
+      heads: Map[Int, Placed] = Map.empty,
+      tails: Map[Int, Placed] = Map.empty,
+      stray: Vector[Placed]   = Vector.empty
+  ):
+    def isEmpty: Boolean = nodes.isEmpty && edges.isEmpty && heads.isEmpty && tails.isEmpty
+    /** Every placed label. Each one grows the canonical bb (updateBB). */
+    def all: Iterator[Placed] =
+      nodes.valuesIterator ++ edges.valuesIterator ++ heads.valuesIterator ++ tails.valuesIterator
+
+  /** The text and the font of a `headlabel` or a `taillabel`
+    * (common_init_edge, utils.c:530; initFontLabelEdgeAttr, utils.c:461).
+    * `labelfontsize`/`labelfontname`/`labelfontcolor` default to the font of
+    * the edge. */
+  final case class EndLabel(text: String, html: Boolean, fontSize: Double, fontName: String, fontColor: String)
+
+  /** C `strtod` on the start of `s`: the longest numeric prefix, or None. */
+  private val NumPrefix = """^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)""".r.unanchored
+  private def strtod(s: String): Option[Double] =
+    s match
+      case NumPrefix(n) => n.toDoubleOption
+      case _            => None
+
+  /** late_double (utils.c:50): the default for a missing, empty or bad
+    * value, and the minimum for a value below it. */
+  private[graphviz] def lateDouble(v: Option[String], dflt: Double, min: Double): Double =
+    v.filter(_.nonEmpty).flatMap(strtod) match
+      case Some(d) => if d < min then min else d
+      case None    => dflt
+
+  /** The end label of edge `e`: `head` selects `headlabel`, else `taillabel`.
+    * None when the edge has no such label or its value is empty. */
+  def endLabel(e: REdge, head: Boolean): Option[EndLabel] =
+    val key = if head then "headlabel" else "taillabel"
+    e.attrs.get(key).filter(_.nonEmpty).map { text =>
+      def nn(k: String): Option[String] = e.attrs.get(k).filter(_.nonEmpty)
+      val fs  = lateDouble(e.attrs.get("fontsize"), 14.0, 1.0)
+      val fn  = nn("fontname").getOrElse("Times-Roman")
+      val fc  = nn("fontcolor").getOrElse("black")
+      EndLabel(if e.attrs.isHtml(key) then text else htmlEntityUTF8(text), e.attrs.isHtml(key),
+        lateDouble(e.attrs.get("labelfontsize"), fs, 1.0),
+        nn("labelfontname").getOrElse(fn),
+        nn("labelfontcolor").getOrElse(fc))
+    }
+
+  /** htmlEntityUTF8 (utils.c:1179) for a plain label: `&name;`, `&#N;` and
+    * `&#xH;` become their characters (make_label, labels.c). A `&` that does
+    * not start such an entity stays as it is. */
+  private[graphviz] def htmlEntityUTF8(s: String): String =
+    if !s.contains('&') then return s
+    val sb = new StringBuilder
+    var i  = 0
+    while i < s.length do
+      val c = s(i)
+      i += 1
+      if c != '&' then sb += c
+      else
+        // htmlEntity: the value and the index after the entity, or 0
+        var n = 0; var next = i
+        if i < s.length && s(i) == '#' then
+          val hex = i + 1 < s.length && (s(i + 1) == 'x' || s(i + 1) == 'X')
+          var k = if hex then 2 else 1
+          var stop = false
+          var last = -1 // the char at which the scan stopped
+          while !stop && k < 8 do
+            val ch = if i + k < s.length then s(i + k) else '\u0000'
+            val d  = if hex then Character.digit(ch, 16) else if ch >= '0' && ch <= '9' then ch - '0' else -1
+            if d >= 0 && ch < 128 then { n = n * (if hex then 16 else 10) + d; k += 1 }
+            else { last = ch; stop = true }
+          if stop && last == ';' then next = i + k + 1 else n = 0
+        else
+          var k = 0; var done = false
+          while !done && k < 8 do
+            val ch = if i + k < s.length then s(i + k) else '\u0000'
+            if ch == '\u0000' then done = true
+            else if ch == ';' then
+              org.jpablo.graphexplorer.graphviz.html.Entities.codepoints.get(s.substring(i, i + k)).foreach { v =>
+                n = v; next = i + k + 1
+              }
+              done = true
+            else k += 1
+        if n != 0 then { sb.appendAll(Character.toChars(n)); i = next }
+        else sb += '&'
+    sb.toString
+
+  /** True when the graph declares `labelangle` or `labeldistance` for edges
+    * (`E_labelangle || E_labeldistance`). Then the dotsplines.c:454 loop runs.
+    * The port sees a declaration only on an edge that has the key. */
+  private def portLabelsDeclared(g: RGraph): Boolean =
+    g.edges.exists(e => e.attrs.toMap.contains("labelangle") || e.attrs.toMap.contains("labeldistance"))
 
   private val placeMemo = GraphMemo[Result]()
   def place(g: RGraph): Result = placeMemo(g)(placeImpl(g))
@@ -46,11 +151,19 @@ object XLabels:
 
   /** xlabel_t: sz is canonical-swapped; pos = box LL corner (mutated during
     * placement). */
-  private final class XL(val szx: Double, val szy: Double, val owner: Either[String, Int]):
+  /** The object that owns an external label. */
+  private enum Owner:
+    case NodeX(id: String)
+    case EdgeX(idx: Int)
+    case Head(idx: Int)
+    case Tail(idx: Int)
+
+  private final class XL(val szx: Double, val szy: Double, val owner: Owner):
     var px, py = 0.0
     var set    = false
   /** object_t: pos = box LL corner; size-0 = an edge-label anchor point. */
-  private final class Obj(val px: Double, val py: Double, val sx: Double, val sy: Double, val lbl: XL)
+  private final class Obj(val px: Double, val py: Double, val sx: Double, val sy: Double, val lbl: XL,
+                          val anchor: Boolean = false)
 
   private type Rect = (Double, Double, Double, Double) // llx, lly, urx, ury
 
@@ -115,7 +228,7 @@ object XLabels:
       a
 
   /** (n, area, posx, posy) — BestPos_t; pos = the candidate under test. */
-  private def xlintersections(objs: Array[Obj], op: Obj, intrsx: Array[Obj]): (Int, Double, Double, Double) =
+  private def xlintersections(objs: Array[Obj], tree: RTree, op: Obj, intrsx: Array[Obj]): (Int, Double, Double, Double) =
     val lp = op.lbl
     var n = 0; var area = 0.0
     // size-0 objects (label anchor points) strictly enclosed by the candidate
@@ -128,10 +241,9 @@ object XLabels:
       then n += 1
       i += 1
     val rect = objplp2rect(op)
-    i = 0
-    while i < objs.length do
-      val cp = objs(i)
-      if (cp ne op) && overlap(rect, objplpmks(cp)) then // the R-tree candidate query
+    // RTreeSearch: the candidates, in the order of the leaf list.
+    tree.search(rect).foreach { cp =>
+      if cp ne op then
         val a = aabbaabb(rect, objp2rect(cp)) // label-object intersect
         if a > 0.0 then
           area += recordIntrsx(op, cp, rect, a, intrsx); n += 1
@@ -139,17 +251,17 @@ object XLabels:
           val a2 = aabbaabb(rect, objplp2rect(cp))
           if a2 > 0.0 then
             area += recordIntrsx(op, cp, rect, a2, intrsx); n += 1
-      i += 1
+    }
     (n, area, lp.px, lp.py)
 
   /** xladjust: try the 9 fixed positions (exact C order, zero-overlap returns
     * immediately), then the two sliding scans; else the least-area best. */
-  private def xladjust(objs: Array[Obj], op: Obj): (Int, Double, Double, Double) =
+  private def xladjust(objs: Array[Obj], tree: RTree, op: Obj): (Int, Double, Double, Double) =
     val lp     = op.lbl
     val xincr  = (2 * lp.szx + op.sx) / XLXDENOM
     val yincr  = (2 * lp.szy + op.sy) / XLYDENOM
     val intrsx = new Array[Obj](9)
-    inline def probe() = xlintersections(objs, op, intrsx)
+    inline def probe() = xlintersections(objs, tree, op, intrsx)
     // x left: top / mid / bottom
     lp.px = op.px - lp.szx
     lp.py = op.py + op.sy
@@ -227,6 +339,219 @@ object XLabels:
           lp.py += yincr
     bp
 
+  // ── the R-tree of lib/label (index.c, node.c, split.q.c, rectangle.c) ──────
+  /** gv's R-tree for the intersection query. The ORDER of the leaf list
+    * matters: on the no-zero-overlap path, `recordIntrsx` keeps the first
+    * object in bucket 5, and that changes the area sums. Thus the port
+    * builds the same tree as gv:
+    *  - xlhdxload loads the objects in the order of a Hilbert key of the
+    *    centre of `objplpmks` (a cdt Dtobag; for equal keys the port puts
+    *    the later object first).
+    *  - Each node has 64 slots (NODECARD). A full node splits with the
+    *    quadratic method (MethodZero).
+    *  - RTreeSearch prepends the hits of a leaf node (reverse slot order),
+    *    and appends the lists of the child nodes in slot order.
+    * The port keeps two gv quirks. CombineRect takes `fmin` also for the
+    * upper sides, thus a node cover can miss its children. The areas are
+    * `uint64_t`, and a subtraction can wrap. */
+  private final class RtBranch(var rect: Rect, var child: AnyRef)
+  private final class RtNode(var level: Int):
+    var count = 0
+    val branch: Array[RtBranch] = Array.fill(RTree.NodeCard)(new RtBranch((0.0, 0.0, 0.0, 0.0), null))
+    def clear(): Unit =
+      count = 0
+      branch.foreach { b => b.rect = (0.0, 0.0, 0.0, 0.0); b.child = null }
+
+  private final class RTree:
+    import RTree.*
+    var root = new RtNode(0)
+
+    def insert(r: Rect, data: Obj): Unit =
+      insert2(r, data, root, 0).foreach { nn =>
+        val newroot = new RtNode(root.level + 1)
+        addBranch(new RtBranch(nodeCover(root), root), newroot)
+        addBranch(new RtBranch(nodeCover(nn), nn), newroot)
+        root = newroot
+      }
+
+    private def insert2(r: Rect, data: Obj, n: RtNode, level: Int): Option[RtNode] =
+      if n.level > level then
+        val i = pickBranch(r, n)
+        val child = n.branch(i).child.asInstanceOf[RtNode]
+        insert2(r, data, child, level) match
+          case None =>
+            n.branch(i).rect = combine(r, n.branch(i).rect)
+            None
+          case Some(n2) =>
+            n.branch(i).rect = nodeCover(child)
+            addBranch(new RtBranch(nodeCover(n2), n2), n)
+      else addBranch(new RtBranch(r, data), n)
+
+    def search(r: Rect): List[Obj] = searchNode(root, r)
+
+    private def searchNode(n: RtNode, r: Rect): List[Obj] =
+      if n.level > 0 then
+        val out = List.newBuilder[Obj]
+        n.branch.foreach { b =>
+          if b.child != null && overlap(r, b.rect) then out ++= searchNode(b.child.asInstanceOf[RtNode], r)
+        }
+        out.result()
+      else
+        var out = List.empty[Obj]
+        n.branch.foreach { b =>
+          if b.child != null && overlap(r, b.rect) then out = b.child.asInstanceOf[Obj] :: out
+        }
+        out
+
+  private object RTree:
+    final val NodeCard = 64
+
+    private def undefined(r: Rect): Boolean = r._1 > r._3
+    private val NullRect: Rect = (1.0, 0.0, -1.0, 0.0)
+
+    /** RectArea: `uint64_t`, held in a Long and compared unsigned. */
+    def area(r: Rect): Long =
+      if undefined(r) then 0L
+      else
+        val dx = (r._3 - r._1).toLong
+        if dx == 0L then 0L
+        else
+          val dy = (r._4 - r._2).toLong
+          if dy == 0L then 0L else dx * dy
+
+    /** CombineRect, with gv's `fmin` for the upper sides. */
+    def combine(r: Rect, rr: Rect): Rect =
+      if undefined(r) then rr
+      else if undefined(rr) then r
+      else (math.min(r._1, rr._1), math.min(r._2, rr._2), math.min(r._3, rr._3), math.min(r._4, rr._4))
+
+    private def ult(a: Long, b: Long): Boolean = java.lang.Long.compareUnsigned(a, b) < 0
+
+    def nodeCover(n: RtNode): Rect =
+      var r: Rect = (0.0, 0.0, 0.0, 0.0)
+      var first = true
+      n.branch.foreach { b =>
+        if b.child != null then
+          if first then { r = b.rect; first = false } else r = combine(r, b.rect)
+      }
+      r
+
+    def pickBranch(r: Rect, n: RtNode): Int =
+      var bestIncr = 0L; var bestArea = 0L; var best = 0; var bestSet = false
+      var i = 0
+      while i < NodeCard do
+        val b = n.branch(i)
+        if b.child != null then
+          val a    = area(b.rect)
+          val incr = area(combine(r, b.rect)) - a
+          if !bestSet || ult(incr, bestIncr) then
+            best = i; bestArea = a; bestIncr = incr; bestSet = true
+          else if incr == bestIncr && ult(a, bestArea) then
+            best = i; bestArea = a; bestIncr = incr
+        i += 1
+      best
+
+    /** AddBranch: the first empty slot, else a split (the new node). */
+    def addBranch(b: RtBranch, n: RtNode): Option[RtNode] =
+      if n.count < NodeCard then
+        val i = n.branch.indexWhere(_.child == null)
+        n.branch(i).rect = b.rect; n.branch(i).child = b.child
+        n.count += 1
+        None
+      else Some(splitNode(n, b))
+
+    /** SplitNode + MethodZero (split.q.c). */
+    private def splitNode(n: RtNode, b: RtBranch): RtNode =
+      val level = n.level
+      val buf   = n.branch.map(x => new RtBranch(x.rect, x.child)) :+ new RtBranch(b.rect, b.child)
+      n.clear()
+      val m         = NodeCard + 1
+      val partition = Array.fill(m)(-1)
+      val taken     = Array.fill(m)(false)
+      val count     = Array(0, 0)
+      val cover     = Array(NullRect, NullRect)
+      val carea     = Array(0L, 0L)
+      def classify(i: Int, group: Int): Unit =
+        partition(i) = group; taken(i) = true
+        cover(group) = if count(group) == 0 then buf(i).rect else combine(buf(i).rect, cover(group))
+        carea(group) = area(cover(group))
+        count(group) += 1
+      // PickSeeds
+      val areas = buf.map(x => area(x.rect))
+      var worst = 0L; var seed0 = 0; var seed1 = 0
+      var i = 0
+      while i < NodeCard do
+        var j = i + 1
+        while j < m do
+          val waste = area(combine(buf(i).rect, buf(j).rect)) - areas(i) - areas(j)
+          if java.lang.Long.compareUnsigned(waste, worst) > 0 then { worst = waste; seed0 = i; seed1 = j }
+          j += 1
+        i += 1
+      classify(seed0, 0); classify(seed1, 1)
+      while count(0) + count(1) < m && count(0) < m && count(1) < m do
+        var biggestSet = false; var biggest = 0L; var chosen = 0; var better = 0
+        var k = 0
+        while k < m do
+          if !taken(k) then
+            val r  = buf(k).rect
+            val g0 = area(combine(r, cover(0))) - carea(0)
+            val g1 = area(combine(r, cover(1))) - carea(1)
+            val (diff, group) =
+              if java.lang.Long.compareUnsigned(g1, g0) >= 0 then (g1 - g0, 0) else (g0 - g1, 1)
+            if !biggestSet || java.lang.Long.compareUnsigned(diff, biggest) > 0 then
+              biggest = diff; biggestSet = true; chosen = k; better = group
+            else if diff == biggest && count(group) < count(better) then
+              chosen = k; better = group
+          k += 1
+        classify(chosen, better)
+      val nn = new RtNode(level)
+      n.level = level
+      var k = 0
+      while k < m do
+        if partition(k) == 0 then addBranch(buf(k), n)
+        else if partition(k) == 1 then addBranch(buf(k), nn)
+        k += 1
+      nn
+
+    /** hd_hil_s_from_xy (xlabels.c:116): the Hilbert key, in C int
+      * arithmetic (`s` wraps; icompare compares it as a signed int). */
+    private def hilbert(px: Int, py: Int, n: Int): Int =
+      var x = px; var y = py; var s = 0
+      var i = n - 1
+      while i >= 0 do
+        val xi = (x >> i) & 1
+        val yi = (y >> i) & 1
+        s = 4 * s + 2 * xi + (xi ^ yi)
+        x = x ^ y
+        y = y ^ (x & (yi - 1))
+        x = x ^ y
+        x = x ^ (-xi & (yi - 1))
+        y = y ^ (-xi & (yi - 1))
+        i -= 1
+      s
+
+    /** xlinitialize: xlhdxload (Hilbert order) + xlspdxload (insert). The
+      * order of the curve comes from `params.bb`: the nodes and the set
+      * labels, not the anchor points (adjustBB in postproc.c). */
+    def load(objs: Array[Obj]): RTree =
+      var urx = -Double.MaxValue; var ury = -Double.MaxValue
+      objs.foreach { o =>
+        if !o.anchor then
+          urx = math.max(urx, o.px + o.sx); ury = math.max(ury, o.py + o.sy)
+      }
+      // xlhorder: floor(log2(round(max))) + 1, exact for an integer argument
+      val v     = cRound(math.max(urx, ury))
+      val order = if v >= 1.0 then 64 - java.lang.Long.numberOfLeadingZeros(v.toLong) else 0
+      val keyed = objs.zipWithIndex.map { (o, i) =>
+        val r = objplpmks(o)
+        val x = r._1 + (r._3 - r._1) / 2
+        val y = r._2 + (r._4 - r._2) / 2
+        (hilbert(x.toInt, y.toInt, order), i, o, r)
+      }
+      val tree = new RTree
+      keyed.sortBy((k, i, _, _) => (k, -i)).foreach((_, _, o, r) => tree.insert(r, o))
+      tree
+
   // ── edgeMidpoint (splines.c:1297, EDGETYPE_SPLINE branch) ─────────────────
   private def dist2(a: Spline.XY, b: Spline.XY): Double =
     val dx = a.x - b.x; val dy = a.y - b.y
@@ -291,11 +616,42 @@ object XLabels:
   private def xlabelOf(attrs: org.jpablo.graphexplorer.graphviz.model.Attrs): Option[String] =
     attrs.get("xlabel").filter(_.nonEmpty)
 
+  /** place_portlabel (splines.c:1338): the centre of the end label of an edge
+    * that has a `labelangle` or a `labeldistance` value, in the canonical
+    * frame. The angle is from the end of the spline toward a point near it
+    * (the arrow base, or the bezier at t = 0.1 / 0.9), plus `labelangle`
+    * (default -25 degrees). The distance is 10 × `labeldistance`. */
+  private def portLabelPos(e: REdge, spl: Spline.ESpline, head: Boolean): Option[Spline.XY] =
+    val la = e.attrs.get("labelangle").filter(_.nonEmpty)
+    val ld = e.attrs.get("labeldistance").filter(_.nonEmpty)
+    if la.isEmpty && ld.isEmpty then return None
+    val pts = spl.pts
+    if pts.length < 4 then return None
+    val (pe, pf) =
+      if !head then
+        spl.sp match
+          case Some(sp) => (sp, pts.head)
+          case None     => (pts.head, bezierAt(Array(pts(0), pts(1), pts(2), pts(3)), 0.1))
+      else
+        spl.ep match
+          case Some(ep) => (ep, pts.last)
+          case None =>
+            val n = pts.length
+            (pts.last, bezierAt(Array(pts(n - 4), pts(n - 3), pts(n - 2), pts(n - 1)), 0.9))
+    val angle = math.atan2(pf.y - pe.y, pf.x - pe.x) + lateDouble(la, -25.0, -180.0) / 180.0 * math.Pi
+    val dist  = 10.0 * lateDouble(ld, 1.0, 0.0)
+    Some(Spline.XY(pe.x + dist * math.cos(angle), pe.y + dist * math.sin(angle)))
+
+  /** The (w, h) of an end label in pt, final frame (make_label). */
+  private def endLabelDim(l: EndLabel, g: RGraph): (Double, Double) =
+    labelDim(l.text, l.html, l.fontSize, l.fontName, g)
+
   private def placeImpl(g: RGraph): Result =
     val empty = Result(Map.empty, Map.empty)
     val anyNode = g.nodes.exists(n => xlabelOf(n.attrs).isDefined)
     val anyEdge = g.edges.exists(e => xlabelOf(e.attrs).isDefined)
-    if !anyNode && !anyEdge then return empty
+    val anyEnd  = g.edges.exists(e => endLabel(e, true).isDefined || endLabel(e, false).isDefined)
+    if !anyNode && !anyEdge && !anyEnd then return empty
 
     val flip    = Rank.flip(g)
     val xs      = XCoord.xCoords(g)
@@ -310,8 +666,36 @@ object XLabels:
 
     def swapped(w: Double, h: Double): (Double, Double) = if flip then (h, w) else (w, h)
 
+    // ── dotsplines.c:454: place_portlabel for each end label ────────────────
+    // The head loop calls updateBB also when place_portlabel fails. Then the
+    // label is not set, and its pos is still (0,0): gv grows the graph bb by
+    // a box at the canonical origin. The port keeps this box in `stray`.
+    val portHeads = mutable.Map.empty[Int, Placed]
+    val portTails = mutable.Map.empty[Int, Placed]
+    val stray     = Vector.newBuilder[Placed]
+    if anyEnd && portLabelsDeclared(g) then
+      g.edges.zipWithIndex.foreach { (e, idx) =>
+        endLabel(e, true).foreach { l =>
+          val (w, h) = endLabelDim(l, g)
+          spls.get(idx).flatMap(portLabelPos(e, _, true)) match
+            case Some(p) => portHeads(idx) = Placed(p.x, p.y, w, h)
+            case None    => stray += Placed(0.0, 0.0, w, h)
+        }
+        endLabel(e, false).foreach { l =>
+          val (w, h) = endLabelDim(l, g)
+          spls.get(idx).flatMap(portLabelPos(e, _, false)).foreach { p =>
+            portTails(idx) = Placed(p.x, p.y, w, h)
+          }
+        }
+      }
+
     val objs = mutable.ArrayBuffer.empty[Obj]
     val lbls = mutable.ArrayBuffer.empty[XL]
+
+    /** A set label as an obstacle (addLabelObj): canonical-swapped size. */
+    def setObj(p: Placed): Obj =
+      val (cw, ch) = swapped(p.w, p.h)
+      new Obj(p.cx - cw / 2.0, p.cy - ch / 2.0, cw, ch, null)
 
     g.nodes.foreach { n =>
       val objBefore = objs.length
@@ -325,7 +709,7 @@ object XLabels:
           val fn = n.attrs.getOrElse("fontname", "Times")
           val (w, h)   = labelDim(raw, n.attrs.isHtml("xlabel"), fs, fn, g)
           val (cw, ch) = swapped(w, h)
-          new XL(cw, ch, Left(n.id))
+          new XL(cw, ch, Owner.NodeX(n.id))
         }.orNull
         if xl != null then lbls += xl
         objs += new Obj(x - sx / 2.0, y - sy / 2.0, sx, sy, xl)
@@ -337,6 +721,26 @@ object XLabels:
           val (cw, ch) = swapped(w, h)
           objs += new Obj(p.x - cw / 2.0, p.y - ch / 2.0, cw, ch, null)
         }
+        // tail label, then head label: SET (place_portlabel) ⇒ obstacle;
+        // else a size-0 anchor at the end of the spline.
+        def endObj(head: Boolean, placed: mutable.Map[Int, Placed]): Unit =
+          endLabel(e, head).foreach { l =>
+            placed.get(idx) match
+              case Some(p) => objs += setObj(p)
+              case None =>
+                spls.get(idx).foreach { spl =>
+                  val (w, h)   = endLabelDim(l, g)
+                  val (cw, ch) = swapped(w, h)
+                  val xl = new XL(cw, ch, if head then Owner.Head(idx) else Owner.Tail(idx))
+                  val at =
+                    if head then spl.ep.getOrElse(spl.pts.last) // edgeHeadpoint
+                    else spl.sp.getOrElse(spl.pts.head)         // edgeTailpoint
+                  lbls += xl
+                  objs += new Obj(at.x, at.y, 0.0, 0.0, xl, anchor = true)
+                }
+          }
+        endObj(head = false, portTails)
+        endObj(head = true, portHeads)
         // unset edge xlabel ⇒ size-0 anchor at the edge midpoint
         xlabelOf(e.attrs).foreach { raw =>
           spls.get(idx).foreach { spl =>
@@ -344,15 +748,31 @@ object XLabels:
             val fn = e.attrs.getOrElse("fontname", "Times")
             val (w, h)   = labelDim(raw, e.attrs.isHtml("xlabel"), fs, fn, g)
             val (cw, ch) = swapped(w, h)
-            val xl  = new XL(cw, ch, Right(idx))
+            val xl  = new XL(cw, ch, Owner.EdgeX(idx))
             val mid = edgeMidpoint(spl)
             lbls += xl
-            objs += new Obj(mid.x, mid.y, 0.0, 0.0, xl)
+            objs += new Obj(mid.x, mid.y, 0.0, 0.0, xl, anchor = true)
           }
         }
       }
     }
-    if lbls.isEmpty then return empty
+    val portOnly = Result(Map.empty, Map.empty, portHeads.toMap, portTails.toMap, stray.result())
+    if lbls.isEmpty then return portOnly
+
+    // addClusterObj (postproc.c:376): the set label of each cluster, children
+    // before the parent, after all nodes and edges.
+    locally {
+      val cls = Cluster.clusters(g)
+      if cls.nonEmpty then
+        val cbbs = Cluster.bbs(g)
+        def visit(ci: Int): Unit =
+          Cluster.childrenOf(g, ci).foreach(visit)
+          val c = cls(ci)
+          if c.hasLabel then
+            val (lx, ly) = c.labelLp(cbbs(ci), flip)
+            objs += setObj(Placed(lx, ly, c.lwidthPt, c.lheightPt))
+        Cluster.childrenOf(g, -1).foreach(visit)
+    }
 
     // placeLabels: greedy in object order; forcelabels (default true) keeps
     // the least-overlap position when no clean one exists.
@@ -360,10 +780,11 @@ object XLabels:
       case Some("false") | Some("no") => false
       case Some(v)                    => v.toIntOption.forall(_ > 0)
       case None                       => true
-    val arr = objs.toArray
+    val arr  = objs.toArray
+    val tree = RTree.load(arr)
     arr.foreach { op =>
       if op.lbl != null then
-        val bp = xladjust(arr, op)
+        val bp = xladjust(arr, tree, op)
         if bp._1 == 0 then op.lbl.set = true
         else if bp._2 == 0.0 || force then
           op.lbl.px = bp._3; op.lbl.py = bp._4
@@ -372,15 +793,19 @@ object XLabels:
 
     val nodesOut = Map.newBuilder[String, Placed]
     val edgesOut = Map.newBuilder[Int, Placed]
+    val headsOut = mutable.Map.from(portHeads)
+    val tailsOut = mutable.Map.from(portTails)
     lbls.foreach { xl =>
       if xl.set then
         val cx = xl.px + xl.szx / 2.0 // centerPt
         val cy = xl.py + xl.szy / 2.0
         val (w, h) = if flip then (xl.szy, xl.szx) else (xl.szx, xl.szy)
         xl.owner match
-          case Left(id)   => nodesOut += id -> Placed(cx, cy, w, h)
-          case Right(idx) => edgesOut += idx -> Placed(cx, cy, w, h)
+          case Owner.NodeX(id) => nodesOut += id -> Placed(cx, cy, w, h)
+          case Owner.EdgeX(i)  => edgesOut += i -> Placed(cx, cy, w, h)
+          case Owner.Head(i)   => headsOut(i) = Placed(cx, cy, w, h)
+          case Owner.Tail(i)   => tailsOut(i) = Placed(cx, cy, w, h)
     }
-    Result(nodesOut.result(), edgesOut.result())
+    Result(nodesOut.result(), edgesOut.result(), headsOut.toMap, tailsOut.toMap, stray.result())
 
 end XLabels
