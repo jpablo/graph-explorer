@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.scalajs.dom
 
 import scala.scalajs.js
+import scala.scalajs.js.annotation.JSGlobal
 
 /** Canvas CONTROLS hold a constant size on SCREEN. They are chrome sitting on
   * the drawing, not part of it: zoom must not inflate them into dinner plates,
@@ -176,25 +177,35 @@ object ScreenConstant:
     g.setAttribute("data-design-box", a.designBox.toString)
     g.setAttribute("transform", transformOf(a, upp))
 
-  /** Every screen-constant control on the canvas. SvgCanvas re-fits this set
-    * whenever the canvas transform changes; a control NOT listed here quietly
-    * grows and shrinks with the zoom, which is how the new-arrow circles came
-    * to dwarf the count badges they stand beside.
+  /** The selectors of the screen-constant controls on the canvas. SvgCanvas
+    * re-fits this set whenever the canvas transform changes; a control NOT
+    * listed here quietly grows and shrinks with the zoom, which is how the
+    * new-arrow circles came to dwarf the count badges they stand beside.
     */
-  def refitAll(svg: dom.svg.SVG): Unit =
-    refit(svg, s"g.${CountBadges.badgeClass}")
-    refit(svg, "g.new-arrow-control")
-    refit(svg, "g.edge-endpoint-disk")
+  private val controlSelector =
+    s"g.${CountBadges.badgeClass}, g.new-arrow-control, g.edge-endpoint-disk"
 
-  /** Re-fit every control matching `selector` from its own stored record.
-    * Position and size come back exactly as if the control had been built at
-    * the current zoom — no rebuild, so listeners and drag state survive.
+  /** Every screen-constant control on the canvas. The query reads no layout. */
+  def controls(svg: dom.svg.SVG): Seq[dom.Element] =
+    svg.querySelectorAllT[dom.Element](controlSelector)
+
+  /** The element that gives the frame of a control: its parent. */
+  def frameOf(control: dom.Element): Option[dom.Element] =
+    Option(control.parentNode).collect { case e: dom.Element => e }
+
+  /** Re-fit every screen-constant control on the canvas. */
+  def refitAll(svg: dom.svg.SVG, scale: CanvasScale): Unit =
+    refit(controls(svg), scale)
+
+  /** Re-fit each control from its own stored record. Position and size come
+    * back exactly as if the control had been built at the current zoom — no
+    * rebuild, so listeners and drag state survive.
     */
-  def refit(root: dom.Element, selector: String): Unit =
-    root.querySelectorAllT[dom.Element](selector).foreach: g =>
+  def refit(controls: Seq[dom.Element], scale: CanvasScale): Unit =
+    controls.foreach: g =>
       for
-        parent <- Option(g.parentNode.asInstanceOf[dom.Element])
-        upp    <- userPerPx(parent)
+        parent <- frameOf(g)
+        upp    <- scale.userPerPx(parent)
         a      <- anchoredOf(g)
       do g.setAttribute("transform", transformOf(a, upp))
 
@@ -210,3 +221,100 @@ object ScreenConstant:
 
   private def num(g: dom.Element, name: String): Option[Double] =
     Option(g.getAttribute(name)).map(_.toDoubleOption).flatten
+
+  /** The screen scale of one canvas, with no layout read during a pan or a
+    * zoom.
+    *
+    * A read of `getScreenCTM` after a write of the canvas transform makes the
+    * browser lay out the whole SVG at once. In WebKit, on a diagram of 360
+    * nodes, these reads took 20 to 36 ms in each frame of a pan or a zoom.
+    * This class computes the scale from values that it measured before:
+    *
+    *   - The screen scale of the drawing group is the base scale of the svg
+    *     viewport multiplied by the zoom. A pan does not change it. Thus
+    *     `upp(zoom) = upp(z0) * z0 / zoom`, from one measure at the zoom `z0`.
+    *   - An element below the drawing group has a constant ratio of its scale
+    *     to the scale of the drawing group, because the canvas transform is
+    *     above it. The class measures the ratio one time for each element.
+    *     Graphviz nodes have no scale of their own, and Mermaid nodes have a
+    *     translation, but the class does not assume a ratio of 1.
+    *
+    * The base scale changes on a resize of the svg box or of the window, on a
+    * new viewBox, and on a change of devicePixelRatio. The canvas calls
+    * [[invalidate]] for each of these events. During a layout transition, the
+    * node groups have tweened scales. Then the class measures each value and
+    * keeps nothing.
+    *
+    * @param svg
+    *   the svg element of the canvas
+    * @param main
+    *   the drawing group, the group that the canvas transform is on
+    */
+  final class CanvasScale(svg: dom.svg.SVG, main: dom.Element):
+
+    /** The zoom that the canvas wrote on `main`. NaN before the first write. */
+    private var zoom = Double.NaN
+
+    /** A measure of the drawing group: user units per client px at the zoom
+      * `zoom`, with the devicePixelRatio at the time of the measure. */
+    private var base: Option[(upp: Double, zoom: Double, dpr: Double)] = None
+
+    /** For each element below `main`: its user units per client px divided by
+      * the user units per client px of `main`. */
+    private var ratios = new ElementWeakMap[Double]()
+
+    /** Tell the zoom that the canvas wrote on the drawing group. */
+    def zoomIs(z: Double): Unit = zoom = z
+
+    /** Forget all measures. The next read measures again. */
+    def invalidate(): Unit =
+      base = None
+      ratios = new ElementWeakMap[Double]()
+
+    /** True when the class must measure each value: while a layout
+      * transition tweens the nodes of the svg, and before the first write of
+      * the canvas transform. */
+    private def live: Boolean =
+      svg.classList.contains(LayoutTransition.transitioningClass) || zoom.isNaN
+
+    /** User units per client px of `main`. */
+    private def mainUserPerPx: Option[Double] =
+      if live then ScreenConstant.userPerPx(main)
+      else
+        val dpr = dom.window.devicePixelRatio
+        base match
+          case Some(b) if b.dpr == dpr => Some(b.upp * b.zoom / zoom)
+          case _ =>
+            val measured = ScreenConstant.userPerPx(main)
+            base = measured.map(upp => (upp = upp, zoom = zoom, dpr = dpr))
+            measured
+
+    /** User units per client px in the frame of `el`. Each value comes from a
+      * measure that the class keeps. A missing measure reads the layout. */
+    def userPerPx(el: dom.Element): Option[Double] =
+      if live then ScreenConstant.userPerPx(el)
+      else if el eq main then mainUserPerPx
+      else
+        mainUserPerPx.flatMap: m =>
+          ratios.get(el).toOption match
+            case Some(ratio) => Some(m * ratio)
+            case None =>
+              ScreenConstant.userPerPx(el).map: upp =>
+                ratios.set(el, upp / m)
+                upp
+
+    /** Measure now each value that the elements `els` need and that the class
+      * does not have. Call it BEFORE a write of the canvas transform: in that
+      * place, a read of the layout is free, because the browser laid out the
+      * page for the frame before.
+      */
+    def prime(els: Iterable[dom.Element]): Unit =
+      if !live then els.foreach(userPerPx)
+
+/** The JavaScript `WeakMap`, with DOM elements as keys. An entry goes away
+  * with its element, so a cache of an old svg does not stay in memory. */
+@js.native
+@JSGlobal("WeakMap")
+private[svgCanvas] class ElementWeakMap[V] extends js.Object:
+  def get(key: dom.Element): js.UndefOr[V]                = js.native
+  def set(key: dom.Element, value: V): ElementWeakMap[V] = js.native

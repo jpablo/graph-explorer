@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
-import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, RecordCellOps, SelectedCell, UIState}
+import org.jpablo.graphexplorer.viewer.state.{CanvasTransform, DiagramSelectionOps, RecordCellOps, SelectedCell, UIState}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
 
 import scala.scalajs.js
@@ -20,7 +20,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.Arrow
 // rawSvg is the SVG element as it comes from DOT or Mermaid
 def SvgCanvas(
     rawSvg:        ReactiveSvgElement[dom.svg.SVG],
-    transform:     Signal[String],
+    transform:     Signal[CanvasTransform],
     viewerOps:     DiagramSelectionOps & RecordCellOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
     mouseAction:   MouseActionVar,
     edgePositions: Map[String, ArrowPosition],
@@ -148,13 +148,24 @@ def SvgCanvas(
     viewerOps.handleNewArrowControls(mainGroup, elem, action)
     viewerOps.handleArrowEndpointControl(mainGroup, elem, action, edgePositions)
 
-  /** Everything whose size is a SCREEN quantity: the controls, which hold a
-    * constant size, and the selection decorations, which hold a constant
-    * relationship to the object they mark. Both go stale the moment the canvas
-    * transform moves. */
-  def refitChrome(): Unit =
-    ScreenConstant.refitAll(rawSvg.ref)
-    SelectionCasing.refit(mainGroup)
+  /** The screen scale of this canvas. It keeps its measures, so that a pan or
+    * a zoom reads no layout after the write of the transform. */
+  val scale = ScreenConstant.CanvasScale(rawSvg.ref, mainGroup)
+
+  /** Refit everything whose size is a SCREEN quantity, from new measures: the
+    * controls, which hold a constant size, and the selection decorations,
+    * which hold a constant relationship to the object they mark. The canvas
+    * calls it when the base scale of the svg viewport can change. A pan or a
+    * zoom refits the chrome in the `transform` binder below. */
+  def remeasureChrome(): Unit =
+    scale.invalidate()
+    ScreenConstant.refitAll(rawSvg.ref, scale)
+    SelectionCasing.refit(mainGroup, scale, force = true)
+
+  // A resize of the svg box changes the base scale with no window resize: the
+  // Library sidebar and Cmd+B change the width of the canvas. The observer
+  // also fires one time when it starts, and thus a mount measures again.
+  val svgResize = dom.ResizeObserver((_, _) => remeasureChrome())
 
   // render all selected elements the first time
   rawSvg
@@ -165,14 +176,34 @@ def SvgCanvas(
         svg.height    := null,
         svg.className := "graphviz",
         transform --> { tr =>
-          mainGroup.setAttribute(svg.transform.name, tr)
           // Every control holds its SCREEN size across pan/zoom (none of them
           // rebuild here — a re-fit keeps listeners and drag state intact).
-          refitChrome()
+          //
+          // Order is important here. A layout read after the transform write
+          // forces a synchronous layout of the whole SVG. Thus the scale
+          // measures what it does not know BEFORE the write, and the refit
+          // after the write computes the scale from the zoom.
+          val controls = ScreenConstant.controls(rawSvg.ref)
+          scale.prime(controls.flatMap(ScreenConstant.frameOf))
+          mainGroup.setAttribute(svg.transform.name, tr.css)
+          scale.zoomIs(tr.zoom)
+          ScreenConstant.refit(controls, scale)
+          SelectionCasing.refit(mainGroup, scale)
         },
         // A window resize rescales the viewBox→client mapping with no transform
-        // event — the third way the CTM moves under the controls' feet.
-        windowEvents(_.onResize) --> { _ => refitChrome() },
+        // event — the third way the CTM moves under the controls' feet. A
+        // change of the browser zoom (and thus of devicePixelRatio) also
+        // resizes the window.
+        windowEvents(_.onResize) --> { _ => remeasureChrome() },
+        // The svg can mount again (after the 3D view), and the window can
+        // change its size while the svg is not in the document. Thus an
+        // unmount forgets the measures.
+        onMountUnmountCallback(
+          mount = _ => svgResize.observe(rawSvg.ref),
+          unmount = _ =>
+            svgResize.disconnect()
+            scale.invalidate()
+        ),
         // Post-mount work needing real geometry (badges: getBBox; onRendered:
         // client rects). Registered AFTER the transform binder on purpose —
         // mount runs modifiers in order, and onRendered's screen measurements
@@ -226,7 +257,7 @@ def SvgCanvas(
         layoutSettled.events.sample(singleSelection.combineWith(mouseAction.signal)) --> {
           (elem: Option[SelectableElement], action: MouseAction) =>
             refreshOverlayControls(elem, action)
-            refitChrome()
+            remeasureChrome()
         },
         // --------------------------------------------------------
         // record CELL selection (one level below the element selection)
@@ -290,7 +321,7 @@ def SvgCanvas(
           // the decorations land unsized: a selected edge kept its endpoint
           // disks and its recoloured arrowhead, both driven by signals that
           // re-fire on subscribe, while its casing silently went missing.
-          SelectionCasing.refit(mainGroup, force = true),
+          SelectionCasing.refit(mainGroup, scale, force = true),
         // subsequent selection changes don't trigger onMountCallback, so we can be more
         // precise and only select/unselect the elements that actually changed
         selectionElementChanges --> { groups =>
@@ -300,7 +331,7 @@ def SvgCanvas(
           // The decorations select() just created are sized from the object
           // they mark, at the CURRENT zoom — nothing about that is knowable
           // from inside select().
-          SelectionCasing.refit(mainGroup, force = true)
+          SelectionCasing.refit(mainGroup, scale, force = true)
           // select/unselect modify the DOM directly, which seems to make the focus go to the
           // document body. We need the focus back to the canvas container to process handle keys —
           // but NOT while the user is typing in an editable element (e.g. the source editor):

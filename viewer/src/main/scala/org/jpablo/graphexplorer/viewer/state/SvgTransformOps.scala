@@ -83,10 +83,15 @@ trait SvgTransformOps:
     userMoved()
     zoomValue.update(_ * 1.1)
 
-  val transform =
+  /** The transform of the drawing group, with its zoom in a typed form. The
+    * canvas uses the zoom to compute the screen scale of the drawing with no
+    * layout read (see `ScreenConstant.CanvasScale`). */
+  val canvasTransform: Signal[CanvasTransform] =
     zoomValue.signal
-      .combineWithFn(translateXY.signal): (z, p) =>
-        s"scale($z) translate(${p.x} ${p.y})"
+      .combineWithFn(translateXY.signal)(CanvasTransform(_, _))
+
+  /** The value of the `transform` attribute of the drawing group. */
+  val transform: Signal[String] = canvasTransform.map(_.css)
 
   // ---- the pan filter ----------------------------------------------------
 
@@ -198,8 +203,20 @@ trait SvgTransformOps:
       val scale = viewBox.width / clientWidth max viewBox.height / clientHeight
       // Deltas ACCUMULATE into the target, so several events landing inside one
       // frame cost one transform write between them instead of one apiece —
-      // and the refitChrome that rides on every write likewise runs per frame.
+      // and the chrome refit that rides on every write likewise runs per frame.
       panBy(SvgPoint(wEv.deltaX * scale / z, wEv.deltaY * scale / z))
+
+/** The pan and zoom of the drawing group of the canvas.
+  *
+  * @param zoom
+  *   the scale of the drawing group. The screen scale of the drawing is the
+  *   base scale of the svg viewport multiplied by this value.
+  * @param pan
+  *   the translation of the drawing group, in user units after the zoom.
+  */
+final case class CanvasTransform(zoom: Double, pan: SvgPoint) derives CanEqual:
+  /** The value of the `transform` attribute of the drawing group. */
+  def css: String = s"scale($zoom) translate(${pan.x} ${pan.y})"
 
 private[state] object SvgTransformOps:
   /** The zoom of the Fit button. It is also the zoom when a diagram opens. */

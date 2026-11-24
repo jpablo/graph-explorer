@@ -107,8 +107,13 @@ object SelectionCasing:
   // the svg element — the zoom lives in that transform, so an svg-rooted
   // reading of the scale never changes and the skip below would swallow every
   // zoom.
-  def refit(root: dom.Element, force: Boolean = false): Unit =
-    ScreenConstant.userPerPx(root).foreach: upp =>
+  //
+  // `scale` gives the screen scale with no layout read during a pan or a zoom
+  // (see ScreenConstant.CanvasScale). A forced refit also forgets the stroke
+  // widths that [[ownStrokePx]] keeps, so that a new selection reads them again.
+  def refit(root: dom.Element, scale: ScreenConstant.CanvasScale, force: Boolean = false): Unit =
+    if force then strokes = new ElementWeakMap[(Double, Boolean)]()
+    scale.userPerPx(root).foreach: upp =>
       // The correction belongs in the key as much as the zoom does: dragging
       // the window to a monitor with a different devicePixelRatio changes what
       // a given stroke-width renders as while the zoom stays put, and a
@@ -116,10 +121,10 @@ object SelectionCasing:
       val key = s"$upp/${ScreenConstant.nonScalingStrokeFactor}"
       if force || root.getAttribute(scaleAttr) != key then
         root.setAttribute(scaleAttr, key)
-        root.querySelectorAllT[dom.Element](".selected").foreach(size)
+        root.querySelectorAllT[dom.Element](".selected").foreach(size(_, scale))
 
-  def size(el: dom.Element): Unit =
-    ScreenConstant.userPerPx(el).foreach: upp =>
+  def size(el: dom.Element, scale: ScreenConstant.CanvasScale): Unit =
+    scale.userPerPx(el).foreach: upp =>
       val ownPx    = ownStrokePx(subjectOf(el), upp)
       val overhang = math.max(CasingDeltaPx, ownPx * CasingRatio)
       val casingPx = math.max(MinCasingPx, ownPx + overhang)
@@ -212,15 +217,28 @@ object SelectionCasing:
     val shape =
       if el.matches(shapeSelector) then Some(el) else Option(el.querySelector(shapeSelector))
     shape.fold(1.0): s =>
-      val cs = dom.window.getComputedStyle(s)
-      val w  = cs.strokeWidth.replace("px", "").toDoubleOption.getOrElse(1.0)
+      val (w, nonScaling) = specifiedStroke(s)
       // Computed stroke-width reads in USER units (with a px suffix) — unless
       // the shape opted out of the canvas scale, where it is already screen px.
       // A shape that opted out is subject to the browser's non-scaling-stroke
       // bug too, so what it RENDERS is not what it specifies: measure the
       // marker against the stroke actually on screen, not the requested one.
-      if cs.getPropertyValue("vector-effect") == "non-scaling-stroke" then ScreenConstant.renderedStrokePx(w)
+      if nonScaling then ScreenConstant.renderedStrokePx(w)
       else w / upp
+
+  /** The computed stroke width of each shape, and true when the shape has
+    * `vector-effect: non-scaling-stroke`. The zoom does not change these
+    * values. A `getComputedStyle` read after a write of the canvas transform
+    * forces a layout, so a zoom reads the values from here. */
+  private var strokes = new ElementWeakMap[(Double, Boolean)]()
+
+  private def specifiedStroke(shape: dom.Element): (Double, Boolean) =
+    strokes.get(shape).toOption.getOrElse:
+      val cs    = dom.window.getComputedStyle(shape)
+      val w     = cs.strokeWidth.replace("px", "").toDoubleOption.getOrElse(1.0)
+      val value = (w, cs.getPropertyValue("vector-effect") == "non-scaling-stroke")
+      strokes.set(shape, value)
+      value
 
   /** SVGElement carries `style` at runtime; scala-js-dom does not type it. */
   private def setStyle(el: dom.Element, prop: String, value: String): Unit =
