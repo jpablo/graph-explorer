@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.minimal.defaultNodeTheme
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.utils.Platform
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
@@ -19,7 +20,12 @@ import org.scalajs.dom.svg.SVG
   * right. Occasional actions live inside menus or ⌘K, preferences behind the
   * gear — the bar itself carries only what gets hourly use.
   */
-def Toolbar(diagramName: Signal[String], commands: Commands, state: ViewerState): Div =
+def Toolbar(
+    diagramName: Signal[String],
+    commands:    Commands,
+    state:       ViewerState,
+    isMac:       Boolean = Platform.isMac
+): Div =
   import commands.{all, routerCmds, sections}
 
   def shapePreview(shape: Shape): ReactiveSvgElement[SVG] | String =
@@ -75,12 +81,22 @@ def Toolbar(diagramName: Signal[String], commands: Commands, state: ViewerState)
   div(
     idAttr := "toolbar",
     cls    := "navbar",
+    // The command key of the platform + B shows or hides the Library: ⌘B on a
+    // Mac, Ctrl+B on Windows and Linux (see Platform.commandKey). The listener
+    // is on the document, so the key also works when the source editor or the
+    // Library has the focus. A key with Shift or Alt is not this key.
+    documentEvents(_.onKeyDown).filter(e =>
+      e.key.toLowerCase == "b" && !e.shiftKey && !e.altKey && Platform.commandKey(e.metaKey, e.ctrlKey, isMac)
+    ) --> { e =>
+      e.preventDefault()
+      state.leftPanelVisible.update(!_)
+    },
     // -------- Navigation --------
     div(
       cls := "navbar-start gap-4",
       IconToggle(
         "bi-layout-sidebar",
-        "Toggle Library",
+        if isMac then "Toggle Library (⌘B)" else "Toggle Library (Ctrl+B)",
         state.leftPanelVisible,
         // Start-aligned: this sits at the window's left edge, where the default
         // centre-aligned bubble clips off-screen.

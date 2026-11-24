@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.graphviz.html.{HtmlTable, HtmlTableLayout}
-import org.jpablo.graphexplorer.graphviz.layout.RecordLabel
+import org.jpablo.graphexplorer.graphviz.layout.{NodeSize, RecordLabel}
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, SvgPoint}
@@ -141,7 +141,7 @@ trait RecordCellOps:
           nodeAttr(node, "height").flatMap(_.toDoubleOption).getOrElse(DefHeightIn),
           fixed,
           margin,
-          nodeId = node.id.value
+          ctx = NodeSize.LabelCtx(Some(node.id.value), "", latin1 = false)
         )
         val boxes = Vector.newBuilder[RecordCellBox]
         def walk(f: RecordLabel.Field, path: RecordTree.Path): Unit =

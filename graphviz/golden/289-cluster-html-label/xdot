@@ -1,0 +1,33 @@
+digraph G {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 171 165 171 165 0 ",
+		bb="0,0,165,171",
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	subgraph cluster_discovery {
+		graph [_draw_="c 7 -#000000 p 4 8 8 8 163 157 163 157 8 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 t 1 T 16 147.4 -1 133.77 23 -agent-skills::discovery F 9 11 -Times-Roman c 7 -#000000 t 0 T 24.52 \
+137.9 -1 116.73 34 -rust/agent-skills/src/discovery.rs ",
+			bb="8,8,157,163",
+			label=<<b>agent-skills::discovery</b><br/><font point-size="9">rust/agent-skills/src/discovery.rs</font>>,
+			labeljust=l,
+			labelloc=t,
+			lheight=0.32,
+			lp="82.883,147.5",
+			lwidth=1.86
+		];
+		a	[_draw_="c 7 -#000000 e 82 106 27 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 82 101.8 0 6.21 1 -a ",
+			height=0.5,
+			pos="82,106",
+			width=0.75];
+		b	[_draw_="c 7 -#000000 e 82 34 27 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 82 29.8 0 7 1 -b ",
+			height=0.5,
+			pos="82,34",
+			width=0.75];
+		a -> b	[_draw_="c 7 -#000000 B 4 82 87.7 82 80.41 82 71.73 82 63.54 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 85.5 63.62 82 53.62 78.5 63.62 ",
+			pos="e,82,52.104 82,87.697 82,80.407 82,71.726 82,63.536"];
+	}
+}

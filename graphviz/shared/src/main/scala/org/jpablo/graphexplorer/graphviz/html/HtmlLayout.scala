@@ -11,14 +11,14 @@ object HtmlLayout:
 
   private val LineSpacing = 1.20 // const.h LINESPACING
 
-  /** Resolved per-run font metrics (size + bold/italic → FontMetrics flags). */
+  /** Resolved per-run font metrics (size + bold/italic → FontMetrics flags).
+    * `estimate_textspan_size` (textspan.c) sets bold and italic only from the
+    * `<b>` and `<i>` flags. The font name (for example `Helvetica-Bold`) does
+    * not set them. */
   def itemWidth(it: HtmlItem, baseSize: Double, baseName: String): Double =
     val sz  = it.font.size.getOrElse(baseSize)
     val nm  = it.font.name.getOrElse(baseName)
-    val low = nm.toLowerCase
-    val bld = it.font.bold || low.contains("bold")
-    val itl = it.font.italic || low.contains("italic") || low.contains("oblique")
-    sz * FontMetrics.estimateTextWidth1pt(nm, it.str, bld, itl)
+    sz * FontMetrics.estimateTextWidth1pt(nm, it.str, it.font.bold, it.font.italic)
 
   private def itemSize(it: HtmlItem, baseSize: Double): Double =
     it.font.size.getOrElse(baseSize) * LineSpacing

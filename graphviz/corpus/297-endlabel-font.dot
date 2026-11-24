@@ -1,0 +1,9 @@
+digraph G {
+  edge [fontname="Helvetica", fontsize=10, fontcolor=blue];
+  a -> b [headlabel="10pt blue", taillabel="tail"];
+  a -> c [labelfontsize=8, labelfontcolor=red, headlabel="small red", taillabel="t"];
+  b -> d [labelfontname="Courier", headlabel="courier", taillabel="mono"];
+  c -> d [fontsize=20, headlabel="big", labelfontcolor="#00aa00"];
+  edge [labelfontsize=16, labelfontname="Times-Bold"];
+  d -> e [headlabel="bold", taillabel="16"];
+}

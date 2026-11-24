@@ -745,6 +745,25 @@ enforce the deferral halves of it):
       ranksep. `Rank.hasEdgeLabel` does not count self-loops. For
       `a -> a [label=L]; a -> b`, the bb height is 109 in gv and 108 in the
       port.
+  The work on the end labels (2026-11-23, 295–305) found three more gaps:
+  22. ~~**HTML entities in a plain label.**~~ CLOSED: see the §7 entry
+      "306–311". Some code points stay open: gv writes 0x7F, 0x7FF and each
+      value above 0xFFFF (`&#65536;`) as bytes that are not correct UTF-8.
+      The port writes the correct character. viz-js shows U+FFFD there.
+  23. **A 2-cycle with a third path.** `a -> b; a -> c; b -> c; c -> a;
+      c -> d` gives other x coordinates in gv (the bb is 118 wide, the port
+      gives 109). The labels do not cause it.
+  24. **The user's UML diagram** (23 KB: clusters, HTML nodes, `dir=back`)
+      has another layout in the port also without its end labels (gv bb
+      2577×1514, port 2475×1476). The set of `<text>` contents is the same.
+  The work on the entities (2026-11-23, 306–311) found two more gaps:
+  25. **A `\l`/`\r` line in a record field that grows.** `resize_reclbl`
+      adds the growth of the field to `lp->space.x`, and `emit_label` puts a
+      `\l` line at the left side of that space. The port uses the width of
+      the text. Example: `r [shape=record, label="{ Map | + get(K) \l| +
+      put(K, V, W)\l }"]` gives x=8 in gv and x=25.31 in the port.
+  26. **`\E`, `\T`, `\H` and `\L`** (strdup_and_subst_obj0). The port
+      expands only `\N` and `\G`. The other escapes show their letter.
 
 ## 1. Goal & locked decisions
 
@@ -3406,4 +3425,127 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
     Without ports, `makeSimpleFlat` gives the same values as before.
   The probes found three more gaps (§0, items 19–21). graphvizJVM
   1124/1124 (with 261–278), all modules 2915.
+- **2026-11-23 (289–293)** — **HTML-like labels on clusters and on the root
+  graph.** A cluster label `label=<<b>…</b><br/>…>` showed its markup as
+  text, and the layout measured the markup as plain text. The cause:
+  `RSubgraph` kept only the label string, not its `LT_HTML` flag, and
+  `Cluster`, `Coord.graphLabelPad`/`graphLabelPaddedWidth`, the root
+  `lwidth`/`lheight` in `Output`, and `Svg` used the plain-text size and
+  `textAt`/`textLines`. Now `RSubgraph.labelHtml` keeps the flag,
+  `NodeSize.graphLabelDimPt` gives the `make_html_label` size (the node
+  HTML layout), and `Svg.htmlLabel` draws the label with `htmlText` /
+  `htmlTable` at `lp`. A table in a graph or cluster label takes its
+  border colour from `pencolor`, else `color` (`getPenColor`). Probes:
+  289 (the user's cluster, `labeljust=l`), 290 (root label), 291 (cluster
+  table with `color`, `labeljust=r`, `labelloc=b`, and an inline `<i>`),
+  292 (root label wider than an LR drawing, `labelloc=t`). 292 also found
+  an old gap in `htmlText`: `text-decoration` came after `fill`, and `<s>`
+  drew nothing. svg_textspan puts weight, style, text-decoration,
+  baseline-shift, font-size, fill, in that order (293). All byte-exact.
+- **2026-11-23 (294)** — **A PostScript font alias with `<b>`/`<i>` wrote
+  an attribute two times.** With `fontname="Helvetica-Bold"`, `svgFontAttrs`
+  writes `font-weight="bold"` from the alias, and `htmlText` wrote it again
+  for a `<b>` run (and for every run, because it also took bold from the
+  font name). The SVG was not well-formed XML, and the viewer canvas was
+  empty. `svg_textspan` writes the `<b>` weight only when the alias gives
+  no weight, and the `<i>` style only when the alias gives no style. Only
+  the HTML flags set bold and italic, never the font name. The same name
+  rule was wrong in the text widths: `estimate_textspan_size` takes bold
+  and italic from the flags only, and `Helvetica-Bold` matches no metrics
+  family, so it uses the Times widths. `HtmlLayout.itemWidth`,
+  `NodeSize.polyMetrics` and `RecordLabel.textDimen` now use the flags
+  only (a plain or record label has no flags). Probe 294: an HTML cluster
+  label and two HTML nodes in `Helvetica-Bold`/`Helvetica-Oblique`, a
+  quoted `Times-Bold` box and a `Helvetica-BoldOblique` record. Byte-exact.
+  Backing test: `HtmlFontAliasSpec`. graphvizJVM 1162/1162.
+- **2026-11-23 (295–305)** — **The labels at the ends of an edge
+  (`headlabel`, `taillabel`).** The port did not draw them. A UML diagram
+  lost its 31 multiplicities. Ported, as in gv 13.0.1:
+  - `common_init_edge`/`initFontLabelEdgeAttr` (utils.c:461, 530): the
+    text and the font. `labelfontsize`/`labelfontname`/`labelfontcolor`
+    default to the font of the edge. A plain end label decodes its HTML
+    entities (`htmlEntityUTF8`). `XLabels.endLabel`.
+  - `place_portlabel` (splines.c:1338), called by the dotsplines.c:454
+    loop only when the graph declares `labelangle` or `labeldistance`. It
+    sets the label at 10 × `labeldistance` from the end of the spline, at
+    the angle of the spline end plus `labelangle` (default -25). The loop
+    calls updateBB for each head label also when the edge has no value of
+    its own. Then the label is not set and its pos is (0,0), and gv grows
+    the bb by a box at the canonical origin. The port keeps this box
+    (`XLabels.Result.stray`, probe 298).
+  - `addXLabels` (postproc.c:402): each other end label is an external
+    label, anchored at `edgeTailpoint`/`edgeHeadpoint`. The object order per
+    out-edge is label, tail label, head label, xlabel. The set cluster
+    labels are now obstacles too (`addClusterObj`, postorder); the port had
+    left them out.
+  - **The R-tree of lib/label** (index.c, node.c, split.q.c, rectangle.c,
+    `xlhdxload`): probe 304 placed one tail label on another side. On the
+    no-zero-overlap path, `recordIntrsx` keeps the first object of bucket
+    5, thus the ORDER of the candidates changes the area sums. gv loads the
+    objects in Hilbert order into an R-tree (64 slots per node, quadratic
+    split), and `RTreeSearch` gives the hits of a leaf in reverse slot
+    order. The port had a linear scan in object order. Now `XLabels.RTree`
+    builds the same tree, with two gv quirks: `CombineRect` takes `fmin`
+    for the upper sides too, and the areas are `uint64_t` (a subtraction
+    can wrap). For equal Hilbert keys the port puts the later object first
+    (an approximation of the cdt Dtobag splay order).
+  - Output: svg draws the head label, then the tail label, after the xlabel
+    (`emit_end_edge`), with the anchor `{id}-headlabel`/`{id}-taillabel`
+    when `headURL`/`headhref` (else the URL of the edge) or an explicit
+    `headtooltip` is set; json0 writes `head_lp`/`tail_lp` (output.c:385).
+    HTML end labels use `Svg.htmlLabel`. dot_json needed no change.
+  Probes: 295 (plain, parallel edges, self-loop, two lines), 296 (`dir`
+  back/both/none, `arrowtail`), 297 (`fontname`/`fontsize`/`fontcolor` and
+  the `labelfont*` attributes), 298 (`labelangle`/`labeldistance`, the
+  clamp at -180, the stray box), 299 (with `label`, `xlabel` and node
+  xlabels), 300 (clusters with labels), 301 (`rankdir=LR`), 302 (HTML end
+  labels), 303 (`URL`/`headURL`/`tailtooltip`/`headtarget`, entities), 304
+  (crowded end labels near cluster labels, the R-tree order), 305 (LR,
+  clusters, `dir=back`, angle, and all label kinds). All byte-exact. The
+  probes found the open items 22–24 (§0). Backing test: `EdgeEndLabelSpec`
+  (its numbers are now the 13.0.1 values; gv 14.1.5 gives other ones).
+  graphvizJVM 1198/1198, viewer 670/670.
+- **2026-11-23 (306–311)** — **HTML entities in each plain label.**
+  `make_label` (labels.c) calls `htmlEntityUTF8` for each plain label. The
+  port did this for `headlabel`/`taillabel` only. A node, edge, xlabel,
+  cluster, root or record label showed its raw text (`Vec&lt;T&gt;` on the
+  screen, `&amp;lt;` in the svg), and its size came from the raw text.
+  Ported, as in gv 13.0.1:
+  - **One place.** `NodeSize.labelLinesJust` is the make_label path of
+    each plain label kind, in the order of C: `strdup_and_subst_obj0`
+    (`\N`, `\G`; each other escape stays), then `htmlEntityUTF8` (or
+    `latin1ToUTF8`), then `make_simple_label` (`\n`/`\l`/`\r`, a newline
+    character, `\c` → `c`). Thus `&#92;n` is a line break, and `\N` gives
+    the node name with its entities decoded. `NodeSize.LabelCtx` carries
+    the names and the charset. For an edge or a graph, `\N` stays and
+    shows `N` (before, it gave ""). In a cluster label, `\G` is the name
+    of the cluster. The decoder is in `Entities`; `XLabels.endLabel` now
+    keeps the raw text.
+  - **`htmlEntity` (utils.c).** A name has at most 8 characters before the
+    `;` (`ENTITY_NAME_LENGTH_MAX`), thus `&thetasym;` stays. `&#` takes at
+    most 6 decimal digits, `&#x` at most 5 hex digits. A `;` is necessary.
+    `&#;`, `&#x;` and `&#0;` give `&` and drop the rest. An unknown name, a
+    bare `&` and `&amp` (no `;`) stay as they are.
+  - **`charset=latin1`** (findCharset, input.c): `latin1ToUTF8` reads each
+    byte as a Latin-1 character, thus `café` shows `cafÃ©`. The json
+    writers (`stoj`) then call `latin1ToUTF8` for each name and value, so
+    `"label": "x<y"` for `x&lt;y`. Without latin1 the json keeps the RAW
+    attribute.
+  - **svg.** The text spans escape the decoded text (`{raw}`: `Vec&lt;T&gt;
+    &amp; Option`). A plain cluster label now goes through `textLines`
+    (before, `textAt` drew one raw line). The names in `<title>` and in the
+    comments keep an entity (`xml_isentity`, flag `raw` not set):
+    `n&amp;m`, not `n&amp;amp;m`. `xmlHref` uses the same test.
+  - **Tooltips.** A default tooltip is the text of make_label (`lp->text`:
+    decoded, `\N` expanded, `\l` kept). An explicit tooltip goes through
+    `preprocessTooltip` (emit.c): the entities, `interpretCRNL`, then
+    `strdup_and_subst_obj`.
+  Probes: 306 (node, edge, xlabel, end, cluster and root labels; named,
+  decimal and hex entities), 307 (entities with `\N`, `\G`, `\l`, `\r`,
+  `&#92;n`, a newline character, node names with entities), 308 (record and
+  Mrecord fields), 309 (unknown and bad entities, a bare `&`), 310
+  (`charset=latin1`), 311 (default and explicit tooltips). All byte-exact
+  in svg, json0 and dot_json. The probes found the open items 25–26 (§0).
+  Backing test: `PlainLabelEntitySpec`. graphvizJVM 1222/1222, viewer
+  671/671.
 - _(append dated entries as milestones land)_

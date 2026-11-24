@@ -1,0 +1,62 @@
+{
+  "name": "G&",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 258 190",
+  "charset": "latin1",
+  "label": "café & té",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_q",
+      "charset": "latin1",
+      "label": "Q&",
+      "_gvid": 0,
+      "nodes": [
+        1
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "n&m",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "a",
+      "URL": "u",
+      "label": "& é café",
+      "tooltip": "t&"
+    },
+    {
+      "_gvid": 5,
+      "name": "e",
+      "label": "cafÃ©"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "label": "x<y"
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 5,
+      "headlabel": "α",
+      "label": ""
+    }
+  ]
+}

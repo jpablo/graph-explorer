@@ -12,6 +12,7 @@ import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
 import org.jpablo.graphexplorer.viewer.widgets.{FilterChips, IconRadioGroup, InputBox, InputVariant, SelectBox, SelectVariant, TooltipPos}
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.state.ThumbnailRenderer
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
@@ -105,6 +106,8 @@ def LibraryView(
     viewerSettings.zoomLazy(_.promptLabelBeforeNewNode)((s, b) => s.copy(promptLabelBeforeNewNode = b))
   val enable3DVar: Var[Boolean] =
     viewerSettings.zoomLazy(_.enable3D)((s, b) => s.copy(enable3D = b))
+  val mermaidSheetVar: Var[Boolean] =
+    viewerSettings.zoomLazy(_.mermaidSheet)((s, b) => s.copy(mermaidSheet = b))
 
   // The detail toolbar's gear menu minus the entries that need a diagram open
   // (keyboard shortcuts). Same labels and order as Toolbar.gearMenu.
@@ -125,6 +128,8 @@ def LibraryView(
 
   div(
     idAttr := "projects-view",
+    // The thumbnails follow the setting for the sheet behind a Mermaid drawing.
+    cls(MermaidBackend.noSheetClass) <-- mermaidSheetVar.signal.map(!_),
     onMountCallback: _ =>
       // The detail page persists settings through its own Var, so the one we
       // were handed can be stale by now (e.g. a theme picked while viewing a
@@ -182,7 +187,8 @@ def LibraryView(
         setTheme(theme)
       ,
       promptLabelBeforeNewNode = promptLabelVar,
-      enable3D = enable3DVar
+      enable3D = enable3DVar,
+      mermaidSheet = mermaidSheetVar
     ),
     div(
       idAttr := "projects-body",

@@ -130,29 +130,83 @@ object NodeSize:
       else base.copy(peripheries = peripheries, orientation = orientation, regular = regular)
     }
 
-  /** Split a label into display lines, resolving `\n \l \r` breaks, `\\` →
-    * `\`, and `\N`/`\G` substitutions. Justification is irrelevant to sizing.
-    */
-  private def labelLines(raw: String, nodeId: String, graphName: String): List[String] =
-    labelLinesJust(raw, nodeId, graphName).map(_._1)
+  /** The context of a plain label: the text for `\N` and `\G`
+    * (strdup_and_subst_obj0, labels.c) and the charset (findCharset).
+    * @param node      the name of the node for `\N`. None for the label of
+    *                  an edge or a graph: then gv keeps `\N`, and
+    *                  make_simple_label shows `N`.
+    * @param graphName the text for `\G`: the name of the root graph, or of
+    *                  the cluster for a cluster label.
+    * @param latin1    true for `charset=latin1`: then make_label calls
+    *                  latin1ToUTF8, else htmlEntityUTF8. */
+  final case class LabelCtx(node: Option[String], graphName: String, latin1: Boolean)
+  object LabelCtx:
+    /** No graph: no names, charset UTF-8. */
+    val Plain: LabelCtx = LabelCtx(None, "", latin1 = false)
+    def of(g: RGraph, node: Option[String] = None): LabelCtx =
+      LabelCtx(node, g.name.getOrElse(""), org.jpablo.graphexplorer.graphviz.html.Entities.isLatin1(g.rootAttrs.get("charset")))
 
-  /** Like [[labelLines]] but keeps each line's **justification** — `\n` ⇒
-    * `'n'` (centre), `\l` ⇒ `'l'` (left), `\r` ⇒ `'r'` (right); the final
-    * line (terminated by end-of-string, not an escape) is centre. This is
-    * what `emit_label`/`svg_textspan` need to stack + anchor plain labels. */
-  def labelLinesJust(raw: String, nodeId: String, graphName: String): List[(String, Char)] =
-    val lines = scala.collection.mutable.ListBuffer.empty[(String, Char)]
-    val cur   = new StringBuilder
-    var i     = 0
+  /** strdup_and_subst_obj0 (labels.c) with `escBackslash = 0`: `\N` and
+    * `\G` become their names. Each other escape stays, with its backslash,
+    * for make_simple_label. The port does not expand `\E`, `\T`, `\H` and
+    * `\L`: they stay, and make_simple_label shows `E`, `T`, `H` and `L`. */
+  private def substObj0(raw: String, ctx: LabelCtx): String =
+    if raw.indexOf('\\') < 0 then return raw
+    val sb = new StringBuilder
+    var i  = 0
     while i < raw.length do
       val c = raw.charAt(i)
       if c == '\\' && i + 1 < raw.length then
         raw.charAt(i + 1) match
-          case j @ ('n' | 'l' | 'r') => lines += ((cur.toString, j)); cur.clear(); i += 2
-          case '\\'                  => cur.append('\\'); i += 2
-          case 'N'                   => cur.append(nodeId); i += 2
-          case 'G'                   => cur.append(graphName); i += 2
-          case other                 => cur.append(other); i += 2
+          case 'N' if ctx.node.isDefined => sb.append(ctx.node.get)
+          case 'G'                       => sb.append(ctx.graphName)
+          case other                     => sb.append('\\').append(other)
+        i += 2
+      else
+        sb.append(c); i += 1
+    sb.toString
+
+  /** The text of a plain label after make_label (labels.c), before
+    * make_simple_label splits it into lines: first strdup_and_subst_obj0,
+    * then htmlEntityUTF8 (or latin1ToUTF8 for `charset=latin1`). Thus an
+    * entity can make a line break (`&#92;n`), and `\N` gives a name with
+    * its entities decoded. gv keeps this text in `lp->text`. The default
+    * tooltip of an object is this text, with its `\n` escapes. The json
+    * outputs write the RAW attribute, not this text. */
+  def plainLabelText(raw: String, ctx: LabelCtx): String =
+    import org.jpablo.graphexplorer.graphviz.html.Entities
+    val t = substObj0(raw, ctx)
+    if ctx.latin1 then Entities.latin1ToUTF8(t) else Entities.htmlEntityUTF8(t)
+
+  /** The lines of a plain label, without the justification. */
+  private def labelLines(raw: String, ctx: LabelCtx): List[String] =
+    labelLinesJust(raw, ctx).map(_._1)
+
+  /** The lines of a plain label and the **justification** of each line
+    * (make_label, then make_simple_label, labels.c). `\n` (or a newline
+    * character) ⇒ `'n'` (centre), `\l` ⇒ `'l'` (left), `\r` ⇒ `'r'`
+    * (right). Each other escape `\c` gives `c`, thus `\\` gives `\`. The
+    * final line (terminated by end-of-string, not an escape) is centre. This
+    * is what `emit_label`/`svg_textspan` need to stack + anchor plain labels.
+    * Each plain label kind (node, record field, edge, xlabel, end label,
+    * cluster, root graph) comes here. */
+  def labelLinesJust(raw: String, ctx: LabelCtx): List[(String, Char)] =
+    val text  = plainLabelText(raw, ctx)
+    val lines = scala.collection.mutable.ListBuffer.empty[(String, Char)]
+    val cur   = new StringBuilder
+    var i     = 0
+    while i < text.length do
+      val c = text.charAt(i)
+      if c == '\\' then
+        // a lone `\` at the end gives nothing (make_simple_label copies the NUL)
+        if i + 1 < text.length then
+          text.charAt(i + 1) match
+            case j @ ('n' | 'l' | 'r') => lines += ((cur.toString, j)); cur.clear()
+            case other                 => cur.append(other)
+        i += 2
+      else if c == '\n' then
+        // a newline character ends the line, centred
+        lines += ((cur.toString, 'n')); cur.clear(); i += 1
       else
         cur.append(c); i += 1
     // a TRAILING escape produces NOTHING: `"x\n"` sizes and draws exactly
@@ -168,8 +222,8 @@ object NodeSize:
 
   /** Widest rendered line width in points (`lp->space.x` for a plain label) —
     * drives `\l`/`\r` justification x-offset. */
-  def labelBoxWidthPt(raw: String, fontSizePt: Double, fontName: String, nodeId: String, graphName: String): Double =
-    labelLinesJust(raw, nodeId, graphName).map { case (l, _) =>
+  def labelBoxWidthPt(raw: String, fontSizePt: Double, fontName: String, ctx: LabelCtx): Double =
+    labelLinesJust(raw, ctx).map { case (l, _) =>
       if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
     }.maxOption.getOrElse(0.0)
 
@@ -191,18 +245,31 @@ object NodeSize:
     * `label_vnode`s and the graph-label space. An HTML label is treated as
     * one line here (its table layout/width is a separate M6 deferral —
     * irrelevant to the rank-axis height, which is single-line). */
-  def labelHeightPt(raw: String, fontSizePt: Double, graphName: String = ""): Double =
-    labelLines(raw, "", graphName).map { l =>
+  def labelHeightPt(raw: String, fontSizePt: Double, ctx: LabelCtx): Double =
+    labelLines(raw, ctx).map { l =>
       if l.isEmpty then (fontSizePt * LineSpacing).toInt.toDouble
       else fontSizePt * LineSpacing
     }.sum
 
   /** Label box **width** in points = widest line (`estimate_textspan_size`).
     * Drives the graph-label `lwidth` + the label-driven bbox widening. */
-  def labelWidthPt(raw: String, fontSizePt: Double, fontName: String = "Times", graphName: String = ""): Double =
-    labelLines(raw, "", graphName).map { l =>
+  def labelWidthPt(raw: String, fontSizePt: Double, fontName: String, ctx: LabelCtx): Double =
+    labelLines(raw, ctx).map { l =>
       if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
     }.maxOption.getOrElse(0.0)
+
+  /** Label box (width, height) in points of a graph or cluster label
+    * (`make_label` `dimen`, before PAD). An HTML-like label (`html` = true)
+    * gets the size of its parsed content (`make_html_label`), as a node label
+    * does. A markup that does not parse falls back to the plain-text size,
+    * because Graphviz then also uses the raw string as a plain label. */
+  def graphLabelDimPt(raw: String, html: Boolean, fontSizePt: Double, fontName: String,
+                      ctx: LabelCtx, imgs: org.jpablo.graphexplorer.graphviz.html.ImageDim.Table)
+      : (Double, Double) =
+    def plain = (labelWidthPt(raw, fontSizePt, fontName, ctx),
+                 labelHeightPt(raw, fontSizePt, ctx))
+    if html then HtmlParser.parse(raw).map(HtmlLayout.size(_, fontSizePt, fontName, imgs)).getOrElse(plain)
+    else plain
 
   /** @return the node bounding box in inches, or `None` for shapes not yet
     *         ported (record/Mrecord/unknown).
@@ -231,7 +298,7 @@ object NodeSize:
       dbl(n, "fontsize", DefFontSize), n.attrs.getOrElse("fontname", DefFontName),
       dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n),
       html = n.attrs.isHtml("label"), imgs = g.images,
-      nodeId = n.id, graphName = g.name.getOrElse("")
+      ctx = LabelCtx.of(g, Some(n.id))
     )
     Some(root)
 
@@ -243,20 +310,19 @@ object NodeSize:
   private def polyMetrics(n: RNode, g: RGraph, shape: ShapeKind): Metrics =
     val fontSize = dbl(n, "fontsize", DefFontSize)
     val fontName = n.attrs.getOrElse("fontname", DefFontName)
-    val fnCanon  = fontName.toLowerCase
-    val bold     = fnCanon.contains("bold")
-    val italic   = fnCanon.contains("italic") || fnCanon.contains("oblique")
 
     val rawLabel = n.attrs.getOrElse("label", "\\N")
     // label="" ⇒ NO label box at all (dimen 0,0 — an empty-label plain node
     // is a genuine 0×0 point in gv); a non-empty label's EMPTY LINES still
     // count (int)(fontsize·LINESPACING) each.
-    val lines    = if rawLabel.isEmpty then Nil else labelLines(rawLabel, n.id, g.name.getOrElse(""))
+    val lines    = if rawLabel.isEmpty then Nil else labelLines(rawLabel, LabelCtx.of(g, Some(n.id)))
 
     // estimate_textspan_size: width = fontsize * width@1pt; height per line =
     // fontsize*LINESPACING (non-empty) or (int)(fontsize*LINESPACING) (empty).
+    // A plain label has no <b>/<i> flags, so it uses the regular widths. The
+    // font name (for example `Times-Bold`) does not select the bold widths.
     val lineW = lines.map(l =>
-      if l.isEmpty then 0.0 else fontSize * FontMetrics.estimateTextWidth1pt(fontName, l, bold, italic)
+      if l.isEmpty then 0.0 else fontSize * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
     )
     val lineH = lines.map(l =>
       if l.isEmpty then (fontSize * LineSpacing).toInt.toDouble else fontSize * LineSpacing
@@ -384,7 +450,7 @@ object NodeSize:
         dbl(n, "fontsize", DefFontSize), n.attrs.getOrElse("fontname", DefFontName),
         dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n),
         html = n.attrs.isHtml("label"), imgs = g.images,
-        nodeId = n.id, graphName = g.name.getOrElse("")
+        ctx = LabelCtx.of(g, Some(n.id))
       )
       return Some(Size(w, h))
     // Convex builtin polygons (diamond/triangle/hexagon/…) route through

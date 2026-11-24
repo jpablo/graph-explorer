@@ -84,6 +84,13 @@ trait UIState:
     */
   val label3DBillboard = Var(false)
 
+  /** Show a sheet behind each Mermaid drawing (MermaidBackend.addSheet). The
+    * renderer always adds the sheet. When this is false, a class on the canvas
+    * hides it, and an export leaves it out. Thus a change does not render the
+    * diagram again. Persisted in ViewerSettings.
+    */
+  val mermaidSheet = Var(true)
+
   extension (section: RightPanelSection)
     def isSectionActive: Signal[Boolean] =
       rightPanelActiveSection.signal.map(_ == section)

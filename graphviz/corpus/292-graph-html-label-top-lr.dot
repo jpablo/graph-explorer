@@ -1,0 +1,6 @@
+digraph G {
+  rankdir=LR; labelloc=t;
+  label=<<b>A wide title in bold that is wider than the drawing</b><br/>second line>;
+  subgraph cluster_x { label=<<u>x</u><br align="left"/>left line>; a; }
+  a -> b;
+}

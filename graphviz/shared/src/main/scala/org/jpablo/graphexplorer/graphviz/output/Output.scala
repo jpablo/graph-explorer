@@ -58,7 +58,13 @@ object Output:
         s = s.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
       if neg && s != "0" then "-" + s else s
 
-  private def esc(s: String): String =
+  /** stoj (gvrender_core_json.c): a JSON string. For `charset=latin1`
+    * (`sp->isLatin`), stoj first calls latin1ToUTF8: then each name and each
+    * value decodes its entities (`"label": "x<y"` for `x&lt;y`), and each
+    * byte of a UTF-8 character becomes a Latin-1 character. Else the json
+    * outputs keep the RAW text (`"label": "x&lt;y"`). */
+  private def esc(s0: String, latin1: Boolean): String =
+    val s = if latin1 then org.jpablo.graphexplorer.graphviz.html.Entities.latin1ToUTF8(s0) else s0
     val b = new StringBuilder
     s.foreach {
       case '"'  => b ++= "\\\""
@@ -77,17 +83,13 @@ object Output:
     attrs.toVector.filter { case (k, v) => v.nonEmpty || k == "label" }.sortBy(_._1)
 
   private val Gap         = 4.0  // const.h GAP (YPAD = 2*GAP)
-  private val DefFontSize = 14.0
 
   // ── root graph label (`do_graph_label`) ─────────────────────────────────
   // Geometry (pad + labelloc) lives in Coord — the layout computes it once,
   // exactly as gv stores GD_label; the writers only read it.
   private def rootLabelText(g: RGraph): Option[String] = g.rootAttrs.get("label").filter(_.nonEmpty)
-  private def labelFontSize(g: RGraph): Double =
-    g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
   private def labelTop(g: RGraph): Boolean = Coord.graphLabelTop(g)
-  private def labelHtPt(g: RGraph, lbl: String): Double =
-    NodeSize.labelHeightPt(lbl, labelFontSize(g), g.name.getOrElse(""))
+  private def labelHtPt(g: RGraph): Double = Coord.graphLabelDim(g).fold(0.0)(_._2)
   private def gLabelPad(g: RGraph): Double = Coord.graphLabelPad(g)
   /** C `printf("%.2f")` — the `lwidth`/`lheight`/`lp`-dimension format. */
   private def f2(x: Double): String = cFixed(x, 2)
@@ -234,10 +236,11 @@ object Output:
     * by both writers. gv field order: name, attrs (alphabetical), _gvid,
     * [nodes], [edges]. `attrs` come from [[sgAttrs]] (+ json0's cluster
     * layout attrs), already filtered + sorted. */
-  private def sgBlockJson(sg: Doc.SG, attrs: Vector[(String, String)]): String =
+  private def sgBlockJson(sg: Doc.SG, attrs: Vector[(String, String)], latin1: Boolean): String =
+    def jesc(s: String) = esc(s, latin1)
     val fields = Vector.newBuilder[String]
-    fields += s"""      "name": "${esc(sg.name)}""""
-    attrs.foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
+    fields += s"""      "name": "${jesc(sg.name)}""""
+    attrs.foreach((k, v) => fields += s"""      "${jesc(k)}": "${jesc(v)}"""")
     fields += s"""      "_gvid": ${sg.gvid}"""
     if sg.subgraphGvids.nonEmpty then
       // write_subgs (!top): one indent before the FIRST entry only; the
@@ -318,13 +321,15 @@ object Output:
 
   private def dotJsonWith(g: RGraph, bb: String): String =
     val d = doc(g)
+    val latin1 = org.jpablo.graphexplorer.graphviz.html.Entities.isLatin1(g.rootAttrs.get("charset"))
+    def jesc(s: String) = esc(s, latin1)
     val sb = new StringBuilder
     sb ++= "{\n"
-    sb ++= s"""  "name": "${esc(d.name)}",\n"""
+    sb ++= s"""  "name": "${jesc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
     sb ++= s"""  "bb": "$bb",\n"""
-    d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
+    d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${jesc(k)}": "${jesc(v)}",\n""" }
     sb ++= s"""  "_subgraph_cnt": ${d.sgCnt}""" // comma deferred: gv omits "objects" when empty
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
     // gv auto-declares node `label` (default \N) always, edge `label` (default
@@ -335,10 +340,10 @@ object Output:
       val a = byId(id).attrs.toMap.updatedWith("label")(v => Some(v.getOrElse("\\N")))
       val fields = Vector.newBuilder[String]
       fields += s"""      "_gvid": $gv"""
-      fields += s"""      "name": "${esc(id)}""""
-      attrPairs(a).foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
+      fields += s"""      "name": "${jesc(id)}""""
+      attrPairs(a).foreach((k, v) => fields += s"""      "${jesc(k)}": "${jesc(v)}"""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
-    val objBlocks = d.subgraphs.map(sg => sgBlockJson(sg, sgAttrs(g, sg))) ++
+    val objBlocks = d.subgraphs.map(sg => sgBlockJson(sg, sgAttrs(g, sg), latin1)) ++
       d.nodes.map((id, gv) => nodeBlock(id, gv))
     // gv omits the "objects" array entirely for an empty graph (and an empty
     // objects set implies no edges — edges auto-declare their endpoints).
@@ -355,7 +360,7 @@ object Output:
       fields += s"""      "_gvid": ${e.gv}"""
       fields += s"""      "tail": ${e.t}"""
       fields += s"""      "head": ${e.h}"""
-      attrPairs(a).foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
+      attrPairs(a).foreach((k, v) => fields += s"""      "${jesc(k)}": "${jesc(v)}"""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
     // gv omits the "edges" array entirely when the graph has no edges.
     if d.edges.nonEmpty then
@@ -367,6 +372,8 @@ object Output:
 
   def json0(g: RGraph): String =
     val d = doc(g)
+    val latin1 = org.jpablo.graphexplorer.graphviz.html.Entities.isLatin1(g.rootAttrs.get("charset"))
+    def jesc(s: String) = esc(s, latin1)
     // map_point (postproc.c): rotate canonical coords into the drawing frame.
     val tf0 = org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g)
     val (lx, ly, ux, uy) =
@@ -386,22 +393,22 @@ object Output:
     val lps   = Spline.labelPositions(g)
     val sb = new StringBuilder
     sb ++= "{\n"
-    sb ++= s"""  "name": "${esc(d.name)}",\n"""
+    sb ++= s"""  "name": "${jesc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
     sb ++= s"""  "bb": "${g5(lx + dx)},${g5(ly + dy)},${g5(ux + dx)},${g5(uy + dy)}",\n"""
     // root graph attrs + the label geometry (lp/lwidth/lheight), merged
     // alphabetically into the write_attrs stream (do_graph_label).
     val rootKv = scala.collection.mutable.LinkedHashMap.empty[String, String]
-    d.rootAttrs.foreach { case (k, v) => rootKv(k) = s""""${esc(v)}"""" }
-    rootLabelText(g).foreach { lbl =>
-      val lhPt = labelHtPt(g, lbl)
-      val lwIn = NodeSize.labelWidthPt(lbl, labelFontSize(g), g.rootAttrs.getOrElse("fontname", "Times"), g.name.getOrElse("")) / 72.0
+    d.rootAttrs.foreach { case (k, v) => rootKv(k) = s""""${jesc(v)}"""" }
+    rootLabelText(g).foreach { _ =>
+      val lhPt = labelHtPt(g)
+      val lwIn = Coord.graphLabelDim(g).fold(0.0)(_._1) / 72.0
       rootKv("lheight") = s""""${f2(lhPt / 72.0)}""""
       rootKv("lp")      = s""""${g5((lx + ux) / 2.0 + dx)},${g5((if labelTop(g) then uy - Gap - lhPt / 2.0 else Gap + lhPt / 2.0) + dy)}""""
       rootKv("lwidth")  = s""""${f2(lwIn)}""""
     }
-    rootKv.toVector.sortBy(_._1).foreach { case (k, v) => sb ++= s"""  "${esc(k)}": $v,\n""" }
+    rootKv.toVector.sortBy(_._1).foreach { case (k, v) => sb ++= s"""  "${jesc(k)}": $v,\n""" }
     sb ++= s"""  "_subgraph_cnt": ${d.sgCnt}""" // comma deferred: gv omits "objects" when empty
     val edgeLabels = g.edges.exists(_.attrs.toMap.contains("label"))
     // json0 = dot_json attrs with the layout keys (height/pos/width for nodes,
@@ -413,7 +420,7 @@ object Output:
       val py = yOf(ranks(id)).value
       val a  = n.attrs.toMap.updatedWith("label")(v => Some(v.getOrElse("\\N")))
       val kv = scala.collection.mutable.LinkedHashMap.empty[String, String]
-      attrPairs(a).foreach((k, v) => kv(k) = s""""${esc(v)}"""")
+      attrPairs(a).foreach((k, v) => kv(k) = s""""${jesc(v)}"""")
       sz.foreach { s => kv("height") = s""""${g5(s.height.value)}""""; kv("width") = s""""${g5(s.width.value)}"""" }
       val (tpx, tpy) = tf(px, py)
       kv("pos") = s""""${g5(tpx)},${g5(tpy)}""""
@@ -441,8 +448,8 @@ object Output:
         }
       val fields = Vector.newBuilder[String]
       fields += s"""      "_gvid": $gv"""
-      fields += s"""      "name": "${esc(id)}""""
-      kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${esc(k)}": $v""")
+      fields += s"""      "name": "${jesc(id)}""""
+      kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${jesc(k)}": $v""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
     // json0 cluster objects add the layout attrs (bb + label geometry),
     // merged alphabetically into the same write_attrs stream. `lp` comes from
@@ -472,7 +479,7 @@ object Output:
         }.toMap
     val objBlocks = d.subgraphs.map { sg =>
       val attrs = (sgAttrs(g, sg) ++ cluLayoutAttrs.getOrElse(sg.name, Vector.empty)).sortBy(_._1)
-      sgBlockJson(sg, attrs)
+      sgBlockJson(sg, attrs, latin1)
     } ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
     // gv omits the "objects" array entirely for an empty graph (see dotJson);
     // the "edges" array is likewise omitted for an edgeless graph.
@@ -487,10 +494,25 @@ object Output:
       e.hp.foreach(p => a += "headport" -> p)
       if edgeLabels then a = a.updatedWith("label")(v => Some(v.getOrElse("")))
       val kv = scala.collection.mutable.LinkedHashMap.empty[String, String]
-      attrPairs(a).foreach((k, v) => kv(k) = s""""${esc(v)}"""")
+      attrPairs(a).foreach((k, v) => kv(k) = s""""${jesc(v)}"""")
       lps.get(e.idx).foreach { p => val (lpx, lpy) = tf(p.x, p.y); kv("lp") = s""""${g5(lpx)},${g5(lpy)}"""" }
       org.jpablo.graphexplorer.graphviz.layout.XLabels.place(g).edges.get(e.idx).foreach { p =>
         val (x, y) = tf(p.cx, p.cy); kv("xlp") = s""""${g5(x)},${g5(y)}""""
+      }
+      // output.c:385: `head_lp`/`tail_lp` for each edge with an end label.
+      // gv writes the pos also for a label that it did not set: (0,0).
+      locally {
+        import org.jpablo.graphexplorer.graphviz.layout.XLabels
+        val xl = XLabels.place(g)
+        val ge = g.edges(e.idx)
+        def endLp(key: String, head: Boolean, placed: Map[Int, XLabels.Placed]): Unit =
+          XLabels.endLabel(ge, head).foreach { _ =>
+            val (cx, cy) = placed.get(e.idx).fold((0.0, 0.0))(p => (p.cx, p.cy))
+            val (x, y)   = tf(cx, cy)
+            kv(key) = s""""${g5(x)},${g5(y)}""""
+          }
+        endLp("head_lp", true, xl.heads)
+        endLp("tail_lp", false, xl.tails)
       }
       spl.get(e.idx).foreach { es =>
         def m(p: Spline.XY): (Double, Double) = tf(p.x, p.y)
@@ -507,7 +529,7 @@ object Output:
       fields += s"""      "_gvid": ${e.gv}"""
       fields += s"""      "tail": ${e.t}"""
       fields += s"""      "head": ${e.h}"""
-      kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${esc(k)}": $v""")
+      kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${jesc(k)}": $v""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
     if d.edges.nonEmpty then
       sb ++= "  \"edges\": [\n"

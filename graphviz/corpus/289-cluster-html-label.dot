@@ -1,0 +1,8 @@
+digraph G {
+  subgraph cluster_discovery {
+    label=<<b>agent-skills::discovery</b><br/><font point-size="9">rust/agent-skills/src/discovery.rs</font>>;
+    labeljust=l; labelloc=t;
+    a; b;
+  }
+  a -> b;
+}

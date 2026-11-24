@@ -1,0 +1,12 @@
+digraph G {
+  rankdir=LR;
+  node [shape=box];
+  subgraph cluster_a {
+    label="Domain";
+    A; B;
+    A -> B [dir=back, arrowtail=odiamond, headlabel="0..*", taillabel="1"];
+  }
+  B -> C [headlabel="1", taillabel="n", labelfontsize=10];
+  A -> C [headlabel="angled", labelangle=30, labeldistance=2];
+  C -> D [label="uses", headlabel="hd", taillabel="tl", xlabel="xl"];
+}

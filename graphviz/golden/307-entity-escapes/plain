@@ -1,0 +1,14 @@
+graph 1 4.7452 7.3661
+node "n&amp;m" 0.65278 6.1576 0.858 0.5 "n&m" solid ellipse black lightgrey
+node a 1.8194 6.1576 0.96333 0.8171 "a <\l& left\l" solid ellipse black lightgrey
+node b 1.8194 4.0517 1.1163 1.1314 "<b>\r\nright &\r" solid ellipse black lightgrey
+node "x&#60;y" 2.9306 6.1576 0.75 0.5 "x<y" solid box black lightgrey
+node c 1.8194 2.3985 0.86384 1.1471 "one\ntwo\lthree" solid ellipse black lightgrey
+node d 1.8194 1.0611 1.1858 0.5 "\\N &\\ G" solid ellipse black lightgrey
+node e 4.1528 6.1576 1.1847 1.1471 "raw
+newline
+and &" solid ellipse black lightgrey
+edge a b 4 1.8194 5.743 1.8194 5.4706 1.8194 5.1025 1.8194 4.7806 "\N & G\nline 2" 2.0841 5.1007 solid black
+edge b c 4 1.8194 3.483 1.8194 3.3704 1.8194 3.2505 1.8194 3.1332 solid black
+edge c d 4 1.8194 1.8216 1.8194 1.7038 1.8194 1.5819 1.8194 1.4716 solid black
+stop

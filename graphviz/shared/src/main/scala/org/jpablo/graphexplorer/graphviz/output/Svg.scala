@@ -219,12 +219,17 @@ object Svg:
   /** `gvputs_xml` = gv_xml_escape with `{dash, nbsp}` (xml.c `xml_core`):
     * & < > " ' escaped (' → `&#39;`, siblings' De'Armond), `-` → `&#45;`
     * (avoids `--` in XML comments; `a&#45;&gt;b` in titles/comments), and
-    * the 2nd+ of a consecutive space run → `&#160;`. */
+    * the 2nd+ of a consecutive space run → `&#160;`. The flag `raw` is not
+    * set, thus a `&` that starts an entity stays (xml_isentity): the node
+    * `"n&amp;m"` has the title `n&amp;m`. */
   private def xml(s: String): String =
     val b = new StringBuilder
     var prev = '\u0000'
-    s.foreach { c =>
+    var i = 0
+    while i < s.length do
+      val c = s(i)
       c match
+        case '&' if xmlIsEntity(s, i) => b += '&'
         case '&'                => b ++= "&amp;"
         case '<'                => b ++= "&lt;"
         case '>'                => b ++= "&gt;"
@@ -234,31 +239,36 @@ object Svg:
         case ' ' if prev == ' ' => b ++= "&#160;"
         case c                  => b += c
       prev = c
-    }
+      i += 1
     b.toString
+
+  /** xml_isentity (lib/util/xml.c): true when the `&` at `s(i)` starts
+    * `&#digits;`, `&#xhexdigits;` or `&letters;`. The digits can be absent
+    * (`&#;` is true), but `&;` is false. */
+  private def xmlIsEntity(s: String, i: Int): Boolean =
+    def at(k: Int): Char = if k < s.length then s(k) else '\u0000'
+    def isAlpha(c: Char) = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+    def isDigit(c: Char) = c >= '0' && c <= '9'
+    def isXDigit(c: Char) = isDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+    var j = i + 1
+    if at(j) == ';' then return false
+    if at(j) == '#' then
+      j += 1
+      if at(j) == 'x' || at(j) == 'X' then
+        j += 1
+        while isXDigit(at(j)) do j += 1
+      else
+        while isDigit(at(j)) do j += 1
+    else
+      while isAlpha(at(j)) do j += 1
+    at(j) == ';'
 
   /** `gv_xml_escape` with flags `{0}` (svg_begin_anchor's HREF): only
     * & < > " ' escape — no dash/nbsp — and a `&` that already starts a
     * legal entity (`&#123;`, `&#xAB;`, `&name;`) stays literal
     * (xml_isentity). */
   private def xmlHref(s: String): String =
-    def isEntity(i: Int): Boolean =
-      var j = i + 1
-      if j < s.length && s(j) == '#' then
-        j += 1
-        if j < s.length && (s(j) == 'x' || s(j) == 'X') then
-          j += 1
-          val st = j
-          while j < s.length && Character.digit(s(j), 16) >= 0 do j += 1
-          j > st && j < s.length && s(j) == ';'
-        else
-          val st = j
-          while j < s.length && s(j).isDigit do j += 1
-          j > st && j < s.length && s(j) == ';'
-      else
-        val st = j
-        while j < s.length && s(j).isLetterOrDigit do j += 1
-        j > st && j < s.length && s(j) == ';' && s(st).isLetter
+    def isEntity(i: Int): Boolean = xmlIsEntity(s, i)
     val b = new StringBuilder
     var i = 0
     while i < s.length do
@@ -272,6 +282,47 @@ object Svg:
         case c                   => b += c
       i += 1
     b.toString
+
+  /** The text of an explicit tooltip (`tooltip`, `edgetooltip`,
+    * `labeltooltip`, `headtooltip`, `tailtooltip`): preprocessTooltip
+    * (emit.c) decodes the entities (htmlEntityUTF8, or latin1ToUTF8), then
+    * interpretCRNL makes `\n`/`\l` a newline and `\r` a carriage return,
+    * and drops the backslash of each other escape. Then
+    * strdup_and_subst_obj (labels.c, `escBackslash = 1`) puts the names for
+    * `\N` and `\G` and makes `\\` one backslash. A default tooltip (the
+    * text of the label) does not come here. */
+  private def tooltipText(raw: String, ctx: NodeSize.LabelCtx): String =
+    import org.jpablo.graphexplorer.graphviz.html.Entities
+    val dec = if ctx.latin1 then Entities.latin1ToUTF8(raw) else Entities.htmlEntityUTF8(raw)
+    if dec.indexOf('\\') < 0 then return dec
+    // interpretCRNL
+    val crnl = new StringBuilder
+    var i = 0
+    while i < dec.length do
+      val c = dec(i)
+      if c == '\\' then
+        if i + 1 < dec.length then
+          dec(i + 1) match
+            case 'n' | 'l' => crnl += '\n'
+            case 'r'       => crnl += '\r'
+            case other     => crnl += other
+        i += 2
+      else { crnl += c; i += 1 }
+    // strdup_and_subst_obj
+    val t  = crnl.toString
+    val sb = new StringBuilder
+    i = 0
+    while i < t.length do
+      val c = t(i)
+      if c == '\\' && i + 1 < t.length then
+        t(i + 1) match
+          case 'N' if ctx.node.isDefined => sb ++= ctx.node.get
+          case 'G'                       => sb ++= ctx.graphName
+          case '\\'                     => sb += '\\'
+          case other                     => sb += '\\' += other
+        i += 2
+      else { sb += c; i += 1 }
+    sb.toString
 
   /** `gv_xml_escape` with the tooltip/anchor flag set `{raw, dash, nbsp}`
     * (`svg_begin_anchor`): `&` always escaped, `<`/`>`/`"`/`'` escaped, `-`
@@ -391,6 +442,15 @@ object Svg:
       .map(c => if c.startsWith("#") then c.toLowerCase else c).getOrElse("white")
     sb ++= s"""<polygon fill="$bgFill" stroke="none" points="${d2(bx0)},${d2(by0)} ${d2(bx0)},${d2(by1)} ${d2(bx1)},${d2(by1)} ${d2(bx1)},${d2(by0)} ${d2(bx0)},${d2(by0)}"/>\n"""
 
+    // Doc-wide gradient id counter (`l_N`) for `bgcolor="c0:c1"` fills of
+    // HTML labels. It is declared before the local defs, because the root
+    // graph label and the cluster labels (emitted first) can use it too.
+    var htmlGradId = 0
+
+    // The label context of the root graph, of each edge and of each end
+    // label: `\G` is the root name, and `\N` stays (make_label).
+    val labelCtx = NodeSize.LabelCtx.of(g)
+
     // nodes (declaration order)
     def textAt(cx: Double, cyc: Double, s: String, fill: String = "",
                fontName: String = "Times-Roman", fontSize: Double = FontSize): String =
@@ -412,12 +472,12 @@ object Svg:
       * `r`→end@cx+w/2). Reduces to `textAt` for a single centred line. Empty
       * lines advance the cursor but draw nothing. */
     def textLines(cx: Double, cyc: Double, raw: String, fill: String,
-                  nodeId: String, fontName: String, fontSize: Double = FontSize,
+                  ctx: NodeSize.LabelCtx, fontName: String, fontSize: Double = FontSize,
                   valign: Char = 'c', spaceY: Double = 0.0): String =
-      val lines = NodeSize.labelLinesJust(raw, nodeId, g.name.getOrElse(""))
+      val lines = NodeSize.labelLinesJust(raw, ctx)
       if lines.forall(_._1.isEmpty) then return ""
       val dimenY = lines.map((l, _) => NodeSize.lineHeightPt(l, fontSize)).sum
-      val boxW   = NodeSize.labelBoxWidthPt(raw, fontSize, fontName, nodeId, g.name.getOrElse(""))
+      val boxW   = NodeSize.labelBoxWidthPt(raw, fontSize, fontName, ctx)
       val fillP  = if fill.isEmpty then "" else fillPaint(fill)
       val f      = if fillP.nonEmpty && !fillP.equalsIgnoreCase("black") then s""" fill="$fillP"""" else ""
       val out    = new StringBuilder
@@ -444,15 +504,20 @@ object Svg:
     // (`\n`/`\l`/`\r`, trailing empties dropped), labelloc bottom (default)
     // at GAP + boxHeight/2, top at UR.y − GAP − boxHeight/2 — in the GRAPH
     // font + fontsize (git: 20). emit.c:3335-3337: emitted right after the
-    // background, BEFORE clusters/nodes/edges (emit_view).
+    // background, BEFORE clusters/nodes/edges (emit_view). An HTML-like label
+    // draws its parsed content (emit_html_label) at the same centre.
     g.rootAttrs.get("label").filter(_.nonEmpty).foreach { lbl =>
       val gfs = g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize)
-      val lh  = NodeSize.labelHeightPt(lbl, gfs, g.name.getOrElse(""))
+      val gfn = g.rootAttrs.getOrElse("fontname", "Times-Roman")
+      val gfc = g.rootAttrs.getOrElse("fontcolor", "")
+      val lh  = org.jpablo.graphexplorer.graphviz.layout.Coord.graphLabelDim(g).fold(0.0)(_._2)
       val top = g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
       val ly2 = if top then (uy - ly) - 4.0 - lh / 2.0 else 4.0 + lh / 2.0
-      sb ++= textLines((lx + ux) / 2.0, ly2, lbl,
-        g.rootAttrs.getOrElse("fontcolor", ""), "",
-        g.rootAttrs.getOrElse("fontname", "Times-Roman"), gfs)
+      val html =
+        if g.rootAttrs.isHtml("label") then
+          htmlLabel((lx + ux) / 2.0, ly2, lbl, gfc, gfs, gfn, labelPenColor(g.rootAttrs.get))
+        else None
+      sb ++= html.getOrElse(textLines((lx + ux) / 2.0, ly2, lbl, gfc, labelCtx, gfn, gfs))
     }
 
     // clusters (emit_clusters): each cluster draws a `<g class="cluster">`
@@ -535,9 +600,18 @@ object Svg:
             // coordinates and mapped through the same transform as the box —
             // the formula lives on CInfo.labelLp, shared with json0's `lp`.
             // The label is drawn in the CLUSTER's own font/size/colour.
+            // An HTML-like label draws its parsed content (emit_html_label),
+            // centred at lp. Thus labeljust/labelloc move the whole block.
             val (lpx, lpy) = tf.tupled(c.labelLp(cbbs(i), Rank.flip(g)))
-            sb ++= textAt(lpx, lpy, c.label, fill = c.fontColor,
-              fontName = c.fontName, fontSize = c.fontSize)
+            val html =
+              if c.labelHtml then
+                htmlLabel(lpx, lpy, c.label, c.fontColor, c.fontSize, c.fontName,
+                  labelPenColor(a.get))
+              else None
+            // A plain cluster label goes through make_label too: the
+            // entities, `\G` (the name of the cluster), and the line breaks.
+            sb ++= html.getOrElse(textLines(lpx, lpy, c.label, c.fontColor,
+              labelCtx.copy(graphName = c.name), c.fontName, c.fontSize))
           sb ++= "</g>\n"
         }
     }
@@ -629,30 +703,36 @@ object Svg:
         sp.items.foreach { it =>
           val fs   = it.font.size.getOrElse(baseSize)
           val nm   = it.font.name.getOrElse(baseName)
-          val bold = it.font.bold || nm.toLowerCase.contains("bold")
-          val ital = it.font.italic || nm.toLowerCase.contains("italic") || nm.toLowerCase.contains("oblique")
           val w    = HtmlLayout.itemWidth(it, baseSize, baseName)
-          val wgt  = if bold then " font-weight=\"bold\"" else ""
-          val sty  = if ital then " font-style=\"italic\"" else ""
+          // svg_textspan: the <b> flag writes font-weight only when the
+          // PostScript alias of the font gives no weight. The <i> flag writes
+          // font-style only when the alias gives no style. The font name
+          // itself does not set a flag. Thus each attribute occurs one time.
+          val pa   = psAlias.get(nm.toLowerCase)
+          val wgt  = if it.font.bold && !pa.exists(_._2.nonEmpty) then " font-weight=\"bold\"" else ""
+          val sty  = if it.font.italic && !pa.exists(_._4.nonEmpty) then " font-style=\"italic\"" else ""
           // <sub>/<sup> ⇒ SVG baseline-shift (same font size, same baseline).
+          // svg_textspan attr order: font-weight, font-style, text-decoration,
+          // baseline-shift, font-size, fill.
           val bsh  = if it.font.sub then " baseline-shift=\"sub\""
                      else if it.font.sup then " baseline-shift=\"super\"" else ""
           val col  = it.font.color.orElse(Option(defColor).filter(_.nonEmpty))
           val f    = col.map(fillPaint).filterNot(_.equalsIgnoreCase("black"))
             .map(c => s""" fill="$c"""").getOrElse("")
-          val dec  = if it.font.underline then " text-decoration=\"underline\"" else ""
+          // svg_textspan: `<u>` and `<s>` share one text-decoration attr
+          // ("underline,line-through" when both apply).
+          val decs = (if it.font.underline then List("underline") else Nil) ++
+                     (if it.font.strike then List("line-through") else Nil)
+          val dec  = if decs.isEmpty then "" else decs.mkString(" text-decoration=\"", ",", "\"")
           val yoffC = if tm.simple then 0.1 * fs else 1.0
           val ty    = -(baseline + yoffC)
           // svg_textspan: html spans escape with {raw, dash, nbsp} too
           // (' → &#39;, 2nd+ space of a run → &#160; — psg's quoted tokens).
-          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}"${svgFontAttrs(nm)}$wgt$sty$bsh font-size="${f2(fs)}"$f$dec>${xmlTooltip(it.str)}</text>\n"""
+          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}"${svgFontAttrs(nm)}$wgt$sty$dec$bsh font-size="${f2(fs)}"$f>${xmlTooltip(it.str)}</text>\n"""
           xi += w
         }
       }
       out.toString
-
-    // Doc-wide gradient id counter (`l_N`) for `bgcolor="c0:c1"` fills.
-    var htmlGradId = 0
 
     /** Render an HTML `<table>` centred at (cx, cyc): cells first (border box +
       * centred content), then the outer table border (emit order: cell, content,
@@ -781,13 +861,40 @@ object Svg:
       if laid.border > 0 then doBorder(tbl.attrs, laid.border, tblBox)
       out.toString
 
+    /** Default border colour of an HTML table in a graph or cluster label
+      * (htmltable.c `getPenColor`): the `pencolor` attr, else the `color`
+      * attr, else black. */
+    def labelPenColor(attr: String => Option[String]): String =
+      attr("pencolor").filter(_.nonEmpty).orElse(attr("color").filter(_.nonEmpty)).getOrElse("black")
+
+    /** Render an HTML-like graph or cluster label centred at (cx, cyc), with
+      * the same code as a node label: a text block (bold, font, `<br/>`
+      * lines) or a table. `None` when the markup does not parse; then the
+      * caller draws the raw string as plain text, as Graphviz does. */
+    def htmlLabel(cx: Double, cyc: Double, raw: String, color: String,
+                  fontSize: Double, fontName: String, defPen: String): Option[String] =
+      import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel, HtmlLayout, HtmlAlign}
+      HtmlParser.parse(raw).map {
+        case HtmlLabel.Text(block) =>
+          val bw = HtmlLayout.textSize(block, fontSize, fontName)._1
+          htmlText(cx, cyc, block, color, bw, HtmlAlign.Center, fontSize, fontName)
+        case HtmlLabel.Table(tbl) =>
+          htmlTable(cx, cyc, tbl, color, fontSize, fontName, defPen = defPen)
+        case HtmlLabel.Image(src, _) =>
+          // A bare image: the drawn image, centred at the label centre.
+          g.images.get(src).fold("") { dim =>
+            val (dw, dh) = dim.drawn
+            s"""<image xlink:href="$src" width="${g6(dw)}px" height="${g6(dh)}px" preserveAspectRatio="xMinYMin meet" x="${g6(cx - dw / 2.0)}" y="${g6(-(cyc + dh / 2.0))}"/>\n"""
+          }
+      }
+
     // record_gencode + gen_fields (shapes.c): outer box polygon, then per
     // table the inter-child separator polylines + per leaf the field text.
     // Boxes are node-local (centre origin, y-up) — add the node centre.
     def genFields(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field,
                    ncx: Double, ncy: Double,
                    fontName: String, fontSize: Double, fontColor: String = "",
-                   nodeId: String = ""): Unit =
+                   ctx: NodeSize.LabelCtx): Unit =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlLabel, HtmlLayout, HtmlAlign}
       if f.isLeaf then
         val fcx = ncx + (f.llx + f.urx) / 2.0
@@ -806,7 +913,7 @@ object Svg:
               // field text renders in the NODE's font through the same label
               // machinery as node labels (gen_fields → emit_label of the
               // field's make_label lp): \n/\l/\r splits + \N substitution.
-              sb ++= textLines(fcx, fcy, t, fontColor, nodeId, fontName, fontSize)
+              sb ++= textLines(fcx, fcy, t, fontColor, ctx, fontName, fontSize)
             }
       else
         f.flds.iterator.zipWithIndex.foreach { case (c, k) =>
@@ -815,7 +922,7 @@ object Svg:
               if f.lr then ((c.llx, c.lly), (c.llx, c.ury)) // vertical sep
               else        ((c.llx, c.ury), (c.urx, c.ury))  // horizontal sep
             sb ++= s"""<polyline fill="none" stroke="black" points="${d2(ncx + a0._1)},${d2(-(ncy + a0._2))} ${d2(ncx + a1._1)},${d2(-(ncy + a1._2))}"/>\n"""
-          genFields(c, ncx, ncy, fontName, fontSize, fontColor, nodeId)
+          genFields(c, ncx, ncy, fontName, fontSize, fontColor, ctx)
         }
 
     val op      = if g.directed then "->" else "--"
@@ -847,11 +954,19 @@ object Svg:
         // uses the raw/dash/nbsp escape set.
         val href    = n.attrs.get("href").orElse(n.attrs.get("URL")).filter(_.nonEmpty)
         val explicitTooltip = n.attrs.get("tooltip").filter(_.nonEmpty)
+          .map(tooltipText(_, NodeSize.LabelCtx.of(g, Some(n.id))))
         // an href'd anchor with no explicit tooltip titles with the node
-        // LABEL (emit_begin_node: obj->tooltip = strdup(obj->label)).
+        // LABEL (emit_begin_node: obj->tooltip = strdup(obj->label)). For a
+        // plain label, this is the text of make_label: `\N` is the name,
+        // and the entities are decoded.
         val tooltip = explicitTooltip.orElse(
           if href.isDefined then
-            Option(n.attrs.get("label").filter(_ != "\\N").getOrElse(n.id)).filter(_.nonEmpty)
+            val shape = n.attrs.getOrElse("shape", "").toLowerCase
+            if n.attrs.isHtml("label") || shape == "record" || shape == "mrecord" then
+              Option(n.attrs.get("label").filter(_ != "\\N").getOrElse(n.id)).filter(_.nonEmpty)
+            else
+              Option(NodeSize.plainLabelText(n.attrs.getOrElse("label", "\\N"), NodeSize.LabelCtx.of(g, Some(n.id))))
+                .filter(_.nonEmpty)
           else None)
         val target  = n.attrs.get("target").filter(_.nonEmpty)
         val anchored = href.isDefined || tooltip.isDefined
@@ -907,7 +1022,7 @@ object Svg:
             genFields(root, x, cy,
               n.attrs.getOrElse("fontname", "Times-Roman"),
               n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize),
-              n.attrs.getOrElse("fontcolor", ""), n.id)
+              n.attrs.getOrElse("fontcolor", ""), NodeSize.LabelCtx.of(g, Some(n.id)))
           case None =>
             val rx  = sz.halfWidthPt.value
             val ry  = sz.halfHeightPt.value
@@ -1099,13 +1214,13 @@ object Svg:
                     val (dw, dh) = dim.drawn
                     sb ++= s"""<image xlink:href="$src" width="${g6(dw)}px" height="${g6(dh)}px" preserveAspectRatio="xMinYMin meet" x="${g6(x - dw / 2.0)}" y="${g6(-(cy + dh / 2.0))}"/>\n"""
                   }
-                case None                     => if lbl.nonEmpty then sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"),
+                case None                     => if lbl.nonEmpty then sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), NodeSize.LabelCtx.of(g, Some(n.id)), n.attrs.getOrElse("fontname", "Times-Roman"),
                     n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
             // an empty label (`label=""`) draws no <text> (emit_label skips it);
             // shape=point has an implicit empty label.
             else if lbl.nonEmpty && !isPoint then
               val va = n.attrs.get("labelloc").map(_.headOption.getOrElse('c')).filter(c => c == 't' || c == 'b').getOrElse('c')
-              sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"),
+              sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), NodeSize.LabelCtx.of(g, Some(n.id)), n.attrs.getOrElse("fontname", "Times-Roman"),
                 n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize),
                 valign = va, spaceY = if va != 'c' then NodeSize.labelSpaceY(n, g) else 0.0)
         // external label (addXLabels): plain text at its placed centre,
@@ -1113,7 +1228,7 @@ object Svg:
         n.attrs.get("xlabel").filter(_.nonEmpty).foreach { xl =>
           xlabels.nodes.get(n.id).foreach { p =>
             val (lx, ly) = tf(p.cx, p.cy)
-            sb ++= textLines(lx, ly, xl, n.attrs.get("fontcolor").getOrElse(""), n.id,
+            sb ++= textLines(lx, ly, xl, n.attrs.get("fontcolor").getOrElse(""), NodeSize.LabelCtx.of(g, Some(n.id)),
               n.attrs.getOrElse("fontname", "Times-Roman"))
           }
         }
@@ -1154,9 +1269,11 @@ object Svg:
           val eLblUrl   = e.attrs.get("labelhref").orElse(e.attrs.get("labelURL")).filter(_.nonEmpty).orElse(eDfltUrl)
           val eExpTip   = e.attrs.get("tooltip").orElse(e.attrs.get("edgetooltip")).filter(_.nonEmpty)
           val eLblExpTip = e.attrs.get("labeltooltip").filter(_.nonEmpty)
+          // the text of make_label (ED_label(e)->text): entities decoded
           val eLblTxt   = e.attrs.get("label").filter(_.nonEmpty)
-          val eTip      = eExpTip.orElse(eLblTxt)
-          val eLblTip   = eLblExpTip.orElse(eLblTxt)
+            .map(t => if e.attrs.isHtml("label") then t else NodeSize.plainLabelText(t, labelCtx))
+          val eTip      = eExpTip.map(tooltipText(_, labelCtx)).orElse(eLblTxt)
+          val eLblTip   = eLblExpTip.map(tooltipText(_, labelCtx)).orElse(eLblTxt)
           val eDfltTgt  = e.attrs.get("target").filter(_.nonEmpty)
           val eTgt      = e.attrs.get("edgetarget").filter(_.nonEmpty).orElse(eDfltTgt)
           val eLblTgt   = e.attrs.get("labeltarget").filter(_.nonEmpty).orElse(eDfltTgt)
@@ -1307,7 +1424,7 @@ object Svg:
                     sb ++= htmlTable(lpx, lpy, tbl, col, efs, efn)
                   case _                          => ()
               else
-                sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times-Roman"),
+                sb ++= textLines(lpx, lpy, lbl, col, labelCtx, e.attrs.getOrElse("fontname", "Times-Roman"),
                   e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
               if decorated then
                 val (lw, lh) = Coord.edgeLabelDim(e, g)
@@ -1321,7 +1438,7 @@ object Svg:
             xlabels.edges.get(ix).foreach { p =>
               if eLblAnchored then edgeAnchorOpen(s"$edgeObjId-label", eLblUrl, eLblTip, eLblTgt)
               val (lx, ly) = tf(p.cx, p.cy)
-              sb ++= textLines(lx, ly, xl, e.attrs.get("fontcolor").getOrElse(""), "",
+              sb ++= textLines(lx, ly, xl, e.attrs.get("fontcolor").getOrElse(""), labelCtx,
                 e.attrs.getOrElse("fontname", "Times-Roman"))
               // gv passes the spline to the xlabel's emit_edge_label too, so a
               // decorated edge attaches BOTH of its labels.
@@ -1329,6 +1446,31 @@ object Svg:
               if eLblAnchored then sb ++= "</a>\n</g>\n"
             }
           }
+          // The end labels (emit_end_edge, emit.c:2708): the head label, then
+          // the tail label, each in its own font (labelfontname etc.). The
+          // anchor `{id}-headlabel` fires iff headURL/headhref (else the URL
+          // of the edge) or an explicit headtooltip. The tooltip defaults to
+          // the text of the end label. The same rules apply to the tail.
+          def endLabel(head: Boolean, placed: Map[Int, org.jpablo.graphexplorer.graphviz.layout.XLabels.Placed]): Unit =
+            val side = if head then "head" else "tail"
+            org.jpablo.graphexplorer.graphviz.layout.XLabels.endLabel(e, head).foreach { l =>
+              placed.get(ix).foreach { p =>
+                val url    = e.attrs.get(s"${side}href").orElse(e.attrs.get(s"${side}URL")).filter(_.nonEmpty).orElse(eDfltUrl)
+                val expTip = e.attrs.get(s"${side}tooltip").filter(_.nonEmpty)
+                val tgt    = e.attrs.get(s"${side}target").filter(_.nonEmpty).orElse(eDfltTgt)
+                val anchored = url.isDefined || expTip.isDefined
+                if anchored then edgeAnchorOpen(s"$edgeObjId-${side}label", url,
+                  expTip.map(tooltipText(_, labelCtx)).orElse(Some(if l.html then l.text else NodeSize.plainLabelText(l.text, labelCtx))), tgt)
+                val (lx, ly) = tf(p.cx, p.cy)
+                val html =
+                  if l.html then htmlLabel(lx, ly, l.text, l.fontColor, l.fontSize, l.fontName, "black")
+                  else None
+                sb ++= html.getOrElse(textLines(lx, ly, l.text, l.fontColor, labelCtx, l.fontName, l.fontSize))
+                if anchored then sb ++= "</a>\n</g>\n"
+              }
+            }
+          endLabel(head = true, xlabels.heads)
+          endLabel(head = false, xlabels.tails)
           sb ++= "</g>\n"
         }
       }

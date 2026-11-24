@@ -1,0 +1,56 @@
+digraph G {
+	graph [bb="0,0,341.65,530.36",
+		label="\G &amp; root\lleft &lt;\rright &gt;\n",
+		lheight=0.70,
+		lp="170.83,29.2",
+		lwidth=0.70
+	];
+	node [label="\N"];
+	subgraph cluster_q {
+		graph [bb="8,405.93,174,522.36",
+			label="\G &amp; one\ntwo &lt;",
+			lheight=0.47,
+			lp="91,501.56",
+			lwidth=1.24
+		];
+		"n&amp;m"	[height=0.5,
+			pos="47,443.34",
+			width=0.858];
+		a	[height=0.8171,
+			label="\N &lt;\l&amp; left\l",
+			pos="131,443.34",
+			width=0.96333];
+	}
+	b	[height=1.1314,
+		label="&lt;\N&gt;\r&#92;nright &amp;\r",
+		pos="131,291.72",
+		width=1.1163];
+	a -> b	[label="\N &amp; \G\nline 2",
+		lp="150.06,367.25",
+		pos="e,131,332.79 131,413.49 131,393.88 131,367.38 131,344.21"];
+	c	[height=1.1471,
+		label="one&#92;ntwo&#92;lthree",
+		pos="131,172.7",
+		width=0.86384];
+	b -> c	[pos="e,131,214.26 131,250.77 131,242.67 131,234.04 131,225.59",
+		xlabel="&lt;\N&gt;",
+		xlp="118.05,241.15"];
+	"x&#60;y"	[height=0.5,
+		pos="211,443.34",
+		shape=box,
+		width=0.75];
+	d	[height=0.5,
+		label="\\N &amp;\\ \G",
+		pos="131,76.4",
+		width=1.1858];
+	c -> d	[head_lp="139.56,103.1",
+		headlabel="&#945;\N",
+		pos="e,131,94.695 131,131.16 131,122.67 131,113.9 131,105.96",
+		tail_lp="123.61,114.36",
+		taillabel="t&amp;\lu"];
+	e	[height=1.1471,
+		label="raw
+newline&#10;and &amp;",
+		pos="299,443.34",
+		width=1.1847];
+}

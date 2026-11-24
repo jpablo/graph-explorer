@@ -1,0 +1,16 @@
+digraph G {
+	graph [bb="0,0,64.489,139",
+		label=<<b>Title</b><br/><font point-size="9">a subtitle line</font>>,
+		lheight=0.32,
+		lp="32.245,15.5",
+		lwidth=0.67
+	];
+	node [label="\N"];
+	a	[height=0.5,
+		pos="32.245,121",
+		width=0.75];
+	b	[height=0.5,
+		pos="32.245,49",
+		width=0.75];
+	a -> b	[pos="e,32.245,67.104 32.245,102.7 32.245,95.407 32.245,86.726 32.245,78.536"];
+}

@@ -437,7 +437,7 @@ case class ViewerState(
           beforeLayoutSwap(strategy) // the OLD svg is still mounted here
           SvgCanvas(
             rawSvg = svgWithPos.svg,
-            transform = transform,
+            transform = canvasTransform,
             viewerOps = this,
             mouseAction = mouseAction,
             edgePositions = svgWithPos.edgePositions,

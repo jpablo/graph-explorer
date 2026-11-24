@@ -1,0 +1,3 @@
+digraph {
+  a [shape=plain label=<<font color="red"><b><i><u><s><sup>x</sup></s></u></i></b></font> <s>y</s> <u><sub>z</sub></u>>];
+}

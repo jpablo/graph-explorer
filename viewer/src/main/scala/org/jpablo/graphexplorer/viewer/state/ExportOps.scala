@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 import upickle.default.*
@@ -11,7 +12,15 @@ trait ExportOps:
   // `finalSVG.foreach` here subscribed permanently, so every later render
   // silently re-copied the SVG over the user's clipboard.
   def copyAsFullDiagramSVG(): Unit =
-    finalSVGNow().foreach(s => writeText(s.ref.outerHTML))
+    finalSVGNow().foreach(s => writeText(fullDiagramSVGText(s.ref)))
+
+  /** The text of the full diagram for an export. It follows the setting for
+    * the sheet behind a Mermaid drawing: with the setting off, the text has no
+    * sheet. A selection export has no sheet, because the sheet is not a
+    * selectable element.
+    */
+  private def fullDiagramSVGText(svg: dom.svg.SVG): String =
+    MermaidBackend.exportText(svg, keepSheet = mermaidSheet.now())
 
   def copySelectionAsSVG(): Unit =
     finalSVGNow().foreach: s =>

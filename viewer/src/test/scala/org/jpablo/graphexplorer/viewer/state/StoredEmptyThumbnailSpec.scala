@@ -71,3 +71,38 @@ class StoredEmptyThumbnailSpec extends FunSuite with TestHelpers with LoggedChec
       .transform: result =>
         owner.killSubscriptions()
         result
+
+  /** A Mermaid render as the disk cache stored it before the sheet existed:
+    * a drawing with a viewBox, and no `rect.gx-sheet`.
+    */
+  private val RenderWithNoSheet =
+    """<svg xmlns="http://www.w3.org/2000/svg" id="mermaid-old" viewBox="-8 -8 120 80" width="100%" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#mermaid-old{fill:#333;}</style><g><g class="nodes"><g class="node" id="flowchart-A-0"><rect x="0" y="0" width="40" height="20"></rect></g><g class="node" id="flowchart-B-1"><rect x="60" y="40" width="40" height="20"></rect></g></g></g></svg>"""
+
+  test("a stored Mermaid thumbnail from before the sheet shows with a sheet"):
+    // A source that no earlier run stored.
+    val source = s"flowchart TD\n  A-->B\n  %% sheet ${js.Date.now()}"
+    ThumbnailDiskCache.put(DiagramFormat.Mermaid, source, RenderWithNoSheet)
+    val owner = ManualOwner()
+
+    def stored(tries: Int): Future[Unit] =
+      ThumbnailDiskCache.get(DiagramFormat.Mermaid, source).flatMap:
+        case Some(svg) if svg == RenderWithNoSheet => Future.unit
+        case _ if tries > 0                        => afterMicrotasks(()).flatMap(_ => stored(tries - 1))
+        case other => Future.fromTry(Try(check(false, s"precondition: the disk cache does not hold the old record: $other")))
+
+    stored(tries = 500)
+      .flatMap: _ =>
+        withGraphvizAsync: graphviz =>
+          val thumbnail = ThumbnailRenderer.processDotText(graphviz, DotText(source)).observe(using owner)
+          eventually("the thumbnail left its skeleton"): () =>
+            Some(thumbnail.now().ref).filterNot(_.classList.contains("skeleton"))
+          .map: svg =>
+            // The stored drawing, not a new render: the id of the old record.
+            check(svg.outerHTML.contains("mermaid-old"), s"the card does not show the stored record: ${head(svg)}")
+            same(svg.querySelectorAll("rect.gx-sheet").length, 1, s"the card shows no sheet: ${head(svg)}")
+            // A second hit (the in-memory cache) gives one sheet, not two.
+            val again = ThumbnailRenderer.processDotText(graphviz, DotText(source)).observe(using owner).now().ref
+            same(again.querySelectorAll("rect.gx-sheet").length, 1, s"the second card has the wrong sheet count: ${head(again)}")
+      .transform: result =>
+        owner.killSubscriptions()
+        result

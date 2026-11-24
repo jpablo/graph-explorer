@@ -1,0 +1,71 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,146.2,236.43",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "URL": "u",
+      "height": "0.8171",
+      "label": "a &amp; b\\l\\N",
+      "pos": "33.307,207.02",
+      "width": "0.9252"
+    },
+    {
+      "_gvid": 1,
+      "name": "n&amp;m",
+      "URL": "v",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "115.31,207.02",
+      "width": "0.858"
+    },
+    {
+      "_gvid": 2,
+      "name": "t",
+      "height": "0.5",
+      "label": "T",
+      "pos": "33.307,18",
+      "tooltip": "t&amp; \\N \\G &lt;\\nz\\\\N",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "33.307,106.8",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 3,
+      "URL": "w",
+      "headURL": "h",
+      "head_lp": "24.752,133.65",
+      "headlabel": "&#945;\\N",
+      "label": "&lt;x&gt;",
+      "lp": "44.703,151.2",
+      "pos": "e,33.307,125.25 33.307,177.34 33.307,164.56 33.307,149.52 33.307,136.71"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 2,
+      "head_lp": "29.807,44.81",
+      "headlabel": "h",
+      "headtooltip": "h&#945;\\r",
+      "label": "L",
+      "labeltooltip": "l&gt;",
+      "lp": "37.583,62.4",
+      "pos": "e,33.307,36.41 33.307,88.651 33.307,76.958 33.307,61.192 33.307,47.618",
+      "tooltip": "e&amp;\\E"
+    }
+  ]
+}

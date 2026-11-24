@@ -156,8 +156,8 @@ object Coord:
     val lbl = e.attrs.getOrElse("label", "")
     val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
     val fn  = e.attrs.getOrElse("fontname", "Times")
-    def plain = (NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse("")),
-                 NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse("")))
+    def plain = (NodeSize.labelWidthPt(lbl, fs, fn, NodeSize.LabelCtx.of(g)),
+                 NodeSize.labelHeightPt(lbl, fs, NodeSize.LabelCtx.of(g)))
     if e.attrs.isHtml("label") then
       HtmlParser.parse(lbl).map(h => HtmlLayout.size(h, fs, fn, g.images)).getOrElse(plain)
     else plain
@@ -485,10 +485,16 @@ object Coord:
   /** Rank-axis space the root label reserves = label box + YPAD (2*GAP);
     * 0 with no label. */
   def graphLabelPad(g: RGraph): Double =
+    graphLabelDim(g).map(_._2 + 2.0 * Gap).getOrElse(0.0)
+
+  /** Root-label box (width, height) in pt, before PAD — `GD_label->dimen`.
+    * An HTML-like label gets the size of its HTML layout. `None` with no label. */
+  def graphLabelDim(g: RGraph): Option[(Double, Double)] =
     g.rootAttrs.get("label").filter(_.nonEmpty).map { lbl =>
       val fs = g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
-      NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse("")) + 2.0 * Gap
-    }.getOrElse(0.0)
+      val fn = g.rootAttrs.getOrElse("fontname", "Times")
+      NodeSize.graphLabelDimPt(lbl, g.rootAttrs.isHtml("label"), fs, fn, NodeSize.LabelCtx.of(g), g.images)
+    }
 
   /** `labelloc=t` — the root label sits above the drawing (default: below). */
   def graphLabelTop(g: RGraph): Boolean =
@@ -498,11 +504,7 @@ object Coord:
     * gv_postprocess widens the bb to when the label outgrows the drawing.
     * 0 with no label. */
   def graphLabelPaddedWidth(g: RGraph): Double =
-    g.rootAttrs.get("label").filter(_.nonEmpty).map { lbl =>
-      val fs = g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
-      val fn = g.rootAttrs.getOrElse("fontname", "Times")
-      NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse("")) + 4.0 * Gap
-    }.getOrElse(0.0)
+    graphLabelDim(g).map(_._1 + 4.0 * Gap).getOrElse(0.0)
 
   /** Edge-label virtual-node `ND_rw` (vnode name → order-axis half-width pt) for
     * `make_LR_constraints`/spline bounds. class2.c `label_vnode`: `ND_lw =

@@ -1,0 +1,60 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 248 279",
+  "label": "Root &amp; &#169; &#x2014; end",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_a",
+      "label": "Map&lt;K, V&gt; &#38; &#x26;",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "a",
+      "label": "Vec&lt;T&gt; &amp; Option"
+    },
+    {
+      "_gvid": 2,
+      "name": "b",
+      "label": "&alpha;&beta;&gamma; &#956; &#x3BB;",
+      "xlabel": "x&quot;q&quot;"
+    },
+    {
+      "_gvid": 3,
+      "name": "c",
+      "label": "&copy; 2026 &mdash; &#8226; &bull;"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "label": "&lt;uses&gt;",
+      "xlabel": "&#x2192;"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 3,
+      "headlabel": "&#42;",
+      "label": "a &amp;&amp; b",
+      "taillabel": "0..&infin;"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 3,
+      "label": "&quot;quoted&quot; &apos; &#39;"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+digraph G {
+  rankdir=LR;
+  a -> b [headlabel="0..*", taillabel="owner"];
+  a -> c [dir=back, headlabel="1", taillabel="parent"];
+  b -> d [headlabel="ang", taillabel="ang", labelangle=45];
+  c -> d [headlabel="wide head label", taillabel="t"];
+}

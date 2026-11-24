@@ -1,0 +1,39 @@
+digraph G {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 140 313.91 140 313.91 0 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 t 1 T 8 124.4 -1 297.91 51 -A wide title in bold that is wider than the drawing F 14 11 -Times-Roman \
+c 7 -#000000 t 0 T 125.27 110.4 -1 63.37 11 -second line ",
+		bb="0,0,313.91,140",
+		label=<<b>A wide title in bold that is wider than the drawing</b><br/>second line>,
+		labelloc=t,
+		lheight=0.39,
+		lp="156.96,122",
+		lwidth=4.14,
+		rankdir=LR,
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	subgraph cluster_x {
+		graph [_draw_="c 7 -#000000 p 4 84.96 8 84.96 96 154.96 96 154.96 8 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 t 4 T 98.38 80.4 -1 7 1 -x F 14 11 -Times-Roman c 7 -#000000 t 0 T 98.38 66.4 -1 43.15 9 -left \
+line ",
+			bb="84.955,8,154.96,96",
+			label=<<u>x</u><br align="left"/>left line>,
+			lheight=0.39,
+			lp="119.96,78",
+			lwidth=0.60
+		];
+		a	[_draw_="c 7 -#000000 e 119.96 34 27 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 119.96 29.8 0 6.21 1 -a ",
+			height=0.5,
+			pos="119.96,34",
+			width=0.75];
+	}
+	b	[_draw_="c 7 -#000000 e 209.96 34 27 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 209.96 29.8 0 7 1 -b ",
+		height=0.5,
+		pos="209.96,34",
+		width=0.75];
+	a -> b	[_draw_="c 7 -#000000 B 4 147.36 34 154.84 34 163.14 34 171.15 34 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 171.06 37.5 181.06 34 171.06 30.5 ",
+		pos="e,182.57,34 147.36,34 154.84,34 163.14,34 171.15,34"];
+}

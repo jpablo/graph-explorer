@@ -1,0 +1,14 @@
+graph 1 4.2778 3.1333
+node hub 1.9028 2.3167 0.75 0.5 hub solid ellipse black lightgrey
+node a 0.375 1.3167 0.75 0.5 a solid ellipse black lightgrey
+node b 0.75 0.25 0.75 0.5 b solid ellipse black lightgrey
+node c 1.9028 1.3167 0.75 0.5 c solid ellipse black lightgrey
+node d 2.9028 1.3167 0.75 0.5 d solid ellipse black lightgrey
+node e 3.9028 1.3167 0.75 0.5 e solid ellipse black lightgrey
+edge hub a 4 1.6367 2.1334 1.3979 1.9815 1.0441 1.7564 0.77194 1.5832 solid black
+edge hub b 7 1.7001 2.1015 1.5901 1.9848 1.4574 1.831 1.3611 1.6778 1.2483 1.4983 1.0409 0.99886 0.89924 0.64459 solid black
+edge hub c 4 1.9028 2.0625 1.9028 1.9612 1.9028 1.8406 1.9028 1.7269 solid black
+edge hub d 4 2.11 2.1013 2.2467 1.9684 2.4286 1.7915 2.5837 1.6408 solid black
+edge hub e 7 2.2393 2.1952 2.5597 2.0861 3.0502 1.9018 3.4444 1.6778 3.4794 1.6579 3.5147 1.6357 3.5493 1.6124 solid black
+edge a b 4 0.46009 1.067 0.50468 0.94351 0.56042 0.7891 0.61108 0.64876 solid black
+stop

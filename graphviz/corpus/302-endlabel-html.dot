@@ -1,0 +1,5 @@
+digraph G {
+  a -> b [headlabel=<<b>bold</b>>, taillabel=<0..<i>n</i>>];
+  a -> c [headlabel=<<table border="0"><tr><td>1</td><td>2</td></tr></table>>];
+  b -> c [taillabel=<line<br/>two>, labelfontcolor=red];
+}

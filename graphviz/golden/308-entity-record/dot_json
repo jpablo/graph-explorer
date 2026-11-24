@@ -1,0 +1,53 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 218 235",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "r1",
+      "label": "<f0> Vec&lt;T&gt; | <f1> &amp;mut | { a &#38; b | &#x3B1; }",
+      "shape": "record"
+    },
+    {
+      "_gvid": 1,
+      "name": "r2",
+      "label": "{ Map&lt;K,V&gt; | + get(&amp;K) | + put(K, V) }",
+      "shape": "record"
+    },
+    {
+      "_gvid": 2,
+      "name": "s&amp;t",
+      "label": "\\N",
+      "shape": "record"
+    },
+    {
+      "_gvid": 3,
+      "name": "m",
+      "label": "&lt;init&gt; | &copy; | <p> x &gt; y",
+      "shape": "Mrecord"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 3,
+      "headport": "p",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 2
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+digraph "G&amp;" {
+  charset=latin1;
+  label="caf&eacute; &amp; t&#233;";
+  subgraph cluster_q { label="Q&amp;"; c; }
+  "n&amp;m" -> b [label="x&lt;y"];
+  a [label="&amp; &#233; caf&eacute;", tooltip="t&amp;", URL="u"];
+  e [label="café"];
+  a -> e [headlabel="&#945;"];
+}

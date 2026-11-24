@@ -69,10 +69,13 @@ class AdoptionWritesNothingSpec extends FunSuite with TestHelpers with LoggedChe
             afterMicrotasks:
               check(state.sourceText.now() == text, s"precondition: the viewer shows the file: ${state.sourceText.now()}")
               state.selection.set(ElementIds.from(NodeId("b")))
+              // Compare with the viewport at the open, not with a fixed zoom:
+              // a diagram opens with the frame of the Fit button.
+              val viewportOpened = viewport.now()
               state.zoomIn()
               val selectionBefore = state.selection.now()
               val viewportBefore  = viewport.now()
-              check(viewportBefore.startsWith("scale(1.1"), s"precondition: the zoom changed: $viewportBefore")
+              check(viewportBefore != viewportOpened, s"precondition: the zoom changed: $viewportBefore")
               same(shell.callsOf("library_write").size, 0, "precondition: the open wrote nothing")
               val current = shell.entryOf(path).getOrElse(fail("no entry"))
               shell.putEntry(current.copy(metadata = change(current.metadata), updatedAt = 2))

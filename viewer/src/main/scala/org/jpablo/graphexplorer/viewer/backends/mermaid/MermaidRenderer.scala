@@ -61,6 +61,9 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
         val edgePositions = extractEdgePositions(svg.ref)
         // After extractEdgePositions, so the id-less clones don't pollute the positions map
         MermaidBackend.addEdgeHitAreas(svg.ref)
+        // The last step: the sheet covers the viewBox, and fixViewBoxCase
+        // (in normalizeRenderedSvg) can set the viewBox.
+        MermaidBackend.addSheet(svg.ref)
         dom.console.info(s"[mermaid] textToSvg complete id=$renderId edges=${edgePositions.size}")
         SvgWithPositions(svg, edgePositions)
     }

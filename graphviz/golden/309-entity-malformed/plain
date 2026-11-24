@@ -1,0 +1,10 @@
+graph 1 6.4196 2.7472
+node a 1.3231 2.4972 2.6463 0.5 "&bogus; & x &amp y" solid ellipse black lightgrey
+node b 1.3231 1.2639 1.8789 0.5 "&p &q &r &;s" solid ellipse black lightgrey
+node c 4.4481 2.4972 2.1618 0.5 "&thetasym; ℵ ‌." solid ellipse black lightgrey
+node d 4.4481 1.2639 3.861 0.5 "&#1234567; 〹 &#xABCDE0; ☃" solid ellipse black lightgrey
+node e 4.4481 0.25 3.943 0.5 "& amp; &AMP; &Amp; &#x41A" solid ellipse black lightgrey
+edge a b 4 1.3231 2.2452 1.3231 2.0827 1.3231 1.8638 1.3231 1.6752 "&nope; &&" 1.7903 1.8806 solid black
+edge c d 4 4.4481 2.2452 4.4481 2.0827 4.4481 1.8638 4.4481 1.6752 solid black
+edge d e 4 4.4481 1.0113 4.4481 0.90591 4.4481 0.77919 4.4481 0.66027 solid black
+stop

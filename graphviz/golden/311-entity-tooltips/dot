@@ -1,0 +1,36 @@
+digraph G {
+	graph [bb="0,0,146.2,236.43"];
+	node [label="\N"];
+	a	[URL=u,
+		height=0.8171,
+		label="a &amp; b\l\N",
+		pos="33.307,207.02",
+		width=0.9252];
+	b	[height=0.5,
+		pos="33.307,106.8",
+		width=0.75];
+	a -> b	[URL=w,
+		headURL=h,
+		head_lp="24.752,133.65",
+		headlabel="&#945;\N",
+		label="&lt;x&gt;",
+		lp="44.703,151.2",
+		pos="e,33.307,125.25 33.307,177.34 33.307,164.56 33.307,149.52 33.307,136.71"];
+	"n&amp;m"	[URL=v,
+		height=0.5,
+		pos="115.31,207.02",
+		width=0.858];
+	t	[height=0.5,
+		label=T,
+		pos="33.307,18",
+		tooltip="t&amp; \N \G &lt;\nz\\N",
+		width=0.75];
+	b -> t	[head_lp="29.807,44.81",
+		headlabel=h,
+		headtooltip="h&#945;\r",
+		label=L,
+		labeltooltip="l&gt;",
+		lp="37.583,62.4",
+		pos="e,33.307,36.41 33.307,88.651 33.307,76.958 33.307,61.192 33.307,47.618",
+		tooltip="e&amp;\E"];
+}

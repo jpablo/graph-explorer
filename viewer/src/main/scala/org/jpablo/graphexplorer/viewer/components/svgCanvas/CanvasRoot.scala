@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
+import org.jpablo.graphexplorer.viewer.utils.BBox
 import org.scalajs.dom
 
 private[svgCanvas] object CanvasRoot:
@@ -33,3 +34,26 @@ private[svgCanvas] object CanvasRoot:
             svg.insertBefore(group, roots.head)
             roots.foreach(group.appendChild)
             group
+
+  /** Make the zoom of the canvas scale `group` around the center of `viewBox`.
+    *
+    * The canvas transform of the group is `scale(z) translate(x y)`. The group
+    * scales around its CSS `transform-origin`. Without an origin, the origin is
+    * the point (0, 0) of the user space, and Fit (zoom 0.9) moves the drawing
+    * toward that point. The point (0, 0) is not the center of the drawing.
+    *
+    * With `transform-box: view-box`, an origin in `px` is a point in the user
+    * space of the SVG, from the point (0, 0) of that space. It is not an offset
+    * from the corner of the viewBox. Chromium and WebKit 27 agree on this.
+    * Thus the origin is the center of the viewBox in user units.
+    *
+    * The value is inline, so it applies to DOT and Mermaid, and it does not
+    * need the app stylesheet. Each new layout gives a new SVG, and the canvas
+    * calls this function again with the viewBox of that SVG.
+    * `SvgTransformOps.transformOrigin` reads the computed value of this origin.
+    */
+  def centerScaleOrigin(group: dom.svg.G, viewBox: BBox): Unit =
+    val cx = viewBox.x + viewBox.width / 2
+    val cy = viewBox.y + viewBox.height / 2
+    group.style.setProperty("transform-box", "view-box")
+    group.style.setProperty("transform-origin", s"${cx}px ${cy}px")

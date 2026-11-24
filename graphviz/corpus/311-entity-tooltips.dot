@@ -1,0 +1,7 @@
+digraph G {
+  a [URL="u", label="a &amp; b\l\N"];
+  "n&amp;m" [URL="v"];
+  t [tooltip="t&amp; \N \G &lt;\nz\\N", label="T"];
+  a -> b [URL="w", label="&lt;x&gt;", headlabel="&#945;\N", headURL="h"];
+  b -> t [tooltip="e&amp;\E", labeltooltip="l&gt;", label="L", headlabel="h", headtooltip="h&#945;\r"];
+}

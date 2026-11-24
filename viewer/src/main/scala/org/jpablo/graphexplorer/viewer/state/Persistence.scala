@@ -290,7 +290,8 @@ trait Persistence:
         org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id
       ),
       nav3DTrackpad -> restoredViewerSettings.nav3DTrackpad,
-      label3DBillboard -> restoredViewerSettings.label3DBillboard
+      label3DBillboard -> restoredViewerSettings.label3DBillboard,
+      mermaidSheet -> restoredViewerSettings.mermaidSheet
     )
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
@@ -335,6 +336,7 @@ trait Persistence:
       .combineWith(nav3DTrackpad.signal)
       .combineWith(enable3D.signal)
       .combineWith(label3DBillboard.signal)
+      .combineWith(mermaidSheet.signal)
       .changes
       .distinct
       .foreach:
@@ -342,7 +344,8 @@ trait Persistence:
               (leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D, layout3DId,
                 navTrackpad),
               en3D,
-              billboard3D
+              billboard3D,
+              sheet
             ) =>
           // copy, not a fresh ViewerSettings: fields this page does not own (the library's
           // view mode) must survive a detail-page sync instead of resetting to defaults.
@@ -360,6 +363,7 @@ trait Persistence:
               nav3DTrackpad = navTrackpad,
               enable3D = en3D,
               label3DBillboard = billboard3D,
+              mermaidSheet = sheet,
               schemaVersion = ViewerSettings.currentSchemaVersion
             )
           )
@@ -557,6 +561,10 @@ case class ViewerSettings(
     nav3DTrackpad:      Boolean = true,
     // 3D labels turn to face the camera (billboards). Off = fixed sheets.
     label3DBillboard:   Boolean = false,
+    // A sheet behind each Mermaid drawing, as Graphviz has. Off = the canvas
+    // hides the sheet, and an export leaves it out. A stored value with no
+    // such field loads with this default, so no new schemaVersion is needed.
+    mermaidSheet:       Boolean = true,
     // Library page: false = thumbnail cards, true = compact rows.
     libraryListMode:    Boolean = false,
     // Library page: the sort column, and the format the list is filtered to.

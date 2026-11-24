@@ -40,6 +40,9 @@ object Cluster:
     *                 the root graph, which defaults to BOTTOM.
     * @param labelJust `labeljust` — 'l' / 'r' / 'c' (anything else ⇒ centred).
     * @param fontName / fontColor — the cluster's label font, for the svg writer.
+    * @param labelHtml true when [[label]] is HTML-like markup. Then the label
+    *                 box comes from the HTML layout, and the svg writer draws
+    *                 the parsed content, not the raw text.
     */
   final case class CInfo(
       name:      String,
@@ -55,7 +58,8 @@ object Cluster:
       labelJust: Char    = 'c',
       fontSize:  Double  = DefFontSize,
       fontName:  String  = "Times-Roman",
-      fontColor: String  = ""
+      fontColor: String  = "",
+      labelHtml: Boolean = false
   ) derives CanEqual:
     def hasLabel: Boolean = label.nonEmpty
 
@@ -200,10 +204,13 @@ object Cluster:
       // DEFAULT_FONTNAME. `FontMetrics.canon` folds "Times-Roman" ≡ "Times",
       // so the one string serves both the metrics and the svg family lookup.
       val fn = s.attrs.getOrElse("fontname", "Times-Roman")
+      // An HTML label gets the box of its HTML layout (bold, font sizes,
+      // <br/> lines, tables), as a node label does.
       val (lw, lh) =
         if s.label.nonEmpty then
-          (NodeSize.labelWidthPt(s.label, fs, fn, g.name.getOrElse("")),
-           NodeSize.labelHeightPt(s.label, fs, g.name.getOrElse("")))
+          // `\G` in a cluster label is the name of the cluster
+          // (strdup_and_subst_obj0 takes agnameof of the subgraph).
+          NodeSize.graphLabelDimPt(s.label, s.labelHtml, fs, fn, NodeSize.LabelCtx.of(g).copy(graphName = s.id), g.images)
         else (0.0, 0.0)
       // input.c:844 — a cluster's labelloc defaults to TOP (the root's to
       // BOTTOM); labeljust takes only the first character.
@@ -213,7 +220,7 @@ object Cluster:
         clustOfB.iterator.collect { case (nm, c) if c == ci => nm }.toSet,
         if rs.isEmpty then 0 else rs.min,
         if rs.isEmpty then 0 else rs.max,
-        lw, lh, top, just, fs, fn, s.attrs.getOrElse("fontcolor", ""))
+        lw, lh, top, just, fs, fn, s.attrs.getOrElse("fontcolor", ""), s.labelHtml)
     }
     (infos, clustOfB.toMap)
 

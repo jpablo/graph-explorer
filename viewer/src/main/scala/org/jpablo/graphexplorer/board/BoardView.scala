@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.gxcore.model.BoardItem
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.RenderState
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.ErrorAlert
 import org.jpablo.graphexplorer.viewer.state.{DiagramLoadStatus, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.MenuOption
@@ -333,6 +334,12 @@ private def itemFrame(
     ),
     div(
       cls := "board-item-body",
+      // The item follows the setting for the sheet behind a Mermaid drawing.
+      // The embedded viewer reads the settings when the board opens.
+      cls(MermaidBackend.noSheetClass) <-- content.signal.flatMapSwitch:
+        case ItemContent.Shown(_, viewer) => viewer.mermaidSheet.signal.map(!_)
+        case _                            => Val(false)
+      ,
       child <-- content.signal.flatMapSwitch(bodyOf),
       onDblClick --> (_ => open())
     ),

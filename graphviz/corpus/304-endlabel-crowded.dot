@@ -1,0 +1,16 @@
+digraph G {
+  subgraph cluster_x {
+    label="Crowded";
+    hub;
+  }
+  hub -> a [headlabel="0..1", taillabel="1"];
+  hub -> b [headlabel="0..*", taillabel="1"];
+  hub -> c [headlabel="1..*", taillabel="0..1"];
+  hub -> d [headlabel="*", taillabel="1"];
+  hub -> e [headlabel="2", taillabel="many"];
+  a -> b [headlabel="x", taillabel="y"];
+  subgraph cluster_y {
+    label="Leaves"; labelloc=b;
+    c; d;
+  }
+}

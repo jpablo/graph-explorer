@@ -1,0 +1,120 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,131.84,252",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "68.843,234",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "32.843,162",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "104.84,162",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "68.843,90",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "68.843,18",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "fontcolor": "blue",
+      "fontname": "Helvetica",
+      "fontsize": "10",
+      "head_lp": "20.574,185.15",
+      "headlabel": "10pt blue",
+      "pos": "e,41.147,179.15 60.494,216.76 56.268,208.55 51.035,198.37 46.262,189.09",
+      "tail_lp": "66.885,210.76",
+      "taillabel": "tail"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "fontcolor": "blue",
+      "fontname": "Helvetica",
+      "fontsize": "10",
+      "head_lp": "80.312,183.95",
+      "headlabel": "small red",
+      "labelfontcolor": "red",
+      "labelfontsize": "8",
+      "pos": "e,96.539,179.15 77.193,216.76 81.418,208.55 86.651,198.37 91.424,189.09",
+      "tail_lp": "76.081,211.96",
+      "taillabel": "t"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "fontcolor": "blue",
+      "fontname": "Helvetica",
+      "fontsize": "10",
+      "head_lp": "39.535,113.15",
+      "headlabel": "courier",
+      "labelfontname": "Courier",
+      "pos": "e,60.539,107.15 41.193,144.76 45.418,136.55 50.651,126.37 55.424,117.09",
+      "tail_lp": "53.195,138.76",
+      "taillabel": "mono"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 3,
+      "fontcolor": "blue",
+      "fontname": "Helvetica",
+      "fontsize": "20",
+      "head_lp": "90.492,119.15",
+      "headlabel": "big",
+      "labelfontcolor": "#00aa00",
+      "pos": "e,77.147,107.15 96.494,144.76 92.268,136.55 87.035,126.37 82.262,117.09"
+    },
+    {
+      "_gvid": 4,
+      "tail": 3,
+      "head": 4,
+      "fontcolor": "blue",
+      "fontname": "Helvetica",
+      "fontsize": "10",
+      "head_lp": "83.066,45.704",
+      "headlabel": "bold",
+      "labelfontname": "Times-Bold",
+      "labelfontsize": "16",
+      "pos": "e,68.843,36.104 68.843,71.697 68.843,64.407 68.843,55.726 68.843,47.536",
+      "tail_lp": "60.843,62.097",
+      "taillabel": "16"
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,341.65,530.36",
+  "label": "\\G &amp; root\\lleft &lt;\\rright &gt;\\n",
+  "lheight": "0.70",
+  "lp": "170.83,29.2",
+  "lwidth": "0.70",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_q",
+      "bb": "8,405.93,174,522.36",
+      "label": "\\G &amp; one\\ntwo &lt;",
+      "lheight": "0.47",
+      "lp": "91,501.56",
+      "lwidth": "1.24",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "n&amp;m",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "47,443.34",
+      "width": "0.858"
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "height": "0.8171",
+      "label": "\\N &lt;\\l&amp; left\\l",
+      "pos": "131,443.34",
+      "width": "0.96333"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "height": "1.1314",
+      "label": "&lt;\\N&gt;\\r&#92;nright &amp;\\r",
+      "pos": "131,291.72",
+      "width": "1.1163"
+    },
+    {
+      "_gvid": 4,
+      "name": "x&#60;y",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "211,443.34",
+      "shape": "box",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "c",
+      "height": "1.1471",
+      "label": "one&#92;ntwo&#92;lthree",
+      "pos": "131,172.7",
+      "width": "0.86384"
+    },
+    {
+      "_gvid": 6,
+      "name": "d",
+      "height": "0.5",
+      "label": "\\\\N &amp;\\\\ \\G",
+      "pos": "131,76.4",
+      "width": "1.1858"
+    },
+    {
+      "_gvid": 7,
+      "name": "e",
+      "height": "1.1471",
+      "label": "raw\nnewline&#10;and &amp;",
+      "pos": "299,443.34",
+      "width": "1.1847"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "label": "\\N &amp; \\G\\nline 2",
+      "lp": "150.06,367.25",
+      "pos": "e,131,332.79 131,413.49 131,393.88 131,367.38 131,344.21"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 5,
+      "label": "",
+      "pos": "e,131,214.26 131,250.77 131,242.67 131,234.04 131,225.59",
+      "xlabel": "&lt;\\N&gt;",
+      "xlp": "118.05,241.15"
+    },
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 6,
+      "head_lp": "139.56,103.1",
+      "headlabel": "&#945;\\N",
+      "label": "",
+      "pos": "e,131,94.695 131,131.16 131,122.67 131,113.9 131,105.96",
+      "tail_lp": "123.61,114.36",
+      "taillabel": "t&amp;\\lu"
+    }
+  ]
+}

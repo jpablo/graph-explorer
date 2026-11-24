@@ -71,6 +71,8 @@ final case class REdge(
   * @param id       resolved cgraph name — the verbatim id for named subgraphs
   *                 (`cluster_0`), or the synthesized anonymous name `%<n>`.
   * @param label    the subgraph's graph-`label` attr, `""` if none.
+  * @param labelHtml true when [[label]] came from an HTML-like `<...>` string
+  *                 (Graphviz `LT_HTML`). Then [[label]] is the raw markup.
   * @param isCluster whether `id` starts with `cluster` (drives layout + emit).
   * @param rank     `rank=same|min|max|source|sink`, if set (a rank-constraint
   *                 subgraph — evicts its nodes from any cluster membership).
@@ -109,7 +111,8 @@ final case class RSubgraph(
       * is the sixth subgraph, so its id is `clust6`. A second body of a
       * named subgraph keeps the first seq, but its new children get new
       * seqs, so this order can differ from the preorder of the tree. */
-    seq:       Int = 0
+    seq:       Int = 0,
+    labelHtml: Boolean = false
 ) derives CanEqual
 
 final case class RGraph(
@@ -164,6 +167,7 @@ object AttrResolver:
     val children  = mutable.ListBuffer.empty[Builder]   // first-body order
     val named     = mutable.HashMap.empty[String, Builder] // named children, by name
     var label     = ""
+    var labelHtml = false
     var rank      = Option.empty[String]
     var localNode = Attrs.empty
     var localEdge = Attrs.empty
@@ -240,7 +244,7 @@ object AttrResolver:
       val isClu = b.id.toLowerCase.startsWith("cluster") || sgAttrs.get("cluster").exists(mapBool)
       RSubgraph(b.id, b.label, isClu, b.rank,
         b.nodeIds.toVector, b.edgeIdxs.toVector, b.children.iterator.map(build).toVector, sgAttrs,
-        b.seq)
+        b.seq, b.labelHtml)
 
     /** Read one body into `level`. A statement changes the data of `level`,
       * and a default statement also changes the scope of the next statements
@@ -248,9 +252,11 @@ object AttrResolver:
     def walk(stmts: List[ast.Stmt], sc0: Scope, level: Builder, isRoot: Boolean): Unit =
       var sc = sc0
 
-      def captureGraphAttr(k: String, v: String): Unit =
-        if k == "label" then level.label = v
-        if k == "rank" then level.rank = Some(v)
+      def captureGraphAttr(k: String, v: ast.Id): Unit =
+        if k == "label" then
+          level.label = v.value
+          level.labelHtml = v.html
+        if k == "rank" then level.rank = Some(v.value)
 
       def setGraph(a: Attrs): Unit =
         if isRoot then rootAttrs = rootAttrs ++ a
@@ -268,12 +274,12 @@ object AttrResolver:
               sc = sc.copy(edge = sc.edge ++ a)
               level.localEdge = level.localEdge ++ a
             case ast.AttrTarget.Graph =>
-              as.foreach { case (k, v) => graphAttrKeys += k.value; captureGraphAttr(k.value, v.value) }
+              as.foreach { case (k, v) => graphAttrKeys += k.value; captureGraphAttr(k.value, v) }
               setGraph(a)
 
         case ast.Stmt.Assign(k, v) =>
           graphAttrKeys += k.value
-          captureGraphAttr(k.value, v.value)
+          captureGraphAttr(k.value, v)
           setGraph(Attrs(Map(k.value -> v.value), if v.html then Set(k.value) else Set.empty))
 
         case ast.Stmt.NodeStmt(nid, as) =>

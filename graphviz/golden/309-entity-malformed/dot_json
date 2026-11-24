@@ -1,0 +1,57 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 462 198",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "&bogus; & x &amp y"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "&#;p &#0;q &#x;r &;s"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "label": "&thetasym; &alefsym; &zwnj;."
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "label": "&#1234567; &#12345; &#xABCDE0; &#x2603;"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "label": "& amp; &AMP; &Amp; &#x41&#65;"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "label": "&nope; &&amp;"
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 3,
+      "headlabel": "&x;",
+      "label": "",
+      "taillabel": "&#;"
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 4,
+      "label": "",
+      "xlabel": "&lt &gt;"
+    }
+  ]
+}
