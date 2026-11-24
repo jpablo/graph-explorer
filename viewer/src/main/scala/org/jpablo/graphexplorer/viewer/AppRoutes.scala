@@ -8,12 +8,13 @@ import org.jpablo.graphexplorer.library.{BrowserBoards, Library, LibraryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
-import org.jpablo.graphexplorer.viewer.components.{Commands, DiagramBody, DiagramHeader, RouterCommands, TopLevel, TopLevelFrame}
+import org.jpablo.graphexplorer.viewer.components.{Commands, DiagramBanners, DiagramBody, DiagramView, RouterCommands, Toolbar, TopLevel, TopLevelFrame}
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopViewWiring}
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, RightPanelSection, ViewerSettings, ViewerState, ViewTarget}
+import org.jpablo.graphexplorer.viewer.utils.Platform
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small, tiny}
 import org.scalajs.dom
 
@@ -75,8 +76,13 @@ private enum WorkspaceDiagram derives CanEqual:
   */
 private final case class DiagramVisit(state: ViewerState, commands: Commands, close: () => Unit)
 
-/** The parts of the workspace that belong to one diagram. */
-private final case class DiagramPage(state: ViewerState, header: Seq[HtmlElement], body: Seq[HtmlElement])
+/** The parts of the workspace that belong to one diagram. The toolbar is not
+  * one of them: the workspace mounts one toolbar, and gives it the `view`.
+  */
+private final case class DiagramPage(view: DiagramView, banners: Seq[HtmlElement], body: Seq[HtmlElement])
+
+/** The panels that a workspace gives to each of its views. */
+private final case class Panels(leftPanelVisible: Var[Boolean], rightPanelActiveSection: Var[RightPanelSection])
 
 /** The page for each route of the app: the library page, a diagram, a file, an
   * example, and a board.
@@ -86,14 +92,13 @@ object AppRoutes:
   def apply(services: AppServices): Div =
     import services.*
 
-    var lastRightPanelSection = RightPanelSection.none
-
     /** Make the state of one diagram visit, and link it to the desktop.
       *
-      * `leftPanelVisible` comes from the caller. The workspace gives one Var to
-      * all its views, so the Library panel stays as it is after a switch.
+      * The panels come from the caller. The workspace gives one Var of each to
+      * all its views, so the Library panel and the right panel stay as they
+      * are after a switch.
       */
-    def openVisit(target: ViewTarget, source: Option[String], leftPanelVisible: Var[Boolean]): DiagramVisit =
+    def openVisit(target: ViewTarget, source: Option[String], panels: Panels): DiagramVisit =
       // An owner for this one diagram visit. The code kills it when the view
       // unmounts. Thus the subscriptions of the ViewerState (phases, persistence,
       // theme, panels...) and the whole object graph that they keep are released.
@@ -110,14 +115,11 @@ object AppRoutes:
           errorBus = errors,
           infoBus = infos,
           initialSource = source,
-          initialRightPanelSection = lastRightPanelSection,
-          leftPanelVisible = leftPanelVisible,
+          rightPanelActiveSection = panels.rightPanelActiveSection,
+          leftPanelVisible = panels.leftPanelVisible,
           clientSize = clientSize,
           logLevel = logLevel
         )(using viewOwner)
-      // A bit hacky: we need to keep track of the last right panel section selected,
-      // otherwise there's a noticeable transition none => something when switching diagrams
-      state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)(using viewOwner)
       // The leave guard, the close guard, the live view tier and the open
       // handshake, on the owner of this view. The tests call the same
       // function, so they drive this wiring and not a copy.
@@ -149,8 +151,12 @@ object AppRoutes:
           viewOwner.killSubscriptions()
       )
 
-    /** The Library panel starts as the stored viewer settings say. */
-    def storedLeftPanelVisible: Boolean = Library.readViewerSettings().leftPanelVisible
+    /** The panels start as the stored viewer settings say. A view sets them
+      * again at its restore only when the values are different.
+      */
+    def storedPanels(): Panels =
+      val stored = Library.readViewerSettings()
+      Panels(Var(stored.leftPanelVisible), Var(RightPanelSection.fromStored(stored.rightPanelTabIndex)))
 
     /** The page of a built-in example: a read-only visit with its own Library
       * panel. It turns off persistence and puts the "copy to my library" strip
@@ -158,7 +164,7 @@ object AppRoutes:
       * weaker one. Each example route builds the whole page again.
       */
     def exampleView(slug: String, name: String, text: String): Div =
-      val visit = openVisit(ViewTarget.Example(slug, name), Some(text), Var(storedLeftPanelVisible))
+      val visit = openVisit(ViewTarget.Example(slug, name), Some(text), storedPanels())
       TopLevel(visit.state, router, visit.commands, Some(exampleBanner(name, visit.state, routerCmds)))
         .amend(onUnmountCallback(_ => visit.close()))
 
@@ -174,13 +180,13 @@ object AppRoutes:
       * holds what the shell sent, and a reload of this route shows the file
       * again rather than an empty diagram.
       */
-    def diagramPage(diagram: WorkspaceDiagram, leftPanelVisible: Var[Boolean]): DiagramPage =
+    def diagramPage(diagram: WorkspaceDiagram, panels: Panels): DiagramPage =
       val visit = diagram match
-        case WorkspaceDiagram.Stored(id, source) => openVisit(ViewTarget.diagram(id), source, leftPanelVisible)
-        case WorkspaceDiagram.File(session)      => openVisit(ViewTarget.File(session), None, leftPanelVisible)
+        case WorkspaceDiagram.Stored(id, source) => openVisit(ViewTarget.diagram(id), source, panels)
+        case WorkspaceDiagram.File(session)      => openVisit(ViewTarget.File(session), None, panels)
       DiagramPage(
-        visit.state,
-        header = DiagramHeader(visit.state, visit.commands, banner = None),
+        DiagramView(visit.state, visit.commands),
+        banners = DiagramBanners(visit.state, banner = None),
         // The view dies when its canvas area unmounts. That occurs in the
         // transaction of the switch, as before the workspace.
         body = DiagramBody(visit.state, router, visit.commands, canvasArea = onUnmountCallback(_ => visit.close()))
@@ -188,8 +194,9 @@ object AppRoutes:
 
     /** The page of the diagram routes. It stays on the screen while a person
       * opens one diagram after another. Only the parts of one diagram (the
-      * toolbar, the canvas, the right panel, the dialogs) are built again. The
-      * Library panel keeps its DOM nodes and its scroll position.
+      * banners, the canvas, the right panel, the dialogs) are built again. The
+      * toolbar and the Library panel keep their DOM nodes, and the list keeps
+      * its scroll position.
       *
       * The page split makes a new workspace each time that the screen comes to
       * the diagram routes from a different page, and the route split is new on
@@ -197,17 +204,23 @@ object AppRoutes:
       * diagram split never gives a view whose owner is dead.
       */
     def diagramWorkspace(diagrams: Signal[WorkspaceDiagram]): Div =
-      // The workspace owns the visibility of the Library panel, so it outlives
-      // each view. Each view toggles it (Cmd+B) and saves it to the settings.
-      val leftPanelVisible = Var(storedLeftPanelVisible)
+      // The workspace owns the panels, so they outlive each view. The toolbar
+      // toggles the Library panel (Cmd+B), and each view saves the panels to
+      // the settings.
+      val panels = storedPanels()
       // One split for all the parts below, so each diagram gets one view.
       val pages: Signal[DiagramPage] =
-        diagrams.splitOne(d => d)((diagram, _, _) => diagramPage(diagram, leftPanelVisible))
+        diagrams.splitOne(d => d)((diagram, _, _) => diagramPage(diagram, panels))
+      val views = pages.map(_.view)
       TopLevelFrame(
-        header = children <-- pages.map(_.header),
+        header = Seq(
+          Toolbar(views, views.flatMapSwitch(_.state.displayTitle), panels.leftPanelVisible, Platform.isMac),
+          // Under the toolbar, and above the canvas row.
+          children <-- pages.map(_.banners)
+        ),
         leftPanel = LeftPanel(
-          pages.map(_.state),
-          leftPanelVisible.signal,
+          views.map(_.state),
+          panels.leftPanelVisible.signal,
           DefaultDiagramLanguages(graphviz),
           router,
           routerCmds

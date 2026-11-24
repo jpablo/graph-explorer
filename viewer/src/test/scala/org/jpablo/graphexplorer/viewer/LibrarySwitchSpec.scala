@@ -55,6 +55,27 @@ class LibrarySwitchSpec extends FunSuite with TestHelpers with LoggedChecks:
     def canvasText: String =
       Option(box.querySelector("#canvas-container svg")).map(_.textContent).getOrElse("")
 
+    def toolbar: dom.Element = box.querySelector("#toolbar")
+
+    /** The item of a toolbar menu with the label `label`. The items of a
+      * dropdown are always in the DOM.
+      */
+    def toolbarMenuItem(label: String): Option[dom.html.Element] =
+      Option(toolbar)
+        .toSeq
+        .flatMap(_.querySelectorAll("ul.menu li > a").toSeq)
+        .collectFirst { case a: dom.html.Element if a.querySelector("span") != null && a.querySelector("span").textContent.trim == label => a }
+
+    /** The names of the canvas nodes that have the class `selected`. A Graphviz
+      * node has its name in `<title>`, and the label again in `<text>`.
+      */
+    def selectedNodes: Set[String] =
+      box
+        .querySelectorAll("#canvas-container svg g.node.selected")
+        .toSeq
+        .map(n => Option(n.querySelector("title")).map(_.textContent.trim).getOrElse(""))
+        .toSet
+
     def close(): Unit =
       root.unmount()
       box.parentNode.removeChild(box)
@@ -160,4 +181,28 @@ class LibrarySwitchSpec extends FunSuite with TestHelpers with LoggedChecks:
           check(
             app.row("Switch B").exists(_.classList.contains("gx-row-active")),
             "after the visit to the library page, the row 'Switch B' is not marked as open"
+          )
+
+  test("a click in the Library keeps the toolbar, and the toolbar acts on the new diagram"):
+    withApp: app =>
+      val toolbar = app.toolbar
+      check(toolbar != null, "precondition: the page shows no #toolbar")
+      app.row("Switch B").foreach(_.click())
+      Waits
+        .settle(app.canvasText.contains("beta1"), timeoutMs = 10000)
+        .flatMap: _ =>
+          check(app.canvasText.contains("beta1"), "the canvas does not show the diagram 'Switch B' after the click")
+          check(app.toolbar eq toolbar, "the click built a new toolbar (#toolbar is a new DOM node)")
+          check(
+            app.toolbar.textContent.contains("Switch B"),
+            s"the toolbar does not show the title 'Switch B': '${app.toolbar.textContent.take(200)}'"
+          )
+          val selectAll = app.toolbarMenuItem("Select all nodes")
+          check(selectAll.isDefined, "precondition: the toolbar has no menu item 'Select all nodes'")
+          selectAll.foreach(_.click())
+          Waits.settle(app.selectedNodes.nonEmpty, timeoutMs = 5000)
+        .map: _ =>
+          check(
+            app.selectedNodes == Set("beta1", "beta2"),
+            s"'Select all nodes' in the toolbar did not select the nodes of 'Switch B': ${app.selectedNodes}"
           )

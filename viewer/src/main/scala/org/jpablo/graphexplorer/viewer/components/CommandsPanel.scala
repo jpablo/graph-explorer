@@ -9,13 +9,26 @@ import org.scalajs.dom.KeyValue
 
 import scala.scalajs.js
 
-/** The ⌘K palette.
+/** The ⌘K palette of one view.
   *
   * @param isMac true on an Apple platform. It selects the command key of the
   *              palette shortcut (`Platform.commandKey`). A test can give
   *              either platform.
   */
-def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platform.isMac) =
+def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platform.isMac): Div =
+  CommandsPanel(Val(DiagramView(state, commands)), isMac)
+
+/** The ⌘K palette of the view on the screen.
+  *
+  * The toolbar of the diagram workspace mounts this palette one time, and gives
+  * it the views one after the other in `views`. The search term and the
+  * highlight are local to the palette, so they stay after a switch.
+  *
+  * The commands and the selection come from the current view through one
+  * `flatMapSwitch`. Thus the rows never show the commands of one view with the
+  * selection of a different view.
+  */
+def CommandsPanel(views: Signal[DiagramView], isMac: Boolean): Div =
   val searchTerm     = Var("")
   val searchHasFocus = Var(false)
   val focusSearch    = EventBus[Boolean]()
@@ -28,7 +41,7 @@ def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platf
     cmd.shortLabel.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
 
   /** The sections that have a visible command, in the order of `byHeader`. */
-  def visibleSections(term: String, selection: Selection): Seq[(String, List[Command[?]])] =
+  def visibleSections(commands: Commands, term: String, selection: Selection): Seq[(String, List[Command[?]])] =
     commands.byHeader.toSeq
       .map((title, cmds) => title -> cmds.filter(shouldShowCommand(term, selection)))
       .filter((_, cmds) => cmds.nonEmpty)
@@ -41,7 +54,8 @@ def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platf
     * term and the selection (for example the selected record cell).
     */
   val sections: Signal[Seq[(String, List[Command[?]])]] =
-    searchTerm.signal.combineWithFn(state.selection.signal)(visibleSections)
+    views.flatMapSwitch: view =>
+      searchTerm.signal.combineWithFn(view.state.selection.signal)(visibleSections(view.commands, _, _))
 
   def commandRow(cmd: Command[?], cmdIndex: Int): LI =
     val isActive = highlightedIndex.signal.map(_ == cmdIndex)
@@ -85,7 +99,7 @@ def CommandsPanel(state: ViewerState, commands: Commands, isMac: Boolean = Platf
     // outlived the panel — including a document-level Cmd+K listener leaked per visit):
     // reset the highlighted index when the search term or selection changes,
     searchTerm.signal --> (_ => highlightedIndex.set(-1)),
-    state.selection.signal --> (_ => highlightedIndex.set(-1)),
+    views.flatMapSwitch(_.state.selection.signal) --> (_ => highlightedIndex.set(-1)),
     // and focus the palette on the command key of the platform + K while
     // this panel is mounted: ⌘K on a Mac, Ctrl+K on Windows and Linux. On a
     // Mac, Ctrl+K stays with the focused field, where it deletes to the end

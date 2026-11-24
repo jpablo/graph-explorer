@@ -47,10 +47,25 @@ def TopLevelFrame(
     )
   )
 
-/** The parts above the canvas row that belong to one diagram. */
+/** One view of a diagram: its state and its commands.
+  *
+  * The diagram workspace gives the parts that it mounts one time (the toolbar,
+  * the Library panel) a signal of this value. A part reads the current view
+  * from that signal.
+  */
+final case class DiagramView(state: ViewerState, commands: Commands)
+
+/** The parts above the canvas row that belong to one diagram: the toolbar and
+  * the banners.
+  */
 def DiagramHeader(state: ViewerState, commands: Commands, banner: Option[Div]): Seq[HtmlElement] =
-  Seq(Toolbar(state.displayTitle, commands, state)) ++
-    banner.toSeq ++
+  Toolbar(state.displayTitle, commands, state) +: DiagramBanners(state, banner)
+
+/** The banners of one diagram, under the toolbar. The diagram workspace mounts
+  * one toolbar for all its diagrams, and these banners for each diagram.
+  */
+def DiagramBanners(state: ViewerState, banner: Option[Div]): Seq[HtmlElement] =
+  banner.toSeq ++
     // Under any banner, and above the canvas: §7.3 requires an answer before
     // the edit or the file is lost, so it must not be somewhere to scroll to.
     Seq(DocumentConflictBanner(state))

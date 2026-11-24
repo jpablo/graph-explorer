@@ -10,9 +10,18 @@ enum RightPanelSection derives CanEqual:
 
   def isVisible = this != none
 
+object RightPanelSection:
+  /** The section of a stored index (`ViewerSettings.rightPanelTabIndex`). An
+    * unknown index gives `none`.
+    */
+  def fromStored(index: Int): RightPanelSection =
+    scala.util.Try(fromOrdinal(index)).getOrElse(none)
+
 trait UIState:
-  val initialRightPanelSection: RightPanelSection
-  val rightPanelActiveSection = Var(initialRightPanelSection)
+  /** The section that the right panel shows. A workspace of diagrams can give
+    * one Var to each view that it makes. Thus the value outlives each view.
+    */
+  val rightPanelActiveSection: Var[RightPanelSection]
   val helpDialogOpen          = Var(false)
 
   /** True when the Library panel shows. A workspace of diagrams can give one

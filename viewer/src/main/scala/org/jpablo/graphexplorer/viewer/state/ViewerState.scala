@@ -48,7 +48,12 @@ case class ViewerState(
       * own text, and a file takes the text of its session.
       */
     initialSource:            Option[String] = None,
-    initialRightPanelSection: RightPanelSection = RightPanelSection.none,
+    /** The section that the right panel shows. The diagram workspace gives
+      * its own Var, so a switch of diagrams keeps the panel as it is. A view
+      * with no workspace gets a Var of its own, and the restore sets it from
+      * the stored viewer settings.
+      */
+    rightPanelActiveSection:  Var[RightPanelSection] = Var(RightPanelSection.none),
     /** The visibility of the Library panel. The diagram workspace gives its
       * own Var, so a switch of diagrams keeps the panel as it is. A view with
       * no workspace gets a Var of its own, and the restore sets it from the
