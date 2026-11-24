@@ -178,6 +178,31 @@ trait SvgTransformOps:
     val scale        = viewBox.width / clientWidth max viewBox.height / clientHeight
     panBy(SvgPoint(dx * scale / z, dy * scale / z))
 
+  /** The zoom at the start of a WebKit pinch (`gesturestart`). It is empty when
+    * no WebKit pinch is active. */
+  private var pinchStartZoom = Option.empty[Double]
+
+  /** Set the zoom to `requested` (not less than [[minZoom]]), and keep the
+    * drawing point at the client point `at` still.
+    *
+    * The function reads the anchor (`getScreenCTM`) one time, before the
+    * transform write. It reads no layout after the write.
+    */
+  private def zoomAtClient(at: ClientPoint, requested: Double, mainGroup: dom.svg.G): Unit =
+    val oldZoom = zoomValue.now()
+    val newZoom = requested max minZoom
+    if newZoom != oldZoom then
+      Option(mainGroup.getScreenCTM()).foreach: ctm =>
+        val anchor = at.toSvgPoint(ctm)
+        val origin = SvgTransformOps.transformOrigin(mainGroup)
+        cancelPanChase()
+        val pan = SvgTransformOps.anchoredPan(translateXY.now(), anchor, origin, oldZoom, newZoom)
+        targetXY = pan
+        Var.set(
+          zoomValue   -> newZoom,
+          translateXY -> pan
+        )
+
   def handleWheel(wEv: dom.WheelEvent, viewBox: dom.SVGRect, mainGroup: dom.svg.G) =
     val clientHeight = dom.window.innerHeight max 1
     val clientWidth  = dom.window.innerWidth max 1
@@ -185,19 +210,14 @@ trait SvgTransformOps:
     userMoved()
 
     if wEv.metaKey && wEv.deltaY != 0 then
-      val oldZoom = zoomValue.now()
-      val newZoom = oldZoom - wEv.deltaY / clientHeight max minZoom
-      if newZoom != oldZoom then
-        Option(mainGroup.getScreenCTM()).foreach: ctm =>
-          val anchor = ClientPoint(wEv.clientX, wEv.clientY).toSvgPoint(ctm)
-          val origin = SvgTransformOps.transformOrigin(mainGroup)
-          cancelPanChase()
-          val pan = SvgTransformOps.anchoredPan(translateXY.now(), anchor, origin, oldZoom, newZoom)
-          targetXY = pan
-          Var.set(
-            zoomValue   -> newZoom,
-            translateXY -> pan
-          )
+      zoomAtClient(ClientPoint(wEv.clientX, wEv.clientY), zoomValue.now() - wEv.deltaY / clientHeight, mainGroup)
+    else if wEv.ctrlKey then
+      // Chromium and Firefox send a trackpad pinch as a wheel event with
+      // `ctrlKey`. A pinch by the factor s gives a deltaY of about -100 * ln(s).
+      // During a WebKit pinch, the gesture events set the zoom. Thus the
+      // canvas ignores these wheel events, and the pinch zooms one time only.
+      if pinchStartZoom.isEmpty && wEv.deltaY != 0 then
+        zoomAtClient(ClientPoint(wEv.clientX, wEv.clientY), zoomValue.now() * math.exp(-wEv.deltaY / 100), mainGroup)
     else
       val z     = zoomValue.now()
       val scale = viewBox.width / clientWidth max viewBox.height / clientHeight
@@ -205,6 +225,23 @@ trait SvgTransformOps:
       // frame cost one transform write between them instead of one apiece —
       // and the chrome refit that rides on every write likewise runs per frame.
       panBy(SvgPoint(wEv.deltaX * scale / z, wEv.deltaY * scale / z))
+
+  /** A WebKit pinch starts (`gesturestart`). The function keeps the zoom of
+    * this time. */
+  def pinchStart(): Unit =
+    userMoved()
+    pinchStartZoom = Some(zoomValue.now())
+
+  /** A WebKit pinch changes (`gesturechange`). `scale` is the factor since
+    * [[pinchStart]], and `at` is the client point between the fingers. */
+  def pinchChange(scale: Double, at: ClientPoint, mainGroup: dom.svg.G): Unit =
+    pinchStartZoom.foreach: startZoom =>
+      userMoved()
+      zoomAtClient(at, startZoom * scale, mainGroup)
+
+  /** A WebKit pinch ends (`gestureend`). */
+  def pinchEnd(): Unit =
+    pinchStartZoom = None
 
 /** The pan and zoom of the drawing group of the canvas.
   *

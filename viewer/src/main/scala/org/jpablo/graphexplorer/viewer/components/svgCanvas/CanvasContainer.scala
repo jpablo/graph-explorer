@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
 import org.jpablo.graphexplorer.viewer.state.{EditorNotice, ViewerState}
-import org.jpablo.graphexplorer.viewer.utils.ClientPoint
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils}
 import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
 
 import scala.scalajs.js
@@ -85,8 +85,41 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
       (e, svgElemO) => svgElemO.foreach: s =>
         val mainGroup = CanvasRoot.mainGroup(s.ref)
         state.handleWheel(e, s.ref.viewBox.baseVal, mainGroup)
-    )
+    ),
+    // WebKit (Safari and the macOS desktop window) sends a trackpad pinch as
+    // gesture events, not as wheel events. The canvas cancels gesturestart and
+    // gesturechange, so that Safari does not zoom the whole page. As with the
+    // wheel, the cancel occurs also in 3D, and the guard stops the 2D zoom.
+    // gestureend has no guard: it always ends the pinch.
+    onGestureStart.preventDefault(_.filter(_ => !state.view3DActiveNow)) --> state.pinchStart(),
+    onGestureChange.preventDefault(_.filter(_ => !state.view3DActiveNow).withCurrentValueOf(state.finalSVG)) --> (
+      (e, svgElemO) =>
+        for
+          s     <- svgElemO
+          scale <- gestureNumber(e, "scale").filter(_ > 0)
+        do
+          // Use the center of the svg if the event has no client point.
+          val at =
+            (gestureNumber(e, "clientX"), gestureNumber(e, "clientY")) match
+              case (Some(x), Some(y)) => ClientPoint(x, y)
+              case _                  => DistanceUtils.clientRectCenter(s.ref.getBoundingClientRect())
+          state.pinchChange(scale, at, CanvasRoot.mainGroup(s.ref))
+    ),
+    onGestureEnd --> state.pinchEnd()
   )
+
+// scalajs-dom has no type for the WebKit `GestureEvent`, and Chromium has no
+// such class. Thus the canvas reads the properties of the event dynamically.
+private val onGestureStart  = eventProp[dom.Event]("gesturestart")
+private val onGestureChange = eventProp[dom.Event]("gesturechange")
+private val onGestureEnd    = eventProp[dom.Event]("gestureend")
+
+/** The number property `name` of the event `e`. It is empty if the property is
+  * not a finite number. */
+private def gestureNumber(e: dom.Event, name: String): Option[Double] =
+  val v = e.asInstanceOf[js.Dynamic].selectDynamic(name)
+  if js.typeOf(v) == "number" then Some(v.asInstanceOf[Double]).filter(x => !x.isNaN && !x.isInfinite)
+  else None
 
 private[svgCanvas] val viewOnlyChipPulseKeyframes = js.Array(
   js.Dynamic.literal(transform = "scale(1)"),
