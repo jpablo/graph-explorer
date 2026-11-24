@@ -45,6 +45,7 @@
             <a href="#features">Features</a>
             <a href="#desktop">Desktop</a>
             <a href="#gx">gx</a>
+            <a href="#skill">Skill</a>
             <a href="#download">Download</a>
             <a href="https://github.com/jpablo/graph-explorer">GitHub</a>
         </nav>
@@ -121,10 +122,12 @@
                 <p>
                     Select a node, then show or hide the nodes before it or after it, one layer at a time or all of them.
                     Keep only the selection, or hide it. Collapse a group into one node, or zoom into it.
+                    On a trackpad, pinch to zoom and move two fingers to pan.
                 </p>
                 <ul class="keys">
                     <li><kbd>/</kbd> Find a node by its name</li>
                     <li><kbd>⌘</kbd><kbd>K</kbd> Find a command</li>
+                    <li><kbd>⌘</kbd><kbd>B</kbd> Show or hide the Library</li>
                     <li><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Move the selection along the arrows</li>
                 </ul>
             </div>
@@ -137,7 +140,7 @@
                     Change the style of the selection from the toolbar. Drag from a node to add an arrow.
                     Drag the end of an arrow to connect it to a different node.
                     Put nodes into a group, and edit DOT records and HTML tables one cell at a time.
-                    You can undo each edit.
+                    You can undo each edit. Lock a diagram when Graph Explorer must not write to its file.
                 </p>
             </div>
         </article>
@@ -159,13 +162,36 @@
                 <p>
                     Graph Explorer shows all the diagram types of Mermaid 11: flowcharts, sequence, class, state,
                     ER, Gantt, mind maps, C4, and more. The diagram changes while you type.
-                    In a flowchart, you can also select, hide, and edit the nodes.
+                    In a flowchart or a state diagram, you can also select, hide, and edit the nodes.
                 </p>
             </div>
             <figure class="shot">
                 <img src="./img/window-mermaid.webp" width="2720" height="1640" loading="lazy"
                      alt="A Mermaid flowchart of a microservice system in Graph Explorer, with the Mermaid source in a panel on the right.">
             </figure>
+        </article>
+
+        <article class="feature">
+            <h3>Draw with Graphviz or Mermaid</h3>
+            <div class="feature-body">
+                <p>
+                    Graph Explorer reads the source into a graph, and a renderer draws the graph.
+                    <em>Auto</em> selects the renderer for the language of the source.
+                    Select a different renderer next to the zoom controls: draw a DOT diagram with Mermaid,
+                    or a Mermaid flowchart with Graphviz.
+                </p>
+            </div>
+        </article>
+
+        <article class="feature">
+            <h3>Boards: many diagrams on one canvas</h3>
+            <div class="feature-body">
+                <p>
+                    Put diagrams side by side on a board. Move them, zoom, and fit the board to the window.
+                    A board refers to its diagrams and does not copy them.
+                    In the desktop app, a board is a <code>.gxboard</code> file, and gx can open it.
+                </p>
+            </div>
         </article>
 
         <article class="feature">
@@ -354,13 +380,13 @@
                 <div><dt><code>gx nodes</code>, <code>gx arrows</code></dt><dd>List the nodes, arrows, and groups of a file, with names that the other commands take.</dd></div>
                 <div><dt><code>gx set</code>, <code>gx group</code></dt><dd>Change attributes, groups, and records. gx writes the file.</dd></div>
                 <div><dt><code>gx hide</code>, <code>gx tag</code></dt><dd>Hide elements, collapse groups, and add tags and notes. The library keeps them, and the file stays the same.</dd></div>
+                <div><dt><code>gx add</code>, <code>gx ls</code></dt><dd>Put a file in the library, and list the diagrams and boards of the library.</dd></div>
+                <div><dt><code>gx lock</code></dt><dd>Lock a file, so that the app and gx do not write to it.</dd></div>
                 <div><dt><code>gx open</code>, <code>gx watch</code></dt><dd>Show a file in the desktop app, or stream the changes of a file.</dd></div>
                 <div><dt><code>gx select</code>, <code>gx fit</code></dt><dd>Select elements, or show the whole diagram, in the window that is open now.</dd></div>
             </dl>
-            <h3>For coding agents</h3>
             <p>
-                gx comes with a skill file that tells a coding agent how to use it.
-                Run <code>gx skill</code> to get its address for your version, then give it to your agent.
+                gx comes with a skill for coding agents. See <a href="#skill">the gx skill</a>.
             </p>
         </div>
         <pre class="terminal" aria-label="An example terminal session with gx"><code><span class="prompt">$</span> gx arrows arch.dot
@@ -372,6 +398,43 @@ api..db   api -&gt; db
 <span class="prompt">$</span> gx hide arch.dot api..db
 
 <span class="prompt">$</span> gx open arch.dot</code></pre>
+    </section>
+
+    <section class="gx skill wrap" id="skill" aria-labelledby="skill-title">
+        <div class="gx-text">
+            <h2 id="skill-title">The gx skill, for coding agents</h2>
+            <p class="lede">
+                The gx skill is a set of instructions that teaches a coding agent, such as Claude Code, to use gx.
+                With it, the agent reads and edits your diagrams by their structure, and shows them to you in the desktop app.
+            </p>
+            <dl class="commands">
+                <div><dt>Read a diagram</dt><dd>List the nodes, arrows, and groups of a file, and use their names in the next command.</dd></div>
+                <div><dt>Change a diagram</dt><dd>Set attributes, group nodes, and edit records with gx, not with a search and replace in the text.</dd></div>
+                <div><dt>Make a new diagram</dt><dd>Write a DOT or Mermaid file, put it in the library, and open it in the desktop app.</dd></div>
+                <div><dt>Keep notes</dt><dd>Add tags and notes, and hide elements. The library keeps them, and the file stays the same.</dd></div>
+            </dl>
+            <h3>Install the skill</h3>
+            <ol class="steps">
+                <li>Run <code>gx skill</code>. It prints the address of the skill for your version of gx, and a short text for your agent.</li>
+                <li>Give that text to your agent. The agent reads the skill, compares it with your gx, and installs it.
+                    For Claude Code, the skill goes in <code>.claude/skills/gx/</code>.</li>
+            </ol>
+            <p>
+                <a href="https://github.com/jpablo/graph-explorer/tree/viewer/skills/gx">Read the skill on GitHub</a>
+            </p>
+        </div>
+        <pre class="terminal terminal-wrap" aria-label="An example of the output of gx skill"><code><span class="prompt">$</span> gx skill
+gx 0.9.6 — agent skill 'gx'
+
+  browse:  https://github.com/jpablo/graph-explorer/tree/v0.9.6/skills/gx
+  fetch:   https://raw.githubusercontent.com/jpablo/graph-explorer/v0.9.6/skills/gx/SKILL.md
+
+Tell your coding agent:
+
+  Read and analyze the skill at
+    https://raw.githubusercontent.com/jpablo/graph-explorer/v0.9.6/skills/gx/SKILL.md
+  together with commands.md beside it, which it links.
+  …</code></pre>
     </section>
 
     <section class="download canvas" id="download" aria-labelledby="download-title">
