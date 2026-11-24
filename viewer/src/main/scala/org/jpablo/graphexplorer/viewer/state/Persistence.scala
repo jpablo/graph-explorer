@@ -240,6 +240,13 @@ trait Persistence:
     if embedded then Var(Library.readViewerSettings())
     else Library.loadViewerSettings()
 
+  /** The theme in the viewer settings, when this view starts.
+    *
+    * `currentTheme` starts with this value. Thus the first theme that a new
+    * view writes to the document is the stored theme, not the default theme.
+    */
+  protected def storedTheme: Option[String] = viewerSettings.now().currentTheme
+
   /** Restores the persisted state values to the current ViewerState. */
   private def restorePersistedState(): Unit =
     val restoredDiagram        = persistence.initial

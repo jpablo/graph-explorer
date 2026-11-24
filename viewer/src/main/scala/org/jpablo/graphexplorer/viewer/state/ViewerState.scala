@@ -717,7 +717,12 @@ case class ViewerState(
     phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(editTargets(elementIds)))
 
   // Theme management
-  lazy val currentTheme: Var[Option[String]] = Var(None)
+  // The value starts with the stored theme. A view that the app makes inside a
+  // transaction (for example, a new route) gets the restored settings only after
+  // the transaction. With `None` here, the subscription below wrote the default
+  // theme first, and the change to the stored theme then started the CSS color
+  // transitions of the UI.
+  lazy val currentTheme: Var[Option[String]] = Var(storedTheme)
 
   currentTheme.signal.foreach: themeName =>
     setTheme(resolveTheme(themeName))
