@@ -275,9 +275,16 @@ trait Persistence:
     metadata.set(restoredMetadata.copy(autoDetectFormat = Some(restoredMetadata.autoDetectFormat.getOrElse(true))))
     storedName.set(restoredDiagram.name)
 
-    Var.set(
-      // app settings
-      leftPanelVisible -> restoredViewerSettings.leftPanelVisible,
+    // The diagram workspace gives its own `leftPanelVisible` to the view, and
+    // that Var has the stored value already. In the route transaction, a set
+    // comes only after the transaction. Thus set the Var only when its value
+    // is different.
+    val leftPanel: Seq[Var.VarTuple[?]] =
+      val stored = restoredViewerSettings.leftPanelVisible
+      if leftPanelVisible.now() == stored then Nil else Seq(leftPanelVisible -> stored)
+
+    // app settings
+    val settings: Seq[Var.VarTuple[?]] = Seq(
       rightPanelActiveSection -> Try(RightPanelSection.fromOrdinal(restoredViewerSettings.rightPanelTabIndex)).getOrElse(
         RightPanelSection.none
       ),
@@ -300,6 +307,7 @@ trait Persistence:
       label3DBillboard -> restoredViewerSettings.label3DBillboard,
       mermaidSheet -> restoredViewerSettings.mermaidSheet
     )
+    Var.set((leftPanel ++ settings)*)
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
   private def setupStateSynchronization(): Unit =

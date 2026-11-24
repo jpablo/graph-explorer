@@ -49,7 +49,12 @@ case class ViewerState(
       */
     initialSource:            Option[String] = None,
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
-    initialLeftPanelVisible:  Boolean = false,
+    /** The visibility of the Library panel. The diagram workspace gives its
+      * own Var, so a switch of diagrams keeps the panel as it is. A view with
+      * no workspace gets a Var of its own, and the restore sets it from the
+      * stored viewer settings.
+      */
+    leftPanelVisible:         Var[Boolean] = Var(false),
     clientSize:               ClientSize = Normal,
     logLevel:                 Level = Level.None,
     /** True for a view inside a different page, for example an item of a

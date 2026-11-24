@@ -12,10 +12,14 @@ enum RightPanelSection derives CanEqual:
 
 trait UIState:
   val initialRightPanelSection: RightPanelSection
-  val initialLeftPanelVisible: Boolean
   val rightPanelActiveSection = Var(initialRightPanelSection)
   val helpDialogOpen          = Var(false)
-  val leftPanelVisible        = Var(initialLeftPanelVisible)
+
+  /** True when the Library panel shows. A workspace of diagrams can give one
+    * Var to each view that it makes. Thus the value outlives each view.
+    */
+  val leftPanelVisible: Var[Boolean]
+
   val canvasContainerFocus    = EventBus[Boolean]()
   val aboutDialogOpen         = Var(false)
   val preferencesDialogOpen   = Var(false)

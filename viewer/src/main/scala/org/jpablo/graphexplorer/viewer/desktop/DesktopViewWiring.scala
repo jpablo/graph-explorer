@@ -7,7 +7,7 @@ import scala.concurrent.ExecutionContext
 
 /** The links of one view to the router and to the desktop singletons.
   *
-  * `Viewer.diagramView` calls [[attach]] for each view, and the tests call it
+  * `AppRoutes` (`openVisit`) calls [[attach]] for each view, and the tests call it
   * too. Thus a test drives the same wiring as the app, and not a copy.
   *
   * Each subscription lives on the owner of the view (`state.owner`). The view
