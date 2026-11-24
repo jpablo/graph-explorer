@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components
 
-import buildinfo.BuildInfo
+import viewerbuildinfo.BuildInfo
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.widgets.SimpleDialog
 import scala.scalajs.js.Date

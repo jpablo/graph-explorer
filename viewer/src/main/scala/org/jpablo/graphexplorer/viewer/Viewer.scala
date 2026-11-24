@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer
 
-import buildinfo.BuildInfo
+import viewerbuildinfo.BuildInfo
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.board.{BoardFileView, BoardView, BrowserBoardStore}
