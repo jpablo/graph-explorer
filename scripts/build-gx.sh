@@ -49,12 +49,18 @@ echo "--- resolving gx-cli classpath"
 # run resolves in well under a minute.
 SBT_TIMEOUT="${SBT_TIMEOUT:-25m}"
 
+# --server: run sbt in this JVM, with no thin client. For sbt 2 the launcher
+# starts the thin client by default: it starts a server in the background and
+# connects to it. On the Windows runner, the client printed "new client
+# connected" and then waited with no output until the 25m limit. That occurred
+# on 2026-11-24 for PR 65 and for PR 66. A one-time command does not need a
+# server.
 sbt_rc=0
 if command -v timeout >/dev/null 2>&1; then
-  (cd "${ROOT_DIR}" && timeout -k 30s "${SBT_TIMEOUT}" sbt -batch "gxCli/nativeImageClasspath") || sbt_rc=$?
+  (cd "${ROOT_DIR}" && timeout -k 30s "${SBT_TIMEOUT}" sbt --server -batch "gxCli/nativeImageClasspath") || sbt_rc=$?
 else
   # No coreutils `timeout` here; the job-level timeout-minutes is the backstop.
-  (cd "${ROOT_DIR}" && sbt -batch "gxCli/nativeImageClasspath") || sbt_rc=$?
+  (cd "${ROOT_DIR}" && sbt --server -batch "gxCli/nativeImageClasspath") || sbt_rc=$?
 fi
 if [[ ${sbt_rc} -eq 124 ]]; then
   echo "FAIL: sbt did not resolve the gx-cli classpath within ${SBT_TIMEOUT}." >&2

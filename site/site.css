@@ -926,6 +926,27 @@ p {
     user-select: none;
 }
 
+/* The skill section follows the gx section, with the same layout. A rule
+ * between them, and less space above it. */
+.skill {
+    border-top: 1px solid var(--rule);
+    padding-top: clamp(56px, 8vw, 96px);
+}
+
+/* The output of gx skill has long URLs. Wrap them, so that the reader sees
+ * each URL with no scroll inside the box. */
+.terminal-wrap {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.steps {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding-left: 1.4em;
+}
+
 @media (max-width: 900px) {
     .gx {
         grid-template-columns: 1fr;
