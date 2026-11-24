@@ -1,6 +1,6 @@
 ---
 name: gx
-description: Read and change DOT and Mermaid diagram files from the command line with `gx`, the Graph Explorer CLI — list the nodes, arrows and groups of a file, set attributes, group nodes, hide and tag elements, keep a library of diagrams, and show a file in the Graph Explorer desktop app. Use whenever a task involves .dot/.gv/.mmd diagram files, asks what a diagram contains, asks to restyle or restructure one, or asks to open/visualize a graph.
+description: Read and change DOT and Mermaid diagram files from the command line with `gx`, the Graph Explorer CLI — list the nodes, arrows and groups of a file, set attributes, group nodes, hide and tag elements, keep a library of diagrams, and show a file in the Graph Explorer desktop app. Use whenever a task involves .dot/.gv/.mmd diagram files, asks what a diagram contains, asks to restyle or restructure one, asks to make a new diagram (a flowchart, a sequence diagram) and show it, or asks to open/visualize a graph.
 license: Apache-2.0
 compatibility: Requires the `gx` binary on PATH (Graph Explorer; download from https://github.com/jpablo/graph-explorer/releases). Only `gx open`, `gx select`, `gx selection` and `gx fit` need the desktop app; every other command runs headless, with no display.
 ---
@@ -12,7 +12,16 @@ Mermaid text into a graph, makes the change, and writes the graph back. Thus you
 "set `fillcolor` on these three nodes" and you do not write a regex over the DOT text.
 
 **A diagram is a file.** Each command takes the file first. The file is the only copy of
-the source. There is nothing to import, bind or sync.
+the source. There is nothing to bind or sync. When a person says "import a diagram", they
+mean `gx add`: it puts the file in the library.
+
+**The element commands read DOT and Mermaid flowcharts only.** A Mermaid file with a
+`flowchart` or `graph` header is a flowchart. For a different Mermaid type (for example
+`sequenceDiagram` or `classDiagram`), the element commands (`nodes`, `arrows`, `groups`,
+`attrs` and each change command) stop with exit 4 and `could not parse the Mermaid
+flowchart`. The library commands and the desktop commands accept the file: `add`, `tag`,
+`note`, `info` and `open` work. So the exit 4 is not a problem when the task is to keep or
+show the diagram. To change such a diagram, edit its text.
 
 **Only the desktop commands need the desktop app** (`open`, `select`, `selection`, `fit`).
 Do not start the desktop app to read or change a diagram.
@@ -36,6 +45,20 @@ gx status
 
 It prints the library folder, the number of diagrams in it, and the state of the desktop.
 It exits 0 also when no desktop runs.
+
+## Make a new diagram and show it
+
+gx makes no new file. Write the text yourself, then give the file to gx:
+
+1. Write the file in the folder for new diagrams: `~/Documents/Graph Explorer/`, or
+   `$GX_DIAGRAMS_DIR` when it is set. Use `.dot` for DOT and `.mmd` for Mermaid.
+2. Put it in the library: `gx add <file>`. For a file that is already in the library, it
+   prints `already in the library` and exits 0.
+3. Show it: `gx open <file>`.
+
+Do not run a read command only to check the file. For a Mermaid type that is not a
+flowchart, that check stops with exit 4, and the exit 4 does not mean that the file has an
+error (see above).
 
 ## Four kinds of command
 
@@ -228,6 +251,11 @@ gx fit       arch.dot
 These are the only commands that need the desktop app. With no desktop, they exit **2**
 and say so. That is not a failure of the task: report it, and continue with the headless
 work. A desktop with no diagram on the screen also gives exit 2.
+
+gx does not tell you if the desktop drew the diagram. `gx open` prints only `showing
+<file>` (with `--json`: `{path, focused}`), and exit 0 means that the desktop got the file. A syntax error of the diagram
+shows in the app, not in gx. Tell the user what you opened, and ask them to say if the app
+shows an error. Do not take control of the screen to look at it.
 
 `gx select` and `gx fit` name their file. When the window shows a different diagram, the
 desktop refuses the command (exit **4**), and the message names the diagram on the screen.
