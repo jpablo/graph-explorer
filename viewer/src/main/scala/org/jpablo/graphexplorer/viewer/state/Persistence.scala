@@ -275,16 +275,24 @@ trait Persistence:
     metadata.set(restoredMetadata.copy(autoDetectFormat = Some(restoredMetadata.autoDetectFormat.getOrElse(true))))
     storedName.set(restoredDiagram.name)
 
-    // The diagram workspace gives its own `leftPanelVisible` and
-    // `rightPanelActiveSection` to the view, and these Vars have the stored
-    // values already. In the route transaction, a set comes only after the
-    // transaction. Thus set a Var only when its value is different.
-    val leftPanel: Seq[Var.VarTuple[?]] =
-      val stored = restoredViewerSettings.leftPanelVisible
-      if leftPanelVisible.now() == stored then Nil else Seq(leftPanelVisible -> stored)
-    val rightPanel: Seq[Var.VarTuple[?]] =
-      val stored = RightPanelSection.fromStored(restoredViewerSettings.rightPanelTabIndex)
-      if rightPanelActiveSection.now() == stored then Nil else Seq(rightPanelActiveSection -> stored)
+    // The diagram workspace gives its own `leftPanelVisible`,
+    // `rightPanelActiveSection` and `settings3D` to the view, and these Vars
+    // have the stored values already. In the route transaction, a set comes
+    // only after the transaction. Thus set a Var only when its value is
+    // different.
+    def whenDifferent[A](v: Var[A], stored: A)(using CanEqual[A, A]): Seq[Var.VarTuple[?]] =
+      if v.now() == stored then Nil else Seq(v -> stored)
+    val leftPanel  = whenDifferent(leftPanelVisible, restoredViewerSettings.leftPanelVisible)
+    val rightPanel = whenDifferent(
+      rightPanelActiveSection,
+      RightPanelSection.fromStored(restoredViewerSettings.rightPanelTabIndex)
+    )
+    val threeD =
+      whenDifferent(view3D, restoredViewerSettings.view3D) ++
+        whenDifferent(enable3D, restoredViewerSettings.enable3D) ++
+        whenDifferent(layout3D, Settings3D.storedLayout3D(restoredViewerSettings)) ++
+        whenDifferent(nav3DTrackpad, restoredViewerSettings.nav3DTrackpad) ++
+        whenDifferent(label3DBillboard, restoredViewerSettings.label3DBillboard)
 
     // app settings
     val settings: Seq[Var.VarTuple[?]] = Seq(
@@ -298,16 +306,9 @@ trait Persistence:
       ),
       wrapSourceLines -> restoredViewerSettings.wrapSourceLines,
       elementsPinned -> restoredViewerSettings.elementsPinned,
-      view3D -> restoredViewerSettings.view3D,
-      enable3D -> restoredViewerSettings.enable3D,
-      layout3D -> restoredViewerSettings.layout3D.getOrElse(
-        org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id
-      ),
-      nav3DTrackpad -> restoredViewerSettings.nav3DTrackpad,
-      label3DBillboard -> restoredViewerSettings.label3DBillboard,
       mermaidSheet -> restoredViewerSettings.mermaidSheet
     )
-    Var.set((leftPanel ++ rightPanel ++ settings)*)
+    Var.set((leftPanel ++ rightPanel ++ threeD ++ settings)*)
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
   private def setupStateSynchronization(): Unit =

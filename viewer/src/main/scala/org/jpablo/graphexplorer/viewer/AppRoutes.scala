@@ -8,12 +8,12 @@ import org.jpablo.graphexplorer.library.{BrowserBoards, Library, LibraryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
-import org.jpablo.graphexplorer.viewer.components.{Commands, DiagramBanners, DiagramBody, DiagramView, RouterCommands, Toolbar, TopLevel, TopLevelFrame}
+import org.jpablo.graphexplorer.viewer.components.{Commands, DiagramBanners, DiagramParts, DiagramView, RouterCommands, Toolbar, TopLevel, TopLevelFrame, ZoomToolbar}
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopViewWiring}
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.models.ClientSize
-import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, RightPanelSection, ViewerSettings, ViewerState, ViewTarget}
+import org.jpablo.graphexplorer.viewer.state.{DocumentSessionId, RightPanelSection, Settings3D, ViewerSettings, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.Platform
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small, tiny}
 import org.scalajs.dom
@@ -76,13 +76,18 @@ private enum WorkspaceDiagram derives CanEqual:
   */
 private final case class DiagramVisit(state: ViewerState, commands: Commands, close: () => Unit)
 
-/** The parts of the workspace that belong to one diagram. The toolbar is not
-  * one of them: the workspace mounts one toolbar, and gives it the `view`.
+/** The parts of the workspace that belong to one diagram. The toolbar and the
+  * zoom bar are not parts of it: the workspace mounts one of each, and gives
+  * them the `view`.
   */
-private final case class DiagramPage(view: DiagramView, banners: Seq[HtmlElement], body: Seq[HtmlElement])
+private final case class DiagramPage(view: DiagramView, banners: Seq[HtmlElement], body: DiagramParts)
 
-/** The panels that a workspace gives to each of its views. */
-private final case class Panels(leftPanelVisible: Var[Boolean], rightPanelActiveSection: Var[RightPanelSection])
+/** The panels and the 3D settings that a workspace gives to each of its views. */
+private final case class Panels(
+    leftPanelVisible:        Var[Boolean],
+    rightPanelActiveSection: Var[RightPanelSection],
+    settings3D:              Settings3D
+)
 
 /** The page for each route of the app: the library page, a diagram, a file, an
   * example, and a board.
@@ -117,6 +122,7 @@ object AppRoutes:
           initialSource = source,
           rightPanelActiveSection = panels.rightPanelActiveSection,
           leftPanelVisible = panels.leftPanelVisible,
+          settings3D = panels.settings3D,
           clientSize = clientSize,
           logLevel = logLevel
         )(using viewOwner)
@@ -151,12 +157,17 @@ object AppRoutes:
           viewOwner.killSubscriptions()
       )
 
-    /** The panels start as the stored viewer settings say. A view sets them
-      * again at its restore only when the values are different.
+    /** The panels and the 3D settings start as the stored viewer settings say.
+      * A view sets them again at its restore only when the values are
+      * different.
       */
     def storedPanels(): Panels =
       val stored = Library.readViewerSettings()
-      Panels(Var(stored.leftPanelVisible), Var(RightPanelSection.fromStored(stored.rightPanelTabIndex)))
+      Panels(
+        Var(stored.leftPanelVisible),
+        Var(RightPanelSection.fromStored(stored.rightPanelTabIndex)),
+        Settings3D.stored(stored)
+      )
 
     /** The page of a built-in example: a read-only visit with its own Library
       * panel. It turns off persistence and puts the "copy to my library" strip
@@ -189,14 +200,14 @@ object AppRoutes:
         banners = DiagramBanners(visit.state, banner = None),
         // The view dies when its canvas area unmounts. That occurs in the
         // transaction of the switch, as before the workspace.
-        body = DiagramBody(visit.state, router, visit.commands, canvasArea = onUnmountCallback(_ => visit.close()))
+        body = DiagramParts(visit.state, router, visit.commands, canvasArea = onUnmountCallback(_ => visit.close()))
       )
 
     /** The page of the diagram routes. It stays on the screen while a person
       * opens one diagram after another. Only the parts of one diagram (the
       * banners, the canvas, the right panel, the dialogs) are built again. The
-      * toolbar and the Library panel keep their DOM nodes, and the list keeps
-      * its scroll position.
+      * toolbar, the Library panel and the zoom bar keep their DOM nodes, and
+      * the list keeps its scroll position.
       *
       * The page split makes a new workspace each time that the screen comes to
       * the diagram routes from a different page, and the route split is new on
@@ -204,9 +215,9 @@ object AppRoutes:
       * diagram split never gives a view whose owner is dead.
       */
     def diagramWorkspace(diagrams: Signal[WorkspaceDiagram]): Div =
-      // The workspace owns the panels, so they outlive each view. The toolbar
-      // toggles the Library panel (Cmd+B), and each view saves the panels to
-      // the settings.
+      // The workspace owns the panels and the 3D settings, so they outlive each
+      // view. The toolbar toggles the Library panel (Cmd+B), the zoom bar
+      // shows the 3D settings, and each view saves them to the settings.
       val panels = storedPanels()
       // One split for all the parts below, so each diagram gets one view.
       val pages: Signal[DiagramPage] =
@@ -225,7 +236,13 @@ object AppRoutes:
           router,
           routerCmds
         ),
-        body = children <-- pages.map(_.body)
+        body = Seq(
+          child <-- pages.map(_.body.canvas),
+          // One zoom bar for all the diagrams, between the canvas area and the
+          // right panel, as in the page of one view.
+          ZoomToolbar(views, panels.settings3D, DefaultDiagramLanguages(graphviz).renderers),
+          children <-- pages.map(_.body.rest)
+        )
       )
 
     def page(route: Route): Page =

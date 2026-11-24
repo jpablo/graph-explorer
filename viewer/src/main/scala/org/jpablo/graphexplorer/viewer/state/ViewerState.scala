@@ -27,6 +27,12 @@ import scala.concurrent.Future
 /** No clipboard was wired in — the default `readText` of a bare [[ViewerState]]. */
 object ClipboardUnavailable extends Exception("Clipboard is not available")
 
+object ViewerState:
+  /** The value of the Auto option of the renderer selector. It is the same for
+    * each view, so a selector that serves many views can use it.
+    */
+  val autoRenderer = "Auto"
+
 case class ViewerState(
     /** What this viewer shows, and thus how it saves (§2). This is one field,
       * not a `DiagramId` and an `exampleName` flag, because the two could
@@ -60,7 +66,13 @@ case class ViewerState(
       * stored viewer settings.
       */
     leftPanelVisible:         Var[Boolean] = Var(false),
-    clientSize:               ClientSize = Normal,
+    /** The 3D settings. The diagram workspace gives its own value, so a switch
+      * of diagrams keeps the 3D controls of the zoom bar as they are. A view
+      * with no workspace gets values of its own, and the restore sets them
+      * from the stored viewer settings.
+      */
+    settings3D:               Settings3D = Settings3D(),
+    clientSize:              ClientSize = Normal,
     logLevel:                 Level = Level.None,
     /** True for a view inside a different page, for example an item of a
       * board. Such a view reads the viewer settings of the window one time,
@@ -303,7 +315,7 @@ case class ViewerState(
     * does: the sentinel, or the id of a renderer.
     */
   object rendererOption:
-    val auto = "Auto"
+    val auto = ViewerState.autoRenderer
 
     val available: List[Renderer] = languages.renderers
 

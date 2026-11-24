@@ -50,7 +50,7 @@ def TopLevelFrame(
 /** One view of a diagram: its state and its commands.
   *
   * The diagram workspace gives the parts that it mounts one time (the toolbar,
-  * the Library panel) a signal of this value. A part reads the current view
+  * the Library panel, the zoom bar) a signal of this value. A part reads the current view
   * from that signal.
   */
 final case class DiagramView(state: ViewerState, commands: Commands)
@@ -70,40 +70,55 @@ def DiagramBanners(state: ViewerState, banner: Option[Div]): Seq[HtmlElement] =
     // the edit or the file is lost, so it must not be somewhere to scroll to.
     Seq(DocumentConflictBanner(state))
 
-/** The parts of the canvas row that belong to one diagram: all the row except
-  * the Library panel.
-  *
-  * `canvasArea` goes on the canvas area. The workspace puts the unmount
-  * callback of the view there, because the canvas area stays per diagram.
+/** The parts of the canvas row of one view: all the row except the Library
+  * panel. The zoom bar is between the canvas area and the right panel.
   */
-def DiagramBody(
-    state:      ViewerState,
-    router:     Router,
-    commands:   Commands,
-    canvasArea: Modifier[HtmlElement] = emptyMod
-): Seq[HtmlElement] =
-  Seq(
-    // The context strip OVERLAYS the canvas (absolute, inside this wrapper)
-    // instead of occupying a layout row: appearing must not shift the canvas —
-    // the push-down/snap-back on every selection was genuinely annoying. Scoped
-    // to the canvas area, so it never covers the library panel.
-    div(
-      cls := "relative flex flex-1 min-w-0",
-      canvasArea,
-      AttributesToolbar(state.displayTitle, commands, state),
-      CanvasContainer(state, commands)
-    ),
-    ZoomToolbar(state, commands),
-    RightPanel(state),
-    HelpDialog(state.helpDialogOpen, commands),
-    AboutDialog(state.aboutDialogOpen),
-    PreferencesDialog(state),
-    RenameDiagramDialog(state),
-    InfoAlert(state.infoBus),
-    EditLabelDialog(state),
-    EditCellDialog(state),
-    NewNodeLabelDialog(state),
-    NewGroupLabelDialog(state),
-    UnsavedChangesDialog(state, router),
-    ErrorAlert(state.errorBus)
-  )
+def DiagramBody(state: ViewerState, router: Router, commands: Commands): Seq[HtmlElement] =
+  val parts = DiagramParts(state, router, commands)
+  parts.canvas +: ZoomToolbar(state, commands) +: parts.rest
+
+/** The parts of the canvas row that belong to one diagram: all the row except
+  * the Library panel and the zoom bar. The diagram workspace mounts one zoom
+  * bar for all its diagrams, between `canvas` and `rest`.
+  *
+  * @param canvas the canvas area.
+  * @param rest   the right panel and the dialogs.
+  */
+final case class DiagramParts(canvas: HtmlElement, rest: Seq[HtmlElement])
+
+object DiagramParts:
+  /** `canvasArea` goes on the canvas area. The workspace puts the unmount
+    * callback of the view there, because the canvas area stays per diagram.
+    */
+  def apply(
+      state:      ViewerState,
+      router:     Router,
+      commands:   Commands,
+      canvasArea: Modifier[HtmlElement] = emptyMod
+  ): DiagramParts =
+    DiagramParts(
+      // The context strip OVERLAYS the canvas (absolute, inside this wrapper)
+      // instead of occupying a layout row: appearing must not shift the canvas —
+      // the push-down/snap-back on every selection was genuinely annoying. Scoped
+      // to the canvas area, so it never covers the library panel.
+      canvas = div(
+        cls := "relative flex flex-1 min-w-0",
+        canvasArea,
+        AttributesToolbar(state.displayTitle, commands, state),
+        CanvasContainer(state, commands)
+      ),
+      rest = Seq(
+        RightPanel(state),
+        HelpDialog(state.helpDialogOpen, commands),
+        AboutDialog(state.aboutDialogOpen),
+        PreferencesDialog(state),
+        RenameDiagramDialog(state),
+        InfoAlert(state.infoBus),
+        EditLabelDialog(state),
+        EditCellDialog(state),
+        NewNodeLabelDialog(state),
+        NewGroupLabelDialog(state),
+        UnsavedChangesDialog(state, router),
+        ErrorAlert(state.errorBus)
+      )
+    )

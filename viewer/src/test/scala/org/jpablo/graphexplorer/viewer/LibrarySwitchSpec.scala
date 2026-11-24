@@ -66,6 +66,16 @@ class LibrarySwitchSpec extends FunSuite with TestHelpers with LoggedChecks:
         .flatMap(_.querySelectorAll("ul.menu li > a").toSeq)
         .collectFirst { case a: dom.html.Element if a.querySelector("span") != null && a.querySelector("span").textContent.trim == label => a }
 
+    def zoomBar: dom.Element = box.querySelector("#zoom-toolbar")
+
+    /** The text of the "Auto" option of the renderer select, for example "Auto — Graphviz". */
+    def autoRendererLabel: String =
+      Option(box.querySelector("#renderer-select option")).map(_.textContent.trim).getOrElse("")
+
+    /** The transform of the drawing group of the canvas on the screen. */
+    def canvasTransform: String =
+      Option(box.querySelector("#canvas-container svg g.gx-canvas-root")).map(_.getAttribute("transform")).getOrElse("")
+
     /** The names of the canvas nodes that have the class `selected`. A Graphviz
       * node has its name in `<title>`, and the label again in `<text>`.
       */
@@ -88,6 +98,7 @@ class LibrarySwitchSpec extends FunSuite with TestHelpers with LoggedChecks:
     (1 to fillers).foreach(i => Library.createDiagram(s"Filler $i", s"digraph F$i { f$i; }"))
     val a = Library.createDiagram("Switch A", "digraph A { alpha1 -> alpha2; }")
     val b = Library.createDiagram("Switch B", "digraph B { beta1 -> beta2; }")
+    Library.createDiagram("Switch M", "flowchart LR\n  mu1 --> mu2")
     (a, b)
 
   private def withApp(body: App => Future[Unit]): Future[Unit] =
@@ -205,4 +216,34 @@ class LibrarySwitchSpec extends FunSuite with TestHelpers with LoggedChecks:
           check(
             app.selectedNodes == Set("beta1", "beta2"),
             s"'Select all nodes' in the toolbar did not select the nodes of 'Switch B': ${app.selectedNodes}"
+          )
+
+  test("a click in the Library keeps the zoom bar, and the zoom bar acts on the new diagram"):
+    withApp: app =>
+      val zoomBar = app.zoomBar
+      check(zoomBar != null, "precondition: the page shows no #zoom-toolbar")
+      check(
+        app.autoRendererLabel.contains("Graphviz"),
+        s"precondition: the renderer of 'Switch A' is not Graphviz: '${app.autoRendererLabel}'"
+      )
+      app.row("Switch M").foreach(_.click())
+      Waits
+        .settle(app.canvasText.contains("mu1") && app.canvasTransform.nonEmpty, timeoutMs = 10000)
+        .flatMap: _ =>
+          check(app.canvasText.contains("mu1"), "the canvas does not show the Mermaid diagram 'Switch M' after the click")
+          check(app.zoomBar eq zoomBar, "the click built a new zoom bar (#zoom-toolbar is a new DOM node)")
+          check(
+            app.autoRendererLabel.contains("Mermaid"),
+            s"the renderer select does not show the renderer of 'Switch M': '${app.autoRendererLabel}'"
+          )
+          val before = app.canvasTransform
+          val zoomIn = Option(app.zoomBar).toSeq.flatMap(_.querySelectorAll("button").toSeq).collectFirst:
+            case b: dom.html.Element if b.querySelector(".bi-plus, [class*='plus']") != null => b
+          check(zoomIn.isDefined, "precondition: the zoom bar has no zoom-in button")
+          zoomIn.foreach(_.click())
+          Waits.settle(app.canvasTransform != before, timeoutMs = 3000).map(_ => before)
+        .map: before =>
+          check(
+            app.canvasTransform != before,
+            s"the zoom-in button of the zoom bar did not zoom the canvas of 'Switch M' (transform '$before')"
           )
