@@ -53,6 +53,13 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     onMouseDown --> { _ =>
       if state.editorNotice.now().exists(n => !n.isError) then viewOnlyNudge.emit(())
     },
+    // A DOT `URL` or `href` attribute and a Mermaid `click X href` put the
+    // element in an svg `<a>` link. A click on the canvas only selects. Thus the
+    // canvas cancels the link, so that the window stays on the diagram. The
+    // event continues to bubble, and the selection does not change.
+    onClick --> { ev =>
+      if isInSvgLink(ev.target) then ev.preventDefault()
+    },
     // we need a way to move the focus here after certain events
     focus <-- state.canvasContainerFocus,
     // abort ongoing mouse actions when the focus is lost
@@ -124,6 +131,13 @@ private def gestureNumber(e: dom.Event, name: String): Option[Double] =
   val v = e.asInstanceOf[js.Dynamic].selectDynamic(name)
   if js.typeOf(v) == "number" then Some(v.asInstanceOf[Double]).filter(x => !x.isNaN && !x.isInfinite)
   else None
+
+/** True if `target` is in an `<a>` element of an svg. */
+private def isInSvgLink(target: dom.EventTarget): Boolean =
+  target match
+    case el: dom.Element =>
+      Option(el.closest("a")).exists(a => a.namespaceURI == "http://www.w3.org/2000/svg")
+    case _ => false
 
 private[svgCanvas] val viewOnlyChipPulseKeyframes = js.Array(
   js.Dynamic.literal(transform = "scale(1)"),
