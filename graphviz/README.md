@@ -64,7 +64,18 @@ PORT.md §7.
   polygon peripheries beyond the catalog, and a few others tracked in
   PORT.md §5.
 - Non-builtin fonts fall back to Times metrics (same rule as Graphviz's
-  `get_metrics_for_font_family`).
+  `get_metrics_for_font_family`). One exception is a deliberate departure
+  from Graphviz: common monospaced font names that the tables do not know
+  (Menlo, Monaco, SF Mono, `monospace`, Fira Code, JetBrains Mono, and
+  others) get the Courier metrics. The browser draws these fonts at about
+  0.6 em for each character, as Courier. With the Times metrics, the text
+  goes past the border of the node. The list is `monospacedAliases` in
+  `metrics/FontMetrics.scala`.
+- The SVG writer adds a `monospace` fallback to these names, for example
+  `font-family="Menlo,monospace"`. Graphviz writes `Menlo` only. A browser
+  that does not have the font then draws a monospaced font, so the text
+  fits the Courier widths. The name `monospace` gets no fallback. A name in
+  the PostScript alias table, such as `Courier`, keeps the Graphviz output.
 
 ## How the port was built
 

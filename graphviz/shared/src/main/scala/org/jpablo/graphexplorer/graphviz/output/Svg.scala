@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.graphviz.output
 
 import org.jpablo.graphexplorer.graphviz.model.RGraph
 import org.jpablo.graphexplorer.graphviz.layout.{Arrow, Coord, GraphBB, NodeSize, Rank, Spline, XCoord}
+import org.jpablo.graphexplorer.graphviz.metrics.FontMetrics
 
 /** Phase 5 of the `dot` pipeline: the `svg` output writer (M7 increment 2).
   *
@@ -72,7 +73,16 @@ object Svg:
     "zapfchancery-mediumitalic"   -> ("URW Chancery L", "medium", "", "italic", "serif"),
     "zapfdingbats"                -> ("Dingbats", "", "", "", "fantasy"))
 
-  /** The `<text>` font attribute string for a fontname (see [[psAlias]]). */
+  /** The `<text>` font attribute string for a fontname (see [[psAlias]]).
+    *
+    * A monospaced font name that the metrics give the Courier widths (see
+    * `FontMetrics.isMonospacedAlias`) gets a `monospace` fallback:
+    * `font-family="Menlo,monospace"`. This is a departure from Graphviz,
+    * which writes the name only. Without the fallback, a browser that does
+    * not have the font draws its default font, which is not monospaced. The
+    * name `monospace` itself gets no fallback. A name that [[psAlias]] knows
+    * keeps the Graphviz output.
+    */
   private def svgFontAttrs(fontName: String): String =
     psAlias.get(fontName.toLowerCase) match
       case Some((family, weight, stretch, style, svgFam)) =>
@@ -82,6 +92,8 @@ object Svg:
         if stretch.nonEmpty then sb ++= s""" font-stretch="$stretch""""
         if style.nonEmpty then sb ++= s""" font-style="$style""""
         sb.toString
+      case None if FontMetrics.isMonospacedAlias(fontName) && fontName.trim.toLowerCase != "monospace" =>
+        s""" font-family="${fontName},monospace""""
       case None => s""" font-family="${fontName}""""
   private val LineSpacing  = 1.20  // LINESPACING
   private val ArrowLen     = 10.0  // ARROW_LENGTH (× arrowsize)
