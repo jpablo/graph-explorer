@@ -25,6 +25,9 @@ use std::os::unix::net::{UnixListener, UnixStream};
 #[cfg(windows)]
 use uds_windows::{UnixListener, UnixStream};
 
+#[cfg(target_os = "macos")]
+mod frame_rate;
+
 /// The app icon, embedded in the binary (this build is unbundled, so there is
 /// no .app/.icns for macOS to read).
 const APP_ICON_PNG: &[u8] = include_bytes!("../icons/icon.png");
@@ -56,6 +59,45 @@ fn set_macos_dock_icon(png: &[u8]) {
         }
         let app: Id = msg_send![class!(NSApplication), sharedApplication];
         let _: () = msg_send![app, setApplicationIconImage: image];
+    }
+}
+
+/// Turn off the 60 fps limit of WebKit in the web view of `window`.
+///
+/// It writes the result to stderr one time.
+#[cfg(target_os = "macos")]
+#[allow(unexpected_cfgs)] // objc 0.2 macro noise, see `set_macos_dock_icon`.
+fn allow_full_frame_rate_in(window: &tauri::WebviewWindow) {
+    use objc::runtime::Object;
+    use objc::{msg_send, sel, sel_impl};
+    type Id = *mut Object;
+    let result = window.with_webview(|webview| {
+        // On macOS, `inner` is the WKWebView.
+        let wk_webview = webview.inner() as Id;
+        let off = unsafe {
+            if wk_webview.is_null() {
+                false
+            } else {
+                let config: Id = msg_send![wk_webview, configuration];
+                let prefs: Id = if config.is_null() {
+                    std::ptr::null_mut()
+                } else {
+                    msg_send![config, preferences]
+                };
+                frame_rate::allow_full_frame_rate(prefs)
+            }
+        };
+        if off {
+            eprintln!("graph explorer desktop: the 60 fps limit of WebKit is off");
+        } else {
+            eprintln!(
+                "graph explorer desktop: this WebKit has no 60 fps limit to turn off ({})",
+                frame_rate::NEAR_60_FPS_FEATURE
+            );
+        }
+    });
+    if let Err(err) = result {
+        eprintln!("graph explorer desktop: could not reach the web view: {err}");
     }
 }
 
@@ -444,6 +486,14 @@ fn main() {
                 }
                 #[cfg(target_os = "macos")]
                 set_macos_dock_icon(APP_ICON_PNG);
+
+                // WebKit keeps the page near 60 fps, also on a 120 Hz display.
+                // Turn the limit off, so that a pan gets every display frame.
+                // The app has one window, "main", from tauri.conf.json.
+                #[cfg(target_os = "macos")]
+                if let Some(window) = app.get_webview_window("main") {
+                    allow_full_frame_rate_in(&window);
+                }
 
                 Ok(())
             }

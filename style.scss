@@ -996,6 +996,19 @@ svg {
 
     justify-content: center;
 
+    // While a pan moves the drawing (CanvasContainer sets `gx-panning`), the
+    // drawing takes no pointer events. The pointer stays still and the drawing
+    // moves under it. Else the browser hit-tests the drawing in each frame and
+    // sends `mouseover` to each element under the pointer, and the fold badges
+    // show and hide. The `*` rule also covers the descendants that set
+    // `pointer-events` themselves (the node shapes, the badges). The wheel
+    // listener is on this div, so the pan continues.
+    &.gx-panning svg.graphviz {
+      &, & * {
+        pointer-events: none !important;
+      }
+    }
+
     svg.graphviz {
       width: 100%;
 
