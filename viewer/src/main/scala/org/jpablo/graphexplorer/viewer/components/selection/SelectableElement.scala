@@ -62,10 +62,16 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
       // Mermaid nodes render text inside foreignObject (within g.label).
       // Appending the rect after foreignObject hides the HTML text content.
       // Insert before the label group so text renders on top of the highlight.
-      val labelGroup = ref.querySelector("g.label")
+      // insertBefore needs a direct child of ref. In a flowchart node, g.label
+      // is a direct child. In a class diagram node, each g.label is inside a
+      // child group (for example g.label-group). Thus the anchor is the direct
+      // child of ref that holds the first g.label.
+      val labelAnchor = Option(ref.querySelector("g.label")).flatMap: label =>
+        Iterator.iterate[dom.Node](label)(_.parentNode).takeWhile(_ != null).find(_.parentNode eq ref)
       newRects.foreach: r =>
-        if labelGroup != null then ref.insertBefore(r.ref, labelGroup)
-        else ref.appendChild(r.ref)
+        labelAnchor match
+          case Some(anchor) => ref.insertBefore(r.ref, anchor)
+          case None         => ref.appendChild(r.ref)
       // Decorations paint ABOVE the selection wash: with no g.label anchor
       // (mermaid clusters name theirs cluster-label) the rect lands after the
       // decoration, and its translucent fill + border drew OVER the control —
