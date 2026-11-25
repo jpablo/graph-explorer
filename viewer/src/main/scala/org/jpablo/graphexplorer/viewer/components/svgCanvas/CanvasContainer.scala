@@ -6,8 +6,9 @@ import com.raquo.laminar.nodes.ChildNode
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
+import org.jpablo.graphexplorer.viewer.desktop.ExternalLink
 import org.jpablo.graphexplorer.viewer.state.{EditorNotice, ViewerState}
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils}
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils, Platform}
 import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
 
 import scala.scalajs.js
@@ -57,8 +58,13 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // element in an svg `<a>` link. A click on the canvas only selects. Thus the
     // canvas cancels the link, so that the window stays on the diagram. The
     // event continues to bubble, and the selection does not change.
+    // A click with the command key (⌘ on a Mac, Ctrl on other platforms)
+    // opens the link in the browser of the system.
     onClick --> { ev =>
-      if isInSvgLink(ev.target) then ev.preventDefault()
+      svgLinkOf(ev.target).foreach: link =>
+        ev.preventDefault()
+        if Platform.commandKey(ev.metaKey, ev.ctrlKey, Platform.isMac) then
+          linkUrl(link).foreach(ExternalLink.open)
     },
     // we need a way to move the focus here after certain events
     focus <-- state.canvasContainerFocus,
@@ -132,12 +138,18 @@ private def gestureNumber(e: dom.Event, name: String): Option[Double] =
   if js.typeOf(v) == "number" then Some(v.asInstanceOf[Double]).filter(x => !x.isNaN && !x.isInfinite)
   else None
 
-/** True if `target` is in an `<a>` element of an svg. */
-private def isInSvgLink(target: dom.EventTarget): Boolean =
+/** The `<a>` element of an svg that holds `target`, if any. */
+private def svgLinkOf(target: dom.EventTarget): Option[dom.Element] =
   target match
     case el: dom.Element =>
-      Option(el.closest("a")).exists(a => a.namespaceURI == "http://www.w3.org/2000/svg")
-    case _ => false
+      Option(el.closest("a")).filter(_.namespaceURI == "http://www.w3.org/2000/svg")
+    case _ => None
+
+/** The URL of an svg link: its `href`, or else its `xlink:href`. */
+private def linkUrl(link: dom.Element): Option[String] =
+  Option(link.getAttribute("href"))
+    .orElse(Option(link.getAttributeNS("http://www.w3.org/1999/xlink", "href")))
+    .filter(_.nonEmpty)
 
 private[svgCanvas] val viewOnlyChipPulseKeyframes = js.Array(
   js.Dynamic.literal(transform = "scale(1)"),

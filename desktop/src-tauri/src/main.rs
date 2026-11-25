@@ -507,6 +507,7 @@ fn main() {
             viewer_ready,
             complete_open,
             hash_text,
+            open_external,
             set_unsaved,
             confirm_close,
             library_list,
@@ -1974,6 +1975,55 @@ fn confirm_close(app: tauri::AppHandle, state: tauri::State<'_, IpcState>) {
 #[tauri::command(rename_all = "camelCase")]
 fn hash_text(text: String) -> String {
     content_hash(text.as_bytes())
+}
+
+/// True for an absolute http or https URL with no space and no control
+/// character. Only such a link opens in the browser of the system: a diagram
+/// can hold any URL, and a `file:` URL or a path would start a program.
+fn is_openable_url(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    let rest = if let Some(rest) = lower.strip_prefix("https://") {
+        rest
+    } else if let Some(rest) = lower.strip_prefix("http://") {
+        rest
+    } else {
+        return false;
+    };
+    !rest.is_empty() && !url.chars().any(|c| c.is_whitespace() || c.is_control())
+}
+
+/// Open an http or https link in the browser of the system.
+///
+/// A command-click on a link of a diagram calls it. The app window must stay
+/// on the diagram, so the page does not follow the link itself.
+#[tauri::command(rename_all = "camelCase")]
+async fn open_external(url: String) -> std::result::Result<(), IpcError> {
+    if !is_openable_url(&url) {
+        return Err(IpcError::new("LINK_REFUSED", format!("only an http or https link opens: {url}")));
+    }
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut c = std::process::Command::new("open");
+        c.arg(&url);
+        c
+    };
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut c = std::process::Command::new("rundll32");
+        c.arg("url.dll,FileProtocolHandler").arg(&url);
+        c
+    };
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let mut command = {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(&url);
+        c
+    };
+    match command.status() {
+        Ok(status) if status.success() => Ok(()),
+        Ok(status) => Err(IpcError::new("LINK_OPEN_FAILED", format!("{url}: the opener exited with {status}"))),
+        Err(error) => Err(IpcError::new("LINK_OPEN_FAILED", format!("{url}: {error}"))),
+    }
 }
 
 /// The answer of the page to a live view command.
@@ -4299,6 +4349,35 @@ fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: Rece
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `open_external` opens only an absolute http or https link. A diagram
+    /// can come from any location, and the page can call the command, so the
+    /// shell checks the link again.
+    #[test]
+    fn open_external_allows_only_an_http_or_https_link() {
+        for url in [
+            "https://github.com/jpablo/type-level-algorithms/blob/b1f2/src/A.scala#L259",
+            "http://example.com",
+            "HTTPS://EXAMPLE.COM/a?b=c",
+        ] {
+            assert!(is_openable_url(url), "refused {url:?}");
+        }
+        for url in [
+            "",
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "/Applications/Calculator.app",
+            "-a Calculator",
+            "mailto:a@example.com",
+            "https://example.com/a b",
+            " https://example.com",
+            "https://example.com\n",
+            "https://",
+            "ftp://example.com",
+        ] {
+            assert!(!is_openable_url(url), "allowed {url:?}");
+        }
+    }
 
     /// The relay keeps the codes of the page that tell the caller what to do
     /// next. `VIEW_REJECTED` is the refusal of a live view command for a

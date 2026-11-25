@@ -302,7 +302,7 @@ final class FakeDesktopShell:
         completeOpen(a)
         ok(())
 
-      case "viewer_ready" | "set_unsaved" | "live_view_reply" => ok(())
+      case "viewer_ready" | "set_unsaved" | "live_view_reply" | "open_external" => ok(())
 
       case other => refuse("UNKNOWN_COMMAND", s"the fake shell has no command $other")
 
