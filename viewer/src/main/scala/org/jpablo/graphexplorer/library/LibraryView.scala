@@ -108,6 +108,8 @@ def LibraryView(
     viewerSettings.zoomLazy(_.enable3D)((s, b) => s.copy(enable3D = b))
   val mermaidSheetVar: Var[Boolean] =
     viewerSettings.zoomLazy(_.mermaidSheet)((s, b) => s.copy(mermaidSheet = b))
+  val diagramDarkColorsVar: Var[Boolean] =
+    viewerSettings.zoomLazy(_.diagramDarkColors)((s, b) => s.copy(diagramDarkColors = b))
 
   // The detail toolbar's gear menu minus the entries that need a diagram open
   // (keyboard shortcuts). Same labels and order as Toolbar.gearMenu.
@@ -188,7 +190,8 @@ def LibraryView(
       ,
       promptLabelBeforeNewNode = promptLabelVar,
       enable3D = enable3DVar,
-      mermaidSheet = mermaidSheetVar
+      mermaidSheet = mermaidSheetVar,
+      diagramDarkColors = diagramDarkColorsVar
     ),
     div(
       idAttr := "projects-body",

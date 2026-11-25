@@ -198,6 +198,9 @@ def SvgCanvas(
         // The svg can mount again (after the 3D view), and the window can
         // change its size while the svg is not in the document. Thus an
         // unmount forgets the measures.
+        // The colors follow the theme and the setting. A change paints the
+        // colors again, with no new render.
+        DiagramColors.follow(rawSvg.ref, viewerOps.diagramDarkColors.signal),
         onMountUnmountCallback(
           mount = _ => svgResize.observe(rawSvg.ref),
           unmount = _ =>

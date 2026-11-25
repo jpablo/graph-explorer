@@ -20,7 +20,8 @@ def PreferencesDialog(
     onSelectTheme:            String => Unit,
     promptLabelBeforeNewNode: Var[Boolean],
     enable3D:                 Var[Boolean],
-    mermaidSheet:             Var[Boolean]
+    mermaidSheet:             Var[Boolean],
+    diagramDarkColors:        Var[Boolean]
 ): HtmlElement =
   SimpleDialog(
     open,
@@ -58,6 +59,11 @@ def PreferencesDialog(
         cls := "flex items-center justify-between gap-6 cursor-pointer",
         span(cls := "text-sm", "Sheet behind Mermaid drawings"),
         Toggle(mermaidSheet)
+      ),
+      label(
+        cls := "flex items-center justify-between gap-6 cursor-pointer",
+        span(cls := "text-sm", "Adapt diagram colors to dark themes"),
+        Toggle(diagramDarkColors)
       )
     )
   )
@@ -72,5 +78,6 @@ def PreferencesDialog(state: ViewerState): HtmlElement =
     onSelectTheme = theme => state.currentTheme.set(Some(theme)),
     promptLabelBeforeNewNode = state.promptLabelBeforeNewNode,
     enable3D = state.enable3D,
-    mermaidSheet = state.mermaidSheet
+    mermaidSheet = state.mermaidSheet,
+    diagramDarkColors = state.diagramDarkColors
   )
