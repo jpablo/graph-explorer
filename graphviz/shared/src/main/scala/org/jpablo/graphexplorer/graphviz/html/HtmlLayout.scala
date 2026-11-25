@@ -52,7 +52,7 @@ object HtmlLayout:
   def textLayout(block: HtmlText, baseSize: Double, baseName: String): HtmlTextLayout =
     val spans = block.spans
     def flagged(f: HtmlFont): Boolean =
-      f.bold || f.italic || f.underline || f.strike || f.sub || f.sup
+      f.bold || f.italic || f.underline || f.overline || f.strike || f.sub || f.sup
     val allItems = spans.flatMap(_.items)
     val simple =
       spans.forall(_.items.sizeIs <= 1) && allItems.forall(it => !flagged(it.font)) &&

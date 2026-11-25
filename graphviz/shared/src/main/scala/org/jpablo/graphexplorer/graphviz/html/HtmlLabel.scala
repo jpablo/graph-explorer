@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.graphviz.html
 /** Parsed HTML-like label (Graphviz `htmllabel_t`, lib/common/htmltable.h).
   *
   * A label is EITHER a text block (paragraphs of styled runs) OR a table.
-  * Modelled: text with `<b>/<i>/<u>/<s>/<sub>/<sup>/<font>` styling, `<br/>`
+  * Modelled: text with `<b>/<i>/<u>/<o>/<s>/<sub>/<sup>/<font>` styling, `<br/>`
   * line breaks, `<table>/<tr>/<td>` with colspan/rowspan and nesting, cell
   * ports (incl. compass), `<img>`, `<hr/>`/`<vr/>` rules, and bgcolor
   * (incl. gradients, rendered by Svg).
@@ -42,7 +42,8 @@ final case class HtmlFont(
     underline: Boolean = false,
     strike:    Boolean = false,
     sub:       Boolean = false,
-    sup:       Boolean = false
+    sup:       Boolean = false,
+    overline:  Boolean = false
 ) derives CanEqual
 
 /** One styled text run within a line. `size`/`yoffset` filled during sizing. */

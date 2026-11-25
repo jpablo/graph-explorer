@@ -731,9 +731,11 @@ object Svg:
           val col  = it.font.color.orElse(Option(defColor).filter(_.nonEmpty))
           val f    = col.map(fillPaint).filterNot(_.equalsIgnoreCase("black"))
             .map(c => s""" fill="$c"""").getOrElse("")
-          // svg_textspan: `<u>` and `<s>` share one text-decoration attr
-          // ("underline,line-through" when both apply).
+          // svg_textspan: `<u>`, `<o>` and `<s>` share one text-decoration
+          // attr, in the order underline, overline, line-through
+          // ("underline,overline,line-through" when all three apply).
           val decs = (if it.font.underline then List("underline") else Nil) ++
+                     (if it.font.overline then List("overline") else Nil) ++
                      (if it.font.strike then List("line-through") else Nil)
           val dec  = if decs.isEmpty then "" else decs.mkString(" text-decoration=\"", ",", "\"")
           val yoffC = if tm.simple then 0.1 * fs else 1.0

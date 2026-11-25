@@ -8,7 +8,7 @@ import scala.collection.mutable
   * and character data with control chars (`< 0x20`, i.e. newlines/tabs) removed
   * but spaces kept (`characterData`, htmllex.c:725).
   *
-  * Scope: text runs with `<b>/<i>/<u>/<s>/<sub>/<sup>/<font>` styling, `<br/>`
+  * Scope: text runs with `<b>/<i>/<u>/<o>/<s>/<sub>/<sup>/<font>` styling, `<br/>`
   * breaks, and `<table>/<tr>/<td>`. Returns `None` on markup outside this subset
   * (caller falls back to treating it as a plain string).
   */
@@ -205,6 +205,7 @@ object HtmlParser:
       case "i"    => f.copy(italic = true)
       case "u"    => f.copy(underline = true)
       case "s"    => f.copy(strike = true)
+      case "o"    => f.copy(overline = true)
       case "sub"  => f.copy(sub = true)
       case "sup"  => f.copy(sup = true)
       case "font" =>
