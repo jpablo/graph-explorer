@@ -220,6 +220,12 @@ lazy val viewer =
         IO.write(out, dir.getAbsolutePath)
         streams.value.log.info(s"wrote the Scala.js output directory to $out")
       },
+      // Its own package. `shared` also makes a `buildinfo.BuildInfo` (gx reads
+      // it), and the viewer depends on `shared.js`. With one name for the two
+      // classes, the linker took the class that came first on the classpath.
+      // When that was the class of `shared`, the link failed: it has no
+      // `builtAtString`.
+      buildInfoPackage := "viewerbuildinfo",
       buildInfoOptions ++= Seq(BuildInfoOption.BuildTime, BuildInfoOption.ToMap),
       scalacOptions ++= Seq(
         "-explain",

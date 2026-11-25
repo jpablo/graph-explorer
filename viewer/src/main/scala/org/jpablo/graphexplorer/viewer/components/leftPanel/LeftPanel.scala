@@ -1,10 +1,10 @@
 package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.library.{DiagramSummary, Library, LibraryIndex, LibraryNavigation}
 import org.jpablo.graphexplorer.router.Router
-import org.jpablo.graphexplorer.viewer.components.Commands
+import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
+import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.viewer.state.{ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.widgets.IconButton
@@ -15,14 +15,14 @@ import org.jpablo.graphexplorer.viewer.widgets.IconButton
   * The key is the SET of diagram ids, not the value of the library index. Each keystroke
   * writes the index again (a new lastModified). Each name costs a payload read and a title
   * scan. Only the title of the open diagram can change while a person types, and the row
-  * of the open diagram reads that title directly from `state.displayTitle`.
+  * of the open diagram reads that title directly from the `displayTitle` of the view.
   */
-private def displayNames(state: ViewerState, index: Signal[LibraryIndex]): Signal[Map[DiagramId, String]] =
+private def displayNames(languages: DiagramLanguages, index: Signal[LibraryIndex]): Signal[Map[DiagramId, String]] =
   index
     .map(_.diagrams.map(_.id))
     .distinct
     .map: ids =>
-      ids.flatMap(id => Library.diagramCardInfo(id, state.languages).map(id -> _.displayName)).toMap
+      ids.flatMap(id => Library.diagramCardInfo(id, languages).map(id -> _.displayName)).toMap
 
 /** The diagram of the library that the view shows. On the desktop, the view
   * shows a file, and the library knows the file by its path.
@@ -34,23 +34,51 @@ private def openId(state: ViewerState, index: Signal[LibraryIndex]): Signal[Opti
         session.flatMap(s => Library.desktop.flatMap(_.idOfPath(s.path)))
     case _ => Signal.fromValue(Some(state.diagramId))
 
-def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
+/** The open row of the list: the diagram that the view shows, and its title.
+  *
+  * One value holds the two, so a row never shows the mark of one view with the
+  * title of a different view.
+  */
+private final case class OpenRow(id: Option[DiagramId], title: String)
+
+/** The Library panel of one view. An example uses it. */
+def LeftPanel(state: ViewerState, router: Router, commands: Commands): Div =
+  LeftPanel(Val(state), state.leftPanelVisible.signal, state.languages, router, commands.routerCmds)
+
+/** The Library panel of the view on the screen.
+  *
+  * The diagram workspace mounts this panel one time, and gives it the views one
+  * after the other in `views`. Thus a switch of diagrams keeps the DOM nodes of
+  * the list and its scroll position.
+  *
+  * Each value that comes from a view comes through one `flatMapSwitch`. An
+  * event handler reads the view at the time of the event, not at construction.
+  */
+def LeftPanel(
+    views:      Signal[ViewerState],
+    visible:    Signal[Boolean],
+    languages:  DiagramLanguages,
+    router:     Router,
+    routerCmds: RouterCommands
+): Div =
   // One signal of each for all the rows. On the desktop, `Library.index` makes a new
   // signal for each call, and each one builds the index again.
-  val index = Library.index
-  val names = displayNames(state, index)
-  val open  = openId(state, index).distinct
+  val index   = Library.index
+  val names   = displayNames(languages, index)
+  val openRow = views.flatMapSwitch(state => openId(state, index).combineWithFn(state.displayTitle)(OpenRow(_, _)))
+  val open    = openRow.map(_.id).distinct
 
   /** One row of the library list. The title and the mark of the row follow the signals,
     * so a change does not make the row again.
     *
     * The title of the open diagram can change while a person types, so the open row reads
-    * it live from `state.displayTitle`. The other rows read the snapshot of `displayNames`.
+    * it live from the `displayTitle` of the view. The other rows read the snapshot of
+    * `displayNames`.
     */
   def libraryRow(id: DiagramId, diagram: Signal[DiagramSummary]): HtmlElement =
     val isOpen = open.map(_.contains(id)).distinct
-    val shown = isOpen.combineWithFn(state.displayTitle, names, diagram): (isOpen, title, names, diagram) =>
-      if isOpen then title else names.getOrElse(id, diagram.name)
+    val shown = openRow.combineWithFn(names, diagram): (openRow, names, diagram) =>
+      if openRow.id.contains(id) then openRow.title else names.getOrElse(id, diagram.name)
     li(
       a(
         cls := "flex items-center gap-2",
@@ -58,7 +86,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
         // shouts where the rest of the chrome marks "current" with a quiet tint.
         cls("gx-row-active") <-- isOpen,
         div(cls := "truncate", text <-- shown.distinct),
-        onClick --> LibraryNavigation.open(router, id, state.errorBus.emit)
+        onClick(_.sample(views)) --> (state => LibraryNavigation.open(router, id, state.errorBus.emit))
       )
     )
 
@@ -67,9 +95,9 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
     // Panel content
     div(
       idAttr := "left-panel",
-      cls <-- state.leftPanelVisible.signal.map(if _ then "w-[16rem] opacity-100 visible"
+      cls <-- visible.map(if _ then "w-[16rem] opacity-100 visible"
       else "w-0 opacity-0 invisible"),
-      styleAttr <-- state.leftPanelVisible.signal.map(visible =>
+      styleAttr <-- visible.map(visible =>
         if visible then "--left-panel-width: 16rem; --left-panel-border-width: 0px;"
         else "--left-panel-width: 0px; --left-panel-border-width: 0px;"
       ),
@@ -88,7 +116,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
               "Library"
             ),
             IconButton("bi-plus-circle", "Create Diagram")(
-              commands.routerCmds.createDiagram.execute()
+              routerCmds.createDiagram.execute()
             )
           )
         ),

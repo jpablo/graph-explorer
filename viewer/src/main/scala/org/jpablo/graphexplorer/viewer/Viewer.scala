@@ -1,36 +1,17 @@
 package org.jpablo.graphexplorer.viewer
 
-import buildinfo.BuildInfo
-import com.raquo.airstream.ownership.ManualOwner
+import viewerbuildinfo.BuildInfo
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.board.{BoardFileView, BoardView, BrowserBoardStore}
-import org.jpablo.graphexplorer.gxcore.model.Board
-import org.jpablo.graphexplorer.library.{BrowserBoards, DesktopStartup, Library, LibraryNavigation, LibraryView}
-import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
-import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
-import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
-import org.jpablo.graphexplorer.viewer.desktop.{
-  DesktopBridge,
-  DesktopDocumentRegistry,
-  DesktopIpc,
-  DesktopOpenRequests,
-  DesktopViewWiring,
-  LiveViewCommands
-}
+import org.jpablo.graphexplorer.library.{DesktopStartup, Library, LibraryNavigation}
+import org.jpablo.graphexplorer.router.Router
+import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.components.{RouterCommands, resolveTheme}
+import org.jpablo.graphexplorer.viewer.desktop.{DesktopBridge, DesktopIpc, DesktopOpenRequests, LiveViewCommands}
 import org.jpablo.graphexplorer.viewer.logging.Level
-import org.jpablo.graphexplorer.viewer.state.{
-  DocumentSessionId,
-  RightPanelSection,
-  ViewerState,
-  ViewTarget
-}
 import org.scalajs.dom.{document, window, URLSearchParams}
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.utils.ShareUrl
-import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small, tiny}
 
-import scala.scalajs.js
 import scala.scalajs.js.Date
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -50,9 +31,6 @@ object Viewer:
         Library.showNotice(Vector(message))
     )
 
-
-    var lastRightPanelSection = RightPanelSection.none
-    var lastLeftPanelVisible  = false
 
     def setTheme(theme: String): Unit =
       document.documentElement.setAttribute("data-theme", theme)
@@ -141,187 +119,23 @@ object Viewer:
         dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)
         printBanner()
         // Start the app after Graphviz is initialized
-
-        /** The diagram page. `exampleName` is what makes it a read-only visit: it
-          * turns off persistence and puts the "copy to my library" strip on top.
-          * Both routes share this so an example is the SAME viewer, not a
-          * second, weaker one.
-          */
-        def diagramView(target: ViewTarget, source: Option[String]) =
-          val exampleName = target match
-            case ViewTarget.Example(_, name) => Some(name)
-            case _                           => None
-          // An owner for this one diagram visit. The code kills it when the view
-          // unmounts. Thus the subscriptions of the ViewerState (phases, persistence,
-          // theme, panels...) and the whole object graph that they keep are released.
-          // Without it, each navigation leaks one full ViewerState on the window owner,
-          // which nothing kills.
-          val viewOwner = new ManualOwner
-          val state =
-            ViewerState(
-              target = target,
+        val app =
+          AppRoutes(
+            AppServices(
               graphviz = graphviz,
-              writeText = clipboardWrite,
-              readText = clipboardRead,
+              router = router,
+              routerCmds = routerCmds,
+              errors = errors,
+              infos = infos,
+              viewerSettings = viewerSettings,
               setTheme = setTheme,
-              errorBus = errors,
-              infoBus = infos,
-              initialSource = source,
-              initialRightPanelSection = lastRightPanelSection,
-              initialLeftPanelVisible = lastLeftPanelVisible,
+              clipboardWrite = clipboardWrite,
+              clipboardRead = () => clipboardRead(),
               clientSize = clientSize,
               logLevel = logLevel
-            )(using viewOwner)
-          // A bit hacky: we need to keep track of the last right panel section selected,
-          // otherwise there's a noticeable transition none => something when switching diagrams
-          state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)(using viewOwner)
-          // Similarly track the left panel visibility state between diagrams
-          state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
-          // The leave guard, the close guard, the live view tier and the open
-          // handshake, on the owner of this view. The tests call the same
-          // function, so they drive this wiring and not a copy.
-          val detachDesktop = DesktopViewWiring.attach(state, router)
-
-          // The BROWSER's window closing. A tab has no shell to ask, so the
-          // generic prompt is all there is. The desktop does not rely on this:
-          // it refuses the close and raises the real three-answer dialog
-          // through `DesktopClose`, because §7.4 needs Save, Discard AND
-          // Cancel, and a `beforeunload` prompt offers one answer.
-          val warnOnClose: js.Function1[dom.Event, Unit] = event =>
-            if state.documentIsDirty then
-              event.preventDefault()
-              event.asInstanceOf[js.Dynamic].updateDynamic("returnValue")("")
-          dom.window.addEventListener("beforeunload", warnOnClose)
-
-          TopLevel(state, router, Commands(state, routerCmds), exampleName.map(exampleBanner(_, state, routerCmds)))
-            .amend(onUnmountCallback { _ =>
-              // The live view tier and the close question both act on "the view
-              // now on screen", so they still name one — and it used to outlive
-              // the view that set it, so a query after navigation was answered
-              // by a viewer nobody was looking at. The document bridge no
-              // longer needs one at all: a viewer follows its OWN session.
-              detachDesktop()
-              dom.window.removeEventListener("beforeunload", warnOnClose)
-              state.closePersistence()
-              viewOwner.killSubscriptions()
-            })
-
-        /** A file: the same viewer, and a different store (§5, §6).
-          *
-          * The SAME `diagramView`, on purpose. A file is not a weaker diagram,
-          * and a second, thinner viewer would drift from this one. Only the
-          * target differs, and the target is what chooses the store. Each
-          * diagram of the desktop opens here (ADR 0001).
-          *
-          * The text is not passed as `source`. It comes from
-          * `FilePersistence.initial`, which reads the registry — so one place
-          * holds what the shell sent, and a reload of this route shows the
-          * file again rather than an empty diagram.
-          */
-        def fileView(sessionId: String) =
-          DocumentSessionId.parse(sessionId).flatMap(DesktopDocumentRegistry.get) match
-            // A board file is a file with a different page (ADR 0003). The
-            // route is the same, so `gx open` and the library open it as a file.
-            case Some(open) if Board.isBoardPath(open.path) =>
-              BoardFileView(open.id, graphviz, router, errors)
-            case Some(open) =>
-              diagramView(ViewTarget.File(open.id), source = None)
-            case None =>
-              // A bookmark can outlive the session it names, and a person can
-              // type this URL. Say so, and offer the way back. Opening an empty
-              // viewer here would offer a save with no file to write to.
-              unknownDocumentSession(routerCmds)
-
-        val app =
-          div(
-            child <-- router.currentRoute.map:
-              case Route.Home =>
-                LibraryView(graphviz, router, routerCmds, viewerSettings, setTheme)
-
-              case Route.Diagram(id, source) =>
-                diagramView(ViewTarget.diagram(id), source)
-
-              case Route.Example(slug) =>
-                DotExamples.bySlug.get(slug) match
-                  case Some((name, example)) =>
-                    // The text is fetched HERE rather than at click time, so the
-                    // route survives a reload and a pasted link: an example is a
-                    // real address, not a transient side effect of a click.
-                    div(
-                      cls := "contents",
-                      child <-- FetchStream
-                        .get(example.path)
-                        .map(text => diagramView(ViewTarget.Example(slug, name), Some(text)))
-                    )
-                  case None =>
-                    // A renamed or removed example. Say so and offer the way back,
-                    // rather than redirecting mid-render (a route change inside the
-                    // route signal's own propagation) or drawing an empty viewer
-                    // that just looks broken.
-                    unknownExample(slug, routerCmds)
-
-              case Route.File(sessionId) =>
-                fileView(sessionId)
-
-              case Route.Board(id) =>
-                // A board of the web app. The desktop app keeps a board as a
-                // file, on the route of a file.
-                if !Library.isDesktop && BrowserBoards.exists(id) then
-                  BoardView(BrowserBoardStore(id, DefaultDiagramLanguages(graphviz)), graphviz, router, errors)
-                else unknownBoard(routerCmds)
+            )
           )
-
         render(document.querySelector("#app"), app)
-
-  /** The strip that makes an ephemeral visit legible: what you are looking at,
-    * that it is not yours, and the one click that changes that.
-    */
-  private def exampleBanner(name: String, state: ViewerState, routerCmds: RouterCommands) =
-    div(
-      cls := "example-banner",
-      span(cls := "example-banner-title", "Example: ", b(name)),
-      span(cls := "example-banner-note", "Not saved to your library"),
-      Button(
-        "Copy to my library",
-        // The text as it stands, not the file: whatever the reader tried out
-        // while poking at the example comes with them into their copy.
-        onClick --> (_ => routerCmds.copyExampleToLibrary.execute(Some((name, state.sourceText.now()))))
-      ).primary.tiny
-    )
-
-  /** A `/documents/<id>` route whose session the page does not hold. */
-  private def unknownDocumentSession(routerCmds: RouterCommands) =
-    div(
-      cls := "loose-document-placeholder",
-      h2("No such document session"),
-      p("This page shows a file the desktop opened. That session is not open now."),
-      Button(
-        "Back to the library",
-        onClick --> (_ => routerCmds.navigateHome.execute())
-      ).primary.small
-    )
-
-  private def unknownBoard(routerCmds: RouterCommands) =
-    div(
-      cls := "unknown-example",
-      h2("No such board"),
-      p("This browser has no board with this address."),
-      Button(
-        "Back to the library",
-        onClick --> (_ => routerCmds.navigateHome.execute())
-      ).primary.small
-    )
-
-  private def unknownExample(slug: String, routerCmds: RouterCommands) =
-    div(
-      cls := "unknown-example",
-      h2("No such example"),
-      p("There is no example named ", code(slug), " any more."),
-      Button(
-        "Back to the library",
-        onClick --> (_ => routerCmds.navigateHome.execute())
-      ).primary.small
-    )
 
   private def setupErrorHandling()(using Owner): EventBus[String] =
     val errors = EventBus[String]()

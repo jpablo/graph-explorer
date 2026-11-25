@@ -27,6 +27,12 @@ import scala.concurrent.Future
 /** No clipboard was wired in — the default `readText` of a bare [[ViewerState]]. */
 object ClipboardUnavailable extends Exception("Clipboard is not available")
 
+object ViewerState:
+  /** The value of the Auto option of the renderer selector. It is the same for
+    * each view, so a selector that serves many views can use it.
+    */
+  val autoRenderer = "Auto"
+
 case class ViewerState(
     /** What this viewer shows, and thus how it saves (§2). This is one field,
       * not a `DiagramId` and an `exampleName` flag, because the two could
@@ -48,9 +54,25 @@ case class ViewerState(
       * own text, and a file takes the text of its session.
       */
     initialSource:            Option[String] = None,
-    initialRightPanelSection: RightPanelSection = RightPanelSection.none,
-    initialLeftPanelVisible:  Boolean = false,
-    clientSize:               ClientSize = Normal,
+    /** The section that the right panel shows. The diagram workspace gives
+      * its own Var, so a switch of diagrams keeps the panel as it is. A view
+      * with no workspace gets a Var of its own, and the restore sets it from
+      * the stored viewer settings.
+      */
+    rightPanelActiveSection:  Var[RightPanelSection] = Var(RightPanelSection.none),
+    /** The visibility of the Library panel. The diagram workspace gives its
+      * own Var, so a switch of diagrams keeps the panel as it is. A view with
+      * no workspace gets a Var of its own, and the restore sets it from the
+      * stored viewer settings.
+      */
+    leftPanelVisible:         Var[Boolean] = Var(false),
+    /** The 3D settings. The diagram workspace gives its own value, so a switch
+      * of diagrams keeps the 3D controls of the zoom bar as they are. A view
+      * with no workspace gets values of its own, and the restore sets them
+      * from the stored viewer settings.
+      */
+    settings3D:               Settings3D = Settings3D(),
+    clientSize:              ClientSize = Normal,
     logLevel:                 Level = Level.None,
     /** True for a view inside a different page, for example an item of a
       * board. Such a view reads the viewer settings of the window one time,
@@ -293,7 +315,7 @@ case class ViewerState(
     * does: the sentinel, or the id of a renderer.
     */
   object rendererOption:
-    val auto = "Auto"
+    val auto = ViewerState.autoRenderer
 
     val available: List[Renderer] = languages.renderers
 
@@ -717,7 +739,12 @@ case class ViewerState(
     phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(editTargets(elementIds)))
 
   // Theme management
-  lazy val currentTheme: Var[Option[String]] = Var(None)
+  // The value starts with the stored theme. A view that the app makes inside a
+  // transaction (for example, a new route) gets the restored settings only after
+  // the transaction. With `None` here, the subscription below wrote the default
+  // theme first, and the change to the stored theme then started the CSS color
+  // transitions of the UI.
+  lazy val currentTheme: Var[Option[String]] = Var(storedTheme)
 
   currentTheme.signal.foreach: themeName =>
     setTheme(resolveTheme(themeName))
