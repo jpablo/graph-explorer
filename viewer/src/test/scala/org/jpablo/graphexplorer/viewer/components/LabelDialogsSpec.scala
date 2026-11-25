@@ -51,8 +51,13 @@ class LabelDialogsSpec extends FunSuite with TestHelpers with LoggedChecks:
           .flatMap: _ =>
             val root = render(box, dialog(state))
             open(state)
+            // The label opens in the tab "Formatted". The test types the
+            // label in the source.
             Waits
-              .settle(box.querySelector(".cm-content") != null)
+              .settle(box.querySelector("[data-gx-tab=source]") != null)
+              .flatMap: _ =>
+                box.querySelector("[data-gx-tab=source]").asInstanceOf[dom.html.Element].click()
+                Waits.settle(box.querySelector(".cm-content") != null)
               .map: _ =>
                 val view = EditorView.findFromDOM(box.querySelector(".cm-editor"))
                 view.dispatch(new TransactionSpec {
@@ -120,7 +125,8 @@ class LabelDialogsSpec extends FunSuite with TestHelpers with LoggedChecks:
     def previewText = Option(box.querySelector(".gx-label-preview svg")).map(_.textContent).getOrElse("")
     def escape(): Unit =
       val init = js.Dynamic.literal(key = "Escape", bubbles = true, cancelable = true)
-      box.querySelector(".cm-content").dispatchEvent(new dom.KeyboardEvent("keydown", init.asInstanceOf[dom.KeyboardEventInit]))
+      // The editor of the open tab: Formatted (ProseMirror) or Source (CodeMirror).
+      box.querySelector(".ProseMirror, .cm-content").dispatchEvent(new dom.KeyboardEvent("keydown", init.asInstanceOf[dom.KeyboardEventInit]))
     TestHelpers.sharedGraphviz
       .flatMap: graphviz =>
         val source = """digraph G { a [label="First"]; b [label="Second"] }"""

@@ -15,6 +15,11 @@ import scala.annotation.tailrec
   * canvas, and the dark-color setting of the canvas. A Mermaid diagram has no
   * preview and no HTML error line: Mermaid draws its labels with other shapes,
   * other fonts and other rules for HTML, so a Graphviz drawing would be wrong.
+  * For the same reason, a Mermaid label has no tab "Formatted": its tab shows
+  * the reason, and the editor shows the source.
+  *
+  * The tab "Formatted" uses `graph` and `element` for the font of the
+  * element (see `LabelPreview.elementFont`) and for the faces of the diagram.
   *
   * @param graph   the graph of the preview; `state.fullGraph` for a label of
   *                the diagram

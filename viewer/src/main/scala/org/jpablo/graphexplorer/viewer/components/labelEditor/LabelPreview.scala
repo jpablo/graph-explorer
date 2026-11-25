@@ -51,6 +51,45 @@ object LabelPreview:
         case id: GroupId => groupAttributes(graph, id) + plaintext
     previewText(graph, defaults(graph, element), attributes + (Label.attrId -> labelValue(label)))
 
+  /** The font of an element: the Graphviz attributes `fontname`, `fontsize`
+    * (points) and `fontcolor`. None is the default of Graphviz.
+    */
+  final case class ElementFont(face: Option[String], size: Option[Double], color: Option[String]) derives CanEqual
+
+  /** The font that the canvas uses for the label of `element`. The rules are
+    * the rules of [[previewDot]]: a node gets the node defaults and its own
+    * attributes, an arrow and a group get the font of [[arrowAttributes]] and
+    * [[groupAttributes]].
+    */
+  def elementFont(graph: ViewerGraph, element: ElementId): ElementFont =
+    val attributes =
+      element match
+        case id: NodeId  => defaults(graph, element) ++ nodeAttributes(graph, id)
+        case id: ArrowId => arrowAttributes(graph, id)
+        case id: GroupId => groupAttributes(graph, id)
+    def value(id: AttributeId) = attributes.get(id).map(_.toString.trim).filter(_.nonEmpty)
+    ElementFont(
+      face  = value(FontName.attrId),
+      size  = value(FontSize.attrId).flatMap(_.toDoubleOption).filter(_ > 0),
+      color = value(FontColor.attrId)
+    )
+
+  private val faceAttribute = """(?i)\bFACE\s*=\s*"([^"]*)"""".r
+
+  /** The font faces of the diagram: the `fontname` attributes, and the `FACE`
+    * attributes of the HTML-like labels. The list is sorted and has no
+    * duplicates.
+    */
+  def diagramFaces(graph: ViewerGraph): List[String] =
+    val sets =
+      graph.nodes.values.map(_.attributes) ++
+        graph.arrows.values.map(_.attributes) ++
+        graph.groups.values.map(_.attributes) ++
+        List(graph.elements.graphAttributes, graph.elements.defaultNodeAttributes, graph.elements.defaultArrowAttributes)
+    val names = sets.flatMap(_.get(FontName.attrId)).map(_.toString)
+    val faces = sets.flatMap(_.get(Label.attrId)).flatMap(l => faceAttribute.findAllMatchIn(l.toString).map(_.group(1)))
+    (names ++ faces).map(_.trim).filter(_.nonEmpty).toList.distinct.sorted
+
   /** The label as the model keeps it: markup as it is, plain text escaped for DOT. */
   private def labelValue(label: String): AttrValue =
     if HtmlLabels.isHtml(label) then AttrValue(label) else AttrValue(TextUtils.escape(label))

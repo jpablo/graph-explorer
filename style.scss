@@ -792,6 +792,56 @@ svg {
     }
   }
 
+  // The formatted editor (FormattedEditor.scala). The box has the page of the
+  // preview: white, or base-100 when the colors follow a dark theme.
+  .gx-label-formatted-box {
+    background-color: white;
+
+    &:focus-within {
+      border-color: var(--color-primary);
+    }
+
+    &.gx-dark {
+      background-color: var(--color-base-100);
+    }
+
+    // The rules of prosemirror-view/style/prosemirror.css, which the app does
+    // not load. Three lines at first; a long label scrolls in the editor.
+    .ProseMirror {
+      position: relative;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-variant-ligatures: none;
+      font-feature-settings: "liga" 0;
+      outline: none;
+      padding: 0.25rem 0.5rem;
+      line-height: 1.25;
+      min-height: 4.5em;
+      max-height: 12em;
+      overflow-y: auto;
+    }
+  }
+
+  .gx-label-format-toolbar {
+    .gx-label-format-sep {
+      @apply mx-1 h-4 border-l border-base-300;
+    }
+
+    .gx-overline-glyph {
+      text-decoration: overline;
+      @apply text-sm font-medium;
+    }
+
+    .gx-label-color {
+      @apply h-6 w-7 cursor-pointer rounded border border-base-300 bg-transparent p-0.5;
+
+      // No color of its own: the run has the color of the element.
+      &.gx-label-color-default {
+        opacity: 0.5;
+      }
+    }
+  }
+
   // The preview has the page of a Graphviz drawing: white. When the colors of
   // the drawing follow a dark theme (DiagramColors), white becomes base-100.
   .gx-label-preview {

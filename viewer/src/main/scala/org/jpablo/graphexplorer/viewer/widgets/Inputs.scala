@@ -42,6 +42,11 @@ def Select(
 def SelectBox(mods: Mods*) =
   select(cls := "select", mods)
 
+/** Bare daisyUI input for call sites that set the type and the size
+  * themselves (the size and number fields of the label format toolbar). */
+def InputField(mods: Mods*) =
+  input(cls := "input", mods)
+
 /** The select family's variant tokens — the one spelling, per WidgetPolicySpec.
   * Call sites compose these instead of writing `select-*` strings. */
 object SelectVariant:

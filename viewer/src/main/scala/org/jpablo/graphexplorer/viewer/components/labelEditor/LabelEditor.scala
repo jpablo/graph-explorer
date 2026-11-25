@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.labelEditor
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.graphviz.html.HtmlParser
+import org.jpablo.graphexplorer.graphviz.html.{HtmlLabel, HtmlParser}
 import org.jpablo.graphexplorer.viewer.components.codeMirror.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.DiagramColors
 import org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels
@@ -12,8 +12,16 @@ import org.scalajs.dom
 import scala.scalajs.js
 import scala.util.Try
 
-/** The editor of the label dialogs: the source of the label, a live preview,
-  * and the parse error of the label.
+/** The editor of the label dialogs: two tabs, a live preview, and the parse
+  * error of the label.
+  *
+  * The tab "Formatted" shows the label with its fonts and a toolbar for the
+  * formats ([[FormattedEditor]]). The tab "Source" shows the text of the label
+  * (CodeMirror). Formatted is available only for a label that
+  * [[ProseLabel.canEdit]] accepts, and only for Graphviz. When the text
+  * changes from outside (the dialog opens), the editor shows Formatted if it
+  * is available, else Source. A change of the tab loads the current text into
+  * the editor of the tab, and does not change the text.
   *
   * @param text        the label text, in the form of the dialog
   * @param graph       the diagram
@@ -50,6 +58,14 @@ def LabelEditor(
   // outside came during the pause.
   val settledText = Var(text.now())
 
+  import LabelEditorParts.Tab
+  val chosen = Var(Tab.Formatted)
+  // The reason why Formatted is not available, or None.
+  val blocked: Signal[Option[String]] =
+    text.signal.combineWith(graphviz).map(LabelEditorParts.formattedBlock).distinct
+  val tab: Signal[Tab] =
+    chosen.signal.combineWith(blocked).map((c, b) => if b.isEmpty then c else Tab.Source).distinct
+
   lazy val preview = LabelEditorParts.preview(settledText.signal, graph, element, render, darkColors)
 
   div(
@@ -60,7 +76,16 @@ def LabelEditor(
       .filter(_ => origin.fromEditor)
       .debounce(LabelEditorParts.pauseMs)
       .map(_ => text.now()) --> settledText.writer,
-    LabelEditorParts.source(text, origin, onSave, onCancel, hint),
+    // A change from outside selects the default tab.
+    text.signal.combineWith(graphviz) --> { (label, isGraphviz) =>
+      if !origin.fromEditor then
+        chosen.set(if LabelEditorParts.formattedBlock(label, isGraphviz).isEmpty then Tab.Formatted else Tab.Source)
+    },
+    LabelEditorParts.tabs(tab, blocked, chosen.writer),
+    child <-- tab.map:
+      case Tab.Formatted => FormattedEditor(text, origin, graph, element, darkColors, onSave, onCancel)
+      case Tab.Source    => LabelEditorParts.source(text, origin, onSave, onCancel, hint)
+    ,
     div(
       cls := "gx-label-error text-xs text-error min-h-4",
       child.text <-- settledText.signal.combineWithFn(graphviz): (label, isGraphviz) =>
@@ -81,6 +106,56 @@ object LabelEditorParts:
     */
   final class EditOrigin:
     var fromEditor = false
+
+  /** The tabs of the label editor. */
+  enum Tab derives CanEqual:
+    case Formatted, Source
+
+  /** The reason why the tab Formatted is not available for `label`, or None
+    * when it is available.
+    *
+    * @param graphviz false for a Mermaid diagram
+    */
+  def formattedBlock(label: String, graphviz: Boolean): Option[String] =
+    if !graphviz then Some("Mermaid labels are not Graphviz HTML labels. Edit the source.")
+    else if ProseLabel.canEdit(label) then None
+    else
+      HtmlParser.parseOrError(label) match
+        case Right(HtmlLabel.Table(_)) => Some("The label has a table. Edit it in the source.")
+        case Right(HtmlLabel.Image(_, _)) => Some("The label is an image. Edit it in the source.")
+        case Right(HtmlLabel.Text(_)) => Some("The label has an image. Edit it in the source.")
+        case Left(_)                  => Some("The markup has an error. Correct it in the source.")
+
+  /** The tab bar: "Formatted" and "Source". A tab that is not available has
+    * its reason in the title, and next to the tabs.
+    */
+  private[labelEditor] def tabs(current: Signal[Tab], blocked: Signal[Option[String]], select: Observer[Tab]): HtmlElement =
+    def tabButton(t: Tab, label: String, reason: Signal[Option[String]]) =
+      button(
+        typ  := "button",
+        role := "tab",
+        cls  := "tab",
+        dataAttr("gx-tab") := t.toString.toLowerCase,
+        cls("tab-active") <-- current.map(_ == t),
+        aria.selected <-- current.map(_ == t),
+        // aria-disabled, not disabled: the browser shows the title of the button.
+        cls("tab-disabled") <-- reason.map(_.isDefined),
+        aria.disabled <-- reason.map(_.isDefined),
+        title <-- reason.map(_.getOrElse("")),
+        onMouseDown.preventDefault --> Observer.empty,
+        onClick.compose(_.sample(reason).filter(_.isEmpty)) --> (_ => select.onNext(t)),
+        label
+      )
+    div(
+      cls := "flex items-center gap-2",
+      div(
+        role := "tablist",
+        cls  := "tabs tabs-box tabs-xs",
+        tabButton(Tab.Formatted, "Formatted", blocked),
+        tabButton(Tab.Source, "Source", Signal.fromValue(None))
+      ),
+      span(cls := "text-xs text-base-content/60 truncate", child.text <-- blocked.map(_.getOrElse("")))
+    )
 
   /** The maximum height of the preview, in pixels. */
   val previewMaxHeight = 200
