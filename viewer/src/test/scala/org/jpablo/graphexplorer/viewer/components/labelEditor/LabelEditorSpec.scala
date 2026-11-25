@@ -72,6 +72,11 @@ class LabelEditorSpec extends FunSuite:
     def previewText: String          = preview.map(_.textContent).getOrElse("")
     def error: String                = Option(box.querySelector(".gx-label-error")).map(_.textContent).getOrElse("")
     def editor: Option[dom.Element]  = Option(box.querySelector(".cm-content"))
+    /** Select the tab "Source". A label that the formatted editor can edit
+      * opens in the tab "Formatted" (see FormattedEditorSpec).
+      */
+    def showSource(): Unit =
+      box.querySelector("[data-gx-tab=source]").asInstanceOf[dom.html.Element].click()
     def close(): Unit =
       root.unmount()
       box.remove()
@@ -123,11 +128,13 @@ class LabelEditorSpec extends FunSuite:
 
   test("the source is a CodeMirror editor with the text"):
     withEditor("<B>Hello</B>"): f =>
+      f.showSource()
       eventually(3000, "the editor has no CodeMirror content")(f.editor.isDefined).map: _ =>
         check(f.editor.exists(_.textContent.contains("<B>Hello</B>")), s"the editor does not show the text: ${f.editor.map(_.textContent)}")
 
   test("Enter saves, Shift+Enter does not save, and Escape cancels"):
     withEditor("<B>Hello</B>"): f =>
+      f.showSource()
       eventually(3000, "the editor has no CodeMirror content")(f.editor.isDefined).map: _ =>
         val content = f.editor.get
         keydown(content, "Enter", shift = true)
@@ -194,6 +201,7 @@ class LabelEditorSpec extends FunSuite:
 
   test("the editor has the focus, and Shift+Enter puts a line break at the end of the text"):
     withEditor("<B>Hello</B>"): f =>
+      f.showSource()
       eventually(3000, "the editor has no focus")(f.editor.exists(_.contains(dom.document.activeElement))).map: _ =>
         keydown(f.editor.get, "Enter", shift = true)
         check(f.text.now() == "<B>Hello</B>\n", s"the text after Shift+Enter is '${f.text.now()}'")

@@ -109,12 +109,16 @@ trait MarkType extends js.Object:
   def create(attrs: Attrs | Null): Mark = js.native
   /** The mark of this type in `set`, or undefined. */
   def isInSet(set: js.Array[Mark]): js.UndefOr[Mark] = js.native
+  /** `set` with no mark of this type. */
+  def removeFromSet(set: js.Array[Mark]): js.Array[Mark] = js.native
 
 @js.native
 trait Mark extends js.Object:
   val `type`: MarkType = js.native
   val attrs: Attrs     = js.native
   def eq(other: Mark): Boolean = js.native
+  /** `set` with this mark. A mark of the same type that excludes it goes away. */
+  def addToSet(set: js.Array[Mark]): js.Array[Mark] = js.native
 
 @js.native
 trait Fragment extends js.Object:
@@ -141,6 +145,12 @@ trait Node extends js.Object:
   def toJSON(): js.Any         = js.native
   /** Throws a RangeError when the content does not obey the schema. */
   def check(): Unit = js.native
+  /** True when a node between `from` and `to` has a mark of the type. */
+  def rangeHasMark(from: Int, to: Int, tpe: MarkType): Boolean = js.native
+  /** Call `f` with each node between `from` and `to` and its position. When
+    * `f` returns false, the call does not go into the children of the node.
+    */
+  def nodesBetween(from: Int, to: Int, f: js.Function2[Node, Int, js.Any]): Unit = js.native
 
 trait ParseOptions extends js.Object:
   var preserveWhitespace: js.UndefOr[Boolean | String] = js.undefined
@@ -170,11 +180,23 @@ object DOMSerializer extends js.Object:
 
 // ---- prosemirror-state -----------------------------------------------------
 
+/** A position in a document, with its context. */
+@js.native
+trait ResolvedPos extends js.Object:
+  val pos: Int          = js.native
+  /** The offset of the position in its parent node. */
+  val parentOffset: Int = js.native
+  val parent: Node      = js.native
+  /** The marks that text at this position gets. */
+  def marks(): js.Array[Mark] = js.native
+
 @js.native
 trait Selection extends js.Object:
   val from: Int      = js.native
   val to: Int        = js.native
   val empty: Boolean = js.native
+  val $from: ResolvedPos = js.native
+  val $to: ResolvedPos   = js.native
 
 @js.native
 @JSImport("prosemirror-state", "TextSelection")
@@ -198,6 +220,10 @@ trait Transaction extends js.Object:
   /** Change the type or the attributes of the node at `pos`. */
   def setNodeMarkup(pos: Int, tpe: NodeType | Null, attrs: Attrs | Null): Transaction = js.native
   def setStoredMarks(marks: js.Array[Mark] | Null): Transaction       = js.native
+  /** Make the stored marks `marks`, when the marks at the selection are other marks. */
+  def ensureMarks(marks: js.Array[Mark]): Transaction                 = js.native
+  /** The marks that the next input gets, or null. */
+  val storedMarks: js.Array[Mark] | Null                              = js.native
   def scrollIntoView(): Transaction                                   = js.native
 
 trait EditorStateConfig extends js.Object:
@@ -215,6 +241,10 @@ trait EditorState extends js.Object:
   val storedMarks: js.Array[Mark] | Null = js.native
   /** A new transaction from this state. */
   def tr: Transaction                       = js.native
+  /** The state after `tr`. The JSName is necessary: in a facade, a method
+    * `apply` without it calls the object as a function.
+    */
+  @JSName("apply")
   def apply(tr: Transaction): EditorState   = js.native
 
 @js.native
@@ -255,6 +285,12 @@ object commands extends js.Object:
   def toggleMark(markType: MarkType, attrs: Attrs | Null = null): Command = js.native
   /** The default key bindings: Enter splits a line, Backspace joins lines. */
   val baseKeymap: js.Dictionary[Command] = js.native
+  /** A command that splits the block of the selection. `splitNode` gets the
+    * block, true when the selection is at its end, and the position. It
+    * returns the type and the attributes of the new block (`{type, attrs}`),
+    * or null for the default.
+    */
+  def splitBlockAs(splitNode: js.Function3[Node, Boolean, ResolvedPos, js.Any]): Command = js.native
 
 // ---- prosemirror-keymap ----------------------------------------------------
 
