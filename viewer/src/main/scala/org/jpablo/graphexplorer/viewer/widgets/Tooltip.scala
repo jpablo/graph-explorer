@@ -11,6 +11,16 @@ def Tooltip(text: String, mods: Mods*) =
     mods
   )
 
+/** A tooltip whose text follows a signal. The toolbar of the diagram workspace
+  * reads its texts from the current view.
+  */
+def Tooltip(text: Signal[String], mods: Mods*) =
+  div(
+    cls := "flex-none tooltip",
+    dataTip <-- text,
+    mods
+  )
+
 /** Tooltip position/alignment tokens — the one spelling of `tooltip-*`.
   * `bottomEnd` (alignment, daisyUI 5.6) is for elements at the window's right
   * edge, where a centre-aligned bubble clips off-screen. */

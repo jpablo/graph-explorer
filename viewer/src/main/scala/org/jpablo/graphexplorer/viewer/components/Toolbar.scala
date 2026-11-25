@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePreview
-import org.jpablo.graphexplorer.viewer.domUtils.dataTip
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.minimal.defaultNodeTheme
 import org.jpablo.graphexplorer.viewer.models.Attributes
@@ -66,10 +65,9 @@ def Toolbar(
   /** An icon button whose tooltip and action come from the current view. */
   def viewIconButton(icon: String, tip: DiagramView => String)(action: ViewAction): Div =
     val text = viewTip(tip)
-    div(
-      cls := "flex-none tooltip",
+    Tooltip(
+      text,
       cls := TooltipPos.bottom,
-      dataTip <-- text,
       button(
         typ := "button",
         cls := "gx-icon-btn",
@@ -211,10 +209,9 @@ def Toolbar(
       cls := "navbar-center gap-2",
       div(
         cls := "flex-nowrap",
-        div(
-          cls := "flex-none tooltip",
+        Tooltip(
+          viewTip(_.commands.all.newNode.labelWithShortcut),
           cls := TooltipPos.bottom,
-          dataTip <-- viewTip(_.commands.all.newNode.labelWithShortcut),
           Button(
             cls := "gap-1 pl-1",
             i(cls := "bi bi-plus"),
