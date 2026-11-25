@@ -140,6 +140,12 @@ trait UIState:
     */
   val mermaidSheet = Var(true)
 
+  /** Adapt the diagram colors to a dark theme (DiagramColors). A change
+    * paints the mounted SVG again, with no new render. Persisted in
+    * ViewerSettings.
+    */
+  val diagramDarkColors = Var(true)
+
   extension (section: RightPanelSection)
     def isSectionActive: Signal[Boolean] =
       rightPanelActiveSection.signal.map(_ == section)

@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.DiagramColors
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 import upickle.default.*
 
@@ -17,10 +18,11 @@ trait ExportOps:
   /** The text of the full diagram for an export. It follows the setting for
     * the sheet behind a Mermaid drawing: with the setting off, the text has no
     * sheet. A selection export has no sheet, because the sheet is not a
-    * selectable element.
+    * selectable element. The text has the original colors, also on a dark
+    * theme.
     */
   private def fullDiagramSVGText(svg: dom.svg.SVG): String =
-    MermaidBackend.exportText(svg, keepSheet = mermaidSheet.now())
+    MermaidBackend.exportText(DiagramColors.lightCopy(svg), keepSheet = mermaidSheet.now())
 
   def copySelectionAsSVG(): Unit =
     finalSVGNow().foreach: s =>

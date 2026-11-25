@@ -1633,9 +1633,14 @@ svg.gx-transitioning #record-cell-overlay {
 // It is global, not in #canvas-container: board items and library thumbnails
 // show the sheet too. The setting `mermaidSheet` puts `gx-no-sheet` on the
 // canvas, on a board item, and on the library page when it is off.
+// On a dark theme, DiagramColors puts `data-gx-dark` on the svg and gives the
+// sheet a dark `fill` attribute. The rule then does not apply, so that fill shows.
 svg rect.gx-sheet {
-  fill: var(--gx-sheet);
   pointer-events: none;
+}
+
+svg:not([data-gx-dark]) rect.gx-sheet {
+  fill: var(--gx-sheet);
 }
 
 .gx-no-sheet rect.gx-sheet {

@@ -306,7 +306,8 @@ trait Persistence:
       ),
       wrapSourceLines -> restoredViewerSettings.wrapSourceLines,
       elementsPinned -> restoredViewerSettings.elementsPinned,
-      mermaidSheet -> restoredViewerSettings.mermaidSheet
+      mermaidSheet -> restoredViewerSettings.mermaidSheet,
+      diagramDarkColors -> restoredViewerSettings.diagramDarkColors
     )
     Var.set((leftPanel ++ rightPanel ++ threeD ++ settings)*)
 
@@ -353,6 +354,7 @@ trait Persistence:
       .combineWith(enable3D.signal)
       .combineWith(label3DBillboard.signal)
       .combineWith(mermaidSheet.signal)
+      .combineWith(diagramDarkColors.signal)
       .changes
       .distinct
       .foreach:
@@ -361,7 +363,8 @@ trait Persistence:
                 navTrackpad),
               en3D,
               billboard3D,
-              sheet
+              sheet,
+              darkColors
             ) =>
           // copy, not a fresh ViewerSettings: fields this page does not own (the library's
           // view mode) must survive a detail-page sync instead of resetting to defaults.
@@ -380,6 +383,7 @@ trait Persistence:
               enable3D = en3D,
               label3DBillboard = billboard3D,
               mermaidSheet = sheet,
+              diagramDarkColors = darkColors,
               schemaVersion = ViewerSettings.currentSchemaVersion
             )
           )
@@ -581,6 +585,10 @@ case class ViewerSettings(
     // hides the sheet, and an export leaves it out. A stored value with no
     // such field loads with this default, so no new schemaVersion is needed.
     mermaidSheet:       Boolean = true,
+    // On a dark theme, the diagram colors get a remap for a dark page
+    // (DiagramColors). Off = the diagram keeps the colors of its source. A
+    // stored value with no such field loads with this default.
+    diagramDarkColors:  Boolean = true,
     // Library page: false = thumbnail cards, true = compact rows.
     libraryListMode:    Boolean = false,
     // Library page: the sort column, and the format the list is filtered to.

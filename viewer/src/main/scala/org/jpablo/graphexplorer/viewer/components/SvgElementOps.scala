@@ -6,6 +6,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps.emptySvg
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.DiagramColors
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.ElementIds
@@ -37,6 +38,8 @@ class SvgElementOps(val ref: dom.svg.SVG):
   private def buildSvgElement(elem: SelectableElement): (dom.svg.Element, BBox) =
     // Clone the element to avoid modifying the original
     val e = DomApi.unsafeParseSvgString(elem.ref.outerHTML)
+    // The export has the original colors, also on a dark theme.
+    DiagramColors.paint(e, None)
     // Remove the selected border from the cloned element
     val selectedBorders = e.querySelectorAll("." + elem.selectionRectClass)
     for (node <- selectedBorders) do
