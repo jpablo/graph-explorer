@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import munit.FunSuite
 import org.jpablo.graphexplorer.library.LoggedChecks
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.utils.TestHelpers
+import org.jpablo.graphexplorer.viewer.utils.{Platform, TestHelpers}
 import org.scalajs.dom
 
 import scala.collection.mutable
@@ -17,6 +17,10 @@ import scala.scalajs.js
   *   - A strip at the bottom-left corner of the canvas (`#gx-link-status`) shows the URL and the hint "click to open"
   *     while the pointer is on a linked element or on its icon. A browser does the same for a link.
   *   - A click on the icon opens the link, with no command key.
+  *   - While the command key (⌘ on a Mac, Ctrl on other platforms) is down, the canvas has the class
+  *     `gx-links-revealed`. The stylesheet then shows the icon of each linked element, and gives a linked element the
+  *     hand pointer. A browser does not send a key-up when the window loses the focus (⌘-Tab), so a blur and a mouse
+  *     event with no command key also end the state.
   *
   * Only an http or https link gets the icon and the strip, because only such a link opens.
   */
@@ -165,3 +169,82 @@ class LinkHintSpec extends FunSuite with TestHelpers with LoggedChecks with Canv
       .flatMap: _ =>
         afterMicrotasks:
           check(status(canvas).isEmpty, s"the strip shows a javascript: link: ${status(canvas)}")
+
+  // ---------------------------------------------------------------------------
+  // Hold the command key to show all the links.
+  // ---------------------------------------------------------------------------
+
+  private val revealed = "gx-links-revealed"
+
+  private def container(canvas: TestCanvas): dom.Element =
+    val c = canvas.box.querySelector("#canvas-container")
+    check(c != null, "precondition: the canvas has no #canvas-container")
+    c
+
+  private def isRevealed(canvas: TestCanvas): Boolean = container(canvas).classList.contains(revealed)
+
+  private val commandName = if Platform.isMac then "Meta" else "Control"
+
+  /** A key event on the document for the command key of the platform (or for `key`). */
+  private def key(kind: String, down: Boolean, keyName: String = commandName): Unit =
+    val init = new dom.KeyboardEventInit:
+      bubbles = true
+      cancelable = true
+    init.key = keyName
+    init.metaKey = down && keyName == "Meta"
+    init.ctrlKey = down && keyName == "Control"
+    dom.document.dispatchEvent(new dom.KeyboardEvent(kind, init))
+
+  private def mouseMove(target: dom.Element, command: Boolean): Unit =
+    val init = new dom.MouseEventInit:
+      bubbles = true
+      cancelable = true
+    init.metaKey = command && Platform.isMac
+    init.ctrlKey = command && !Platform.isMac
+    target.dispatchEvent(new dom.MouseEvent("mousemove", init))
+
+  test("while the command key is down, the canvas shows all the links"):
+    withCanvas(s"""digraph { a [shape=box, URL="$link"]; a -> b }""", a): canvas =>
+      afterMicrotasks:
+        check(!isRevealed(canvas), "the links show before the command key is down")
+        key("keydown", down = true)
+      .flatMap: _ =>
+        afterMicrotasks:
+          check(isRevealed(canvas), "the links do not show while the command key is down")
+          key("keyup", down = false)
+      .flatMap: _ =>
+        afterMicrotasks:
+          check(!isRevealed(canvas), "the links still show after the command key is up")
+
+  test("a different key does not show the links"):
+    withCanvas(s"""digraph { a [shape=box, URL="$link"]; a -> b }""", a): canvas =>
+      afterMicrotasks:
+        key("keydown", down = true, keyName = "Shift")
+        key("keydown", down = true, keyName = if Platform.isMac then "Control" else "Meta")
+      .flatMap: _ =>
+        afterMicrotasks:
+          check(!isRevealed(canvas), "a key that is not the command key shows the links")
+
+  test("the links go away when the window loses the focus while the command key is down"):
+    withCanvas(s"""digraph { a [shape=box, URL="$link"]; a -> b }""", a): canvas =>
+      afterMicrotasks:
+        key("keydown", down = true)
+      .flatMap: _ =>
+        afterMicrotasks:
+          check(isRevealed(canvas), "precondition: the links do not show while the command key is down")
+          dom.window.dispatchEvent(new dom.Event("blur"))
+      .flatMap: _ =>
+        afterMicrotasks:
+          check(!isRevealed(canvas), "the links still show after the window lost the focus")
+
+  test("a mouse move gives the state of the command key, also when a key event is missing"):
+    withCanvas(s"""digraph { a [shape=box, URL="$link"]; a -> b }""", a): canvas =>
+      afterMicrotasks:
+        mouseMove(nodeShape(canvas, a), command = true)
+      .flatMap: _ =>
+        afterMicrotasks:
+          check(isRevealed(canvas), "a mouse move with the command key does not show the links")
+          mouseMove(nodeShape(canvas, a), command = false)
+      .flatMap: _ =>
+        afterMicrotasks:
+          check(!isRevealed(canvas), "a mouse move with no command key does not end the state")

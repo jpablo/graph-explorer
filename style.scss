@@ -1119,6 +1119,17 @@ svg {
       display: none;
     }
 
+    // While the command key is down (CanvasContainer), each linked element
+    // shows its link icon and takes the hand pointer: a ⌘-click opens it.
+    &.gx-links-revealed {
+      .gx-link-badge {
+        visibility: visible;
+      }
+      [data-gx-link] {
+        cursor: pointer;
+      }
+    }
+
     svg.graphviz {
       width: 100%;
 
