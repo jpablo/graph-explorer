@@ -751,13 +751,16 @@ svg {
   display: none;
 }
 
-#edit-label-dialog {
+// The three label dialogs (EditLabelDialog, NewNodeLabelDialog,
+// NewGroupLabelDialog) have the label editor: the source, the error line and
+// the preview. The width gives the preview room, and it stays in the window.
+#edit-label-dialog,
+#new-node-label-dialog,
+#new-group-label-dialog {
   .modal-box {
-    @apply p-3 w-96;
-
-    textarea {
-      @apply p-1 outline-0;
-    }
+    @apply p-3;
+    width: min(36rem, calc(100vw - 2rem));
+    max-width: none;
 
     .modal-action {
       @apply mt-2;
@@ -769,6 +772,38 @@ svg {
   }
 }
 
+
+// The label editor (LabelEditor.scala).
+.gx-label-editor {
+  .gx-label-source {
+    &:focus-within {
+      border-color: var(--color-primary);
+    }
+
+    .cm-editor.cm-focused {
+      outline: none;
+    }
+
+    // Three lines at first; a long label scrolls in the editor.
+    .cm-scroller {
+      min-height: 4.5em;
+      max-height: 12em;
+      @apply font-mono text-sm;
+    }
+  }
+
+  // The preview has the page of a Graphviz drawing: white. When the colors of
+  // the drawing follow a dark theme (DiagramColors), white becomes base-100.
+  .gx-label-preview {
+    background-color: white;
+    border: 1px solid var(--color-base-300);
+    min-height: 3rem;
+
+    &:has(svg[data-gx-dark]) {
+      background-color: var(--color-base-100);
+    }
+  }
+}
 
 #top-level {
   @apply bg-base-100 flex flex-col h-screen;

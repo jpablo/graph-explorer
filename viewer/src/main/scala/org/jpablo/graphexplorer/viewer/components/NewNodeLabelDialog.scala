@@ -2,12 +2,13 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
+import org.jpablo.graphexplorer.viewer.components.labelEditor.{DiagramLabelEditor, NewLabelIds}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
-import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Dialog, DialogTextArea, PrimaryAction, QuietAction}
-import org.scalajs.dom.KeyValue
+import org.jpablo.graphexplorer.viewer.widgets.{Dialog, PrimaryAction, QuietAction}
 
 /** Dialog to collect a label before creating a new node. It mirrors the EditLabelDialog UX but triggers node creation on save. */
 def NewNodeLabelDialog(state: ViewerState) =
@@ -22,22 +23,30 @@ def NewNodeLabelDialog(state: ViewerState) =
   def saveAndCreate(): Unit =
     state.pendingNewNodeV.now().foreach: pending =>
       val text   = modalText.now()
-      val attrs  = pending.attributes ++ Attributes.of(Label -> TextUtils.escape(text))
+      // The rule of the Edit Label dialog: HTML-like markup stays HTML.
+      val attrs  = pending.attributes + (Label.attrId -> AttributeRow.labelValue(text))
       val dir    = pending.direction
       // Create node with provided label, then select/focus continues as usual
       state.addNodeWithSmartConnection(attrs, dir)
     closeDialog()
 
-  val textAreaElement = DialogTextArea(
-    placeholder := "Enter label text...",
-    rows        := 3,
-    controlled(value <-- modalText, onInput.mapToValue --> modalText),
-    onMountFocus,
-    // Enter -> Save and Create
-    // Shift+Enter -> Add a new line
-    onKeyDown.filter(ev => ev.key == KeyValue.Enter && !ev.shiftKey).preventDefault --> saveAndCreate(),
-    // Escape -> Close without creating
-    onKeyDown.filter(_.key == KeyValue.Escape) --> closeDialog()
+  /** The graph of the preview: the diagram with the new node, which has the
+    * attributes of the new node (a shape of the toolbar, for example). The id
+    * of the new node is not in the diagram.
+    */
+  val previewGraph: Signal[(ViewerGraph, NodeId)] =
+    state.fullGraph.combineWithFn(state.pendingNewNodeV.signal): (graph, pending) =>
+      val id = NewLabelIds.node(graph)
+      (graph.addNodeWithId(id, attributes = pending.fold(Attributes.empty)(_.attributes)), id)
+
+  def labelEditor = DiagramLabelEditor(
+    state    = state,
+    text     = modalText,
+    graph    = previewGraph.map(_._1),
+    element  = previewGraph.map(_._2),
+    onSave   = () => saveAndCreate(),
+    onCancel = () => closeDialog(),
+    hint     = "Enter label text..."
   )
 
   div(
@@ -47,11 +56,7 @@ def NewNodeLabelDialog(state: ViewerState) =
         // --- contents ---
         div(
           h3(cls := "font-bold text-md mb-2", "Edit Label"),
-          textAreaElement,
-          div(
-            cls := "flex justify-between items-center mt-2",
-            p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line")
-          )
+          labelEditor
         ),
         // --- State Synchronization ---
         // Reset modal text when the dialog opens

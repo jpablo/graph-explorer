@@ -53,7 +53,11 @@ object HtmlParser:
   private def stripControl(s: String): String =
     if s.forall(_ >= ' ') then s else s.filter(_ >= ' ')
 
-  private def tokenize(src: String): Option[List[Tok]] =
+  private def tokenize(src: String): Option[List[Tok]] = tokens(src).toOption
+
+  /** The tokens of `src`, or a message that tells why the tokenizer stops.
+    * `tokenize` is this function with no message. */
+  private def tokens(src: String): Either[String, List[Tok]] =
     val out = mutable.ListBuffer.empty[Tok]
     var i   = 0
     val n   = src.length
@@ -62,12 +66,13 @@ object HtmlParser:
       if c == '<' then
         if src.startsWith("<!--", i) then
           val end = src.indexOf("-->", i)
-          if end < 0 then return None else i = end + 3
+          if end < 0 then return Left("The comment <!-- has no end -->.") else i = end + 3
         else
           val gt = src.indexOf('>', i)
-          if gt < 0 then return None
+          if gt < 0 then
+            return Left(s"The tag ${excerpt(src, i)} has no end >. Write &lt; for the character <.")
           val raw = src.substring(i + 1, gt).trim
-          if raw.isEmpty then return None
+          if raw.isEmpty then return Left("The label has an empty tag <>. Write &lt;&gt; for the characters <>.")
           if raw.startsWith("/") then
             out += Tok.Close(raw.drop(1).trim.toLowerCase)
           else
@@ -75,7 +80,7 @@ object HtmlParser:
             val body      = (if selfClose then raw.dropRight(1) else raw).trim
             parseTag(body) match
               case Some((name, attrs)) => out += Tok.Open(name, attrs, selfClose)
-              case None                => return None
+              case None                => return Left(s"The tag ${excerpt(src, i)} is not valid.")
           i = gt + 1
       else
         val lt = src.indexOf('<', i)
@@ -83,7 +88,12 @@ object HtmlParser:
         val txt = stripControl(decodeEntities(src.substring(i, end)))
         if txt.nonEmpty then out += Tok.Chars(txt)
         i = end
-    Some(out.toList)
+    Right(out.toList)
+
+  /** The text of `src` from `from`, cut to a short length for a message. */
+  private def excerpt(src: String, from: Int): String =
+    val text = src.substring(from).takeWhile(c => c != '\n' && c != '\r')
+    if text.length <= 20 then text else text.take(20) + "..."
 
   /** Split `name attr="v" attr2='v2'` into (lower name, attr map, lower keys). */
   private def parseTag(body: String): Option[(String, Map[String, String])] =
@@ -116,6 +126,62 @@ object HtmlParser:
 
   // ── parser ─────────────────────────────────────────────────────────────
   private val styleTags = Set("b", "i", "u", "s", "sub", "sup", "o", "font")
+
+  // The tags of the HTML-like labels of Graphviz.
+  private val knownTags = styleTags ++ Set("table", "tr", "td", "br", "hr", "vr", "img")
+  // The tags with no content. `parse` accepts them with and without a closing tag.
+  private val voidTags = Set("br", "hr", "vr", "img")
+  // The tags that a tag must be in. A tag that is not in this map can be anywhere.
+  private val parentTags: Map[String, Set[String]] = Map(
+    "tr" -> Set("table"),
+    "td" -> Set("tr"),
+    "hr" -> Set("table"),
+    "vr" -> Set("tr")
+  )
+
+  /** The label of `markup`, or a message that tells why the markup is not a
+    * valid label.
+    *
+    * Graphviz reads a label as XML, so it refuses a tag that is not closed and
+    * a closing tag that does not match. `parse` accepts some of these labels.
+    * Thus this function checks the tags first, and gives a message that names
+    * the tag. When the tags are correct, the result is the result of `parse`.
+    * A `Right` is always `parse(markup).get`.
+    */
+  def parseOrError(markup: String): Either[String, HtmlLabel] =
+    for
+      toks  <- tokens(markup)
+      _     <- tagError(toks).toLeft(())
+      label <- parse(markup).toRight("The label is not a valid HTML-like label.")
+    yield label
+
+  /** The first problem in the tags of `toks`, as a message. */
+  private def tagError(toks: List[Tok]): Option[String] =
+    def open(name: String)  = s"<${name.toUpperCase}>"
+    def close(name: String) = s"</${name.toUpperCase}>"
+    // The tags that are open now. The innermost tag is first.
+    var stack = List.empty[String]
+    val problems = toks.iterator.flatMap {
+      case Tok.Chars(_) => None
+      case Tok.Open(name, _, _) if !knownTags(name) =>
+        Some(s"${open(name)} is not a known tag.")
+      case Tok.Open(name, _, selfClose) =>
+        val placement = parentTags.get(name).flatMap { parents =>
+          val inParent = stack.headOption.exists(parents)
+          Option.unless(inParent)(s"${open(name)} must be in ${parents.toList.sorted.map(open).mkString(" or ")}.")
+        }
+        if placement.isEmpty && !selfClose && !voidTags(name) then stack = name :: stack
+        placement
+      case Tok.Close(name) if !knownTags(name) =>
+        Some(s"${close(name)} is not a known tag.")
+      case Tok.Close(name) if voidTags(name) => None
+      case Tok.Close(name) =>
+        stack match
+          case top :: rest if top == name => stack = rest; None
+          case top :: _                   => Some(s"${close(name)} does not close ${open(top)}.")
+          case Nil                        => Some(s"${close(name)} has no opening tag ${open(name)}.")
+    }
+    problems.nextOption().orElse(stack.headOption.map(name => s"${open(name)} has no closing tag ${close(name)}."))
 
   def parse(markup: String): Option[HtmlLabel] =
     tokenize(markup).flatMap { toks =>

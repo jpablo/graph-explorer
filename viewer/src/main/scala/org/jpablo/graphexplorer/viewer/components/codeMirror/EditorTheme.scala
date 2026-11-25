@@ -18,7 +18,7 @@ import scala.scalajs.js
   * semantic token, at a lightness that is readable in the color scheme of the
   * theme (see `ink`).
   */
-private[codeMirror] object EditorTheme:
+private[components] object EditorTheme:
 
   private val base100 = "var(--color-base-100)"
   private val base200 = "var(--color-base-200)"

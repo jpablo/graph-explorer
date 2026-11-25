@@ -68,14 +68,15 @@ object AttributeRow:
         if isHtml(raw) then raw else TextUtils.unescape(raw)
     )(
       // UI -> DOT
-      getParent = uiText =>
-        AttrStatus.Single(
-          AttrValue(
-            if isHtml(uiText) then AttrEq(uiText, true)
-            else TextUtils.escape(uiText)
-          )
-        )
+      getParent = uiText => AttrStatus.Single(labelValue(uiText))
     )
+
+  /** The label of a dialog text (UI -> DOT). HTML-like markup stays as it is,
+    * with its real line breaks. Plain text gets the escapes of a DOT string.
+    * Each label dialog uses this rule.
+    */
+  def labelValue(uiText: String): AttrValue =
+    AttrValue(if isHtml(uiText) then AttrEq(uiText, true) else TextUtils.escape(uiText))
 
   extension (row: InputAttribute)
 
