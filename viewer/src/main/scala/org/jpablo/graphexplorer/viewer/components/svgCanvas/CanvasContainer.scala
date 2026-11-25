@@ -31,6 +31,10 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // The setting hides the sheet behind a Mermaid drawing. The renderer
     // always adds the sheet, thus a change of the setting does not render again.
     cls(MermaidBackend.noSheetClass) <-- state.mermaidSheet.signal.map(!_),
+    // While a pan moves the drawing, the drawing takes no pointer events (see
+    // `gx-panning` in style.scss). The wheel listener is on this div, so the
+    // pan continues.
+    cls("gx-panning") <-- state.panning,
     state.fitDiagram.events --> state.resetView(),
     // the main canvas!! Either the engine's SVG or the experimental three.js
     // scene — a fresh Scene3D per toggle-on, so 3D state never outlives the

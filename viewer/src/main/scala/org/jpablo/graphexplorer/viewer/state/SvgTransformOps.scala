@@ -13,47 +13,27 @@ trait SvgTransformOps:
     * in flight, and directly by the exact-positioning callers. */
   private val translateXY = Var(SvgPoint.origin)
 
-  /** Where the input has asked to be. Chased by [[stepPan]]; never drawn.
+  /** The pan input of the gesture in flight. [[stepPan]] draws it, one time
+    * in each frame. When no gesture is in flight, its total is the drawn pan.
     *
-    * The split exists because a trackpad and a display do not tick together.
-    * Measured on a 60Hz machine: wheel events arrive at 55-67/s, so
-    * `eventsPerFrame` lands at 0.91-1.00 — about 6% of frames receive NO delta
-    * and, when the transform was written straight from the event, rendered a
-    * pixel-identical duplicate. That is roughly five frozen frames per second
-    * against a perfect 60fps counter and zero dropped frames: the stutter was
-    * never a performance problem, it was a resampling one. A rendered position
-    * that chases a target advances on every frame, including the empty ones,
-    * because it moves on ELAPSED TIME rather than on input arriving.
+    * The drawn pan does not follow the wheel events directly, because a
+    * trackpad and a display do not tick together. At 60 Hz, about 6% of the
+    * frames got no wheel event. A transform that the events set directly
+    * froze in those frames. A first-order filter that chased a pan target
+    * then moved in each frame. At 120 Hz, the events arrive 1 ms or 8 ms after
+    * their trackpad times, in turn. The filter then moved by a small step and
+    * a large step, in turn. The resampler draws the input at its trackpad
+    * times, a fixed delay ago (see [[PanResampler]]). Thus each frame moves by
+    * the motion of the fingers over one frame period.
     */
-  private var targetXY = SvgPoint.origin
+  private var panInput = PanResampler.empty(SvgPoint.origin)
 
-  private var panRafId   = Option.empty[Int]
-  private var lastStepMs = 0.0
+  private var panRafId = Option.empty[Int]
 
   // A diagram opens with the frame of the Fit button (see [[resetView]]).
   // An embedded view (an item of a board) keeps a zoom of 1.
   private val zoomValue = Var(if embedded then 1.0 else SvgTransformOps.FitZoom)
   private val minZoom   = 0.05
-
-  /** Time constant of the pan filter, in milliseconds.
-    *
-    * The whole trade lives here. The rendered offset closes
-    * `1 - exp(-dt/tau)` of its remaining gap each frame, so during a steady
-    * drag it trails the target by about `tau` worth of travel — real, added
-    * latency on top of the ~18ms the JS pan path already costs (native
-    * compositor scrolling on the same machine measures ~9ms; that gap is
-    * structural and not what this fixes). Too small and the empty frames come
-    * back; too large and the drawing swims behind the fingers.
-    *
-    * 20ms puts roughly 57% of the gap into the next 60Hz frame and settles a
-    * gesture in about a dozen. It is deliberately a fraction of the ~17ms
-    * frame: the filter exists to bridge single missing frames, not to animate.
-    */
-  private val PanTauMs = 20.0
-
-  /** Gap below which the chase is finished, in USER units. Small enough to be
-    * invisible at any zoom this canvas allows. */
-  private val PanEpsilon = 0.01
 
   // On when a diagram opens. Then the whole diagram is visible, and the zoom
   // toolbar does not hide a part of it. In 2D, Auto fits again after each
@@ -83,6 +63,22 @@ trait SvgTransformOps:
     userMoved()
     zoomValue.update(_ * 1.1)
 
+  /** True while a pan moves the drawing. It is true from the first input of a
+    * pan until the pan loop stops. The loop stops when the pan settles, or when
+    * an exact move (Fit, a zoom, an anchor) cancels it. A zoom is not a pan.
+    *
+    * The canvas uses it to turn off the pointer events of the drawing. Else the
+    * browser hit-tests the moving drawing in each frame, and the hover handlers
+    * run for each element that passes under the still pointer.
+    */
+  private val panningVar = Var(false)
+
+  val panning: Signal[Boolean] = panningVar.signal
+
+  /** Set [[panningVar]] only on a change, so that each frame does not write it. */
+  private def setPanning(on: Boolean): Unit =
+    if panningVar.now() != on then panningVar.set(on)
+
   /** The transform of the drawing group, with its zoom in a typed form. The
     * canvas uses the zoom to compute the screen scale of the drawing with no
     * layout read (see `ScreenConstant.CanvasScale`). */
@@ -93,57 +89,60 @@ trait SvgTransformOps:
   /** The value of the `transform` attribute of the drawing group. */
   val transform: Signal[String] = canvasTransform.map(_.css)
 
-  // ---- the pan filter ----------------------------------------------------
+  // ---- the pan loop ------------------------------------------------------
 
-  /** Move the pan TARGET. The drawn offset follows over the next few frames. */
-  private def panBy(delta: SvgPoint): Unit =
-    targetXY = targetXY - delta
+  /** Add a pan input. The drawn pan follows it over the next frames.
+    *
+    * @param delta
+    *   the scroll of the view, in user units. The pan moves by the opposite.
+    * @param stampMs
+    *   the trackpad time of the input (the `timeStamp` of the wheel event).
+    * @param arrivalMs
+    *   the time the page got the input (`performance.now()`).
+    */
+  private def panBy(delta: SvgPoint, stampMs: Double, arrivalMs: Double): Unit =
+    panInput = panInput.add(PanSample(stampMs, arrivalMs, SvgPoint.origin - delta))
     if panRafId.isEmpty then
-      // Not `lastStepMs = now`: the first step has no previous frame to measure
-      // against, and seeding it with a real timestamp would make dt the age of
-      // the last gesture — an alpha of 1, i.e. a jump.
-      lastStepMs = 0.0
+      setPanning(true)
       requestPanFrame()
 
-  /** Put the pan EXACTLY here, now, abandoning any chase in flight. */
+  /** Put the pan EXACTLY here, now. The input of a gesture in flight that is
+    * not drawn yet is dropped. */
   private def snapPan(p: SvgPoint): Unit =
-    cancelPanChase()
-    targetXY = p
+    setPanNow(p)
     translateXY.set(p)
+
+  /** Stop the pan loop and start a new pan input at `p`. The caller sets
+    * `translateXY` to `p`. */
+  private def setPanNow(p: SvgPoint): Unit =
+    cancelPanLoop()
+    panInput = PanResampler.empty(p)
 
   private def requestPanFrame(): Unit =
     panRafId = Some(dom.window.requestAnimationFrame(stepPan(_)))
 
-  private def cancelPanChase(): Unit =
+  private def cancelPanLoop(): Unit =
     panRafId.foreach(dom.window.cancelAnimationFrame)
     panRafId = None
+    setPanning(false)
 
   private def stepPan(nowMs: Double): Unit =
-    val dtMs = if lastStepMs == 0.0 then 16.7 else nowMs - lastStepMs
-    lastStepMs = nowMs
-    val cur = translateXY.now()
-    val dx  = targetXY.x - cur.x
-    val dy  = targetXY.y - cur.y
-    if math.abs(dx) < PanEpsilon && math.abs(dy) < PanEpsilon then
+    val cur  = translateXY.now()
+    val next = panInput.at(nowMs)
+    if panInput.settledAt(nowMs) then
+      // All the input is drawn. `next` is exactly the total of the input.
       panRafId = None
-      // Land exactly on the target: the decay is asymptotic, and leaving the
-      // residue behind would let successive gestures accumulate drift.
-      if dx != 0.0 || dy != 0.0 then translateXY.set(targetXY)
-    else
-      // Frame-rate independent by construction. A fixed per-frame fraction
-      // would pan at a different SPEED on a 120Hz display than on a 60Hz one,
-      // and would lurch whenever a frame ran long.
-      val alpha = 1.0 - math.exp(-dtMs / PanTauMs)
-      translateXY.set(SvgPoint(cur.x + dx * alpha, cur.y + dy * alpha))
-      requestPanFrame()
+      panInput = PanResampler.empty(next)
+      setPanning(false)
+    else requestPanFrame()
+    if next.toTuple != cur.toTuple then translateXY.set(next)
 
   // ---- entry points ------------------------------------------------------
 
   def resetView(): Unit =
-    // A fit is a DESTINATION, not a gesture. Chasing it would glide the whole
-    // drawing across the canvas on every re-layout under auto-fit.
-    cancelPanChase()
-    targetXY = SvgPoint.origin
+    // A fit is a DESTINATION, not a gesture. A glide to it would move the
+    // whole drawing across the canvas on every re-layout under auto-fit.
+    setPanNow(SvgPoint.origin)
     Var.set(
       zoomValue   -> SvgTransformOps.FitZoom,
       translateXY -> SvgPoint.origin
@@ -157,7 +156,7 @@ trait SvgTransformOps:
     * [[panByClient]], whose window-based scale is a wheel-feel approximation,
     * not an exact compensation.
     *
-    * Snaps rather than chases, and deliberately discards a chase in flight:
+    * Snaps, and drops the input of a pan in flight that is not drawn yet:
     * the caller measured this delta from what is ON SCREEN right now, so the
     * correction belongs to the DRAWN offset. Easing it would put the anchor
     * visibly adrift for the length of the ease — the one thing an anchor may
@@ -176,7 +175,9 @@ trait SvgTransformOps:
     val clientWidth  = dom.window.innerWidth max 1
     val z            = zoomValue.now()
     val scale        = viewBox.width / clientWidth max viewBox.height / clientHeight
-    panBy(SvgPoint(dx * scale / z, dy * scale / z))
+    // This input has no trackpad time. Its time is the time of the call.
+    val nowMs = dom.window.performance.now()
+    panBy(SvgPoint(dx * scale / z, dy * scale / z), nowMs, nowMs)
 
   /** The zoom at the start of a WebKit pinch (`gesturestart`). It is empty when
     * no WebKit pinch is active. */
@@ -195,9 +196,11 @@ trait SvgTransformOps:
       Option(mainGroup.getScreenCTM()).foreach: ctm =>
         val anchor = at.toSvgPoint(ctm)
         val origin = SvgTransformOps.transformOrigin(mainGroup)
-        cancelPanChase()
+        // The zoom starts from the DRAWN pan. The input of a pan in flight that
+        // is not drawn yet is dropped: its deltas are in the units of the old
+        // zoom, and it is at most about DelayMs of motion.
         val pan = SvgTransformOps.anchoredPan(translateXY.now(), anchor, origin, oldZoom, newZoom)
-        targetXY = pan
+        setPanNow(pan)
         Var.set(
           zoomValue   -> newZoom,
           translateXY -> pan
@@ -221,10 +224,10 @@ trait SvgTransformOps:
     else
       val z     = zoomValue.now()
       val scale = viewBox.width / clientWidth max viewBox.height / clientHeight
-      // Deltas ACCUMULATE into the target, so several events landing inside one
-      // frame cost one transform write between them instead of one apiece —
-      // and the chrome refit that rides on every write likewise runs per frame.
-      panBy(SvgPoint(wEv.deltaX * scale / z, wEv.deltaY * scale / z))
+      // Each event adds a sample to the pan input. The pan loop draws the input
+      // one time in each frame. Thus several events in one frame cost one
+      // transform write, and the chrome refit on each write runs once a frame.
+      panBy(SvgPoint(wEv.deltaX * scale / z, wEv.deltaY * scale / z), wEv.timeStamp, dom.window.performance.now())
 
   /** A WebKit pinch starts (`gesturestart`). The function keeps the zoom of
     * this time. */
