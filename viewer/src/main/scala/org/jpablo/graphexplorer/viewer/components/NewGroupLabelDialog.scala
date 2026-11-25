@@ -2,10 +2,10 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
+import org.jpablo.graphexplorer.viewer.components.labelEditor.{DiagramLabelEditor, NewLabelIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Dialog, DialogTextArea, PrimaryAction, QuietAction}
-import org.scalajs.dom.KeyValue
+import org.jpablo.graphexplorer.viewer.widgets.{Dialog, PrimaryAction, QuietAction}
 
 /** Dialog to collect a label before creating a new group. It mirrors the NewNodeLabelDialog UX but triggers group creation on save. */
 def NewGroupLabelDialog(state: ViewerState) =
@@ -20,21 +20,21 @@ def NewGroupLabelDialog(state: ViewerState) =
   def saveAndCreate(): Unit =
     state.pendingNewGroupV.now().foreach: pending =>
       val text = modalText.now()
-      val label = TextUtils.escape(text)
+      // The rule of the Edit Label dialog: HTML-like markup stays HTML.
+      val label = AttributeRow.labelValue(text).toString
       // Create group with provided label, then select it
       state.createGroupWithLabel(pending.elementIds, label)
     closeDialog()
 
-  val textAreaElement = DialogTextArea(
-    placeholder := "Enter group label...",
-    rows        := 3,
-    controlled(value <-- modalText, onInput.mapToValue --> modalText),
-    onMountFocus,
-    // Enter -> Save and Create
-    // Shift+Enter -> Add a new line
-    onKeyDown.filter(ev => ev.key == KeyValue.Enter && !ev.shiftKey).preventDefault --> saveAndCreate(),
-    // Escape -> Close without creating
-    onKeyDown.filter(_.key == KeyValue.Escape) --> closeDialog()
+  def labelEditor = DiagramLabelEditor(
+    state    = state,
+    text     = modalText,
+    graph    = state.fullGraph,
+    // The id of the new group is not in the diagram.
+    element  = state.fullGraph.map(NewLabelIds.group),
+    onSave   = () => saveAndCreate(),
+    onCancel = () => closeDialog(),
+    hint     = "Enter group label..."
   )
 
   div(
@@ -44,11 +44,7 @@ def NewGroupLabelDialog(state: ViewerState) =
         // --- contents ---
         div(
           h3(cls := "font-bold text-md mb-2", "New Group Label"),
-          textAreaElement,
-          div(
-            cls := "flex justify-between items-center mt-2",
-            p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line")
-          )
+          labelEditor
         ),
         // --- State Synchronization ---
         // Reset modal text when the dialog opens

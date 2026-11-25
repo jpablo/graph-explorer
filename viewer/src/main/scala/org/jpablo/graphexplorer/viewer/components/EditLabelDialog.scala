@@ -5,10 +5,10 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.toRawText
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
-import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
+import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.components.labelEditor.DiagramLabelEditor
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Dialog, DialogTextArea, PrimaryAction, QuietAction}
-import org.scalajs.dom.KeyValue
+import org.jpablo.graphexplorer.viewer.widgets.{Dialog, PrimaryAction, QuietAction}
 
 def EditLabelDialog(state: ViewerState) =
   val dialogIsOpen =
@@ -27,16 +27,19 @@ def EditLabelDialog(state: ViewerState) =
     state.editingElementV.now().foreach(elementLabelVar(_).set(modalText.now()))
     closeDialog()
 
-  val textAreaElement = DialogTextArea(
-    placeholder := "Enter label text...",
-    rows        := 3,                                   // Give it a bit more initial space
-    controlled(value <-- modalText, onInput.mapToValue --> modalText),
-    onMountFocus,
-    // Enter -> Save and Close
-    // Shift+Enter -> Add a new line
-    onKeyDown.filter(ev => ev.key == KeyValue.Enter && !ev.shiftKey).preventDefault --> saveAndClose(),
-    // Escape -> Close without saving
-    onKeyDown.filter(_.key == KeyValue.Escape) --> closeDialog()
+  // The dialog shows only while an element is in `editingElementV`. The
+  // empty node id is for the closed dialog, which shows no preview.
+  val editedElement: Signal[ElementId] =
+    state.editingElementV.signal.map(_.getOrElse(NodeId("")))
+
+  def labelEditor = DiagramLabelEditor(
+    state    = state,
+    text     = modalText,
+    graph    = state.fullGraph,
+    element  = editedElement,
+    onSave   = () => saveAndClose(),
+    onCancel = () => closeDialog(),
+    hint     = "Enter label text..."
   )
 
   div(
@@ -46,11 +49,7 @@ def EditLabelDialog(state: ViewerState) =
         // --- contents ---
         div(
           h3(cls := "font-bold text-md mb-2", "Edit Label"),
-          textAreaElement,
-          div(
-            cls := "flex justify-between items-center mt-2",
-            p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line")
-          )
+          labelEditor
         ),
         // --- State Synchronization ---
         // Update modalText when the dialog opens

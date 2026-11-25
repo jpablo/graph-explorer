@@ -7,8 +7,8 @@ import scala.scalajs.js.annotation.*
 
 // Hand-written facade for the (small) subset of CodeMirror 6 the source editor
 // binds to: @codemirror/state, @codemirror/view, @codemirror/commands,
-// @codemirror/language, @lezer/highlight, the `codemirror` meta-package, and
-// @viz-js/lang-dot.
+// @codemirror/language, @lezer/highlight, the `codemirror` meta-package,
+// @viz-js/lang-dot, and @codemirror/lang-xml.
 //
 // This replaces the ScalablyTyped-generated `typings.codemirror*` bindings:
 // sbt-converter has no sbt 2.x release, so generated facades were dropped in
@@ -23,7 +23,9 @@ type KeyBinding  = js.Any
 // ---- @codemirror/state -----------------------------------------------------
 
 @js.native
-trait Text extends js.Object
+trait Text extends js.Object:
+  /** The number of characters in the document. */
+  def length: Int = js.native
 
 @js.native
 trait EditorState extends js.Object:
@@ -42,6 +44,20 @@ object EditorState extends js.Object:
     */
   val readOnly: ReadOnlyFacet = js.native
 
+/** The precedence of an extension. An extension with a higher precedence
+  * comes first, so its key bindings run before the bindings of other
+  * extensions.
+  */
+@js.native
+@JSImport("@codemirror/state", "Prec")
+object Prec extends js.Object:
+  def highest(extension: Extension): Extension = js.native
+
+/** A selection: the cursor is at `anchor` when `head` is not set. */
+trait SelectionSpec extends js.Object:
+  var anchor: Int
+  var head: js.UndefOr[Int] = js.undefined
+
 @js.native
 @JSImport("@codemirror/state", "Compartment")
 class Compartment() extends js.Object:
@@ -56,6 +72,7 @@ trait ChangeSpec extends js.Object:
 trait TransactionSpec extends js.Object:
   var effects: js.UndefOr[StateEffect] = js.undefined
   var changes: js.UndefOr[ChangeSpec]  = js.undefined
+  var selection: js.UndefOr[SelectionSpec] = js.undefined
 
 // ---- @codemirror/view ------------------------------------------------------
 
@@ -79,6 +96,7 @@ trait EditorViewConfig extends js.Object:
   var doc: js.UndefOr[String]           = js.undefined
   var parent: js.UndefOr[dom.Element]   = js.undefined
   var extensions: js.UndefOr[Extension] = js.undefined
+  var selection: js.UndefOr[SelectionSpec] = js.undefined
 
 @js.native
 trait UpdateListenerFacet extends js.Object:
@@ -89,6 +107,8 @@ trait UpdateListenerFacet extends js.Object:
 class EditorView(config: EditorViewConfig) extends js.Object:
   def state: EditorState                      = js.native
   def dispatch(specs: TransactionSpec*): Unit = js.native
+  /** Move the keyboard focus to the editor. */
+  def focus(): Unit = js.native
 
   /** Remove the editor from the page, and remove its listeners from the
     * window, the document and the ancestors of the editor. The view is not
@@ -114,6 +134,22 @@ object EditorView extends js.Object:
 object keymap extends js.Object:
   def of(bindings: js.Array[KeyBinding]): Extension = js.native
 
+/** A key binding. `run` gets the key, and `shift` gets the key with Shift.
+  * A command that returns true handles the key: the editor then calls
+  * `preventDefault` on the event, and also `stopPropagation` when
+  * `stopPropagation` is true.
+  */
+trait KeyBindingSpec extends js.Object:
+  var key: js.UndefOr[String]                           = js.undefined
+  var run: js.UndefOr[js.Function1[EditorView, Boolean]] = js.undefined
+  var stopPropagation: js.UndefOr[Boolean]              = js.undefined
+
+@js.native
+@JSImport("@codemirror/view", JSImport.Namespace)
+object viewModule extends js.Object:
+  /** An extension that shows `text` in an empty editor. */
+  def placeholder(text: String): Extension = js.native
+
 // ---- @codemirror/commands --------------------------------------------------
 
 @js.native
@@ -124,6 +160,8 @@ object commands extends js.Object:
   // structurally (its `dispatch` is already bound).
   def undo(target: EditorView): Boolean = js.native
   def redo(target: EditorView): Boolean = js.native
+  /** Put a line break at the cursor, with no indentation. */
+  def insertNewline(target: EditorView): Boolean = js.native
 
 // ---- @codemirror/language --------------------------------------------------
 
@@ -173,6 +211,10 @@ object tags extends js.Object:
 @JSImport("codemirror", JSImport.Namespace)
 object codemirror extends js.Object:
   val basicSetup: Extension = js.native
+  /** The history, the selection and the default key bindings, with no
+    * gutter, no autocompletion and no search.
+    */
+  val minimalSetup: Extension = js.native
 
 // ---- @viz-js/lang-dot ------------------------------------------------------
 
@@ -180,3 +222,13 @@ object codemirror extends js.Object:
 @JSImport("@viz-js/lang-dot", JSImport.Namespace)
 object vizJsLangDot extends js.Object:
   def dot(): Extension = js.native
+
+// ---- @codemirror/lang-xml --------------------------------------------------
+
+@js.native
+@JSImport("@codemirror/lang-xml", JSImport.Namespace)
+object langXml extends js.Object:
+  /** The XML language: the highlight of tags and attributes, and the
+    * automatic close of a tag.
+    */
+  def xml(): Extension = js.native
