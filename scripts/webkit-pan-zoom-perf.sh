@@ -17,6 +17,7 @@
 #   DOT_FILE=path/to/diagram.dot scripts/webkit-pan-zoom-perf.sh   # a diagram in the repository
 #   EVENTS=300 scripts/webkit-pan-zoom-perf.sh            # wheel events for each gesture
 #   STUB_CTM=1 scripts/webkit-pan-zoom-perf.sh            # experiment: getScreenCTM from a cache
+#   CAP_60FPS=1 scripts/webkit-pan-zoom-perf.sh           # keep the 60 fps limit of WebKit on
 #   LIMIT_S=600 scripts/webkit-pan-zoom-perf.sh           # stop the run after this time (default 300 s)
 set -euo pipefail
 

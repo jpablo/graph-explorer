@@ -34,3 +34,8 @@ uds_windows = "1.1.0"
 # Foundation are already linked by tauri/tao, so we only need the objc shim.
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"
+
+# WebKit must start on the main thread, so this test has its own `main`.
+[[test]]
+name = "frame_rate"
+harness = false

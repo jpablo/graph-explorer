@@ -15,7 +15,12 @@
 // from a cache. The difference shows the cost of the forced layouts.
 //
 // A frame time includes the script, the style, the layout, and the paint. A
-// display at 60 Hz has a frame period of 16.7 ms.
+// display at 60 Hz has a frame period of 16.7 ms, and a display at 120 Hz has
+// a frame period of 8.3 ms.
+//
+// The desktop app turns off the 60 fps limit of WebKit (desktop/src-tauri/src/
+// frame_rate.rs), so the program does the same. CAP_60FPS=1 keeps the limit on,
+// to compare with the default of WebKit.
 //
 // Usage: pan-zoom-perf <app url> <dot path on the server> [events]
 import AppKit
@@ -45,6 +50,25 @@ let activity = ProcessInfo.processInfo.beginActivity(
 )
 let config = WKWebViewConfiguration()
 config.websiteDataStore = .nonPersistent()
+// The same switch as the desktop app: WebKit keeps the page near 60 fps by
+// default, also on a 120 Hz display. The feature list and the switch are
+// private WebKit API, so the program checks each selector first.
+if ProcessInfo.processInfo.environment["CAP_60FPS"] != "1" {
+  let prefs = config.preferences
+  let listSel = NSSelectorFromString("_features")
+  let setSel = NSSelectorFromString("_setEnabled:forFeature:")
+  var off = false
+  if (WKPreferences.self as AnyObject).responds(to: listSel), prefs.responds(to: setSel),
+    let features = (WKPreferences.self as AnyObject).perform(listSel)?.takeUnretainedValue() as? [NSObject]
+  {
+    for f in features where (f.value(forKey: "key") as? String) == "PreferPageRenderingUpdatesNear60FPSEnabled" {
+      typealias SetEnabled = @convention(c) (AnyObject, Selector, Bool, AnyObject) -> Void
+      unsafeBitCast(prefs.method(for: setSel), to: SetEnabled.self)(prefs, setSel, false, f)
+      off = true
+    }
+  }
+  print(off ? "the 60 fps limit is off, as in the desktop app" : "this WebKit has no 60 fps limit to turn off")
+}
 let window = NSWindow(
   contentRect: NSRect(x: 80, y: 80, width: 1400, height: 900),
   styleMask: [.titled, .closable],
