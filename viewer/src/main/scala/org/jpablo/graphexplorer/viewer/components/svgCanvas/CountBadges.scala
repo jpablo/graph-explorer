@@ -60,17 +60,18 @@ object CountBadges:
     * this beyond it — and NewArrowControl has to step around one. */
   val clientDiameter = 18.0
 
-  /** A badge is anchored ON the point it marks, with no offset of its own. */
-  private def place(g: dom.Element, cx: Double, cy: Double, reference: dom.Element): Unit =
+  /** A badge is anchored ON the point it marks. `oxPx` moves it to the right, in screen pixels: the link icon of an
+    * arrow uses it, so that it does not cover the end of the label. */
+  private[svgCanvas] def place(g: dom.Element, cx: Double, cy: Double, reference: dom.Element, oxPx: Double = 0): Unit =
     val anchored =
-      ScreenConstant.Anchored(cx, cy, oxPx = 0, oyPx = 0, sizePx = clientDiameter, designBox = designRadius * 2)
+      ScreenConstant.Anchored(cx, cy, oxPx = oxPx, oyPx = 0, sizePx = clientDiameter, designBox = designRadius * 2)
     // A missing CTM (hidden/pre-layout svg) leaves the badge at scale 1 for
     // now; the next refit corrects it rather than freezing it diagram-sized.
     ScreenConstant.place(g, anchored, ScreenConstant.userPerPx(reference).getOrElse(1.0))
 
   /** The overlay layer, created on first use as the LAST child of the main
     * group — its position in document order is the whole point. */
-  private def layerOf(mainGroup: dom.Element): dom.Element =
+  private[svgCanvas] def layerOf(mainGroup: dom.Element): dom.Element =
     Option(mainGroup.querySelector(s"g.$layerClass")).getOrElse:
       val g = dom.document.createElementNS(SvgNS, "g")
       g.setAttribute("class", layerClass)
@@ -81,7 +82,7 @@ object CountBadges:
     * graphviz (nodes carry no transform); a translation for Mermaid, whose
     * node groups do — without it every Mermaid badge would pile up at the
     * diagram's origin. */
-  private def toLayer(el: dom.Element, layer: dom.Element, x: Double, y: Double): (Double, Double) =
+  private[svgCanvas] def toLayer(el: dom.Element, layer: dom.Element, x: Double, y: Double): (Double, Double) =
     val elemCtm  = Option(el.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
     val layerCtm = Option(layer.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
     (elemCtm, layerCtm) match

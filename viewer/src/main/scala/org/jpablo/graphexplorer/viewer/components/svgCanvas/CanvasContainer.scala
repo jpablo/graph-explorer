@@ -6,8 +6,9 @@ import com.raquo.laminar.nodes.ChildNode
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
+import org.jpablo.graphexplorer.viewer.desktop.ExternalLink
 import org.jpablo.graphexplorer.viewer.state.{EditorNotice, ViewerState}
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils}
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils, Platform}
 import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
 
 import scala.scalajs.js
@@ -25,6 +26,10 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
   // A press on the inert canvas of a view-only diagram pulses the chip: the
   // answer to "why won't it select?" arrives at the moment the question is asked.
   val viewOnlyNudge = EventBus[Unit]()
+  // True while the command key (⌘ on a Mac, Ctrl on other platforms) is down.
+  // The stylesheet then shows the link icon of each linked element
+  // (LinkBadges), and gives a linked element the hand pointer.
+  val linksRevealed = Var(false)
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,
@@ -57,9 +62,23 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // element in an svg `<a>` link. A click on the canvas only selects. Thus the
     // canvas cancels the link, so that the window stays on the diagram. The
     // event continues to bubble, and the selection does not change.
+    // A click with the command key (⌘ on a Mac, Ctrl on other platforms)
+    // opens the link in the browser of the system.
     onClick --> { ev =>
-      if isInSvgLink(ev.target) then ev.preventDefault()
+      LinkBadges.svgLinkOf(ev.target).foreach: link =>
+        ev.preventDefault()
+        if Platform.commandKey(ev.metaKey, ev.ctrlKey, Platform.isMac) then
+          LinkBadges.linkUrl(link).foreach(ExternalLink.open)
     },
+    // The URL of the linked element under the pointer, as a browser shows it.
+    child.maybe <-- state.hoveredLink.signal.map(_.map(LinkStatus)),
+    cls("gx-links-revealed") <-- linksRevealed.signal.distinct,
+    documentEvents(_.onKeyDown) --> { e => if isCommandKeyName(e.key) then linksRevealed.set(true) },
+    documentEvents(_.onKeyUp) --> { e => if isCommandKeyName(e.key) then linksRevealed.set(false) },
+    // A window that loses the focus while the key is down (⌘-Tab) gets no
+    // key-up. A blur ends the state, and each mouse move gives the real state.
+    windowEvents(_.onBlur) --> linksRevealed.set(false),
+    onMouseMove --> { e => linksRevealed.set(Platform.commandKey(e.metaKey, e.ctrlKey, Platform.isMac)) },
     // we need a way to move the focus here after certain events
     focus <-- state.canvasContainerFocus,
     // abort ongoing mouse actions when the focus is lost
@@ -132,12 +151,21 @@ private def gestureNumber(e: dom.Event, name: String): Option[Double] =
   if js.typeOf(v) == "number" then Some(v.asInstanceOf[Double]).filter(x => !x.isNaN && !x.isInfinite)
   else None
 
-/** True if `target` is in an `<a>` element of an svg. */
-private def isInSvgLink(target: dom.EventTarget): Boolean =
-  target match
-    case el: dom.Element =>
-      Option(el.closest("a")).exists(a => a.namespaceURI == "http://www.w3.org/2000/svg")
-    case _ => false
+/** True when `key` (a `KeyboardEvent.key`) is the command key of the platform. */
+private def isCommandKeyName(key: String): Boolean =
+  if Platform.isMac then key == "Meta" else key == "Control"
+
+/** The strip at the bottom-left corner of the canvas that shows the URL of the linked element under the pointer, and
+  * how to open it. The strip takes no pointer events, so it does not hide the drawing from the pointer.
+  */
+private def LinkStatus(url: String) =
+  val key = if Platform.isMac then "⌘-" else "Ctrl+"
+  div(
+    idAttr := "gx-link-status",
+    i(cls := "bi bi-link-45deg"),
+    span(cls := "gx-link-url", url),
+    span(cls := "gx-link-hint", s"${key}click to open")
+  )
 
 private[svgCanvas] val viewOnlyChipPulseKeyframes = js.Array(
   js.Dynamic.literal(transform = "scale(1)"),
