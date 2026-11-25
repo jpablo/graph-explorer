@@ -143,6 +143,7 @@ def SvgCanvas(
   // covers each layout that renders under it.
   rawSvg.ref.addEventListener(LayoutTransition.transitionEndEvent, (_: dom.Event) => layoutSettled.emit(()))
   CountBadges.installHover(mainGroup, strategy)
+  LinkBadges.installHover(mainGroup, strategy, viewerOps.hoveredLink.set)
 
   def refreshOverlayControls(elem: Option[SelectableElement], action: MouseAction): Unit =
     viewerOps.handleNewArrowControls(mainGroup, elem, action)
@@ -206,6 +207,8 @@ def SvgCanvas(
           unmount = _ =>
             svgResize.disconnect()
             scale.invalidate()
+            // The strip must not keep the URL of a drawing that is gone.
+            viewerOps.hoveredLink.set(None)
         ),
         // Post-mount work needing real geometry (badges: getBBox; onRendered:
         // client rects). Registered AFTER the transform binder on purpose —
@@ -218,6 +221,7 @@ def SvgCanvas(
           rawSvg.ref.style.setProperty("max-width", "none")
           rawSvg.ref.style.setProperty("max-height", "none")
           CountBadges.decorate(mainGroup, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
+          LinkBadges.decorate(mainGroup, strategy)
           onRendered(rawSvg.ref)
         },
         // --------------------------------------------------------

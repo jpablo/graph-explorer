@@ -62,6 +62,9 @@ trait UIState:
   val leftPanelVisible: Var[Boolean]
 
   val canvasContainerFocus    = EventBus[Boolean]()
+
+  /** The URL of the linked element under the pointer, if any. The URL strip of the canvas shows it. */
+  val hoveredLink = Var(Option.empty[String])
   val aboutDialogOpen         = Var(false)
   val preferencesDialogOpen   = Var(false)
   val renameDialogOpen        = Var(false)

@@ -1094,6 +1094,31 @@ svg {
       }
     }
 
+    // The URL of the linked element under the pointer (LinkBadges), at the
+    // bottom-left corner, as a browser shows the URL of a link. It is above the
+    // zoom bar (`bottom-14`), because the zoom bar covers the bottom-left
+    // corner of a narrow canvas. It takes no pointer events. A pan moves the
+    // drawing away from the element, so the strip goes away during a pan.
+    #gx-link-status {
+      @apply absolute bottom-14 left-2 z-10 flex items-start gap-1.5 px-2 py-1;
+      @apply rounded-md border border-base-300 bg-base-100/95 shadow-sm text-xs;
+      max-width: min(40rem, calc(100% - 1rem));
+      pointer-events: none;
+
+      // The end of a URL (a line number, an anchor) is often the useful part,
+      // so a long URL wraps and is not cut.
+      .gx-link-url {
+        @apply font-mono min-w-0;
+        overflow-wrap: anywhere;
+      }
+      .gx-link-hint {
+        @apply opacity-60 whitespace-nowrap shrink-0;
+      }
+    }
+    &.gx-panning #gx-link-status {
+      display: none;
+    }
+
     svg.graphviz {
       width: 100%;
 
@@ -1719,6 +1744,35 @@ svg {
   visibility: visible;
 }
 
+// The link icon of a linked element (LinkBadges). It shows only while the
+// pointer is on the element or on the icon, as the fold badge does: every
+// element of some diagrams has a link, and icons on all of them only add noise.
+.gx-link-badge {
+  cursor: pointer;
+  visibility: hidden;
+
+  circle {
+    fill: var(--gx-control-soft) !important;
+    stroke: white !important;
+    stroke-width: 1px !important;
+    filter: drop-shadow(0px 1px 1px var(--gx-shadow-deep));
+  }
+  path {
+    fill: var(--gx-control-ink) !important;
+    stroke: none !important;
+    pointer-events: none;
+  }
+  &:hover circle {
+    fill: var(--gx-control) !important;
+  }
+  &:hover path {
+    fill: var(--gx-control-soft) !important;
+  }
+}
+.gx-link-badge.gx-badge-active {
+  visibility: visible;
+}
+
 // While a layout tween runs, badges would ride their element's scale channel
 // and smear (a stretched ellipse mid-flight). visibility (not display) so
 // getBBox-based measurements stay identical with and without the class.
@@ -1726,6 +1780,7 @@ svg {
 // positioned at frame 0 — the OLD layout — and reappear once the transition
 // lands and SvgCanvas recomputes them (gx-transition-end).
 svg.gx-transitioning .gx-expand-badge,
+svg.gx-transitioning .gx-link-badge,
 svg.gx-transitioning .new-arrow-control,
 svg.gx-transitioning .edge-endpoint-disk,
 // The cell overlay belongs here for the same reason — it is placed from frame-0

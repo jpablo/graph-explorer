@@ -61,11 +61,13 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // A click with the command key (⌘ on a Mac, Ctrl on other platforms)
     // opens the link in the browser of the system.
     onClick --> { ev =>
-      svgLinkOf(ev.target).foreach: link =>
+      LinkBadges.svgLinkOf(ev.target).foreach: link =>
         ev.preventDefault()
         if Platform.commandKey(ev.metaKey, ev.ctrlKey, Platform.isMac) then
-          linkUrl(link).foreach(ExternalLink.open)
+          LinkBadges.linkUrl(link).foreach(ExternalLink.open)
     },
+    // The URL of the linked element under the pointer, as a browser shows it.
+    child.maybe <-- state.hoveredLink.signal.map(_.map(LinkStatus)),
     // we need a way to move the focus here after certain events
     focus <-- state.canvasContainerFocus,
     // abort ongoing mouse actions when the focus is lost
@@ -138,18 +140,17 @@ private def gestureNumber(e: dom.Event, name: String): Option[Double] =
   if js.typeOf(v) == "number" then Some(v.asInstanceOf[Double]).filter(x => !x.isNaN && !x.isInfinite)
   else None
 
-/** The `<a>` element of an svg that holds `target`, if any. */
-private def svgLinkOf(target: dom.EventTarget): Option[dom.Element] =
-  target match
-    case el: dom.Element =>
-      Option(el.closest("a")).filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-    case _ => None
-
-/** The URL of an svg link: its `href`, or else its `xlink:href`. */
-private def linkUrl(link: dom.Element): Option[String] =
-  Option(link.getAttribute("href"))
-    .orElse(Option(link.getAttributeNS("http://www.w3.org/1999/xlink", "href")))
-    .filter(_.nonEmpty)
+/** The strip at the bottom-left corner of the canvas that shows the URL of the linked element under the pointer, and
+  * how to open it. The strip takes no pointer events, so it does not hide the drawing from the pointer.
+  */
+private def LinkStatus(url: String) =
+  val key = if Platform.isMac then "⌘-" else "Ctrl+"
+  div(
+    idAttr := "gx-link-status",
+    i(cls := "bi bi-link-45deg"),
+    span(cls := "gx-link-url", url),
+    span(cls := "gx-link-hint", s"${key}click to open")
+  )
 
 private[svgCanvas] val viewOnlyChipPulseKeyframes = js.Array(
   js.Dynamic.literal(transform = "scale(1)"),
