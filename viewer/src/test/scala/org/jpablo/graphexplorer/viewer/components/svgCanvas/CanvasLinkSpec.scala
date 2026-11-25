@@ -165,6 +165,46 @@ class CanvasLinkSpec extends FunSuite with TestHelpers with LoggedChecks with Ca
           external = recordOpenExternal(clickPrevented(shape))
         check(opened.isEmpty && external.isEmpty, s"a plain click opened the link: window.open=$opened shell=$external")
 
+  // ---------------------------------------------------------------------------
+  // The focus after a click on a linked element.
+  // ---------------------------------------------------------------------------
+
+  /** Run `body`, and give the messages of the errors that the window did not catch until `waitMs` later. */
+  private def uncaughtErrors(waitMs: Int)(body: => Unit): scala.concurrent.Future[Vector[String]] =
+    import scala.concurrent.ExecutionContext.Implicits.global
+    val errors = mutable.Buffer.empty[String]
+    val listener: js.Function1[dom.ErrorEvent, Unit] = ev =>
+      errors += Option(ev.asInstanceOf[js.Dynamic].error).filterNot(js.isUndefined).map(_.toString).getOrElse(ev.message)
+      ev.preventDefault()
+    dom.window.addEventListener("error", listener)
+    body
+    org.jpablo.graphexplorer.viewer.utils.Waits
+      .after(waitMs)
+      .map: _ =>
+        dom.window.removeEventListener("error", listener)
+        errors.toVector
+
+  test("a selection while the svg link has the focus gives the focus back to the canvas, with no error"):
+    import scala.concurrent.ExecutionContext.Implicits.global
+    val a = NodeId("a")
+    withCanvas(s"""digraph { a [shape=box, URL="$link"]; a -> b }""", a): canvas =>
+      afterMicrotasks(())
+        .flatMap: _ =>
+          // A click on a linked node gives the focus to its svg `<a>` element, as a browser does for a link.
+          val anchor = canvas.nodeGroup(a).flatMap(g => Option(g.querySelector("a")))
+          check(anchor.isDefined, "precondition: the node a has no svg link")
+          anchor.get.asInstanceOf[js.Dynamic].focus()
+          check(dom.document.activeElement eq anchor.get, "precondition: the svg link does not take the focus")
+          uncaughtErrors(waitMs = 200):
+            canvas.state.selection.set(org.jpablo.graphexplorer.viewer.models.ElementIds(Set(a)))
+        .map: errors =>
+          check(errors.isEmpty, s"the selection gave an error that nothing caught: $errors")
+          val container = canvas.box.querySelector("#canvas-container")
+          check(
+            dom.document.activeElement eq container,
+            s"the canvas did not get the focus back: the focus is on <${dom.document.activeElement.tagName}>"
+          )
+
   test("a command-click does not open a link that is not http or https"):
     val a = NodeId("a")
     withCanvas("""digraph { a [shape=box, URL="javascript:alert(1)"]; a -> b }""", a): canvas =>

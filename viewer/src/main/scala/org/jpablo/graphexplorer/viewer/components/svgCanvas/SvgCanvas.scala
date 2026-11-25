@@ -358,7 +358,10 @@ end SvgCanvas
 private def isTextEditingActive(): Boolean =
   Option(dom.document.activeElement).exists { active =>
     val tag = active.tagName.toUpperCase
-    tag == "INPUT" || tag == "TEXTAREA" ||
-    active.asInstanceOf[dom.html.Element].isContentEditable ||
-    active.closest(".cm-editor") != null
+    // The focus can be on an svg element: a click on a linked node gives the focus to its svg `<a>`. An svg element
+    // has no `isContentEditable`, and a cast to an html element failed with a ClassCastException.
+    val editable = active match
+      case html: dom.html.Element => html.isContentEditable
+      case _                      => false
+    tag == "INPUT" || tag == "TEXTAREA" || editable || active.closest(".cm-editor") != null
   }
