@@ -30,7 +30,8 @@ final case class Settings3D(
     enable3D:         Var[Boolean] = Var(false),
     layout3D:         Var[String] = Var(org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id),
     nav3DTrackpad:    Var[Boolean] = Var(true),
-    label3DBillboard: Var[Boolean] = Var(false)
+    label3DBillboard: Var[Boolean] = Var(false),
+    orthographic3D:   Var[Boolean] = Var(false)
 ):
   /** True when the 3D scene shows: the mode is on, and the feature is on. */
   val active: Signal[Boolean] = view3D.signal.combineWithFn(enable3D.signal)(_ && _)
@@ -43,7 +44,8 @@ object Settings3D:
       enable3D = Var(settings.enable3D),
       layout3D = Var(storedLayout3D(settings)),
       nav3DTrackpad = Var(settings.nav3DTrackpad),
-      label3DBillboard = Var(settings.label3DBillboard)
+      label3DBillboard = Var(settings.label3DBillboard),
+      orthographic3D = Var(settings.orthographic3D)
     )
 
   /** The 3D layout that `settings` stores. With no stored layout, the force layout. */
@@ -144,6 +146,12 @@ trait UIState:
     * and detaches the edges. Persisted in ViewerSettings.
     */
   final def label3DBillboard: Var[Boolean] = settings3D.label3DBillboard
+
+  /** The projection of the 3D camera: true = orthographic (the size of an
+    * object does not change with its distance), false = perspective (the
+    * default). Persisted in ViewerSettings.
+    */
+  final def orthographic3D: Var[Boolean] = settings3D.orthographic3D
 
   /** Show a sheet behind each Mermaid drawing (MermaidBackend.addSheet). The
     * renderer always adds the sheet. When this is false, a class on the canvas
