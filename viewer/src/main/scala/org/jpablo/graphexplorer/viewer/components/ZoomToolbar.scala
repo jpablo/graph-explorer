@@ -97,6 +97,7 @@ private def threeDControls(views: Signal[DiagramView], settings3D: Settings3D) =
   div(
     cls := "flex items-center gap-1",
     layout3DSelect(settings3D),
+    projection3DSelect(settings3D),
     Button(
       title := "Face the drawing straight-on (orthogonal to its plane)",
       i(cls := "bi bi-aspect-ratio"),
@@ -128,5 +129,25 @@ private def layout3DSelect(settings3D: Settings3D) =
     controlled(
       value <-- settings3D.layout3D.signal,
       onChange.mapToValue --> settings3D.layout3D.writer
+    )
+  )
+
+/** The projection of the 3D camera. The values of the select are the names
+  * of the projections. `settings3D.orthographic3D` stores the choice.
+  */
+private def projection3DSelect(settings3D: Settings3D) =
+  val Perspective  = "perspective"
+  val Orthographic = "orthographic"
+  SelectBox(
+    SelectVariant.ghost,
+    SelectVariant.xs,
+    idAttr := "projection3d-select",
+    cls    := "w-auto",
+    title  := "Camera projection (orthographic: the size of an object does not change with its distance)",
+    option(value := Perspective, "Perspective"),
+    option(value := Orthographic, "Orthographic"),
+    controlled(
+      value <-- settings3D.orthographic3D.signal.map(on => if on then Orthographic else Perspective),
+      onChange.mapToValue --> (v => settings3D.orthographic3D.set(v == Orthographic))
     )
   )

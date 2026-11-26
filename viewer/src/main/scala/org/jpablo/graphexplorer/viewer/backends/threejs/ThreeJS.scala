@@ -28,6 +28,7 @@ class Object3D extends js.Object:
   def remove(objects: Object3D*): this.type = js.native
   def lookAt(x: Double, y: Double, z: Double): Unit = js.native
   def getWorldDirection(target: Vector3): Vector3   = js.native
+  def updateMatrixWorld(): Unit                    = js.native
   // From three's EventDispatcher (not the DOM's): controller select events etc.
   def addEventListener(tpe: String, listener: js.Function1[js.Any, Unit]): Unit = js.native
 
@@ -47,11 +48,36 @@ class Scene extends Object3D:
 @JSImport("three", "Group")
 class Group extends Object3D
 
+/** The base class of the two cameras. The renderer and the raycaster accept each one. */
+@js.native
+@JSImport("three", "Camera")
+class Camera extends Object3D:
+  def updateProjectionMatrix(): Unit = js.native
+
 @js.native
 @JSImport("three", "PerspectiveCamera")
-class PerspectiveCamera(fov: Double, aspectRatio: Double, near: Double, far: Double) extends Object3D:
-  var aspect: Double                   = js.native
-  def updateProjectionMatrix(): Unit   = js.native
+class PerspectiveCamera(fov: Double, aspectRatio: Double, near: Double, far: Double) extends Camera:
+  var aspect: Double = js.native
+
+/** A camera with no perspective: the size of an object on the screen does
+  * not change with its distance. The frustum is a box, in the space of the camera.
+  */
+@js.native
+@JSImport("three", "OrthographicCamera")
+class OrthographicCamera(
+    left0:   Double,
+    right0:  Double,
+    top0:    Double,
+    bottom0: Double,
+    near0:   Double,
+    far0:    Double
+) extends Camera:
+  var left: Double   = js.native
+  var right: Double  = js.native
+  var top: Double    = js.native
+  var bottom: Double = js.native
+  var near: Double   = js.native
+  var far: Double    = js.native
 
 @js.native
 @JSImport("three", "Vector2")
@@ -67,6 +93,8 @@ class Vector3 extends js.Object:
   def set(x: Double, y: Double, z: Double): this.type    = js.native
   def setFromMatrixPosition(m: Matrix4): this.type       = js.native
   def applyMatrix4(m: Matrix4): this.type                = js.native
+  /** Moves this point from world space to the normalized device coordinates of `camera`. */
+  def project(camera: Camera): this.type                 = js.native
 
 @js.native
 @JSImport("three", "Matrix4")
@@ -211,7 +239,7 @@ class WebGLRenderer(parameters: js.Object) extends js.Object:
   var autoClear: Boolean          = js.native
   def setPixelRatio(value: Double): Unit          = js.native
   def setSize(width: Double, height: Double): Unit = js.native
-  def render(scene: Object3D, camera: PerspectiveCamera): Unit = js.native
+  def render(scene: Object3D, camera: Camera): Unit = js.native
   def setAnimationLoop(callback: js.Function1[Double, Unit] | Null): Unit = js.native
   // Secondary-viewport pass (corner gizmo): CSS-pixel units, origin bottom-left.
   def setViewport(x: Double, y: Double, w: Double, h: Double): Unit = js.native
@@ -239,7 +267,7 @@ trait Ray extends js.Object:
 @JSImport("three", "Raycaster")
 class Raycaster extends js.Object:
   val ray: Ray = js.native
-  def setFromCamera(coords: Vector2, camera: PerspectiveCamera): Unit = js.native
+  def setFromCamera(coords: Vector2, camera: Camera): Unit = js.native
   def intersectObjects(objects: js.Array[Object3D], recursive: Boolean): js.Array[Intersection] = js.native
 
 // (OrbitControls is gone on purpose: its fixed world-up forces a clamp at the

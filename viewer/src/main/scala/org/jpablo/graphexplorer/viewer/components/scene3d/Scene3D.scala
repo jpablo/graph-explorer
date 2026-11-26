@@ -27,8 +27,10 @@ import scala.scalajs.js.typedarray.Float32Array
   * when it turns off — no state survives the mode switch except what lives in
   * ViewerState.
   */
-def Scene3D(state: ViewerState): Div =
-  val scene = GraphScene3D(state)
+def Scene3D(state: ViewerState): Div = Scene3D(state, GraphScene3D(state))
+
+/** The 3D canvas of `scene`. A test gives its own scene, and reads its camera. */
+def Scene3D(state: ViewerState, scene: GraphScene3D): Div =
   div(
     idAttr := "scene3d-container",
     // relative: the XRButton positions itself absolutely within this box.
@@ -42,6 +44,7 @@ def Scene3D(state: ViewerState): Div =
     state.layout3D.signal --> scene.setAlgorithm,
     state.nav3DTrackpad.signal --> scene.setNavMode,
     state.label3DBillboard.signal --> scene.setLabelBillboard,
+    state.orthographic3D.signal --> scene.setOrthographic,
     // The toolbar's Auto and Fit speak to the 3D camera exactly as they do to
     // the 2D transform.
     state.autoFit.signal --> scene.setAutoFit,
@@ -135,7 +138,30 @@ final class GraphScene3D(state: ViewerState):
 
   private val renderer   = three.WebGLRenderer(three.WebGLRenderer.params(antialias = true, alpha = true))
   private val scene      = three.Scene()
+  /** The camera rig: its position, the orbit target, and the distance between
+    * them are the state of the navigation. The perspective projection shows
+    * the rig directly. Orbit, pan, zoom and fit change only this camera.
+    */
   private val camera     = three.PerspectiveCamera(50, 1, 0.1, 2000)
+
+  /** The orthographic projection. It copies the pose of the rig in
+    * [[syncOrthoCamera]], and its frustum shows what the rig shows at the
+    * orbit target (Projection3D). It stands [[OrthoBackoff]] farther back on
+    * the same axis. The image does not change with that distance, but a near
+    * part of the drawing then does not go behind the camera at a close zoom.
+    */
+  private val OrthoBackoff = 500.0
+  private val orthoCamera  = three.OrthographicCamera(-1, 1, 1, -1, 0.1, 2000 + OrthoBackoff)
+
+  /** True when the orthographic camera shows the scene. */
+  private var orthographic = false
+
+  /** The camera that shows the scene, and that the raycaster uses. */
+  private[scene3d] def activeCamera: three.Camera = if orthographic then orthoCamera else camera
+
+  /** The distance from the rig to the orbit target. */
+  private[scene3d] def rigDistance: Double =
+    (Vec3(camera.position.x, camera.position.y, camera.position.z) - orbitTarget).length
   /** Everything the graph draws hangs off this one group, so an XR session can
     * move/scale the whole drawing to a comfortable spot (WebXR's origin is the
     * FLOOR — at identity the graph would sit half underground).
@@ -495,6 +521,14 @@ final class GraphScene3D(state: ViewerState):
 
   def setNavMode(trackpad: Boolean): Unit =
     trackpadNav = trackpad
+
+  /** Orthographic projection: on = the orthographic camera shows the scene;
+    * off (the default) = the perspective camera. The rig stays as it is, so
+    * the switch keeps the position, the target and the apparent zoom.
+    */
+  def setOrthographic(on: Boolean): Unit =
+    orthographic = on
+    syncOrthoCamera()
 
   /** Billboard labels: on = labels turn to face the camera; off (default) =
     * fixed sheets facing the front view. Dictated-geometry layouts always use
@@ -1010,7 +1044,10 @@ final class GraphScene3D(state: ViewerState):
   private def updateFog(): Unit =
     if layout.positions.nonEmpty then
       locally:
-        val camP = Vec3(camera.position.x, camera.position.y, camera.position.z)
+        // The eye of the camera that shows the scene: the fog measures the
+        // depth from it, and the orthographic camera stands farther back.
+        val eye  = activeCamera.position
+        val camP = Vec3(eye.x, eye.y, eye.z)
         val toT  = orbitTarget - camP
         val view = toT * (1.0 / math.max(1e-9, toT.length))
         var minD = Double.MaxValue
@@ -1098,7 +1135,9 @@ final class GraphScene3D(state: ViewerState):
             val rel = p - c
             val x   = rel.dot(right)
             val y   = rel.dot(up)
-            val z   = rel.dot(view) // positive = farther from the camera
+            // Positive = farther from the camera. An orthographic camera
+            // shows each depth at the same size, so the depth has no effect.
+            val z   = if orthographic then 0.0 else rel.dot(view)
             aX = math.max(aX, (x + halfW(nodeId)) / tanH - z)
             bX = math.max(bX, (-x + halfW(nodeId)) / tanH - z)
             aY = math.max(aY, (y + halfH(nodeId)) / tanV - z)
@@ -1120,7 +1159,7 @@ final class GraphScene3D(state: ViewerState):
         var minNY = Double.MaxValue; var maxNY = -Double.MaxValue
         layout.positions.foreach: (nodeId, p) =>
           val rel = p - camC
-          val dz  = math.max(0.1, rel.dot(view))
+          val dz  = if orthographic then dist1 else math.max(0.1, rel.dot(view))
           val nx  = rel.dot(right) / (dz * tanH)
           val ny  = rel.dot(up) / (dz * tanV)
           val hw  = halfW(nodeId) / (dz * tanH)
@@ -1172,6 +1211,7 @@ final class GraphScene3D(state: ViewerState):
         js.Dynamic.literal(
           scene = scene,
           camera = camera,
+          activeCamera = () => activeCamera,
           info = () =>
             s"algo=${algo.id} done=${layout.done} temp=${layout.temperature} iter=${layout.iteration} " +
               s"pinned=${layout.pinned.mkString(",")} autoFit=$autoFitOn",
@@ -1185,7 +1225,7 @@ final class GraphScene3D(state: ViewerState):
             if autoFitOn || convergenceFollow then fitCamera(1.0)
             convergenceFollow = false
             updateFog()
-            renderer.render(scene, camera)
+            renderer.render(scene, activeCamera)
         )
       )
 
@@ -1321,7 +1361,9 @@ final class GraphScene3D(state: ViewerState):
         convergenceFollow = false
     updateFog()
     updateStemHalos()
-    renderer.render(scene, camera)
+    // A headset session gives its own cameras, and three makes them from a
+    // perspective camera. Thus the rig shows the scene in a session.
+    renderer.render(scene, if renderer.xr.isPresenting then camera else activeCamera)
     // The corner viewport pass makes no sense inside a headset.
     if !renderer.xr.isPresenting then renderGizmo()
 
@@ -1364,6 +1406,7 @@ final class GraphScene3D(state: ViewerState):
       renderer.setSize(w, h)
       camera.aspect = w / h
       camera.updateProjectionMatrix()
+      syncOrthoCamera()
 
   // ---------------- desktop pointer: click selects, drag tugs ----------------
 
@@ -1384,6 +1427,29 @@ final class GraphScene3D(state: ViewerState):
   private def applyCameraPose(): Unit =
     camera.up.set(camUp.x, camUp.y, camUp.z)
     camera.lookAt(orbitTarget.x, orbitTarget.y, orbitTarget.z)
+    syncOrthoCamera()
+
+  /** Copy the pose of the rig to the orthographic camera, and size its
+    * frustum to what the rig shows at the orbit target. A change of the
+    * distance (a zoom, a fit) thus changes the frustum. Each change of the
+    * pose and each resize comes here.
+    */
+  private def syncOrthoCamera(): Unit =
+    if orthographic then
+      val camP = Vec3(camera.position.x, camera.position.y, camera.position.z)
+      val off  = camP - orbitTarget
+      val dist = math.max(1e-9, off.length)
+      val dir  = off * (1.0 / dist)
+      val f    = Projection3D.matchingFrustum(dist, CameraFovDeg, camera.aspect)
+      orthoCamera.left = f.left
+      orthoCamera.right = f.right
+      orthoCamera.top = f.top
+      orthoCamera.bottom = f.bottom
+      orthoCamera.updateProjectionMatrix()
+      val back = camP + dir * OrthoBackoff
+      orthoCamera.position.set(back.x, back.y, back.z)
+      orthoCamera.up.set(camUp.x, camUp.y, camUp.z)
+      orthoCamera.lookAt(orbitTarget.x, orbitTarget.y, orbitTarget.z)
 
   /** Trackball rotation about the target: yaw about the camera's own up,
     * pitch about its right — both the offset AND the up-vector rotate, so
@@ -1543,7 +1609,7 @@ final class GraphScene3D(state: ViewerState):
     val rect = renderer.domElement.getBoundingClientRect()
     val ndcX = (e.clientX - rect.left) / rect.width * 2 - 1
     val ndcY = -((e.clientY - rect.top) / rect.height * 2 - 1)
-    raycaster.setFromCamera(pointerNdc.set(ndcX, ndcY), camera)
+    raycaster.setFromCamera(pointerNdc.set(ndcX, ndcY), activeCamera)
 
   /** First node the current raycaster ray hits. */
   private def hitNodeId(): Option[NodeId] =

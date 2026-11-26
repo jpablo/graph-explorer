@@ -292,7 +292,8 @@ trait Persistence:
         whenDifferent(enable3D, restoredViewerSettings.enable3D) ++
         whenDifferent(layout3D, Settings3D.storedLayout3D(restoredViewerSettings)) ++
         whenDifferent(nav3DTrackpad, restoredViewerSettings.nav3DTrackpad) ++
-        whenDifferent(label3DBillboard, restoredViewerSettings.label3DBillboard)
+        whenDifferent(label3DBillboard, restoredViewerSettings.label3DBillboard) ++
+        whenDifferent(orthographic3D, restoredViewerSettings.orthographic3D)
 
     // app settings
     val settings: Seq[Var.VarTuple[?]] = Seq(
@@ -355,6 +356,7 @@ trait Persistence:
       .combineWith(label3DBillboard.signal)
       .combineWith(mermaidSheet.signal)
       .combineWith(diagramDarkColors.signal)
+      .combineWith(orthographic3D.signal)
       .changes
       .distinct
       .foreach:
@@ -364,7 +366,8 @@ trait Persistence:
               en3D,
               billboard3D,
               sheet,
-              darkColors
+              darkColors,
+              ortho3D
             ) =>
           // copy, not a fresh ViewerSettings: fields this page does not own (the library's
           // view mode) must survive a detail-page sync instead of resetting to defaults.
@@ -384,6 +387,7 @@ trait Persistence:
               label3DBillboard = billboard3D,
               mermaidSheet = sheet,
               diagramDarkColors = darkColors,
+              orthographic3D = ortho3D,
               schemaVersion = ViewerSettings.currentSchemaVersion
             )
           )
@@ -590,6 +594,9 @@ case class ViewerSettings(
     nav3DTrackpad:      Boolean = true,
     // 3D labels turn to face the camera (billboards). Off = fixed sheets.
     label3DBillboard:   Boolean = false,
+    // The projection of the 3D camera: true = orthographic, false = perspective.
+    // A stored value with no such field loads with this default.
+    orthographic3D:     Boolean = false,
     // A sheet behind each Mermaid drawing, as Graphviz has. Off = the canvas
     // hides the sheet, and an export leaves it out. A stored value with no
     // such field loads with this default, so no new schemaVersion is needed.
