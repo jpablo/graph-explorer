@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.graphviz.html.{HtmlTable, HtmlTableLayout}
+import org.jpablo.graphexplorer.graphviz.html.{HtmlLabel, HtmlTable, HtmlTableLayout}
 import org.jpablo.graphexplorer.graphviz.layout.{NodeSize, RecordLabel}
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
@@ -387,6 +387,19 @@ trait RecordCellOps:
             c   <- HtmlLabelOps.cellAt(tbl, cell.path)
           yield HtmlLabelOps.cellDisplayText(c)).getOrElse("")
         case None => ""
+
+    /** True when `cell` is a cell of an HTML-like table. Its text can have
+      * fonts, as a label does. A field of a record cannot.
+      */
+    def isHtmlCell(cell: SelectedCell): Boolean =
+      kindOf(cell.nodeId).contains(CellKind.Html)
+
+    /** The label of the node of `cell` with `display` in the cell, for the
+      * preview of the cell dialog. None for a record field.
+      */
+    def cellPreviewLabel(cell: SelectedCell, display: String): Option[String] =
+      htmlTableOf(cell.nodeId).map: tbl =>
+        HtmlLabelOps.printLabel(HtmlLabel.Table(HtmlLabelOps.setCellText(tbl, cell.path, display)))
 
     def setCellText(cell: SelectedCell, display: String): Unit =
       kindOf(cell.nodeId) match

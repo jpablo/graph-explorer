@@ -67,6 +67,11 @@ trait NodeSpec extends js.Object:
   var attrs: js.UndefOr[js.Dictionary[AttributeSpec]]   = js.undefined
   var parseDOM: js.UndefOr[js.Array[ParseRule]]         = js.undefined
   var toDOM: js.UndefOr[js.Function1[Node, DOMOutputSpec]] = js.undefined
+  /** True: the commands that join or lift blocks (Backspace, Delete) do not go across the edge of this node. */
+  var isolating: js.UndefOr[Boolean]                    = js.undefined
+  /** True: a node with no editable content, as one unit. */
+  var atom: js.UndefOr[Boolean]                         = js.undefined
+  var selectable: js.UndefOr[Boolean]                   = js.undefined
 
 trait MarkSpec extends js.Object:
   var attrs: js.UndefOr[js.Dictionary[AttributeSpec]]          = js.undefined
@@ -203,6 +208,15 @@ trait Selection extends js.Object:
 object TextSelection extends js.Object:
   def create(doc: Node, anchor: Int, head: js.UndefOr[Int] = js.undefined): Selection = js.native
 
+/** The static functions of the selections. */
+@js.native
+@JSImport("prosemirror-state", "Selection")
+object Selections extends js.Object:
+  /** The selection at the end of the last text of `doc`. */
+  def atEnd(doc: Node): Selection = js.native
+  /** The selection at the start of the first text of `doc`. */
+  def atStart(doc: Node): Selection = js.native
+
 @js.native
 @JSImport("prosemirror-state", "Plugin")
 class Plugin(spec: js.Object) extends js.Object
@@ -215,6 +229,8 @@ trait Transaction extends js.Object:
   def insertText(text: String, from: js.UndefOr[Int] = js.undefined, to: js.UndefOr[Int] = js.undefined): Transaction =
     js.native
   def setSelection(selection: Selection): Transaction                 = js.native
+  /** Delete the content of the selection. */
+  def deleteSelection(): Transaction                                  = js.native
   def addMark(from: Int, to: Int, mark: Mark): Transaction            = js.native
   def removeMark(from: Int, to: Int, mark: Mark | MarkType): Transaction = js.native
   /** Change the type or the attributes of the node at `pos`. */

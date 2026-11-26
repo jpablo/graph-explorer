@@ -19,6 +19,13 @@ import scala.scalajs.js
   *     and `color`. Each attribute of `font` can be null. A text has `sub` or
   *     `sup`, not the two.
   *
+  * A table label has a document with one `table`. A table has `row`s, a row
+  * has `cell`s, and a cell has lines, or one `fixed` node for a cell that the
+  * editor cannot edit (a nested table or an image). The table, the rows and
+  * the cells are the structure of the label: the editor does not change them
+  * (see `FormattedEditor`). A cell has the attributes `colspan`, `rowspan`,
+  * `align` and `bgcolor` of its `<TD>`, for the display only.
+  *
   * The DOM of a line and of a mark has the CSS of the canvas: the font
   * family, the size in pixels (1 pt is 4/3 px, as in the preview), the color,
   * the weight, the style, the decorations and the vertical position.
@@ -32,9 +39,16 @@ import scala.scalajs.js
 object LabelSchema:
 
   // The names of the node types.
-  val Doc  = "doc"
-  val Line = "line"
-  val Text = "text"
+  val Doc   = "doc"
+  val Line  = "line"
+  val Text  = "text"
+  val Table = "table"
+  val Row   = "row"
+  val Cell  = "cell"
+  val Fixed = "fixed"
+
+  /** The name of the attribute of a fixed cell: "table" or "image". */
+  val FixedKind = "kind"
 
   // The names of the mark types. The order is the order of the marks in the
   // DOM, from the outer element to the inner element. It is the order of the
@@ -69,9 +83,13 @@ object LabelSchema:
 
   lazy val schema: Schema =
     val nodeSpecs = js.Dictionary[NodeSpec](
-      Doc  -> nodeSpec(content = "line+"),
-      Line -> lineSpec,
-      Text -> nodeSpec(group = "inline")
+      Doc   -> nodeSpec(content = s"$Line+ | $Table"),
+      Line  -> lineSpec,
+      Text  -> nodeSpec(group = "inline"),
+      Table -> tableSpec,
+      Row   -> rowSpec,
+      Cell  -> cellSpec,
+      Fixed -> fixedSpec
     )
     val markSpecs = js.Dictionary[MarkSpec](
       Font      -> fontSpec,
@@ -153,6 +171,59 @@ object LabelSchema:
 
   private def hasBlockChild(el: dom.HTMLElement): Boolean =
     (0 until el.children.length).exists(i => blockTags(el.children(i).tagName.toLowerCase))
+
+  // ---- the tables ------------------------------------------------------------
+
+  // The DOM of the tables has no parse rules: a paste never gives a table.
+
+  private def tableSpec: NodeSpec =
+    val spec = nodeSpec(content = s"$Row+")
+    spec.isolating = true
+    val toDOM: js.Function1[Node, DOMOutputSpec] = _ =>
+      js.Array[js.Any]("table", js.Dictionary[js.Any]("class" -> "gx-label-table"), js.Array[js.Any]("tbody", 0))
+    spec.toDOM = toDOM
+    spec
+
+  private def rowSpec: NodeSpec =
+    val spec = nodeSpec(content = s"$Cell+")
+    val toDOM: js.Function1[Node, DOMOutputSpec] = _ => js.Array[js.Any]("tr", 0)
+    spec.toDOM = toDOM
+    spec
+
+  private def cellSpec: NodeSpec =
+    val spec = nodeSpec(content = s"$Line+ | $Fixed")
+    spec.isolating = true
+    spec.attrs = js.Dictionary(
+      "colspan" -> attrSpec(1),
+      "rowspan" -> attrSpec(1),
+      "align"   -> attrSpec(null),
+      "bgcolor" -> attrSpec(null)
+    )
+    val toDOM: js.Function1[Node, DOMOutputSpec] = node =>
+      val attrs = js.Dictionary[js.Any]("data-gx-cell" -> "")
+      numberAttr(node.attrs, "colspan").filter(_ > 1).foreach(n => attrs("colspan") = n)
+      numberAttr(node.attrs, "rowspan").filter(_ > 1).foreach(n => attrs("rowspan") = n)
+      // The lines with no alignment of their own get the alignment of the cell (style.scss).
+      stringAttr(node.attrs, "align").foreach(a => attrs("data-cell-align") = a)
+      stringAttr(node.attrs, "bgcolor").filter(isCssColor).foreach(c => attrs("style") = s"background-color: $c;")
+      js.Array[js.Any]("td", attrs, 0)
+    spec.toDOM = toDOM
+    spec
+
+  private def fixedSpec: NodeSpec =
+    val spec = nodeSpec()
+    spec.atom = true
+    spec.selectable = false
+    spec.attrs = js.Dictionary(FixedKind -> attrSpec("table"))
+    val toDOM: js.Function1[Node, DOMOutputSpec] = node =>
+      val what = if stringAttr(node.attrs, FixedKind).contains("image") then "image" else "table"
+      js.Array[js.Any](
+        "span",
+        js.Dictionary[js.Any]("class" -> "gx-label-fixed", "contenteditable" -> "false"),
+        s"($what: edit it in the source)"
+      )
+    spec.toDOM = toDOM
+    spec
 
   // ---- the marks -------------------------------------------------------------
 
@@ -259,7 +330,7 @@ object LabelSchema:
     * name. A Graphviz color such as "0.5 0.3 0.9" (HSV) or "/x11/red" gets no
     * CSS color, and the text has the color of the editor.
     */
-  private def isCssColor(color: String): Boolean =
+  private[labelEditor] def isCssColor(color: String): Boolean =
     "#[0-9A-Fa-f]{3,8}|[A-Za-z]+".r.matches(color)
 
   /** A whole number has no ".0". Other numbers have 3 decimals at most. */

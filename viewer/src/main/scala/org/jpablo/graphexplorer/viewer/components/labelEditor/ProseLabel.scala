@@ -25,8 +25,12 @@ object ProseLabel:
     * empty line.
     */
   def toDoc(text: HtmlText): Node =
+    schema.node(Doc, null, linesOf(text), js.Array())
+
+  /** The line nodes of a text, as [[toDoc]] gives them. */
+  private def linesOf(text: HtmlText): js.Array[Node] =
     val spans = if text.spans.isEmpty then List(HtmlSpan(Nil, None)) else text.spans
-    schema.node(Doc, null, js.Array(spans.map(lineNode)*), js.Array())
+    js.Array(spans.map(lineNode)*)
 
   private def lineNode(span: HtmlSpan): Node =
     val texts = span.items.filter(_.str.nonEmpty).map(item => schema.text(item.str, marksOf(item.font)))
@@ -128,11 +132,12 @@ object ProseLabel:
     */
   def fromLabelText(original: String): Option[Node] =
     if !HtmlLabels.isHtml(original) then Some(fromPlain(original))
-    else if canEdit(original) then fromMarkup(original)
+    else if canEdit(original) then fromMarkup(original).orElse(tableDoc(original))
     else None
 
   /** True when the formatted editor can edit the text of a label dialog: plain
-    * text, or valid markup of a text label.
+    * text, valid markup of a text label, or valid markup of a table whose
+    * cells [[TableMarkup]] finds.
     *
     * A table and an image give false. Markup with an error gives false, also
     * when `HtmlParser.parse` reads it: the dialog shows the error, and the
@@ -143,8 +148,9 @@ object ProseLabel:
     if !HtmlLabels.isHtml(original) then true
     else
       HtmlParser.parseOrError(original) match
-        case Right(HtmlLabel.Text(_)) => !original.toLowerCase.contains("<img")
-        case _                        => false
+        case Right(HtmlLabel.Text(_))  => !original.toLowerCase.contains("<img")
+        case Right(HtmlLabel.Table(_)) => tableDoc(original).isDefined
+        case _                         => false
 
   /** The text for the label dialog after an edit of `doc`.
     *
@@ -153,6 +159,8 @@ object ProseLabel:
     *     again.
     *   - When `doc` has no marks and no alignment, the result is plain text:
     *     the lines with "\n" between them.
+    *   - When `doc` is a table, the result is `original` with the content of
+    *     each changed cell written again (see [[tableText]]).
     *   - Else the result is the markup of `HtmlWriter.write`.
     *
     * The dialog reads a text as markup when `HtmlLabels.isHtml` is true. A plain
@@ -162,6 +170,7 @@ object ProseLabel:
     */
   def toLabelText(doc: Node, original: String): String =
     if fromLabelText(original).exists(_.eq(doc)) then original
+    else if isTable(doc) then tableText(doc, original)
     else
       val text      = fromDoc(doc)
       val formatted = text.spans.exists(span => span.align.isDefined || span.items.exists(_.font != HtmlFont()))
@@ -170,5 +179,64 @@ object ProseLabel:
       else
         val markup = HtmlWriter.write(text)
         if HtmlLabels.isHtml(markup) then markup else s"<FONT>$markup</FONT>"
+
+  // ---- tables ------------------------------------------------------------------
+
+  private def isTable(doc: Node): Boolean =
+    doc.childCount == 1 && doc.child(0).`type`.name == Table
+
+  /** The document of a table label: one cell node for each `<TD>` of the table.
+    * None when the markup is not a table, or when [[TableMarkup]] does not find
+    * the same cells as `HtmlParser`.
+    */
+  def tableDoc(markup: String): Option[Node] =
+    (HtmlParser.parse(markup), TableMarkup.cellRanges(markup)) match
+      case (Some(HtmlLabel.Table(tbl)), Some(ranges)) if ranges.map(_.size) == tbl.rows.map(_.size) =>
+        val rows = tbl.rows.zip(ranges).map: (cells, places) =>
+          val cellNodes = cells.zip(places).map((c, place) => cellNode(c, markup.substring(place._1, place._2)))
+          schema.node(Row, null, js.Array(cellNodes*), js.Array())
+        val table = schema.node(Table, null, js.Array(rows*), js.Array())
+        Some(schema.node(Doc, null, js.Array(table), js.Array()))
+      case _ => None
+
+  /** The node of a cell. `source` is the content of the cell in the markup. A
+    * cell with a nested table or an image is a fixed cell.
+    */
+  private def cellNode(cell: HtmlCell, source: String): Node =
+    def int(key: String): Double = cell.attrs.get(key).flatMap(_.trim.toIntOption).filter(_ > 0).getOrElse(1).toDouble
+    val attrs = js.Dictionary[js.Any](
+      "colspan" -> int("colspan"),
+      "rowspan" -> int("rowspan"),
+      "align"   -> stringOrNull(cell.attrs.get("align").map(_.trim.toLowerCase)),
+      "bgcolor" -> stringOrNull(cell.attrs.get("bgcolor"))
+    )
+    def fixed(kind: String) = js.Array(schema.node(Fixed, js.Dictionary[js.Any](FixedKind -> kind), js.Array(), js.Array()))
+    val content = cell.content match
+      case HtmlLabel.Text(text) if !source.toLowerCase.contains("<img") => linesOf(text)
+      case HtmlLabel.Table(_)                                            => fixed("table")
+      case _                                                             => fixed("image")
+    schema.node(Cell, attrs, content, js.Array())
+
+  /** The label of an edited table: `original` with the content of each cell
+    * that changed written again with `HtmlWriter.write`. The tags of the table,
+    * the white space between them and the cells that did not change keep their
+    * bytes. The structure of `doc` is the structure of `original`: the editor
+    * does not change it.
+    */
+  private def tableText(doc: Node, original: String): String =
+    (tableDoc(original), TableMarkup.cellRanges(original)) match
+      case (Some(before), Some(ranges)) =>
+        val oldTable = before.child(0)
+        val newTable = doc.child(0)
+        val changes =
+          for
+            (places, r) <- ranges.zipWithIndex
+            ((from, to), c) <- places.zipWithIndex
+            newCell = newTable.child(r).child(c)
+            if !newCell.eq(oldTable.child(r).child(c)) && newCell.child(0).`type`.name == Line
+          yield (from, to, HtmlWriter.write(fromDoc(newCell)))
+        changes.sortBy(-_._1).foldLeft(original):
+          case (text, (from, to, markup)) => text.substring(0, from) + markup + text.substring(to)
+      case _ => original
 
 end ProseLabel

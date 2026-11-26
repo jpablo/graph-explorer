@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.eventbus.EventBus
 import com.raquo.airstream.state.Var
+import org.jpablo.graphexplorer.viewer.models.ElementId
 
 /** Persisted by `ordinal` (see Persistence), NOT by any hand-assigned number. */
 enum RightPanelSection derives CanEqual:
@@ -68,6 +69,10 @@ trait UIState:
   val aboutDialogOpen         = Var(false)
   val preferencesDialogOpen   = Var(false)
   val renameDialogOpen        = Var(false)
+  /** True while the Edit Title dialog (the label of the diagram) shows. */
+  val editingTitleV           = Var(false)
+  /** The element whose external label (`xlabel`) the Edit External Label dialog shows. */
+  val editingXLabelV          = Var(Option.empty[ElementId])
 
   /** Width of the right panel in px, set by dragging its left edge. Persisted in ViewerSettings. */
   val rightPanelWidth = Var(ViewerSettings.defaultRightPanelWidth)

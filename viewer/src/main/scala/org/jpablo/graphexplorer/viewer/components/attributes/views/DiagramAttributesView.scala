@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.S
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
+import org.jpablo.graphexplorer.viewer.widgets.{IconButtonTitled, InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, multiText, range}
 
 /** Attributes for the root graph.
@@ -26,8 +26,13 @@ def DiagramAttributesView(state: ViewerState) =
       label = Some("Directed")
     )
 
+  // The text box is small. The button opens the title in the label editor, with its fonts and a preview.
+  val editTitle = () =>
+    IconButtonTitled("bi-pencil", "Edit the title", cls := "gx-row-action")(state.editingTitleV.set(true))
+
   val labelRow =
     row(Label, multiText(), onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title"))
+      .copy(labelAction = Some(editTitle))
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty)
   div(

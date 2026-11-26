@@ -24,6 +24,7 @@ import scala.annotation.tailrec
   * @param graph   the graph of the preview; `state.fullGraph` for a label of
   *                the diagram
   * @param element the element of the label in `graph`
+  * @param previewLabel the label that the preview draws for the text
   */
 def DiagramLabelEditor(
     state:    ViewerState,
@@ -32,7 +33,9 @@ def DiagramLabelEditor(
     element:  Signal[ElementId],
     onSave:   () => Unit,
     onCancel: () => Unit,
-    hint:     String
+    hint:     String,
+    previewLabel: String => String = identity,
+    previewAsText: Boolean = false
 ): HtmlElement =
   LabelEditor(
     text        = text,
@@ -43,7 +46,9 @@ def DiagramLabelEditor(
     onCancel    = onCancel,
     hint        = hint,
     graphviz    = state.currentFormat.map(_ == DiagramFormat.DOT),
-    darkColors  = state.diagramDarkColors.signal
+    darkColors  = state.diagramDarkColors.signal,
+    previewLabel = previewLabel,
+    previewAsText = previewAsText
   )
 
 /** The ids of new elements in the label dialogs. */

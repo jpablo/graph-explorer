@@ -33,7 +33,10 @@ object AttributeRow:
       // WHAT the row affects, drawn over a bar showing the current color. Without it,
       // three color rows in a toolbar are three anonymous circles — you had to hover to
       // learn which one paints the fill, the border, or the text.
-      triggerGlyph: Option[() => ReactiveElement.Base] = None
+      triggerGlyph: Option[() => ReactiveElement.Base] = None,
+      // A control next to the name of the row, for example the button that opens a dialog
+      // with a larger editor. Only the rows of the side panel show it.
+      labelAction: Option[() => ReactiveElement.Base] = None
   ) extends AttributeRow
 
   case class InputElement(element: ReactiveElement.Base, hidden: Signal[Boolean] = Signal.fromValue(false)) extends AttributeRow

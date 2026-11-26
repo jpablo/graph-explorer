@@ -33,6 +33,11 @@ import scala.scalajs.js
   * starts a new line, and Escape cancels. Mod-b, Mod-i and Mod-u toggle bold,
   * italic and underline. Mod-z and Shift-Mod-z undo and redo.
   *
+  * A table label shows as a grid, with one editable cell for each cell of the
+  * label. Tab and Shift+Tab move the cursor to the next cell and to the cell
+  * before. The editor does not change the structure of the table: a
+  * transaction that adds, removes or moves a cell does not act.
+  *
   * Use the editor only for a text that [[ProseLabel.canEdit]] accepts.
   */
 object FormattedEditor:
@@ -107,6 +112,8 @@ object FormattedEditor:
           "Mod-b"       -> toggle(Bold),
           "Mod-i"       -> toggle(Italic),
           "Mod-u"       -> toggle(Underline),
+          "Tab"         -> Commands.moveCell(1),
+          "Shift-Tab"   -> Commands.moveCell(-1),
           "Mod-z"       -> history.undo,
           "Shift-Mod-z" -> history.redo,
           "Mod-y"       -> history.redo
@@ -117,8 +124,8 @@ object FormattedEditor:
       EditorState.create(new EditorStateConfig:
         doc = initial
         // The cursor is at the end of the label, as in the source editor.
-        selection = TextSelection.create(initial, initial.content.size - 1)
-        plugins = js.Array(keys, keymap.keymap(commands.baseKeymap), history.history())
+        selection = Selections.atEnd(initial)
+        plugins = js.Array(Commands.keepStructure, keys, keymap.keymap(commands.baseKeymap), history.history())
       )
 
     /** Load `newText` into the view. A text that the editor cannot edit
@@ -337,6 +344,61 @@ object FormattedEditor:
       lines(state).foreach: (node, pos) =>
         if stringAttr(node.attrs, AlignName).isDefined then tr.setNodeMarkup(pos, null, js.Dictionary(AlignName -> (null: js.Any)))
       view.dispatch(tr)
+
+    /** The structure of a document: "text" for a text label, or the kind of
+      * each cell of each row of a table.
+      */
+    private def structure(doc: PMNode): String =
+      if doc.childCount == 1 && doc.child(0).`type`.name == Table then
+        val table = doc.child(0)
+        (0 until table.childCount)
+          .map: r =>
+            val row = table.child(r)
+            (0 until row.childCount).map(c => row.child(c).child(0).`type`.name).mkString(",")
+          .mkString("|")
+      else "text"
+
+    /** The plugin that refuses a transaction that changes the structure of the
+      * document: a selection across cells and a delete, for example. The save
+      * writes again only the content of the cells, so it must find each cell of
+      * the label in the document.
+      */
+    val keepStructure: Plugin =
+      val filter: js.Function2[Transaction, EditorState, Boolean] =
+        (tr, state) => !tr.docChanged || structure(tr.doc) == structure(state.doc)
+      new Plugin(js.Dynamic.literal(filterTransaction = filter))
+
+    /** The editable cells of a table document: the position of each cell, and
+      * the position at the end of its text.
+      */
+    private def editableCells(doc: PMNode): List[(Int, Int)] =
+      val out = ListBuffer.empty[(Int, Int)]
+      doc.nodesBetween(
+        0,
+        doc.content.size,
+        (node, pos) =>
+          if node.`type`.name == Cell then
+            if node.child(0).`type`.name == Line then out += ((pos, pos + node.nodeSize - 2))
+            false
+          else true
+      )
+      out.toList
+
+    /** Tab (`step` 1) and Shift+Tab (`step` -1): put the cursor at the end of
+      * the next editable cell, or of the editable cell before. At the first and
+      * at the last cell, the cursor stays. In a text label, the key does what
+      * the browser does.
+      */
+    def moveCell(step: Int): Command = (state, dispatch, _) =>
+      val cells = editableCells(state.doc)
+      if cells.isEmpty then false
+      else
+        val from    = state.selection.from
+        val current = cells.lastIndexWhere((pos, _) => pos <= from)
+        val target  = cells.lift(if current < 0 then 0 else current + step)
+        target.foreach: (_, end) =>
+          dispatch.foreach(d => d(state.tr.setSelection(TextSelection.create(state.doc, end))))
+        true
 
     /** The new line keeps the type and the alignment of the line. */
     private val keepLine: js.Function3[PMNode, Boolean, ResolvedPos, js.Any] =

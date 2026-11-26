@@ -200,7 +200,7 @@ class ProseLabelSpec extends FunSuite:
     check(p.eq(ProseLabel.fromPlain("a\nb")), s"plain: ${json(p)}")
     val m = ProseLabel.fromLabelText("<B>a</B>").getOrElse(throw AssertionError("markup is not editable"))
     check(lineTexts(m) == List("a"), s"markup: ${json(m)}")
-    check(ProseLabel.fromLabelText("<TABLE><TR><TD>a</TD></TR></TABLE>").isEmpty, "a table is editable")
+    check(ProseLabel.fromLabelText("""<IMG SRC="a.png"></IMG>""").isEmpty, "an image is editable")
 
   // ---- canEdit -------------------------------------------------------------
 
@@ -208,9 +208,8 @@ class ProseLabelSpec extends FunSuite:
     List("", "hello", "a\nb", "<B>x</B>", """<FONT FACE="Menlo">a</FONT><BR/>b""", "a<BR/>b").foreach: s =>
       check(ProseLabel.canEdit(s), s"'$s' is not editable")
 
-  test("canEdit refuses tables, images and invalid markup"):
+  test("canEdit refuses images and invalid markup"):
     List(
-      "<TABLE><TR><TD>a</TD></TR></TABLE>",
       """<IMG SRC="a.png"></IMG>""",
       """<B>x</B><IMG SRC="a.png"/>""",
       "<B>x</I>",

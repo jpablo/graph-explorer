@@ -107,7 +107,11 @@ private def AttributesViewRow(attRow: AttributeRow) =
       row.inputType match
         case InputType.multiText(_) =>
           Seq(
-            div(cls := "fieldset-label", InputLabelWithResetButton(row)),
+            div(
+              cls := "fieldset-label flex items-center justify-between",
+              InputLabelWithResetButton(row),
+              row.labelAction.map(_())
+            ),
             div(cls := "fieldset-input", buildInputCell(row))
           )
 
@@ -150,7 +154,12 @@ private def AttributesViewRow(attRow: AttributeRow) =
             div(
               cls := "attr-row",
               InputLabelWithResetButton(row),
-              span(cls := "attr-value", buildInputCell(row))
+              span(
+                cls := "attr-value",
+                cls("flex items-center gap-1") := row.labelAction.isDefined,
+                buildInputCell(row),
+                row.labelAction.map(_())
+              )
             )
           )
 
