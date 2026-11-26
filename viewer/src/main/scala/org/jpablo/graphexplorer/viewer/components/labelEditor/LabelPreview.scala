@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.labelEditor
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, FontColor, FontName, FontSize, Label, Pad, Shape}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, FillStyle, FontColor, FontName, FontSize, Label, Pad, Shape}
 import org.jpablo.graphexplorer.viewer.formats.dot.{HtmlLabels, TextUtils}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -85,6 +85,24 @@ object LabelPreview:
       size  = value(FontSize.attrId).flatMap(_.toDoubleOption).filter(_ > 0),
       color = value(FontColor.attrId)
     )
+
+  /** The fill color of `element` on the canvas, or None when the canvas does
+    * not fill it. Only a node with the style `filled` has a fill. The color is
+    * `fillcolor`, else `color`, else light grey, as in Graphviz. For a
+    * gradient (`red:blue`), the color is the first color.
+    */
+  def elementFill(graph: ViewerGraph, element: ElementId): Option[String] =
+    element match
+      case id: NodeId =>
+        val attributes = defaults(graph, element) ++ nodeAttributes(graph, id).values
+        def value(name: String) = attributes.get(AttributeId(name)).map(_.toString.trim).filter(_.nonEmpty)
+        // The model keeps `filled` of `style` in the synthetic attribute `FillStyle`.
+        val filled =
+          value(FillStyle.attrId.value).contains("true") ||
+            value("style").exists(_.split(",").map(_.trim.toLowerCase).contains(FillStyle.filled))
+        Option.when(filled):
+          value("fillcolor").orElse(value("color")).getOrElse("lightgrey").takeWhile(_ != ':').takeWhile(_ != ';').trim
+      case _ => None
 
   private val faceAttribute = """(?i)\bFACE\s*=\s*"([^"]*)"""".r
 

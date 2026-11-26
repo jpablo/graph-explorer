@@ -23,10 +23,14 @@ def EditLabelDialog(state: ViewerState) =
     domId     = "edit-label-dialog",
     heading   = "Edit Label",
     open      = state.editingElementV.signal.map(_.isDefined),
-    close     = () => state.editingElementV.set(None),
+    close     = () =>
+      state.editingElementV.set(None)
+      state.labelStartCell.set(None),
     labelVar  = () => state.editingElementV.now().map(elementLabelVar),
     element   = state.editingElementV.signal.map(_.getOrElse(NodeId(""))),
-    hint      = "Enter label text..."
+    hint      = "Enter label text...",
+    // A double-click on a cell of an HTML table puts the cursor in that cell.
+    startCell = () => state.labelStartCell.now()
   )
 
 /** The dialog of the title of the diagram: the `label` of the root graph.
@@ -87,7 +91,8 @@ private def LabelDialog(
     labelVar: () => Option[Var[String]],
     element:  Signal[ElementId],
     hint:     String,
-    previewAsText: Boolean = false
+    previewAsText: Boolean = false,
+    startCell: () => Option[List[Int]] = () => None
 ) =
   val modalText: Var[String] = Var("")
 
@@ -103,7 +108,8 @@ private def LabelDialog(
     onSave   = () => saveAndClose(),
     onCancel = () => close(),
     hint     = hint,
-    previewAsText = previewAsText
+    previewAsText = previewAsText,
+    startCell = startCell
   )
 
   div(

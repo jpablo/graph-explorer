@@ -195,7 +195,8 @@ object ProseLabel:
         val rows = tbl.rows.zip(ranges).map: (cells, places) =>
           val cellNodes = cells.zip(places).map((c, place) => cellNode(c, markup.substring(place._1, place._2)))
           schema.node(Row, null, js.Array(cellNodes*), js.Array())
-        val table = schema.node(Table, null, js.Array(rows*), js.Array())
+        val tableAttrs = js.Dictionary[js.Any]("bgcolor" -> stringOrNull(tbl.attrs.get("bgcolor")))
+        val table      = schema.node(Table, tableAttrs, js.Array(rows*), js.Array())
         Some(schema.node(Doc, null, js.Array(table), js.Array()))
       case _ => None
 

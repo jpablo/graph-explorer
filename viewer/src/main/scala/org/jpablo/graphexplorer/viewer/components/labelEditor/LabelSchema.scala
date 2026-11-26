@@ -179,8 +179,11 @@ object LabelSchema:
   private def tableSpec: NodeSpec =
     val spec = nodeSpec(content = s"$Row+")
     spec.isolating = true
-    val toDOM: js.Function1[Node, DOMOutputSpec] = _ =>
-      js.Array[js.Any]("table", js.Dictionary[js.Any]("class" -> "gx-label-table"), js.Array[js.Any]("tbody", 0))
+    spec.attrs = js.Dictionary("bgcolor" -> attrSpec(null))
+    val toDOM: js.Function1[Node, DOMOutputSpec] = node =>
+      val attrs = js.Dictionary[js.Any]("class" -> "gx-label-table")
+      stringAttr(node.attrs, "bgcolor").filter(isCssColor).foreach(c => attrs("style") = s"background-color: $c;")
+      js.Array[js.Any]("table", attrs, js.Array[js.Any]("tbody", 0))
     spec.toDOM = toDOM
     spec
 

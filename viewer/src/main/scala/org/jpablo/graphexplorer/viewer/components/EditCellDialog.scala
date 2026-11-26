@@ -2,20 +2,19 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.components.labelEditor.DiagramLabelEditor
-import org.jpablo.graphexplorer.viewer.state.{SelectedCell, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{Dialog, DialogTextArea, PrimaryAction, QuietAction}
 import org.scalajs.dom.KeyValue
 
 /** The CELL-scoped sibling of [[EditLabelDialog]]: edits one field of a record
-  * node, or one cell of an HTML-like table. The text shown is the cell's
-  * UNescaped text (`RecordTree.displayText`); saving re-escapes and splices it
-  * back into the label at the cell's path — the record syntax (`|`, `{}`,
-  * `<port>`) never leaks into the dialog.
+  * node. The text shown is the cell's UNescaped text (`RecordTree.displayText`);
+  * saving re-escapes and splices it back into the record label at the cell's
+  * path — the record syntax (`|`, `{}`, `<port>`) never leaks into the dialog.
   *
-  * A cell of an HTML table gets the label editor: the tabs "Formatted" and
-  * "Source", and a preview of the whole node with the edited cell in its table.
-  * A record field has no fonts in Graphviz, so it keeps the plain text box.
+  * A cell of an HTML-like table does not open this dialog: it opens the Edit
+  * Label dialog with the whole table and the cursor in the cell
+  * (`RecordCellOps.editCell`). A record field has no fonts in Graphviz, so a
+  * plain text box is enough here.
   */
 def EditCellDialog(state: ViewerState) =
   val dialogIsOpen =
@@ -40,27 +39,6 @@ def EditCellDialog(state: ViewerState) =
     onKeyDown.filter(_.key == KeyValue.Escape) --> closeDialog()
   )
 
-  def cellEditor(cell: SelectedCell): HtmlElement =
-    if state.recordCells.isHtmlCell(cell) then
-      DiagramLabelEditor(
-        state        = state,
-        text         = modalText,
-        graph        = state.fullGraph,
-        element      = Signal.fromValue(cell.nodeId),
-        onSave       = () => saveAndClose(),
-        onCancel     = () => closeDialog(),
-        hint         = "Enter cell text...",
-        previewLabel = display => state.recordCells.cellPreviewLabel(cell, display).getOrElse(display)
-      )
-    else
-      div(
-        textAreaElement,
-        div(
-          cls := "flex justify-between items-center mt-2",
-          p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line")
-        )
-      )
-
   div(
     idAttr := "edit-cell-dialog",
     child(
@@ -74,7 +52,11 @@ def EditCellDialog(state: ViewerState) =
               state.recordCells.selectedCellPort.map(p => span(cls := "ml-2 font-mono text-xs opacity-60", s"<$p>"))
             )
           ),
-          child.maybe <-- state.editingCellV.signal.distinct.map(_.map(cellEditor))
+          textAreaElement,
+          div(
+            cls := "flex justify-between items-center mt-2",
+            p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line")
+          )
         ),
         // Update modalText when the dialog opens
         state.editingCellV.signal.map(_.fold("")(state.recordCells.cellDisplayText)) --> modalText,

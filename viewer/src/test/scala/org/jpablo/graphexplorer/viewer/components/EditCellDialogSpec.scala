@@ -1,14 +1,12 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.airstream.ownership.ManualOwner
-import com.raquo.laminar.api.L.render
+import com.raquo.laminar.api.L.{div, render}
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.html.HtmlLabel
 import org.jpablo.graphexplorer.library.LoggedChecks
-import org.jpablo.graphexplorer.viewer.components.labelEditor.{FormattedEditor, LabelSchema}
+import org.jpablo.graphexplorer.viewer.components.labelEditor.FormattedEditor
 import org.jpablo.graphexplorer.viewer.components.proseMirror.EditorView
-import org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabelOps
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.state.{SelectedCell, ViewerState, ViewTarget}
 import org.jpablo.graphexplorer.viewer.utils.{TestHelpers, Waits}
 import org.scalajs.dom
@@ -17,11 +15,15 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.scalajs.js
 
-/** The Edit Cell dialog has the label editor for a cell of an HTML table.
+/** The text of a cell of a node: the whole table for an HTML table, one field for a record.
   *
-  * A cell of an HTML-like table holds a text with fonts, as a label does. The dialog shows the tabs "Formatted" and
-  * "Source", the toolbar of the formats, and a preview. The preview draws the whole node, with the edited cell in its
-  * table. A field of a record node has no fonts in Graphviz, so its dialog keeps the plain text box.
+  * A double-click on a cell of an HTML-like table (or Enter on a selected cell) opens the Edit Label dialog with the
+  * whole table as a grid, and the cursor in that cell. Tab moves to the other cells, and one save keeps the edits of
+  * all of them. The save writes again only the cells that changed. The selection of a cell stays for the structure:
+  * rows, columns, and the attributes of the cell.
+  *
+  * A field of a record node has no fonts in Graphviz, and its whole label is record syntax. Thus a record field keeps
+  * the Edit Cell dialog, with a plain text box.
   */
 class EditCellDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
 
@@ -37,24 +39,45 @@ class EditCellDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
   private val n = NodeId("n")
   private val r = NodeId("r")
 
-  private val dot =
-    """digraph G {
-      |  n [shape=plaintext, label=<<TABLE><TR><TD><FONT POINT-SIZE="10">given</FONT></TD><TD>other</TD></TR></TABLE>>];
-      |  r [shape=record, label="{a|b}"];
-      |}""".stripMargin
+  private val table = """<TABLE><TR><TD><FONT POINT-SIZE="10">given</FONT></TD><TD>other</TD></TR></TABLE>"""
 
-  final class Dialog(val state: ViewerState, val box: dom.html.Element):
+  private val dot =
+    s"""digraph G {
+       |  n [shape=plaintext, label=<$table>];
+       |  r [shape=record, label="{a|b}"];
+       |}""".stripMargin
+
+  final class Dialogs(val state: ViewerState, val box: dom.html.Element):
     def find(selector: String): Option[dom.html.Element] =
       Option(box.querySelector(selector)).map(_.asInstanceOf[dom.html.Element])
-    def view: EditorView = FormattedEditor.viewOf(box).getOrElse(throw AssertionError("no formatted editor"))
+    def labelDialogOpen: Boolean  = find("#edit-label-dialog dialog").isDefined
+    def cellDialogOpen: Boolean   = find("#edit-cell-dialog dialog").isDefined
+    def view: EditorView          = FormattedEditor.viewOf(box).getOrElse(throw AssertionError("no formatted editor"))
     def label(id: NodeId): String = state.fullGraphNow().getNode(id).map(_.label.toString).getOrElse("")
-    /** The cells of the HTML table of the node `n`. */
-    def cells: List[List[HtmlLabel]] =
-      HtmlLabelOps.parseTable(label(n)).toList.flatMap(_.rows.map(_.map(_.content)))
-    def previewText: String = find(".gx-label-preview svg").map(_.textContent).getOrElse("")
 
-  /** Mount the dialog for the diagram, and open it on `cell`. */
-  private def withDialog(cell: SelectedCell)(body: Dialog => Future[Unit]): Future[Unit] =
+    /** The position of the cell node at (`row`, `col`) of the grid. */
+    def cellPos(row: Int, col: Int): Int =
+      val t    = view.state.doc.child(0)
+      val rows = (0 until row).map(t.child(_).nodeSize).sum
+      val rw   = t.child(row)
+      1 + rows + 1 + (0 until col).map(rw.child(_).nodeSize).sum
+
+    /** The position at the end of the text of the cell. */
+    def cellEnd(row: Int, col: Int): Int =
+      cellPos(row, col) + view.state.doc.child(0).child(row).child(col).nodeSize - 2
+
+    /** The cell of the cursor, as (row, col). */
+    def cursorCell: Option[(Int, Int)] =
+      val at = view.state.selection.from
+      val t  = view.state.doc.child(0)
+      (for
+        row <- 0 until t.childCount
+        col <- 0 until t.child(row).childCount
+        if at > cellPos(row, col) && at < cellPos(row, col) + t.child(row).child(col).nodeSize
+      yield (row, col)).headOption
+
+  /** Mount the label dialog and the cell dialog for the diagram. */
+  private def withDialogs(body: Dialogs => Future[Unit]): Future[Unit] =
     val owner = ManualOwner()
     val box   = dom.document.createElement("div").asInstanceOf[dom.html.Element]
     dom.document.body.appendChild(box)
@@ -65,76 +88,59 @@ class EditCellDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
           .settle(state.fullGraphNow().nodeIds.contains(r), timeoutMs = 10000)
           .flatMap: _ =>
             check(state.fullGraphNow().nodeIds.contains(r), "precondition: the diagram did not load")
-            val root = render(box, EditCellDialog(state))
-            state.editingCellV.set(Some(cell))
-            body(Dialog(state, box)).transform(outcome => { root.unmount(); outcome })
+            val root = render(box, div(EditLabelDialog(state), EditCellDialog(state)))
+            body(Dialogs(state, box)).transform(outcome => { root.unmount(); outcome })
       .transform: outcome =>
         box.remove()
         owner.killSubscriptions()
         outcome
 
+  private def formatted(d: Dialogs): Future[Unit] =
+    Waits.settle(FormattedEditor.viewOf(d.box).isDefined).map: _ =>
+      check(FormattedEditor.viewOf(d.box).isDefined, s"no formatted editor in ${d.box.innerHTML.take(400)}")
+
   private def enter(target: dom.Element): Unit =
     val init = js.Dynamic.literal(key = "Enter", bubbles = true, cancelable = true)
     target.dispatchEvent(new dom.KeyboardEvent("keydown", init.asInstanceOf[dom.KeyboardEventInit]))
 
-  private def withFormatted(cell: SelectedCell)(body: Dialog => Unit): Future[Unit] =
-    withDialog(cell): d =>
+  test("a double-click on a cell of an HTML table opens Edit Label with the whole table, at that cell"):
+    withDialogs: d =>
+      d.state.recordCells.editCell(SelectedCell(n, List(0, 1)))
+      formatted(d).map: _ =>
+        check(d.labelDialogOpen, "the Edit Label dialog did not open")
+        check(!d.cellDialogOpen, "the Edit Cell dialog opened")
+        val cells = d.find("#edit-label-dialog .ProseMirror").toList.flatMap(_.querySelectorAll("td").toList)
+        check(cells.map(_.textContent) == List("given", "other"), s"the grid shows ${cells.map(_.textContent)}")
+        check(d.cursorCell.contains((0, 1)), s"the cursor is in the cell ${d.cursorCell}, not in (0, 1)")
+
+  test("Enter on a selected cell of an HTML table opens Edit Label at that cell"):
+    withDialogs: d =>
+      d.state.selection.set(ElementIds(Set(n)))
+      d.state.recordCells.selectCell(n, List(0, 0))
+      check(d.state.recordCells.enterOrEdit(), "Enter did not act on the selected cell")
+      formatted(d).map: _ =>
+        check(d.labelDialogOpen && !d.cellDialogOpen, "Enter did not open the Edit Label dialog")
+        check(d.cursorCell.contains((0, 0)), s"the cursor is in the cell ${d.cursorCell}, not in (0, 0)")
+
+  test("an edit of two cells and Enter save both cells, and keep the other markup"):
+    withDialogs: d =>
+      d.state.recordCells.editCell(SelectedCell(n, List(0, 0)))
+      formatted(d).map: _ =>
+        d.view.dispatch(d.view.state.tr.insertText("2", d.cellEnd(0, 1)))
+        d.view.dispatch(d.view.state.tr.insertText("1", d.cellEnd(0, 0)))
+        enter(d.view.dom)
+        val want = table.replace(">given<", ">given1<").replace("<TD>other</TD>", "<TD>other2</TD>")
+        check(d.label(n) == want, s"the label is ${d.label(n)}\nnot          $want")
+        check(!d.labelDialogOpen, "the dialog is still open")
+
+  test("a field of a record node keeps the Edit Cell dialog with its text box"):
+    withDialogs: d =>
+      d.state.recordCells.editCell(SelectedCell(r, List(0)))
       Waits
-        .settle(FormattedEditor.viewOf(d.box).isDefined)
+        .settle(d.find("#edit-cell-dialog textarea").isDefined)
         .map: _ =>
-          check(FormattedEditor.viewOf(d.box).isDefined, s"no formatted editor in ${d.box.innerHTML.take(400)}")
-          body(d)
-
-  test("a cell of an HTML table opens in Formatted, with the fonts of the cell"):
-    withFormatted(SelectedCell(n, List(0, 0))): d =>
-      val active = d.find("[data-gx-tab=formatted]").exists(_.classList.contains("tab-active"))
-      check(active, "the Formatted tab is not active")
-      val prose = d.find(".ProseMirror")
-      check(prose.exists(_.textContent == "given"), s"the editor shows '${prose.map(_.textContent)}'")
-      check(prose.exists(_.querySelector("[data-size='10']") != null), s"the cell font is not there: ${prose.map(_.innerHTML)}")
-
-  test("an edit in Formatted and Enter save the cell, and the other cell does not change"):
-    withFormatted(SelectedCell(n, List(0, 0))): d =>
-      val end = d.view.state.doc.content.size - 1
-      d.view.dispatch(d.view.state.tr.insertText("!", end))
-      enter(d.view.dom)
-      val texts = d.cells.flatten.map:
-        case HtmlLabel.Text(t) => t.spans.flatMap(_.items.map(_.str)).mkString
-        case other             => other.toString
-      check(texts == List("given!", "other"), s"the cells are $texts; the label is ${d.label(n)}")
-      check(d.label(n).contains("POINT-SIZE=\"10\"") || d.label(n).toLowerCase.contains("point-size=\"10\""), s"the font is gone: ${d.label(n)}")
-      check(d.state.editingCellV.now().isEmpty, "the dialog is still open")
-
-  test("bold in a cell saves a bold cell"):
-    withFormatted(SelectedCell(n, List(0, 1))): d =>
-      d.view.dispatch(
-        d.view.state.tr.addMark(1, 1 + "other".length, LabelSchema.schema.mark(LabelSchema.Bold, null))
-      )
-      enter(d.view.dom)
-      val bold = d.cells.lift(0).flatMap(_.lift(1)).exists:
-        case HtmlLabel.Text(t) => t.spans.flatMap(_.items).forall(_.font.bold)
-        case _                 => false
-      check(bold, s"the cell is not bold: ${d.label(n)}")
-
-  test("the preview draws the whole node, with the edited cell in its table"):
-    withDialog(SelectedCell(n, List(0, 0))): d =>
-      Waits
-        .settle(FormattedEditor.viewOf(d.box).isDefined && d.previewText.nonEmpty)
-        .flatMap: _ =>
-          check(FormattedEditor.viewOf(d.box).isDefined, "no formatted editor")
-          val end = d.view.state.doc.content.size - 1
-          d.view.dispatch(d.view.state.tr.insertText("NEW", end))
-          Waits.settle(d.previewText.contains("givenNEW"))
-        .map: _ =>
-          check(d.previewText.contains("givenNEW"), s"the preview does not show the edit: '${d.previewText}'")
-          check(d.previewText.contains("other"), s"the preview does not show the other cell: '${d.previewText}'")
-
-  test("a field of a record node keeps the plain text box"):
-    withDialog(SelectedCell(r, List(0))): d =>
-      Waits
-        .settle(d.find("textarea").isDefined)
-        .map: _ =>
-          check(d.find("textarea").isDefined, s"no text box in ${d.box.innerHTML.take(400)}")
-          check(d.find("[data-gx-tab]").isEmpty, "the record field has the tabs of the label editor")
+          check(d.cellDialogOpen, "the Edit Cell dialog did not open for a record field")
+          check(!d.labelDialogOpen, "the Edit Label dialog opened for a record field")
+          check(d.find("#edit-cell-dialog [data-gx-tab]").isEmpty, "the record field has the tabs of the label editor")
 
 end EditCellDialogSpec

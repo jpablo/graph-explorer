@@ -73,6 +73,10 @@ trait UIState:
   val editingTitleV           = Var(false)
   /** The element whose external label (`xlabel`) the Edit External Label dialog shows. */
   val editingXLabelV          = Var(Option.empty[ElementId])
+  /** The cell of an HTML table (row, column) where the Edit Label dialog puts the cursor,
+    * after a double-click on that cell.
+    */
+  val labelStartCell          = Var(Option.empty[List[Int]])
 
   /** Width of the right panel in px, set by dragging its left edge. Persisted in ViewerSettings. */
   val rightPanelWidth = Var(ViewerSettings.defaultRightPanelWidth)

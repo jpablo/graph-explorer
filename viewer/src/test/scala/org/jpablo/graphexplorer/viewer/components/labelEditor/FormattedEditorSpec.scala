@@ -36,6 +36,7 @@ class FormattedEditorSpec extends FunSuite:
       |  node [shape=box];
       |  plain [label="hello world"];
       |  styled [fontname="Courier", fontsize=21, fontcolor="#ff0000", label="styled"];
+      |  dark [style=filled, fillcolor="#123456", fontcolor="#ffffff", label="dark"];
       |}""".stripMargin
 
   private val graph: ViewerGraph =
@@ -436,5 +437,28 @@ class FormattedEditorSpec extends FunSuite:
       check(fixed.isDefined, s"no fixed cell in ${f.prose.map(_.innerHTML)}")
       check(fixed.exists(_.getAttribute("contenteditable") == "false"), "the fixed cell is editable")
       check(fixed.exists(_.textContent.toLowerCase.contains("image")), s"the fixed cell shows '${fixed.map(_.textContent)}'")
+
+  // ---- the background of the editor ----------------------------------------------------
+
+  private def background(el: dom.Element): String = dom.window.getComputedStyle(el).backgroundColor
+
+  test("the editor has the fill color of a filled node, so that a white text shows"):
+    withFormatted("white text", element = NodeId("dark")): f =>
+      val box = f.find(".gx-label-formatted-box").getOrElse(throw AssertionError("no editor box"))
+      check(background(box) == "rgb(18, 52, 86)", s"the editor background is ${background(box)}, not the fill of the node")
+
+  test("a node with no fill keeps the background of the style sheet"):
+    withFormatted("text"): f =>
+      val box = f.find(".gx-label-formatted-box").getOrElse(throw AssertionError("no editor box"))
+      val own = box.asInstanceOf[dom.html.Element].style.backgroundColor
+      check(own == "", s"the editor has its own background $own")
+
+  test("a table and its cells have their BGCOLOR in the grid"):
+    val label = """<TABLE BGCOLOR="#654321"><TR><TD BGCOLOR="#123456">x</TD><TD>y</TD></TR></TABLE>"""
+    withFormatted(label): f =>
+      val table = f.prose.flatMap(p => Option(p.querySelector("table"))).getOrElse(throw AssertionError("no table"))
+      val cells = table.querySelectorAll("td").toList
+      check(background(table) == "rgb(101, 67, 33)", s"the table background is ${background(table)}")
+      check(background(cells.head) == "rgb(18, 52, 86)", s"the cell background is ${background(cells.head)}")
 
 end FormattedEditorSpec

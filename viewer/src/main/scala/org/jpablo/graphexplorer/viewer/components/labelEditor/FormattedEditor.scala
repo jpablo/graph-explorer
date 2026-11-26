@@ -67,6 +67,8 @@ object FormattedEditor:
     * @param graph    the diagram, for the font of the element and the faces
     * @param element  the element of the label
     * @param dark     true changes the colors for a dark theme, as the preview does
+    * @param startCell the cell of a table (row, column) where the cursor starts;
+    *                 None puts it at the end of the label
     */
   def apply(
       text:     Var[String],
@@ -75,7 +77,8 @@ object FormattedEditor:
       element:  Signal[ElementId],
       dark:     Signal[Boolean],
       onSave:   () => Unit,
-      onCancel: () => Unit
+      onCancel: () => Unit,
+      startCell: () => Option[List[Int]] = () => None
   ): HtmlElement =
     // The state of the view, for the toolbar. Each transaction sets it.
     val current = Var(Option.empty[EditorState])
@@ -123,8 +126,11 @@ object FormattedEditor:
     def stateOf(initial: PMNode): EditorState =
       EditorState.create(new EditorStateConfig:
         doc = initial
-        // The cursor is at the end of the label, as in the source editor.
-        selection = Selections.atEnd(initial)
+        // The cursor is at the end of the label, as in the source editor, or at
+        // the end of the text of the start cell.
+        selection = startCell()
+          .flatMap(Commands.cellTextEnd(initial, _))
+          .fold(Selections.atEnd(initial))(TextSelection.create(initial, _))
         plugins = js.Array(Commands.keepStructure, keys, keymap.keymap(commands.baseKeymap), history.history())
       )
 
@@ -181,7 +187,9 @@ object FormattedEditor:
     def command(cmd: Command): Unit =
       act(view => cmd(view.state, dispatchTo(view), view))
 
-    val baseFont = graph.combineWith(element, dark).map((g, e, d) => Style.base(LabelPreview.elementFont(g, e), d))
+    val baseFont = graph
+      .combineWith(element, dark)
+      .map((g, e, d) => Style.base(LabelPreview.elementFont(g, e), LabelPreview.elementFill(g, e), d))
 
     div(
       cls := "gx-label-formatted flex flex-col gap-1",
@@ -208,21 +216,23 @@ object FormattedEditor:
 
     final case class Base(css: String, dark: Boolean)
 
-    /** The CSS of the editor box: the font of the element, and its color.
-      * On a dark theme the color changes as in the preview (`DiagramColors`).
+    /** The CSS of the editor box: the font of the element, its color, and the
+      * fill of the element. Without the fill, a white text on a dark node was
+      * white on the white box. On a dark theme the colors change as in the
+      * preview (`DiagramColors`).
       */
-    def base(font: LabelPreview.ElementFont, darkColors: Boolean): Base =
+    def base(font: LabelPreview.ElementFont, fill: Option[String], darkColors: Boolean): Base =
       val remap = if darkColors then DiagramColors.themeRemap() else None
-      val color =
-        DiagramColors
-          .resolve(font.color.getOrElse("black"))
-          .map(c => remap.fold(c)(_.apply(c)).css)
-      val css = List(
+      def css(color: String) = DiagramColors.resolve(color).map(c => remap.fold(c)(_.apply(c)).css)
+      val color      = css(font.color.getOrElse("black"))
+      val background = fill.flatMap(css)
+      val rules = List(
         Some(s"font-family: ${family(font.face.getOrElse("Times-Roman"))}"),
         Some(s"font-size: ${number(font.size.getOrElse(14.0) * 4 / 3)}px"),
-        color.map(c => s"color: $c")
+        color.map(c => s"color: $c"),
+        background.map(c => s"background-color: $c")
       ).flatten.map(_ + ";").mkString(" ")
-      Base(css, remap.isDefined)
+      Base(rules, remap.isDefined)
 
     /** The CSS family of a Graphviz face, with a fallback for the PostScript
       * names of Graphviz. The browser does not know "Times-Roman", for example.
@@ -383,6 +393,22 @@ object FormattedEditor:
           else true
       )
       out.toList
+
+    /** The position at the end of the text of the editable cell at `path`
+      * (row, column) of a table document.
+      */
+    def cellTextEnd(doc: PMNode, path: List[Int]): Option[Int] =
+      path match
+        case List(row, col) if doc.childCount == 1 && doc.child(0).`type`.name == Table =>
+          val table = doc.child(0)
+          Option
+            .when(row >= 0 && row < table.childCount && col >= 0 && col < table.child(row).childCount)(table.child(row))
+            .filter(r => r.child(col).child(0).`type`.name == Line)
+            .map: r =>
+              val rowStart = 1 + (0 until row).map(table.child(_).nodeSize).sum
+              val cellPos  = rowStart + 1 + (0 until col).map(r.child(_).nodeSize).sum
+              cellPos + r.child(col).nodeSize - 2
+        case _ => None
 
     /** Tab (`step` 1) and Shift+Tab (`step` -1): put the cursor at the end of
       * the next editable cell, or of the editable cell before. At the first and

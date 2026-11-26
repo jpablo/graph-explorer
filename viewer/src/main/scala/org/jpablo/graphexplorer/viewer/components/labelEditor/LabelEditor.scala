@@ -36,9 +36,7 @@ import scala.util.Try
   *                    these use the rules of Graphviz.
   * @param darkColors  true changes the colors of the preview for a dark theme,
   *                    as the canvas does (see `DiagramColors`)
-  * @param previewLabel the label that the preview draws for the text. The
-  *                    cell dialog gives the label of the whole node, with the
-  *                    text in its cell.
+  * @param startCell   the cell of a table label where the cursor starts
   * @param previewAsText true draws the preview as an external label: text
   *                    with the font of the element, and no shape
   */
@@ -52,8 +50,8 @@ def LabelEditor(
     hint:        String = "Enter label text...",
     graphviz:    Signal[Boolean] = Signal.fromValue(true),
     darkColors:  Signal[Boolean] = Signal.fromValue(false),
-    previewLabel: String => String = identity,
-    previewAsText: Boolean = false
+    previewAsText: Boolean = false,
+    startCell:   () => Option[List[Int]] = () => None
 ): HtmlElement =
   val origin = LabelEditorParts.EditOrigin()
 
@@ -73,7 +71,7 @@ def LabelEditor(
   val tab: Signal[Tab] =
     chosen.signal.combineWith(blocked).map((c, b) => if b.isEmpty then c else Tab.Source).distinct
 
-  lazy val preview = LabelEditorParts.preview(settledText.signal.map(previewLabel), graph, element, render, darkColors, previewAsText)
+  lazy val preview = LabelEditorParts.preview(settledText.signal, graph, element, render, darkColors, previewAsText)
 
   div(
     cls := "gx-label-editor flex flex-col gap-1",
@@ -90,7 +88,7 @@ def LabelEditor(
     },
     LabelEditorParts.tabs(tab, blocked, chosen.writer),
     child <-- tab.map:
-      case Tab.Formatted => FormattedEditor(text, origin, graph, element, darkColors, onSave, onCancel)
+      case Tab.Formatted => FormattedEditor(text, origin, graph, element, darkColors, onSave, onCancel, startCell)
       case Tab.Source    => LabelEditorParts.source(text, origin, onSave, onCancel, hint)
     ,
     div(
