@@ -70,8 +70,10 @@ class RoundTripLossSpec extends FunSuite:
 
   // -------------------------------------------------------------- Mermaid
 
-  test("mermaid: a comment line"):
-    assertEquals(mermaid("flowchart LR\n  %% the api layer\n  a --> b"), Set(Comments))
+  test("mermaid: a comment line of a flowchart is not flagged, because the printer writes it back"):
+    // Bug: the scan flagged each `%%` line. A file with comments at the top could not get a canvas edit.
+    assertEquals(mermaid("flowchart LR\n  %% the api layer\n  a --> b"), Set.empty)
+    assertEquals(mermaid("%% generated\n%% by an agent\n\nflowchart LR\n  a --> b\n  %% at the end"), Set.empty)
 
   test("mermaid: an init directive is not flagged, because the printer writes it back"):
     // Bug: the scan flagged each `%%{...}%%`. After a theme change in the Diagram panel, the file had an init
@@ -100,12 +102,12 @@ class RoundTripLossSpec extends FunSuite:
     assertEquals(mermaid("flowchart LR\n  accTitle: Deps\n  a --> b"), Set(AccessibilityText))
     assertEquals(mermaid("flowchart LR\n  accDescr {\n    The deps\n  }\n  a --> b"), Set(AccessibilityText))
 
-  test("mermaid: a direction inside a subgraph"):
-    assertEquals(mermaid("flowchart TD\n  subgraph s\n    direction LR\n    a --> b\n  end"), Set(SubgraphDirection))
+  test("mermaid: a direction inside a subgraph is not flagged, because the group keeps it"):
+    assertEquals(mermaid("flowchart TD\n  subgraph s\n    direction LR\n    a --> b\n  end"), Set.empty)
 
   test("mermaid: several kinds at once"):
     val text = "%%{wrap}%%\nflowchart LR\n  %% note\n  a --> b\n  click a \"https://x\""
-    assertEquals(mermaid(text), Set(Directives, Comments, ClickHandlers))
+    assertEquals(mermaid(text), Set(Directives, ClickHandlers))
 
   test("mermaid: what the model keeps is not flagged"):
     val text =
@@ -138,6 +140,12 @@ class RoundTripLossSpec extends FunSuite:
     // in it are not concurrent regions or a direction.
     val block = "stateDiagram-v2\n  state A {\n    note left of B\n      --\n      direction LR\n    end note\n    B --> C\n  }"
     assertEquals(mermaid(block), Set(StateNotes))
+
+  test("state: a comment line is flagged, because the state printer drops it"):
+    assertEquals(mermaid("stateDiagram-v2\n  %% the start\n  [*] --> A"), Set(Comments))
+
+  test("mermaid: a comment in the front matter is still flagged"):
+    assertEquals(mermaid("---\ntitle: T\n# a note\n---\nflowchart LR\n  a --> b"), Set(Comments))
 
   test("state: concurrent regions"):
     assertEquals(mermaid("stateDiagram-v2\n  state A {\n    [*] --> B\n    --\n    [*] --> C\n  }"), Set(ConcurrentRegions))
@@ -197,6 +205,7 @@ class RoundTripLossSpec extends FunSuite:
   test("the Mermaid printer's own output is never flagged"):
     val samples = List(
       "flowchart LR\n  %% note\n  api[API] --> db[(DB)]\n  click api \"https://x\"",
+      "%% top\nflowchart LR\n  subgraph s [S]\n    direction TB\n    %% inner\n    a\n  end\n  a --> b\n  %% last",
       "---\ntitle: Pipeline\n---\nflowchart TD\n  subgraph svc [Services]\n    direction LR\n    api:::hot --> db\n  end\n  web -->|calls| api\n  classDef hot fill:#f96\n  linkStyle 0 stroke:#0f0\n  style web fill:#ccc"
     )
     for text <- samples do

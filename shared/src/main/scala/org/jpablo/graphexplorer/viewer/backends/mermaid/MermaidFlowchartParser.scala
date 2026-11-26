@@ -52,6 +52,7 @@ object MermaidFlowchartParser:
     val subgraphsInOrder = mutable.ListBuffer[String]()
     val subgraphTitles   = mutable.Map[String, Option[String]]()
     val subgraphMembers  = mutable.Map[String, mutable.LinkedHashSet[String]]()
+    val subgraphDirs     = mutable.Map[String, String]()
     val stack            = mutable.Stack[String]()
     val nodeStyles       = mutable.Map[String, List[String]]()
     val classAssignments = mutable.Map[String, List[String]]()
@@ -103,7 +104,8 @@ object MermaidFlowchartParser:
             failure = Some(s"could not parse the Mermaid flowchart: duplicate header at line $lineNumber")
           case _ if !sawHeader =>
             failure = Some(s"could not parse the Mermaid flowchart: expected a flowchart header at line $lineNumber")
-          case DirectionLine(_) => () // A subgraph-local layout hint does not change graph identity.
+          // The direction of a subgraph. The graph keeps it on the group, and the printer writes it back.
+          case DirectionLine(dir) => stack.headOption.foreach(id => subgraphDirs(id) = dir)
           case AccDescrBlock(rest) => inAccDescrBlock = !rest.contains("}")
           case "end" | "end;" =>
             if stack.nonEmpty then stack.pop()
@@ -193,14 +195,16 @@ object MermaidFlowchartParser:
                 id = id,
                 title = subgraphTitles(id),
                 nodes = subgraphMembers(id).toList,
-                classes = classAssignments.getOrElse(id, Nil)
+                classes = classAssignments.getOrElse(id, Nil),
+                direction = subgraphDirs.get(id)
               ),
             direction = direction,
             title = title,
             classDefs = classDefs.toMap,
             defaultEdgeStyle = defaultEdgeStyle,
             defaultEdgeInterpolate = defaultEdgeInterpolate,
-            initConfig = MermaidInitDirective.configOf(text)
+            initConfig = MermaidInitDirective.configOf(text),
+            comments = MermaidComments.outlineOf(text)
           )
         )
 

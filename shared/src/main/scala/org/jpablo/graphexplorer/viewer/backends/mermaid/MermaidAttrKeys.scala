@@ -37,6 +37,11 @@ object MermaidAttrKeys:
   val MermaidFontSizeAttr   = AttributeId("mermaid_fontSize")
   val MermaidFontFamilyAttr = AttributeId("mermaid_fontFamily")
 
+  /** A graph attribute: the `%%` comments of a flowchart and their places, as
+    * JSON text (see [[MermaidComments]]). The printer writes the comments back.
+    */
+  val MermaidCommentsAttr = AttributeId("mermaid_comments")
+
   /** A graph attribute: the kind of Mermaid diagram when it is not a flowchart.
     * The printer reads it to write the same kind of diagram back.
     */

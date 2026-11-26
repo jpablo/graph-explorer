@@ -183,6 +183,8 @@ trait MermaidSubgraphJS extends js.Object:
   val title: js.UndefOr[String]           = js.native
   val nodes: js.UndefOr[js.Array[String]] = js.native
   val classes: js.UndefOr[js.Array[String]] = js.native
+  /** The direction of the `direction` line in the subgraph. Undefined when it has none. */
+  val dir: js.UndefOr[String]             = js.native
 
 /** Configuration options for Mermaid.initialize() */
 object MermaidConfig:

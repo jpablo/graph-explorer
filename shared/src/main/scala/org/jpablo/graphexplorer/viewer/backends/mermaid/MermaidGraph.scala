@@ -63,12 +63,15 @@ case class MermaidEdge(
   *   The display title for this subgraph
   * @param nodes
   *   List of vertex IDs contained in this subgraph
+  * @param direction
+  *   The layout direction of the `direction` line in this subgraph (TB, BT, LR, RL), if it has one
   */
 case class MermaidSubgraph(
     id:    String,
     title: Option[String] = None,
     nodes: List[String] = Nil,
-    classes: List[String] = Nil
+    classes: List[String] = Nil,
+    direction: Option[String] = None
 ) derives ReadWriter
 
 /** Represents Mermaid classDef declarations.
@@ -102,5 +105,7 @@ case class MermaidGraph(
     defaultEdgeStyle: List[String] = Nil,
     defaultEdgeInterpolate: Option[String] = None,
     /** The merged init directive of the source, as JSON text (see [[MermaidInitDirective.configOf]]). */
-    initConfig: Option[String] = None
+    initConfig: Option[String] = None,
+    /** The outline of the `%%` comments of the source, as JSON text (see [[MermaidComments.outlineOf]]). */
+    comments: Option[String] = None
 ) derives ReadWriter

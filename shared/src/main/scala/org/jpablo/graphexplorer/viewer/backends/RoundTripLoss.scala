@@ -12,8 +12,10 @@ import org.jpablo.graphexplorer.viewer.backends.mermaid.{MermaidInitDirective, M
   */
 enum UnmodeledContent(val label: String) derives CanEqual:
 
-  /** DOT line comments, block comments and `#` lines. Mermaid `%%` lines, and
-    * `#` lines in the front matter.
+  /** DOT line comments, block comments and `#` lines. The `%%` lines of a
+    * Mermaid state diagram, and `#` lines in the front matter. The `%%` lines
+    * of a flowchart are not in this set, because the graph keeps them and the
+    * printer writes them back (see `MermaidComments`).
     */
   case Comments extends UnmodeledContent("the comments")
 
@@ -32,8 +34,11 @@ enum UnmodeledContent(val label: String) derives CanEqual:
   /** Mermaid `accTitle` and `accDescr`. */
   case AccessibilityText extends UnmodeledContent("the accessibility text (`accTitle`, `accDescr`)")
 
-  /** A Mermaid `direction` line inside a subgraph or a composite state. */
-  case SubgraphDirection extends UnmodeledContent("the `direction` lines in subgraphs or composite states")
+  /** A Mermaid `direction` line inside a composite state. A `direction` line
+    * inside a subgraph of a flowchart is not in this set, because the group
+    * keeps it and the printer writes it back.
+    */
+  case SubgraphDirection extends UnmodeledContent("the `direction` lines in composite states")
 
   /** The notes of a Mermaid state diagram. */
   case StateNotes extends UnmodeledContent("the notes")
@@ -158,14 +163,17 @@ object RoundTripLoss:
     * line at a time:
     *
     *   - A comment is a line that starts with `%%`. A `%%` in other positions,
-    *     for example inside a label, is text.
+    *     for example inside a label, is text. The graph of a flowchart keeps
+    *     its comments, so the scan flags a comment only in a state diagram.
     *   - A directive starts with `%%{` and ends with `}%%`, and it can continue
     *     on the lines that follow. The graph keeps an init directive whose
     *     arguments are a JSON object, so the scan does not flag it. The scan
     *     flags a directive of another type, and an init directive that is not
     *     a JSON object, because the printer drops them.
     *   - `click`, `accTitle`, `accDescr` and `direction` are keywords at the
-    *     start of a statement. A `;` also separates two statements.
+    *     start of a statement. A `;` also separates two statements. The group
+    *     of a flowchart subgraph keeps its `direction`, so the scan flags a
+    *     `direction` only in a composite state.
     *   - In a state diagram, `state X {` opens a composite state and `}` closes
     *     it. A note starts with `note`. A multi-line note continues to the line
     *     with `end note`, and its lines are text.
@@ -175,8 +183,6 @@ object RoundTripLoss:
     private val Click       = """(?i)click\s+[A-Za-z0-9_].*""".r
     private val Accessible  = """(?i)acc(?:Title|Descr)\s*[:{].*""".r
     private val AccDescrTop = """(?i)accDescr\s*\{.*""".r
-    private val Subgraph    = """(?i)subgraph(?:\s.*)?""".r
-    private val End         = """end(?:[\s;].*)?""".r
     private val Direction   = """(?i)direction\s+(?:TB|TD|BT|LR|RL)\s*;?""".r
     private val StateOpen   = """(?i)state\s.*\{""".r
     private val StateClose  = """\}""".r
@@ -226,7 +232,8 @@ object RoundTripLoss:
           directive ++= line
           inDirective = !line.drop(3).contains("}%%")
           if !inDirective then endDirective()
-        else if line.startsWith("%%") then found += UnmodeledContent.Comments
+        else if line.startsWith("%%") then
+          if stateDiagram then found += UnmodeledContent.Comments
         else
           if stateDiagram then
             val (content, kind) = stateStatement(line, depth)
@@ -240,9 +247,6 @@ object RoundTripLoss:
             statements(line).foreach:
               case Click()      => found += UnmodeledContent.ClickHandlers
               case Accessible() => found += UnmodeledContent.AccessibilityText
-              case Subgraph()   => depth += 1
-              case End()        => depth = 0 max (depth - 1)
-              case Direction()  => if depth > 0 then found += UnmodeledContent.SubgraphDirection
               case _            => ()
           // A multi-line `accDescr { ... }` block continues to the line with `}`.
           inAccessibility = line match

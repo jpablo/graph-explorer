@@ -27,6 +27,11 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
 private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
   val lines = StringBuilder()
 
+  // The statements that a comment can come before, at the place where the text has them (see MermaidComments).
+  val anchors = scala.collection.mutable.ArrayBuffer[CommentAnchor]()
+  def anchor(item: MermaidComments.Item, indent: String): Unit =
+    anchors += CommentAnchor(lines.length, Some(item), indent)
+
   // Get title from graph attributes (Label attribute)
   val titleOpt = graph.elements.graphAttributes.values
     .get(Label.attrId)
@@ -41,10 +46,13 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
   }
 
   // The init directive keeps the theme and the fonts. Mermaid reads the front matter first, thus the directive comes after it.
-  MermaidInitDirective.line(graph.elements.graphAttributes).foreach(line => lines.append(s"$line\n"))
+  MermaidInitDirective.line(graph.elements.graphAttributes).foreach: line =>
+    anchor(MermaidComments.Item.Directive, "")
+    lines.append(s"$line\n")
 
   // Get direction from graph attributes, default to TB (top-to-bottom)
   val direction = graph.elements.graphAttributes.getAs(Rankdir).toString
+  anchor(MermaidComments.Item.Header, "")
   lines.append(s"flowchart $direction\n")
 
   emitClassDefLines(lines, graph.elements.graphAttributes)
@@ -91,11 +99,14 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
       val title = storedTitle.map(MermaidLabelText.fromStored).filter(_.nonEmpty) match
         case Some(s) => s" [${escapeMermaidLabel(s)}]"
         case None    => ""
+      anchor(MermaidComments.Item.Subgraph(groupId.value), indent)
       lines.append(s"${indent}subgraph ${ids.group(groupId)}$title\n")
+      subgraphDirection(group).foreach(dir => lines.append(s"$indent  direction $dir\n"))
 
       // Member nodes first, then child subgraphs, each in deterministic id order
       nodesByGroup.getOrElse(groupId, Nil).toVector.sortBy(_.value).foreach { nodeId =>
         graph.nodes.get(nodeId).foreach { node =>
+          anchor(MermaidComments.Item.Node(nodeId.value), s"$indent  ")
           lines.append(s"$indent  ${serializeNode(nodeId, node, ids)}\n")
           subgraphNodes += nodeId
         }
@@ -104,6 +115,7 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
         graph.groups.get(childId).foreach(child => emitSubgraph(childId, child, depth + 1))
       }
 
+      anchor(MermaidComments.Item.End(groupId.value), s"$indent  ")
       lines.append(s"${indent}end\n")
 
   sortedGroups.foreach { case (groupId, group) =>
@@ -123,6 +135,7 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
       val shouldEmitNode = shouldEmitStandaloneNode(nodeId, node, connectedNodeIds, ids)
       if shouldEmitNode then
         val nodeLine = serializeNode(nodeId, node, ids)
+        anchor(MermaidComments.Item.Node(nodeId.value), "  ")
         lines.append(s"  $nodeLine\n")
   }
 
@@ -130,6 +143,7 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
   val orderedArrows = sortedArrows(graph.arrows.values)
   orderedArrows.foreach { arrow =>
     val edgeLine = serializeEdge(arrow, ids)
+    anchor(MermaidComments.Item.Edge(arrow.source.value, arrow.target.value, arrow.seq), "  ")
     lines.append(s"  $edgeLine\n")
   }
   orderedArrows.zipWithIndex.foreach { case (arrow, edgeIndex) =>
@@ -164,7 +178,42 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
   }
   emitGroupClassLines(lines, sortedGroups, rootGroupId, ids)
 
-  lines.toString
+  // The end of the text: the place of the comments with no statement after them.
+  anchors += CommentAnchor(lines.length, None, "  ")
+  withComments(lines.toString, anchors.toVector, graph.elements.graphAttributes)
+
+/** A place in the printed text where comments can go: the offset of a line, the statement on that line (`None` for
+  * the end of the text), and the indent of the line.
+  */
+private final case class CommentAnchor(offset: Int, item: Option[MermaidComments.Item], indent: String)
+
+/** `text` with the comments of the graph (see [[MermaidComments]]). Each run of comments goes on the lines before its
+  * anchor, with the indent of the anchor. `anchors` are in the order of their offsets.
+  */
+private def withComments(text: String, anchors: Vector[CommentAnchor], graphAttributes: Attributes): String =
+  val items = graphAttributes.get(MermaidCommentsAttr).map(v => MermaidComments.parse(v.toString)).getOrElse(Vector.empty)
+  if items.isEmpty then text
+  else
+    val printed = anchors.flatMap(_.item).toSet
+    val placed  = MermaidComments.placed(items, printed.contains)
+    val out     = StringBuilder()
+    val used    = scala.collection.mutable.Set[Option[MermaidComments.Item]]()
+    var from    = 0
+    anchors.foreach: a =>
+      // A statement can be on two lines of the text. Its comments go before the first one.
+      if used.add(a.item) then
+        placed.get(a.item).foreach: commentLines =>
+          out.append(text.substring(from, a.offset))
+          commentLines.foreach(line => out.append(s"${a.indent}$line\n"))
+          from = a.offset
+    out.append(text.substring(from))
+    out.toString
+
+/** The direction of the `direction` line of a subgraph: the `rankdir` of the group, when Mermaid accepts it. */
+private def subgraphDirection(group: ViewerGroup): Option[String] =
+  group.attributes.values.get(Rankdir.attrId).map(_.toString.trim).filter(SubgraphDirections.contains)
+
+private val SubgraphDirections = Set("TB", "TD", "BT", "LR", "RL")
 
 private def flowchartRootGroupId: GroupId = GroupId(ViewerGraphElements.defaultRootId.value)
 

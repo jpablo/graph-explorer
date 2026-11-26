@@ -190,6 +190,67 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
           check(state.documentIsDirty, "the applied edit is not an unsaved edit of the file")
           same(messages(), Nil)
 
+  test("a canvas edit on a Mermaid flowchart file keeps its comments and the direction of its subgraphs"):
+    // Bug: a canvas edit on a Mermaid file with `%%` comments or a `direction` line in a subgraph was refused. The
+    // printer dropped them. It must write them back, so the edit applies and the file keeps them.
+    val mermaid =
+      """%% Browser tool architecture.
+        |%% Main evidence:
+        |%% - rust/genesis/src/tools/builtin/browser/
+        |
+        |flowchart LR
+        |    user["User"]
+        |    model["Model / provider"]
+        |
+        |    subgraph desktop["Desktop host"]
+        |        direction TB
+        |        %% the API layer
+        |        api["API"]
+        |        ui["UI"]
+        |    end
+        |
+        |    subgraph native["Native process"]
+        |        direction TB
+        |        db["DB"]
+        |    end
+        |
+        |    %% the main path
+        |    user --> api
+        |    api --> db
+        |    model --> ui""".stripMargin
+    installShell()
+    withGraphvizAsync: graphviz =>
+      val open     = DesktopDocumentRegistry.record("/tmp/lossy-comments.mmd", "rev-1", mermaid)
+      val errors   = EventBus[String]()
+      val messages = collect(errors)
+      val state    = ViewerState(ViewTarget.File(open.id), graphviz, errorBus = errors)
+      waitFor(state.loadStatus.now() == DiagramLoadStatus.Ready, "the Mermaid parse")
+        .map: _ =>
+          same(state.formatSelection.now(), DiagramFormat.Mermaid, "precondition: the document is Mermaid")
+          assertParsed(state, mermaid)
+          colorApiRed(state)
+        .flatMap: _ =>
+          afterMicrotasks:
+            val text  = state.sourceText.now()
+            val lines = text.linesIterator.map(_.trim).toVector
+            same(messages(), Nil, "the canvas edit was refused")
+            check(text != mermaid && text.contains("red"), s"the edit did not apply:\n$text")
+            check(state.documentIsDirty, "the applied edit is not an unsaved edit of the file")
+            // The comments at the top stay at the top, in their order.
+            val header = List("%% Browser tool architecture.", "%% Main evidence:", "%% - rust/genesis/src/tools/builtin/browser/")
+            same(lines.filter(_.nonEmpty).take(3).toList, header, s"the comments at the top changed:\n$text")
+            // The other comments stay, in their order.
+            val comments = lines.filter(_.startsWith("%%")).toList
+            same(comments, header ++ List("%% the API layer", "%% the main path"), s"the comments changed:\n$text")
+            // Each `direction` line stays inside its subgraph, and a comment inside a subgraph stays in it.
+            def block(name: String): Vector[String] =
+              val start = lines.indexWhere(_.startsWith(s"subgraph $name"))
+              check(start >= 0, s"the text has no subgraph $name:\n$text")
+              lines.drop(start + 1).takeWhile(_ != "end")
+            check(block("desktop").contains("direction TB"), s"the subgraph desktop lost its direction:\n$text")
+            check(block("native").contains("direction TB"), s"the subgraph native lost its direction:\n$text")
+            check(block("desktop").contains("%% the API layer"), s"the comment left the subgraph desktop:\n$text")
+
   // ------------------------------------------------------ out of scope
 
   test("a canvas edit on a diagram of the browser library still rewrites the text"):

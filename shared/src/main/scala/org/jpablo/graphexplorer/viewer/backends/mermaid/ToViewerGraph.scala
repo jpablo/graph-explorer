@@ -130,6 +130,7 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
     graphAttrs += MermaidDefaultLinkInterpolateAttr -> AttrValue(v)
   )
   mermaidGraph.initConfig.foreach(config => graphAttrs ++= MermaidInitDirective.toAttributes(config))
+  mermaidGraph.comments.foreach(outline => graphAttrs += MermaidCommentsAttr -> AttrValue(outline))
 
   ViewerGraphElements(
     nodes = allNodes,
@@ -313,6 +314,8 @@ private def subgraphToAttributes(subgraph: MermaidSubgraph, styles: List[String]
   subgraph.title.foreach(v => attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(v)))
   if styles.nonEmpty then attrs += Style.attrId -> AttrValue(styles.mkString(","))
   if subgraph.classes.nonEmpty then attrs += MermaidClassAttr -> AttrValue(subgraph.classes.mkString(" "))
+  // The `direction` line of the subgraph. The graph has its direction in `rankdir`, thus a group has it there too.
+  subgraph.direction.foreach(d => attrs += Rankdir.attrId -> AttrValue(d))
 
   Attributes.fromOrdered(attrs)
 
