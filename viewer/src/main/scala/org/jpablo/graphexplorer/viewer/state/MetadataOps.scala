@@ -64,8 +64,23 @@ final class MetadataOps(val metadata: Var[DiagramMetadata])(using owner: Owner):
   val locked: Var[Boolean] =
     metadata.zoomLazy(_.locked)((m, on) => m.copy(locked = on)).distinct
 
+  /** The tags of the diagram, in the order that the person added them. `gx tag`
+    * writes the same list.
+    */
+  val tags: Var[List[String]] =
+    metadata.zoomLazy(_.tags)((m, ts) => m.copy(tags = ts)).distinct
+
+  /** The notes of the diagram: free text. An empty text is no note. */
+  val notes: Var[String] =
+    metadata.zoomLazy(_.notes)((m, text) => m.copy(notes = text)).distinct
+
+  /** Add the tag that the person typed ([[MetadataOps.withTag]]). */
+  def addTag(typed: String): Unit = tags.update(MetadataOps.withTag(_, typed))
+
+  def removeTag(tag: String): Unit = tags.update(_.filterNot(_ == tag))
+
   // Keep each view running, so that its `now()` is fresh (see the class comment).
-  List[Var[?]](hiddenElements, collapsedGroups, autoDetectFormat, renderer, extractor, locked)
+  List[Var[?]](hiddenElements, collapsedGroups, autoDetectFormat, renderer, extractor, locked, tags, notes)
     .foreach(_.signal.foreach(_ => ()))
 
 end MetadataOps
@@ -95,6 +110,14 @@ object MetadataOps:
     metadata.copy(
       collapsedGroups = groups.map(ElementRef.render) ++ metadata.collapsedGroups.filterNot(ref => parse(ref).exists(_.isGroupId))
     )
+
+  /** `tags` with the tag that the person typed at the end. The rule trims the
+    * text. It ignores an empty text and a tag that `tags` has, as `gx tag`
+    * does. The comparison is exact: `Infra` and `infra` are two tags.
+    */
+  def withTag(tags: List[String], typed: String): List[String] =
+    val tag = typed.trim
+    if tag.isEmpty || tags.contains(tag) then tags else tags :+ tag
 
   def render(ids: ElementIds): Set[String] =
     ids.ids.map(id => ElementRef.render(id))

@@ -542,6 +542,51 @@ svg {
   }
 }
 
+// ── The About section of the Diagram panel ───────────────────────────────────
+// The tags and the notes of the diagram. Each control takes the full width of the
+// panel, and the chips wrap, so the section fits a narrow panel.
+#diagram-about .gx-about-body {
+  @apply mx-2 pb-3 flex flex-col gap-3;
+}
+
+.gx-about-field {
+  @apply flex flex-col gap-1 min-w-0;
+}
+
+.gx-about-label {
+  @apply text-xs text-base-content/70;
+}
+
+.gx-tag-list {
+  @apply flex flex-wrap gap-1;
+
+  &:empty {
+    @apply hidden;
+  }
+}
+
+.gx-tag {
+  @apply gap-0.5 pr-0.5 max-w-full;
+}
+
+.gx-tag-text {
+  @apply truncate;
+}
+
+.gx-tag-remove {
+  @apply inline-flex items-center justify-center w-4 h-4 rounded-full leading-none
+    text-base-content/60 cursor-pointer hover:bg-base-300 hover:text-base-content;
+}
+
+.gx-tag-input,
+.gx-notes {
+  @apply w-full;
+}
+
+.gx-notes {
+  @apply min-h-16 resize-y;
+}
+
 // ── The reset marker ─────────────────────────────────────────────────────────
 // One symbol for "this attribute is set — click to put it back", used by every surface
 // that edits an attribute: bare controls in the toolbar, rows in a popup card, rows in

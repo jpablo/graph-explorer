@@ -226,18 +226,19 @@ final class DesktopLibrary private () extends LibraryListing:
 
   /** Give the metadata of the viewer of a file to its entry.
     *
-    * The viewer owns the hidden elements, the collapsed groups and the
-    * language mode. The entry owns the rest: the tags and the notes, which the
-    * viewer has no UI for, and `createdAt`.
+    * The viewer owns the hidden elements, the collapsed groups, the language
+    * mode, and the tags and the notes (the About section of the Diagram
+    * panel). The entry owns the rest: `createdAt` and each key that this build
+    * does not know.
     *
     * The write is a three-way merge. `before` is the metadata that the viewer
     * had before this change, and `viewer` is the metadata after it. The write
     * applies only the change of the viewer onto the entry
     * ([[DesktopLibrary.applyChange]]). A field that the viewer did not change
-    * keeps the value of the entry. A hidden element or a collapsed group that
-    * the viewer did not add or remove also keeps its state in the entry. Thus
-    * a `gx lock`, `gx unlock` or `gx hide` stays after the next hide in the
-    * viewer. A file with no entry gets all the fields of the viewer.
+    * keeps the value of the entry. A hidden element, a collapsed group or a
+    * tag that the viewer did not add or remove also keeps its state in the
+    * entry. Thus a `gx lock`, `gx unlock`, `gx hide` or `gx tag` stays after
+    * the next hide in the viewer. A file with no entry gets all the fields of the viewer.
     *
     * The mirror can be older than the disk: the shell polls the store, and
     * the refresh needs one more round trip. Thus the write is a
@@ -666,12 +667,23 @@ object DesktopLibrary:
       autoDetect: Boolean,
       renderer:   Option[String],
       extractor:  Option[String],
-      locked:     Boolean
+      locked:     Boolean,
+      tags:       List[String],
+      notes:      String
   ) derives CanEqual
 
   private object Owned:
     def of(m: DiagramMetadata): Owned =
-      Owned(m.hiddenElements, m.collapsedGroups, m.autoDetectFormat.getOrElse(true), m.renderer, m.extractor, m.locked)
+      Owned(
+        m.hiddenElements,
+        m.collapsedGroups,
+        m.autoDetectFormat.getOrElse(true),
+        m.renderer,
+        m.extractor,
+        m.locked,
+        m.tags,
+        m.notes
+      )
     val none: Owned = of(DiagramMetadata.empty)
 
   /** Apply the change of the viewer, from `before` to `viewer`, onto `base`
@@ -682,11 +694,18 @@ object DesktopLibrary:
     * writer can have changed that field after the viewer read it. For the
     * hidden elements and the collapsed groups, the merge is for each element:
     * the elements that the viewer added go in, the elements that the viewer
-    * removed go out, and the other elements of `base` stay.
+    * removed go out, and the other elements of `base` stay. The tags merge in
+    * the same way, and they keep the order of `base`. A tag that the viewer
+    * added goes at the end. The notes are one field: the text of the viewer
+    * replaces the text of `base`.
     */
   private[library] def applyChange(base: DiagramMetadata, before: DiagramMetadata, viewer: DiagramMetadata): DiagramMetadata =
     def set(baseSet: Set[String], beforeSet: Set[String], viewerSet: Set[String]): Set[String] =
       baseSet -- (beforeSet -- viewerSet) ++ (viewerSet -- beforeSet)
+    def list(baseList: List[String], beforeList: List[String], viewerList: List[String]): List[String] =
+      val removed = beforeList.filterNot(viewerList.contains)
+      val added   = viewerList.filterNot(t => beforeList.contains(t) || baseList.contains(t))
+      baseList.filterNot(removed.contains) ++ added
     def field[A](baseValue: A, beforeValue: A, viewerValue: A)(using CanEqual[A, A]): A =
       if beforeValue == viewerValue then baseValue else viewerValue
     val (b, v) = (Owned.of(before), Owned.of(viewer))
@@ -696,7 +715,9 @@ object DesktopLibrary:
       autoDetectFormat = if b.autoDetect == v.autoDetect then base.autoDetectFormat else viewer.autoDetectFormat,
       renderer = field(base.renderer, before.renderer, viewer.renderer),
       extractor = field(base.extractor, before.extractor, viewer.extractor),
-      locked = field(base.locked, before.locked, viewer.locked)
+      locked = field(base.locked, before.locked, viewer.locked),
+      tags = list(base.tags, before.tags, viewer.tags),
+      notes = field(base.notes, before.notes, viewer.notes)
     )
 
   private[library] def messageOf(error: Throwable): String = error match

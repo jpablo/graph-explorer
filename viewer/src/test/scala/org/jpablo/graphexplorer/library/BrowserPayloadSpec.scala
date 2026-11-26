@@ -51,9 +51,16 @@ class BrowserPayloadSpec extends FunSuite:
   test("an empty payload reads as an unnamed, empty diagram"):
     assertEquals(read[DiagramSnapshot]("{}"), DiagramSnapshot("", None, DiagramMetadata(), name = ""))
 
-  test("the browser library stores no tags or notes, and does not invent them"):
-    val withLibraryFields = representative.copy(metadata = representative.metadata.copy(tags = List("t"), notes = "n"))
-    assertEquals(write(withLibraryFields), pinned, "the stored form has no field for them")
+  // The About section of the Diagram panel edits the tags and the notes. Before it, the
+  // browser library dropped them. The two fields come after each old field, and upickle
+  // omits a field that has its default. Thus a diagram with no tags and no notes writes
+  // the old JSON byte for byte (the tests above), and an old payload reads as before.
+  test("the browser library stores the tags and the notes after the other fields"):
+    val withLibraryFields = representative.copy(metadata = representative.metadata.copy(tags = List("t", "u"), notes = "n"))
+    assertEquals(write(withLibraryFields), pinned.dropRight(1) + ""","tags":["t","u"],"notes":"n"}""")
+    assertEquals(read[DiagramSnapshot](write(withLibraryFields)), withLibraryFields)
+
+  test("a payload with no tags and no notes reads them as their defaults"):
     val back = read[DiagramSnapshot](pinned).metadata
     assertEquals((back.tags, back.notes), (Nil, ""))
 
