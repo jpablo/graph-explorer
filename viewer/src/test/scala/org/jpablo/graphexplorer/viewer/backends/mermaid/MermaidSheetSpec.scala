@@ -90,3 +90,54 @@ class MermaidSheetSpec extends FunSuite with TestHelpers:
 
   test("a state diagram has a sheet behind the drawing"):
     drawAndCheck("state", stateDiagram)
+
+  /** The text of each `<style>` element of `svg`. */
+  private def styleText(svg: dom.svg.SVG): String =
+    val styles = svg.querySelectorAll("style")
+    (0 until styles.length).map(styles(_).textContent).mkString("\n")
+
+  private def drawn(name: String, text: String)(body: dom.svg.SVG => Unit) =
+    RealMermaid.drawWithMermaid(text).map:
+      case Failure(e) => check(false, s"$name: Mermaid failed: ${RealMermaid.firstLine(e)}")
+      case Success(svg) =>
+        dom.document.body.appendChild(svg)
+        try body(svg)
+        finally svg.remove()
+
+  test("the background of the init directive is the color of the sheet, also in an export with no sheet"):
+    val text = """%%{init: {"themeVariables": {"background": "#fef3c7"}}}%%""" + "\n" + flowchart
+    drawn("background", text): svg =>
+      val sheet = svg.querySelector("rect.gx-sheet")
+      check(sheet != null, "no sheet")
+      val fill = dom.window.getComputedStyle(sheet).getPropertyValue("fill")
+      check(fill == "rgb(254, 243, 199)", s"the sheet has the fill $fill, not the background: ${sheet.outerHTML}")
+      check(sheet.hasAttribute(MermaidBackend.backgroundAttr), s"the sheet has no background mark: ${sheet.outerHTML}")
+      val exported = MermaidBackend.exportText(svg, keepSheet = false)
+      check(exported.contains("gx-sheet"), "the export with no sheet dropped the background")
+
+  test("a sheet with no background in the directive keeps the plain fill"):
+    drawn("plain", flowchart): svg =>
+      val sheet = svg.querySelector("rect.gx-sheet")
+      check(sheet != null, "no sheet")
+      check(!sheet.hasAttribute(MermaidBackend.backgroundAttr), s"a plain sheet has the background mark: ${sheet.outerHTML}")
+      check(!MermaidBackend.exportText(svg, keepSheet = false).contains("gx-sheet"), "the export with no sheet kept the plain sheet")
+
+  test("the dark theme of the directive gets a dark sheet"):
+    drawn("dark", """%%{init: {"theme": "dark"}}%%""" + "\n" + flowchart): svg =>
+      val sheet = svg.querySelector("rect.gx-sheet")
+      check(sheet != null, "no sheet")
+      val fill = dom.window.getComputedStyle(sheet).getPropertyValue("fill")
+      check(fill == "rgb(51, 51, 51)", s"the dark theme has the sheet $fill")
+
+  // MermaidBackend.ensureInitialized gives Mermaid the theme "default". The
+  // directive of the source must win over it.
+  test("the theme and the fonts of the directive win over the theme of the app"):
+    drawn("default", flowchart): plain =>
+      val plainStyle = styleText(plain)
+      val text =
+        """%%{init: {"theme": "dark", "themeVariables": {"fontSize": "23px", "fontFamily": "Georgia"}}}%%""" + "\n" + flowchart
+      drawn("themed", text): themed =>
+        val style = styleText(themed)
+        check(style != plainStyle, "the dark theme draws the same style as the default theme")
+        check(style.contains("font-size:23px"), s"the style has no font size 23px: ${style.take(300)}")
+        check(style.contains("font-family:Georgia"), s"the style has no font Georgia: ${style.take(300)}")

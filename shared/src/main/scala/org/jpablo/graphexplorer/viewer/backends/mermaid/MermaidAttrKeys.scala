@@ -26,6 +26,17 @@ object MermaidAttrKeys:
   val MermaidEdgeTypeAttr               = AttributeId("mermaid_edgeType")
   val MermaidDomIdAttr                  = AttributeId("mermaid_domId")
 
+  /** Graph attributes: the global properties of the diagram, from the init
+    * directive `%%{init: {...}}%%` (see [[MermaidInitDirective]]).
+    * `MermaidInitAttr` keeps the full directive as JSON text, so that the
+    * printer keeps the keys that have no attribute of their own.
+    */
+  val MermaidInitAttr       = AttributeId("mermaid_init")
+  val MermaidThemeAttr      = AttributeId("mermaid_theme")
+  val MermaidBackgroundAttr = AttributeId("mermaid_background")
+  val MermaidFontSizeAttr   = AttributeId("mermaid_fontSize")
+  val MermaidFontFamilyAttr = AttributeId("mermaid_fontFamily")
+
   /** A graph attribute: the kind of Mermaid diagram when it is not a flowchart.
     * The printer reads it to write the same kind of diagram back.
     */

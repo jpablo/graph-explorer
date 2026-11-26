@@ -1921,7 +1921,9 @@ svg:not([data-gx-dark]) rect.gx-sheet {
   fill: var(--gx-sheet);
 }
 
-.gx-no-sheet rect.gx-sheet {
+// A sheet with the background of the diagram (`data-gx-background`) stays:
+// the person chose that color for the diagram.
+.gx-no-sheet rect.gx-sheet:not([data-gx-background]) {
   display: none;
 }
 
