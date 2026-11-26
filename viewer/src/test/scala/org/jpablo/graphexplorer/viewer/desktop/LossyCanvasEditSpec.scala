@@ -131,8 +131,10 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
           )
 
   test("a canvas edit on a Mermaid file keeps its directive and its click line"):
+    // The printer drops a directive of a type other than `init`. It writes an init directive back, so that
+    // directive does not stop a canvas edit (see RoundTripLossSpec).
     val mermaid =
-      """%%{init: {"theme": "dark"}}%%
+      """%%{wrap}%%
         |flowchart LR
         |  api[API] --> db[(DB)]
         |  click api "https://example.com" "Open"""".stripMargin

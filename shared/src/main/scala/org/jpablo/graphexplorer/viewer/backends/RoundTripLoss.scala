@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.backends
 
-import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidSourceScan
+import org.jpablo.graphexplorer.viewer.backends.mermaid.{MermaidInitDirective, MermaidSourceScan}
 
 /** Content that a document can have and that the graph model does not keep.
   *
@@ -20,7 +20,10 @@ enum UnmodeledContent(val label: String) derives CanEqual:
   /** The DOT `strict` keyword in front of the graph declaration. */
   case StrictKeyword extends UnmodeledContent("the `strict` keyword")
 
-  /** Mermaid `%%{...}%%` directives, and front-matter keys other than `title`. */
+  /** Mermaid `%%{...}%%` directives, and front-matter keys other than `title`.
+    * An init directive (`init` or `initialize`) with a JSON object is not in
+    * this set, because the graph keeps it and the printer writes it back.
+    */
   case Directives extends UnmodeledContent("the configuration directives (`%%{...}%%` or front matter)")
 
   /** Mermaid `click` lines. */
@@ -157,7 +160,10 @@ object RoundTripLoss:
     *   - A comment is a line that starts with `%%`. A `%%` in other positions,
     *     for example inside a label, is text.
     *   - A directive starts with `%%{` and ends with `}%%`, and it can continue
-    *     on the lines that follow.
+    *     on the lines that follow. The graph keeps an init directive whose
+    *     arguments are a JSON object, so the scan does not flag it. The scan
+    *     flags a directive of another type, and an init directive that is not
+    *     a JSON object, because the printer drops them.
     *   - `click`, `accTitle`, `accDescr` and `direction` are keywords at the
     *     start of a statement. A `;` also separates two statements.
     *   - In a state diagram, `state X {` opens a composite state and `}` closes
@@ -200,16 +206,26 @@ object RoundTripLoss:
       val stateDiagram    = MermaidSourceScan.diagramKind(text).contains("state")
       var depth           = 0
       var inDirective     = false
+      val directive       = StringBuilder()
+
+      // Flags the directive in `directive` when the printer drops it.
+      def endDirective(): Unit =
+        if !MermaidInitDirective.isKept(directive.toString) then found += UnmodeledContent.Directives
+        directive.clear()
       var inAccessibility = false
       var inNote          = false
 
       lines.drop(bodyStart).foreach: line =>
-        if inDirective then inDirective = !line.contains("}%%")
+        if inDirective then
+          directive ++= "\n" ++= line
+          inDirective = !line.contains("}%%")
+          if !inDirective then endDirective()
         else if inAccessibility then inAccessibility = !line.contains("}")
         else if inNote then inNote = !line.toLowerCase.contains("end note")
         else if line.startsWith("%%{") then
-          found += UnmodeledContent.Directives
+          directive ++= line
           inDirective = !line.drop(3).contains("}%%")
+          if !inDirective then endDirective()
         else if line.startsWith("%%") then found += UnmodeledContent.Comments
         else
           if stateDiagram then
@@ -233,6 +249,8 @@ object RoundTripLoss:
             case AccDescrTop() => !line.drop(line.indexOf('{') + 1).contains("}")
             case _             => false
 
+      // A directive with no `}%%` continues to the end of the text.
+      if inDirective then endDirective()
       found.result()
 
     private enum StateLine derives CanEqual:

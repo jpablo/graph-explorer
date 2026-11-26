@@ -52,6 +52,17 @@ object MermaidInitDirective:
     val configs = Directive.findAllMatchIn(text).flatMap(m => parseObject(m.group(1).replace('\'', '"'))).toList
     configs.reduceOption(merge).map(render)
 
+  /** True when `directive` is one init directive that the printer writes
+    * back. `directive` is the full text from `%%{` to `}%%`. The arguments
+    * must be a JSON object, after a single quote becomes a double quote, as in
+    * [[configOf]]. Thus the function is false for a directive of another type
+    * and for arguments that are not a JSON object.
+    */
+  def isKept(directive: String): Boolean =
+    directive.trim match
+      case Directive(args) => parseObject(args.replace('\'', '"')).isDefined
+      case _               => false
+
   /** The `themeVariables.background` of the directive of `text`. The canvas
     * paints the sheet behind the drawing with it.
     */
