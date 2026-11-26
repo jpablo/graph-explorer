@@ -1,11 +1,13 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.SectionHeader
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{SectionHeader, toRawText}
+import org.jpablo.graphexplorer.viewer.components.labelEditor.DiagramLabelDrawing
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
+import org.jpablo.graphexplorer.viewer.widgets.{IconButtonTitled, InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, multiText, range}
 
 /** Attributes for the root graph.
@@ -26,8 +28,29 @@ def DiagramAttributesView(state: ViewerState) =
       label = Some("Directed")
     )
 
+  // The panel is too narrow for the label editor. The row shows the title as the canvas
+  // draws it, and a click on it (or on the pencil) opens the title in the Edit Title dialog.
+  val editTitle = () =>
+    IconButtonTitled("bi-pencil", "Edit the title", cls := "gx-row-action")(state.editingTitleV.set(true))
+
+  val titleText: Signal[String] =
+    toRawText(RowBuilder.simpleInputVar(Label.attrId, state.diagramAttributesUpdates), "").signal
+
+  val shownTitle = () =>
+    button(
+      typ        := "button",
+      cls        := "gx-title-shown",
+      title      := "Edit the title",
+      aria.label := "The title; click to edit it",
+      onClick --> (_ => state.editingTitleV.set(true)),
+      child <-- titleText.map(_.trim.isEmpty).distinct.map: empty =>
+        if empty then span(cls := "gx-title-empty", "Add a title")
+        else DiagramLabelDrawing(state, titleText, ViewerGraphElements.defaultRootId)
+    )
+
   val labelRow =
     row(Label, multiText(), onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title"))
+      .copy(labelAction = Some(editTitle), customCell = Some(shownTitle))
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty)
   div(

@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.labelEditor
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, FontColor, FontName, FontSize, Label, Pad, Shape}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, FillStyle, FontColor, FontName, FontSize, Label, Pad, Shape}
 import org.jpablo.graphexplorer.viewer.formats.dot.{HtmlLabels, TextUtils}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -42,14 +42,26 @@ object LabelPreview:
     * preview draws them as a `plaintext` node with the font of the element.
     * An element that is not in `graph` (a new node, for example) gets only
     * the defaults.
+    *
+    * With `asText`, the preview draws `label` as an external label
+    * (`xlabel`): as text with the font of the element, and with no shape.
     */
-  def previewDot(graph: ViewerGraph, element: ElementId, label: String): String =
-    val attributes =
-      element match
-        case id: NodeId  => nodeAttributes(graph, id)
-        case id: ArrowId => arrowAttributes(graph, id) + plaintext
-        case id: GroupId => groupAttributes(graph, id) + plaintext
-    previewText(graph, defaults(graph, element), attributes + (Label.attrId -> labelValue(label)))
+  def previewDot(graph: ViewerGraph, element: ElementId, label: String, asText: Boolean = false): String =
+    if asText then
+      // An external label (`xlabel`): the text alone, with the font of the element.
+      val font =
+        element match
+          case id: NodeId  => (defaults(graph, element) ++ nodeAttributes(graph, id).values).filterKeys(fontAttributes)
+          case id: ArrowId => arrowAttributes(graph, id)
+          case id: GroupId => groupAttributes(graph, id)
+      previewText(graph, Attributes.empty, font + plaintext + (Label.attrId -> labelValue(label)))
+    else
+      val attributes =
+        element match
+          case id: NodeId  => nodeAttributes(graph, id)
+          case id: ArrowId => arrowAttributes(graph, id) + plaintext
+          case id: GroupId => groupAttributes(graph, id) + plaintext
+      previewText(graph, defaults(graph, element), attributes + (Label.attrId -> labelValue(label)))
 
   /** The font of an element: the Graphviz attributes `fontname`, `fontsize`
     * (points) and `fontcolor`. None is the default of Graphviz.
@@ -73,6 +85,24 @@ object LabelPreview:
       size  = value(FontSize.attrId).flatMap(_.toDoubleOption).filter(_ > 0),
       color = value(FontColor.attrId)
     )
+
+  /** The fill color of `element` on the canvas, or None when the canvas does
+    * not fill it. Only a node with the style `filled` has a fill. The color is
+    * `fillcolor`, else `color`, else light grey, as in Graphviz. For a
+    * gradient (`red:blue`), the color is the first color.
+    */
+  def elementFill(graph: ViewerGraph, element: ElementId): Option[String] =
+    element match
+      case id: NodeId =>
+        val attributes = defaults(graph, element) ++ nodeAttributes(graph, id).values
+        def value(name: String) = attributes.get(AttributeId(name)).map(_.toString.trim).filter(_.nonEmpty)
+        // The model keeps `filled` of `style` in the synthetic attribute `FillStyle`.
+        val filled =
+          value(FillStyle.attrId.value).contains("true") ||
+            value("style").exists(_.split(",").map(_.trim.toLowerCase).contains(FillStyle.filled))
+        Option.when(filled):
+          value("fillcolor").orElse(value("color")).getOrElse("lightgrey").takeWhile(_ != ':').takeWhile(_ != ';').trim
+      case _ => None
 
   private val faceAttribute = """(?i)\bFACE\s*=\s*"([^"]*)"""".r
 

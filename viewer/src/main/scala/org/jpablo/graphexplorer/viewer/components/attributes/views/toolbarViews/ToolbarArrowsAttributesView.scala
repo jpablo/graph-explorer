@@ -101,7 +101,7 @@ def ToolbarArrowsAttributesView(
             // because `dot` requires an integer here.
             Weight    -> InputType.number(start = Some(0), end = Some(100), step = Some(1)),
             ArrowSize -> InputType.number(start = Some(0), end = Some(5), step = Some(0.1)),
-            row(XLabel, InputType.text),
+            row(XLabel, InputType.text).copy(labelAction = Some(xlabelAction(state))),
             row(URL, InputType.text),
             // Menus, not native selects: these live in a card, and a select's picker takes
             // focus out of it. See ToolbarNodesAttributesView.

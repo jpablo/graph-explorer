@@ -36,6 +36,9 @@ import scala.util.Try
   *                    these use the rules of Graphviz.
   * @param darkColors  true changes the colors of the preview for a dark theme,
   *                    as the canvas does (see `DiagramColors`)
+  * @param startCell   the cell of a table label where the cursor starts
+  * @param previewAsText true draws the preview as an external label: text
+  *                    with the font of the element, and no shape
   */
 def LabelEditor(
     text:        Var[String],
@@ -46,7 +49,9 @@ def LabelEditor(
     onCancel:    () => Unit,
     hint:        String = "Enter label text...",
     graphviz:    Signal[Boolean] = Signal.fromValue(true),
-    darkColors:  Signal[Boolean] = Signal.fromValue(false)
+    darkColors:  Signal[Boolean] = Signal.fromValue(false),
+    previewAsText: Boolean = false,
+    startCell:   () => Option[List[Int]] = () => None
 ): HtmlElement =
   val origin = LabelEditorParts.EditOrigin()
 
@@ -66,7 +71,7 @@ def LabelEditor(
   val tab: Signal[Tab] =
     chosen.signal.combineWith(blocked).map((c, b) => if b.isEmpty then c else Tab.Source).distinct
 
-  lazy val preview = LabelEditorParts.preview(settledText.signal, graph, element, render, darkColors)
+  lazy val preview = LabelEditorParts.preview(settledText.signal, graph, element, render, darkColors, previewAsText)
 
   div(
     cls := "gx-label-editor flex flex-col gap-1",
@@ -83,7 +88,7 @@ def LabelEditor(
     },
     LabelEditorParts.tabs(tab, blocked, chosen.writer),
     child <-- tab.map:
-      case Tab.Formatted => FormattedEditor(text, origin, graph, element, darkColors, onSave, onCancel)
+      case Tab.Formatted => FormattedEditor(text, origin, graph, element, darkColors, onSave, onCancel, startCell)
       case Tab.Source    => LabelEditorParts.source(text, origin, onSave, onCancel, hint)
     ,
     div(
@@ -121,7 +126,7 @@ object LabelEditorParts:
     else if ProseLabel.canEdit(label) then None
     else
       HtmlParser.parseOrError(label) match
-        case Right(HtmlLabel.Table(_)) => Some("The label has a table. Edit it in the source.")
+        case Right(HtmlLabel.Table(_)) => Some("The editor cannot read the cells of this table. Edit it in the source.")
         case Right(HtmlLabel.Image(_, _)) => Some("The label is an image. Edit it in the source.")
         case Right(HtmlLabel.Text(_)) => Some("The label has an image. Edit it in the source.")
         case Left(_)                  => Some("The markup has an error. Correct it in the source.")
@@ -293,7 +298,8 @@ object LabelEditorParts:
       graph:      Signal[ViewerGraph],
       element:    Signal[ElementId],
       render:     String => Try[dom.svg.SVG],
-      darkColors: Signal[Boolean]
+      darkColors: Signal[Boolean],
+      asText:     Boolean = false
   ): HtmlElement =
     val drawing = Var(Option.empty[dom.svg.SVG])
     val stale   = Var(false)
@@ -302,7 +308,7 @@ object LabelEditorParts:
     val request = label.combineWith(graph, element).distinct
 
     def draw(label: String, graph: ViewerGraph, element: ElementId): Unit =
-      Try(LabelPreview.previewDot(graph, element, label)).flatMap(render) match
+      Try(LabelPreview.previewDot(graph, element, label, asText)).flatMap(render) match
         case scala.util.Success(svgElement) =>
           // Graphviz writes a <title> for the graph and for the node. The
           // browser shows a title as a tooltip, so the preview showed the

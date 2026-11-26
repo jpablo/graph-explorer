@@ -24,6 +24,7 @@ import scala.annotation.tailrec
   * @param graph   the graph of the preview; `state.fullGraph` for a label of
   *                the diagram
   * @param element the element of the label in `graph`
+  * @param startCell the cell of a table label where the cursor starts
   */
 def DiagramLabelEditor(
     state:    ViewerState,
@@ -32,7 +33,9 @@ def DiagramLabelEditor(
     element:  Signal[ElementId],
     onSave:   () => Unit,
     onCancel: () => Unit,
-    hint:     String
+    hint:     String,
+    previewAsText: Boolean = false,
+    startCell: () => Option[List[Int]] = () => None
 ): HtmlElement =
   LabelEditor(
     text        = text,
@@ -43,7 +46,22 @@ def DiagramLabelEditor(
     onCancel    = onCancel,
     hint        = hint,
     graphviz    = state.currentFormat.map(_ == DiagramFormat.DOT),
-    darkColors  = state.diagramDarkColors.signal
+    darkColors  = state.diagramDarkColors.signal,
+    previewAsText = previewAsText,
+    startCell   = startCell
+  )
+
+/** The drawing of `label` as the canvas draws the label of `element`, with
+  * the Graphviz engine and the dark-color setting of the canvas. The Title
+  * row of the Diagram panel shows the title with it.
+  */
+def DiagramLabelDrawing(state: ViewerState, label: Signal[String], element: ElementId): HtmlElement =
+  LabelEditorParts.preview(
+    label,
+    state.fullGraph,
+    Signal.fromValue(element),
+    dot => state.graphviz.textToSvgOnly(DotText(dot)),
+    state.diagramDarkColors.signal
   )
 
 /** The ids of new elements in the label dialogs. */

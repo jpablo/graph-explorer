@@ -10,6 +10,11 @@ import org.scalajs.dom.KeyValue
   * node. The text shown is the cell's UNescaped text (`RecordTree.displayText`);
   * saving re-escapes and splices it back into the record label at the cell's
   * path — the record syntax (`|`, `{}`, `<port>`) never leaks into the dialog.
+  *
+  * A cell of an HTML-like table does not open this dialog: it opens the Edit
+  * Label dialog with the whole table and the cursor in the cell
+  * (`RecordCellOps.editCell`). A record field has no fonts in Graphviz, so a
+  * plain text box is enough here.
   */
 def EditCellDialog(state: ViewerState) =
   val dialogIsOpen =

@@ -36,6 +36,7 @@ class FormattedEditorSpec extends FunSuite:
       |  node [shape=box];
       |  plain [label="hello world"];
       |  styled [fontname="Courier", fontsize=21, fontcolor="#ff0000", label="styled"];
+      |  dark [style=filled, fillcolor="#123456", fontcolor="#ffffff", label="dark"];
       |}""".stripMargin
 
   private val graph: ViewerGraph =
@@ -157,14 +158,14 @@ class FormattedEditorSpec extends FunSuite:
       check(f.lineCount == 2, s"the document has ${f.lineCount} lines")
       check(f.text.now() == "one\ntwo", s"the open changed the text: '${f.text.now()}'")
 
-  test("a table label opens in Source, and Formatted is disabled with a reason"):
-    val table = "<TABLE><TR><TD>a</TD></TR></TABLE>"
+  test("an image label opens in Source, and Formatted is disabled with a reason"):
+    val table = """<IMG SRC="a.png"></IMG>"""
     withEditor(table): f =>
       eventually(3000, "no source editor")(f.source.isDefined).map: _ =>
         val formatted = f.tab("formatted")
         check(f.prose.isEmpty, "the formatted editor shows")
         check(formatted.getAttribute("aria-disabled") == "true", "the Formatted tab is not disabled")
-        check(Option(formatted.getAttribute("title")).exists(_.toLowerCase.contains("table")), s"no reason: ${formatted.getAttribute("title")}")
+        check(Option(formatted.getAttribute("title")).exists(_.toLowerCase.contains("image")), s"no reason: ${formatted.getAttribute("title")}")
         formatted.click()
         check(f.prose.isEmpty && f.source.isDefined, "a click on the disabled tab opened Formatted")
         check(f.text.now() == table, s"the text changed: '${f.text.now()}'")
@@ -231,10 +232,10 @@ class FormattedEditorSpec extends FunSuite:
           check(f.prose.exists(_.querySelector("i") != null), "World is not italic")
           check(f.text.now() == "<I><I>World</I></I>", s"the editor rewrote the text: '${f.text.now()}'")
 
-  test("a change from outside to a table shows Source"):
+  test("a change from outside to an image shows Source"):
     withEditor("<B>Hello</B>"): f =>
       eventually(3000, "no formatted editor")(f.prose.isDefined).flatMap: _ =>
-        f.text.set("<TABLE><TR><TD>a</TD></TR></TABLE>")
+        f.text.set("""<IMG SRC="a.png"></IMG>""")
         eventually(3000, "no source editor")(f.source.isDefined && f.prose.isEmpty)
 
   test("bold on a selection of a plain label makes markup, and bold again gives plain text"):
@@ -368,5 +369,96 @@ class FormattedEditorSpec extends FunSuite:
       val values  = (0 until options.length).map(i => options(i).asInstanceOf[dom.html.Option].value).toSet
       List("", "Courier", "Times", "Helvetica", "Menlo", "Arial").foreach: v =>
         check(values.contains(v), s"no face '$v' in $values")
+
+  // ---- a table label -------------------------------------------------------------
+
+  private val tableLabel =
+    """<TABLE BORDER="0"><TR><TD ALIGN="LEFT">one</TD><TD>two</TD></TR><TR><TD COLSPAN="2"><B>three</B></TD></TR></TABLE>"""
+
+  /** The position of the cell node at (`row`, `col`) of the table of the document. */
+  private def cellPos(f: Fixture, row: Int, col: Int): Int =
+    val t    = f.view.state.doc.child(0)
+    val rows = (0 until row).map(t.child(_).nodeSize).sum
+    val r    = t.child(row)
+    1 + rows + 1 + (0 until col).map(r.child(_).nodeSize).sum
+
+  /** The position at the end of the text of the first line of the cell. */
+  private def cellTextEnd(f: Fixture, row: Int, col: Int): Int =
+    cellPos(f, row, col) + 2 + f.view.state.doc.child(0).child(row).child(col).child(0).content.size
+
+  test("a table label opens in Formatted, as a grid with one cell for each cell of the label"):
+    withFormatted(tableLabel): f =>
+      check(f.tab("formatted").classList.contains("tab-active"), "the Formatted tab is not active")
+      val cells = f.prose.toList.flatMap(_.querySelectorAll("td").toList).map(_.textContent)
+      check(cells == List("one", "two", "three"), s"the grid shows $cells")
+      check(f.prose.exists(_.querySelector("td b") != null), "three is not bold")
+      check(f.text.now() == tableLabel, s"the open changed the text: '${f.text.now()}'")
+
+  test("an edit in a cell changes only that cell of the label"):
+    withFormatted(tableLabel): f =>
+      f.view.dispatch(f.view.state.tr.insertText("!", cellTextEnd(f, 0, 1)))
+      val want = tableLabel.replace("<TD>two</TD>", "<TD>two!</TD>")
+      check(f.text.now() == want, s"the text is '${f.text.now()}'")
+
+  test("bold in a cell makes that cell bold"):
+    withFormatted(tableLabel): f =>
+      val from = cellPos(f, 0, 0) + 2
+      select(f, from, from + 3)
+      f.control("bold").click()
+      val want = tableLabel.replace("""<TD ALIGN="LEFT">one</TD>""", """<TD ALIGN="LEFT"><B>one</B></TD>""")
+      check(f.text.now() == want, s"the text is '${f.text.now()}'")
+
+  test("an edit that removes a cell does not act"):
+    withFormatted(tableLabel): f =>
+      // A selection from the first cell to the last cell, then Delete.
+      select(f, cellPos(f, 0, 0) + 2, cellTextEnd(f, 1, 0))
+      f.view.dispatch(f.view.state.tr.deleteSelection())
+      val cells = f.prose.toList.flatMap(_.querySelectorAll("td").toList).size
+      check(cells == 3, s"the grid has $cells cells")
+      check(f.text.now() == tableLabel, s"the text changed: '${f.text.now()}'")
+
+  test("Tab moves the cursor to the next cell, and Shift+Tab to the cell before"):
+    withFormatted(tableLabel): f =>
+      select(f, cellPos(f, 0, 0) + 3, cellPos(f, 0, 0) + 3)
+      keydown(f.view.dom, "Tab")
+      val inTwo = f.view.state.selection.from
+      check(inTwo > cellPos(f, 0, 1) && inTwo < cellPos(f, 1, 0), s"Tab put the cursor at $inTwo")
+      keydown(f.view.dom, "Tab")
+      val inThree = f.view.state.selection.from
+      check(inThree > cellPos(f, 1, 0), s"the second Tab put the cursor at $inThree")
+      keydown(f.view.dom, "Tab", shift = true)
+      val back = f.view.state.selection.from
+      check(back > cellPos(f, 0, 1) && back < cellPos(f, 1, 0), s"Shift+Tab put the cursor at $back")
+
+  test("a fixed cell shows what it holds, and you cannot edit it"):
+    val label = """<TABLE><TR><TD>a</TD><TD><IMG SRC="x.png"/></TD></TR></TABLE>"""
+    withFormatted(label): f =>
+      val fixed = f.prose.flatMap(p => Option(p.querySelector(".gx-label-fixed")))
+      check(fixed.isDefined, s"no fixed cell in ${f.prose.map(_.innerHTML)}")
+      check(fixed.exists(_.getAttribute("contenteditable") == "false"), "the fixed cell is editable")
+      check(fixed.exists(_.textContent.toLowerCase.contains("image")), s"the fixed cell shows '${fixed.map(_.textContent)}'")
+
+  // ---- the background of the editor ----------------------------------------------------
+
+  private def background(el: dom.Element): String = dom.window.getComputedStyle(el).backgroundColor
+
+  test("the editor has the fill color of a filled node, so that a white text shows"):
+    withFormatted("white text", element = NodeId("dark")): f =>
+      val box = f.find(".gx-label-formatted-box").getOrElse(throw AssertionError("no editor box"))
+      check(background(box) == "rgb(18, 52, 86)", s"the editor background is ${background(box)}, not the fill of the node")
+
+  test("a node with no fill keeps the background of the style sheet"):
+    withFormatted("text"): f =>
+      val box = f.find(".gx-label-formatted-box").getOrElse(throw AssertionError("no editor box"))
+      val own = box.asInstanceOf[dom.html.Element].style.backgroundColor
+      check(own == "", s"the editor has its own background $own")
+
+  test("a table and its cells have their BGCOLOR in the grid"):
+    val label = """<TABLE BGCOLOR="#654321"><TR><TD BGCOLOR="#123456">x</TD><TD>y</TD></TR></TABLE>"""
+    withFormatted(label): f =>
+      val table = f.prose.flatMap(p => Option(p.querySelector("table"))).getOrElse(throw AssertionError("no table"))
+      val cells = table.querySelectorAll("td").toList
+      check(background(table) == "rgb(101, 67, 33)", s"the table background is ${background(table)}")
+      check(background(cells.head) == "rgb(18, 52, 86)", s"the cell background is ${background(cells.head)}")
 
 end FormattedEditorSpec

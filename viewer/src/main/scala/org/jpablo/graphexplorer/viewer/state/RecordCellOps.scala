@@ -307,7 +307,7 @@ trait RecordCellOps:
     def enterOrEdit(): Boolean =
       selectedCellV.now() match
         case Some(cell) =>
-          editingCellV.set(Some(clamped(cell)))
+          openCellText(clamped(cell))
           true
         case None =>
           singleSelectedCellEditable() match
@@ -318,7 +318,18 @@ trait RecordCellOps:
 
     def editCell(cell: SelectedCell): Unit =
       selectCell(cell.nodeId, cell.path)
-      editingCellV.set(Some(clamped(cell)))
+      openCellText(clamped(cell))
+
+    /** Open the text of `cell`. A cell of an HTML table opens the Edit Label
+      * dialog with the whole table, and the cursor in that cell: one dialog
+      * edits all the cells. A record field opens the Edit Cell dialog, because
+      * the whole label of a record is record syntax.
+      */
+    private def openCellText(cell: SelectedCell): Unit =
+      if kindOf(cell.nodeId).contains(CellKind.Html) then
+        labelStartCell.set(Some(cell.path))
+        editingElementV.set(Some(cell.nodeId))
+      else editingCellV.set(Some(cell))
 
     private def singleSelectedCellEditable(): Option[NodeId] =
       val sel = selection.now()

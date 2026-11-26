@@ -115,6 +115,8 @@ object DiagramParts:
         RenameDiagramDialog(state),
         InfoAlert(state.infoBus),
         EditLabelDialog(state),
+        EditTitleDialog(state),
+        EditXLabelDialog(state),
         EditCellDialog(state),
         NewNodeLabelDialog(state),
         NewGroupLabelDialog(state),
