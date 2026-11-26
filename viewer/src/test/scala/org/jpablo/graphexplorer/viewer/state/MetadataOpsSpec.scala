@@ -104,3 +104,35 @@ class MetadataOpsSpec extends FunSuite:
     assertEquals(ops.hiddenElements.now(), ElementIds(Set(NodeId("a"))))
     ops.hiddenElements.update(_ + NodeId("b"))
     assertEquals(ops.now().hiddenElements, Set("node:a", "node:b"), "the update keeps the replacement")
+
+  // ---- tags and notes (the About section of the Diagram panel) ----------------------------
+
+  test("addTag trims the text, and adds it at the end"):
+    val ops = opsOver(DiagramMetadata(tags = List("infra")))
+    ops.addTag("  draft ")
+    assertEquals(ops.now().tags, List("infra", "draft"))
+
+  test("addTag ignores an empty text and a tag that the diagram has"):
+    val ops = opsOver(DiagramMetadata(tags = List("infra")))
+    ops.addTag("   ")
+    ops.addTag(" infra")
+    assertEquals(ops.now().tags, List("infra"))
+
+  test("removeTag removes only that tag"):
+    val ops = opsOver(DiagramMetadata(tags = List("a", "b", "c")))
+    ops.removeTag("b")
+    assertEquals(ops.now().tags, List("a", "c"))
+
+  test("notes writes only the notes"):
+    val start = DiagramMetadata(hiddenElements = Set("node:a"), tags = List("t"))
+    val ops   = opsOver(start)
+    ops.notes.set("line 1\nline 2")
+    assertEquals(ops.now(), start.copy(notes = "line 1\nline 2"))
+
+  test("the tags and the notes follow a replacement of the whole metadata"):
+    val ops = opsOver(DiagramMetadata())
+    assertEquals((ops.tags.now(), ops.notes.now()), (Nil, ""), "a first read, before the replacement")
+    ops.set(DiagramMetadata(tags = List("gx"), notes = "from gx"))
+    assertEquals((ops.tags.now(), ops.notes.now()), (List("gx"), "from gx"))
+    ops.addTag("viewer")
+    assertEquals(ops.now().tags, List("gx", "viewer"), "the add keeps the replacement")

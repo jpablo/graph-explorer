@@ -500,9 +500,11 @@ object DiagramSnapshot:
     * order and the defaults must not change. upickle omits a field that is
     * equal to its default. `BrowserPayloadSpec` pins the JSON.
     *
-    * `projectName` is the stored name ([[DiagramSnapshot.name]]). The browser
-    * library has never stored tags or notes. A read gives their defaults, and
-    * a write drops them. The sets are typed, so they
+    * `projectName` is the stored name ([[DiagramSnapshot.name]]). The tags and
+    * the notes come after each older field. Before the About section of the
+    * Diagram panel, the browser library dropped them. upickle omits a field
+    * with its default, so a diagram with no tags and no notes writes the old
+    * JSON, and an old payload reads them as their defaults. The sets are typed, so they
     * cannot hold a ref that this build does not parse. Only this viewer writes
     * the browser library, so such a ref does not occur there.
     */
@@ -521,7 +523,10 @@ object DiagramSnapshot:
       // The id of the selected extractor. None while the app finds the extractor.
       extractor: Option[String] = None,
       // True when the person locked the diagram.
-      locked: Boolean = false
+      locked: Boolean = false,
+      // The tags and the notes of the About section, in `DiagramMetadata`.
+      tags:  List[String] = Nil,
+      notes: String = ""
   ) derives ReadWriter
 
   given ReadWriter[DiagramSnapshot] = readwriter[Stored].bimap[DiagramSnapshot](toStored, fromStored)
@@ -537,7 +542,9 @@ object DiagramSnapshot:
       autoDetectFormat = m.autoDetectFormat,
       renderer = m.renderer,
       extractor = m.extractor,
-      locked = m.locked
+      locked = m.locked,
+      tags = m.tags,
+      notes = m.notes
     )
 
   private def fromStored(stored: Stored): DiagramSnapshot =
@@ -550,7 +557,9 @@ object DiagramSnapshot:
         autoDetectFormat = stored.autoDetectFormat,
         renderer = stored.renderer,
         extractor = stored.extractor,
-        locked = stored.locked
+        locked = stored.locked,
+        tags = stored.tags,
+        notes = stored.notes
       ),
       name = stored.projectName
     )

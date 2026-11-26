@@ -96,5 +96,6 @@ def DiagramAttributesView(state: ViewerState) =
             hidden = builder.invalidLayout(BgColor)
           )
       )
-    ).amend(cls := "flex-grow")
+    ).amend(cls := "flex-grow"),
+    DiagramAboutView(state)
   )

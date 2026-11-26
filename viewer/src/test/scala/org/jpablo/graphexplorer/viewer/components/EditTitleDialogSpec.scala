@@ -111,7 +111,8 @@ class EditTitleDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
         .map: _ =>
           val text = p.shown.flatMap(s => Option(s.querySelector("svg"))).map(_.textContent).getOrElse("")
           check(text.contains("Big title") && text.contains("subtitle"), s"the Title row shows '$text'")
-          val raw = p.find("#diagram-attributes-view textarea").map(_.asInstanceOf[dom.html.TextArea].value)
+          // The attribute rows only: the About section at the end of the panel has a notes box.
+          val raw = p.find("#root-graph-attributes textarea").map(_.asInstanceOf[dom.html.TextArea].value)
           check(raw.isEmpty, s"the Title row still shows the markup: $raw")
 
   test("a click on the title in the Title row opens the dialog"):

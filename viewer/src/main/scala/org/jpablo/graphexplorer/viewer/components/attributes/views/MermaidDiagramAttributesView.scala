@@ -29,5 +29,6 @@ def MermaidDiagramAttributesView(state: ViewerState) =
         labelRow,
         row(Rankdir, InputType.menuWithExtra(4)).copy(options = directionOptions)
       )
-    ).amend(cls := "flex-grow")
+    ).amend(cls := "flex-grow"),
+    DiagramAboutView(state)
   )
