@@ -209,9 +209,15 @@ object SelectionCasing:
     * above absorb.
     */
   private def ownStrokePx(el: dom.Element, upp: Double): Double =
+    // Both selection rects are excluded. The casing rect gets its stroke width
+    // from the width that this object computes. A node whose own shape this
+    // selector did not match (a Mermaid circle is a `circle`) measured the
+    // casing rect instead. Then each forced refit made the casing 2.6 times
+    // wider than the last: 7, 18, 47, 123 px.
     val shapeSelector =
-      s"${SelectableElement.splineSelector}, polygon, ellipse, " +
-        s"rect:not(.${SelectableElement.selectionRectClass}), line, polyline"
+      s"${SelectableElement.splineSelector}, polygon, ellipse, circle, " +
+        s"rect:not(.${SelectableElement.selectionRectClass}):not(.${SelectableElement.selectionCasingClass}), " +
+        "line, polyline"
     // The selected element may BE the shape (a Mermaid link is a bare path) or
     // contain it (a graphviz `g.edge`/`g.node`).
     val shape =
