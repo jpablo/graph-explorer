@@ -36,15 +36,22 @@ class EditTitleDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
   private val title = "<TABLE><TR><TD><B>Big title</B></TD></TR><TR><TD>subtitle</TD></TR></TABLE>"
   private val dot   = s"digraph G { label=<$title>; a }"
 
+  /** The text of the Title row and of the dialog of the title, when the title is `label`. */
+  private def dotWith(label: Option[String]) = label.fold("digraph G { a }")(l => s"digraph G { label=<$l>; a }")
+
   final class Panel(val state: ViewerState, val box: dom.html.Element):
     def find(selector: String): Option[dom.html.Element] =
       Option(box.querySelector(selector)).map(_.asInstanceOf[dom.html.Element])
     def editButton: Option[dom.html.Element] = find("#diagram-attributes-view [aria-label='Edit the title']")
     def dialogOpen: Boolean                  = find("#edit-title-dialog dialog").isDefined
     def title: Option[String] = state.fullGraphNow().elements.graphAttributes.get(Label.attrId).map(_.toString)
-    def previewText: String = find(".gx-label-preview svg").map(_.textContent).getOrElse("")
+    def previewText: String = find("#edit-title-dialog .gx-label-preview svg").map(_.textContent).getOrElse("")
+    /** The control of the Title row that shows the title. */
+    def shown: Option[dom.html.Element] = find("#diagram-attributes-view .gx-title-shown")
 
-  private def withPanel(body: Panel => Future[Unit]): Future[Unit] =
+  private def withPanel(body: Panel => Future[Unit]): Future[Unit] = withPanelOf(dot)(body)
+
+  private def withPanelOf(dot: String)(body: Panel => Future[Unit]): Future[Unit] =
     val owner = ManualOwner()
     val box   = dom.document.createElement("div").asInstanceOf[dom.html.Element]
     dom.document.body.appendChild(box)
@@ -94,5 +101,35 @@ class EditTitleDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
         .flatMap(_ => Waits.settle(p.previewText.contains("subtitle")))
         .map: _ =>
           check(p.previewText.contains("Big title"), s"the preview shows '${p.previewText}'")
+
+  // ---- the Title row shows the title as the canvas draws it ----------------------------
+
+  test("the Title row shows the title drawn, not its markup"):
+    withPanel: p =>
+      Waits
+        .settle(p.shown.exists(_.querySelector("svg") != null))
+        .map: _ =>
+          val text = p.shown.flatMap(s => Option(s.querySelector("svg"))).map(_.textContent).getOrElse("")
+          check(text.contains("Big title") && text.contains("subtitle"), s"the Title row shows '$text'")
+          val raw = p.find("#diagram-attributes-view textarea").map(_.asInstanceOf[dom.html.TextArea].value)
+          check(raw.isEmpty, s"the Title row still shows the markup: $raw")
+
+  test("a click on the title in the Title row opens the dialog"):
+    withPanel: p =>
+      Waits
+        .settle(p.shown.isDefined)
+        .flatMap: _ =>
+          check(p.shown.isDefined, "the Title row does not show the title")
+          p.shown.get.click()
+          Waits.settle(FormattedEditor.viewOf(p.box).isDefined)
+        .map(_ => check(p.dialogOpen, "a click on the title did not open the dialog"))
+
+  test("a diagram with no title shows 'Add a title' in the Title row"):
+    withPanelOf(dotWith(None)): p =>
+      Waits
+        .settle(p.shown.isDefined)
+        .map: _ =>
+          check(p.shown.exists(_.textContent.contains("Add a title")), s"the Title row shows '${p.shown.map(_.textContent)}'")
+          check(p.shown.exists(_.querySelector("svg") == null), "the Title row draws an empty title")
 
 end EditTitleDialogSpec

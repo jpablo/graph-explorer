@@ -112,7 +112,7 @@ private def AttributesViewRow(attRow: AttributeRow) =
               InputLabelWithResetButton(row),
               row.labelAction.map(_())
             ),
-            div(cls := "fieldset-input", buildInputCell(row))
+            div(cls := "fieldset-input", row.customCell.fold(buildInputCell(row))(_()))
           )
 
         case InputType.menuWithExtra(inline, _, _) if inline >= InlineOptionsNeedingFullWidth =>

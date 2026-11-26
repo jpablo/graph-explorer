@@ -36,7 +36,10 @@ object AttributeRow:
       triggerGlyph: Option[() => ReactiveElement.Base] = None,
       // A control next to the name of the row, for example the button that opens a dialog
       // with a larger editor. Only the rows of the side panel show it.
-      labelAction: Option[() => ReactiveElement.Base] = None
+      labelAction: Option[() => ReactiveElement.Base] = None,
+      // A view that the side panel shows in place of the input of a text row. The Title row
+      // shows the drawing of the title with it.
+      customCell: Option[() => ReactiveElement.Base] = None
   ) extends AttributeRow
 
   case class InputElement(element: ReactiveElement.Base, hidden: Signal[Boolean] = Signal.fromValue(false)) extends AttributeRow

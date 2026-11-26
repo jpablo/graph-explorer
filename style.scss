@@ -882,6 +882,33 @@ svg {
   }
 }
 
+// The title in the Title row of the Diagram panel: the drawing of the title, as a button
+// that opens the Edit Title dialog. The box is white, as the canvas is, so the colors of
+// the title read as on the canvas also in a dark panel.
+.gx-title-shown {
+  @apply block w-full text-left cursor-pointer rounded;
+
+  .gx-label-preview {
+    background-color: white;
+    border: 1px solid var(--color-base-300);
+    min-height: 2rem;
+    padding: 0.25rem;
+
+    &:has(svg[data-gx-dark]) {
+      background-color: var(--color-base-100);
+    }
+  }
+
+  &:hover .gx-label-preview,
+  &:focus-visible .gx-label-preview {
+    border-color: var(--color-primary);
+  }
+
+  .gx-title-empty {
+    @apply block text-xs italic opacity-60 px-2 py-1 rounded border border-dashed border-base-300;
+  }
+}
+
 #top-level {
   @apply bg-base-100 flex flex-col h-screen;
   position: relative;
