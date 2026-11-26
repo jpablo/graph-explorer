@@ -40,6 +40,9 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
     lines.append("---\n")
   }
 
+  // The init directive keeps the theme and the fonts. Mermaid reads the front matter first, thus the directive comes after it.
+  MermaidInitDirective.line(graph.elements.graphAttributes).foreach(line => lines.append(s"$line\n"))
+
   // Get direction from graph attributes, default to TB (top-to-bottom)
   val direction = graph.elements.graphAttributes.getAs(Rankdir).toString
   lines.append(s"flowchart $direction\n")

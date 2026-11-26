@@ -192,7 +192,7 @@ object ThumbnailRenderer:
                   // A record from before the sheet has no sheet. The key stays
                   // the same until the source changes, so the record stays too.
                   // addSheet adds no second sheet to a record that has one.
-                  if format == DiagramFormat.Mermaid then MermaidBackend.addSheet(proto)
+                  if format == DiagramFormat.Mermaid then MermaidBackend.addSheet(proto, MermaidBackend.backgroundOf(dot.value))
                   Future.successful(proto)
                 case None =>
                   log("thumb.disk.noDrawing", "format" -> format.toString, "bytes" -> stored.length)

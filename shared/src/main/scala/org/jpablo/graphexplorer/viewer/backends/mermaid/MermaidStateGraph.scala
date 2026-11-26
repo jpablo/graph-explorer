@@ -80,7 +80,9 @@ case class MermaidStateGraph(
     transitions: List[MermaidTransition] = Nil,
     direction:   Option[String] = None,
     title:       Option[String] = None,
-    classDefs:   VectorMap[String, List[String]] = VectorMap.empty
+    classDefs:   VectorMap[String, List[String]] = VectorMap.empty,
+    /** The merged init directive of the source, as JSON text (see [[MermaidInitDirective.configOf]]). */
+    initConfig:  Option[String] = None
 ):
 
   /** Each transition with its sequence number: one more than the count of the earlier transitions with the same two ends. Mermaid has no

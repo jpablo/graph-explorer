@@ -30,6 +30,7 @@ def viewerGraphToMermaidStateText(graph: ViewerGraph): String =
     lines.append(s"title: ${MermaidSourceScan.titleToYaml(title)}\n")
     lines.append("---\n")
   }
+  MermaidInitDirective.line(graphAttributes).foreach(line => lines.append(s"$line\n"))
   lines.append(s"$StateDiagramHeader\n")
   graphAttributes.values.get(Rankdir.attrId).map(_.toString.trim).filter(_.nonEmpty).foreach { direction =>
     lines.append(s"  direction $direction\n")

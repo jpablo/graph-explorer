@@ -73,8 +73,24 @@ class RoundTripLossSpec extends FunSuite:
   test("mermaid: a comment line"):
     assertEquals(mermaid("flowchart LR\n  %% the api layer\n  a --> b"), Set(Comments))
 
-  test("mermaid: an init directive"):
-    assertEquals(mermaid("%%{init: {\"theme\": \"dark\"}}%%\nflowchart LR\n  a --> b"), Set(Directives))
+  test("mermaid: an init directive is not flagged, because the printer writes it back"):
+    // Bug: the scan flagged each `%%{...}%%`. After a theme change in the Diagram panel, the file had an init
+    // directive, so the viewer refused the next change of the theme ("would remove the configuration directives").
+    val forms = List(
+      "%%{init: {\"theme\": \"dark\"}}%%",
+      "%%{initialize: {\"theme\": \"dark\"}}%%",
+      "%%{init: {'theme': 'dark'}}%%",
+      "%%{\n  init: {\n    \"theme\": \"dark\"\n  }\n}%%",
+      "%%{init: {\"theme\": \"dark\"}}%%\n%%{init: {\"themeVariables\": {\"fontSize\": \"20px\"}}}%%"
+    )
+    for form <- forms do assertEquals(mermaid(s"$form\nflowchart LR\n  a --> b"), Set.empty, form)
+    assertEquals(mermaid("%%{init: {\"theme\": \"dark\"}}%%\nstateDiagram-v2\n  A --> B"), Set.empty, "state diagram")
+
+  test("mermaid: an init directive that is not a JSON object is flagged, because the printer drops it"):
+    assertEquals(mermaid("%%{init: {theme: dark}}%%\nflowchart LR\n  a --> b"), Set(Directives))
+
+  test("mermaid: a directive of another type is flagged"):
+    assertEquals(mermaid("%%{wrap}%%\nflowchart LR\n  a --> b"), Set(Directives))
 
   test("mermaid: click lines, in both forms"):
     assertEquals(mermaid("flowchart LR\n  a --> b\n  click a \"https://example.com\" \"Open\""), Set(ClickHandlers))
@@ -88,7 +104,7 @@ class RoundTripLossSpec extends FunSuite:
     assertEquals(mermaid("flowchart TD\n  subgraph s\n    direction LR\n    a --> b\n  end"), Set(SubgraphDirection))
 
   test("mermaid: several kinds at once"):
-    val text = "%%{init: {\"theme\": \"dark\"}}%%\nflowchart LR\n  %% note\n  a --> b\n  click a \"https://x\""
+    val text = "%%{wrap}%%\nflowchart LR\n  %% note\n  a --> b\n  click a \"https://x\""
     assertEquals(mermaid(text), Set(Directives, Comments, ClickHandlers))
 
   test("mermaid: what the model keeps is not flagged"):

@@ -131,7 +131,9 @@ class MermaidExtractor(using ExecutionContext) extends Extractor:
       title = title,
       classDefs = classDefs,
       defaultEdgeStyle = defaultEdgeStyle,
-      defaultEdgeInterpolate = defaultEdgeInterpolate
+      defaultEdgeInterpolate = defaultEdgeInterpolate,
+      // Mermaid removes the directives before the parse, so read them from the source.
+      initConfig = MermaidInitDirective.configOf(text)
     )
 
   // The convert functions decode the labels and the titles here, where they leave Mermaid: the parser results keep

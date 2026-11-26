@@ -170,7 +170,7 @@ object MermaidBackend:
         direction = stateRootDirection(db),
         title = db.getDiagramTitle().toOption.filter(_.nonEmpty).orElse(MermaidSourceScan.frontmatterTitle(text)),
         classDefs = classDefs
-      )
+      ).copy(initConfig = MermaidInitDirective.configOf(text))
     }
 
   /** A layout label is a string. Before the parse ends it can be an array of
@@ -365,8 +365,14 @@ object MermaidBackend:
     *
     * An SVG with no viewBox, or with an empty viewBox, gets no sheet. A failed
     * render can give such an SVG (see `ThumbnailRenderer.hasDrawing`).
+    *
+    * `background` is the background of the diagram (see [[backgroundOf]]).
+    * Then the sheet has that color also in an inline `style`, so that the
+    * `--gx-sheet` rule of the app stylesheet does not change it. The sheet
+    * also gets [[backgroundAttr]]: the setting `mermaidSheet` does not hide it,
+    * and an export keeps it, as an export of a DOT `bgcolor` does.
     */
-  private[viewer] def addSheet(svg: dom.svg.SVG): Unit =
+  private[viewer] def addSheet(svg: dom.svg.SVG, background: Option[String] = None): Unit =
     val box = svg.viewBox.baseVal
     if box != null && box.width > 0 && box.height > 0 && svg.querySelector(s":scope > .$sheetClass") == null then
       val sheet = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
@@ -375,7 +381,10 @@ object MermaidBackend:
       sheet.setAttribute("y", box.y.toString)
       sheet.setAttribute("width", box.width.toString)
       sheet.setAttribute("height", box.height.toString)
-      sheet.setAttribute("fill", SheetFill)
+      sheet.setAttribute("fill", background.getOrElse(SheetFill))
+      background.foreach: color =>
+        sheet.setAttribute("style", s"fill: $color")
+        sheet.setAttribute(backgroundAttr, "")
       sheet.setAttribute("stroke", "none")
       sheet.setAttribute("pointer-events", "none")
       val firstDrawn =
@@ -384,6 +393,23 @@ object MermaidBackend:
           .find(child => !NonDrawingTags.contains(child.tagName.toLowerCase))
       svg.insertBefore(sheet, firstDrawn.orNull)
 
+  /** The attribute of a sheet that has the background of the diagram (see [[addSheet]]). */
+  val backgroundAttr = "data-gx-background"
+
+  /** The background of a Mermaid diagram, for the sheet behind the drawing.
+    *
+    * It is the `background` theme variable of the init directive. With no such
+    * variable, the dark theme gets its own background (`#333` in the dark
+    * theme of Mermaid 11.12), because that theme draws light lines and light
+    * text. Each other theme draws for a light page and uses the plain sheet.
+    */
+  def backgroundOf(text: String): Option[String] =
+    MermaidInitDirective
+      .backgroundOf(text)
+      .orElse(Option.when(MermaidInitDirective.themeOf(text).contains("dark"))(DarkThemeBackground))
+
+  private val DarkThemeBackground = "#333"
+
   /** The text of `svg` for an export.
     *
     * When `keepSheet` is false, the text has no sheet (see [[addSheet]]). The
@@ -391,10 +417,10 @@ object MermaidBackend:
     * not change.
     */
   def exportText(svg: dom.svg.SVG, keepSheet: Boolean): String =
-    if keepSheet || svg.querySelector(s".$sheetClass") == null then svg.outerHTML
+    if keepSheet || svg.querySelector(s".$sheetClass:not([$backgroundAttr])") == null then svg.outerHTML
     else
       val copy = svg.cloneNode(deep = true).asInstanceOf[dom.Element]
-      copy.querySelectorAllT[dom.Element](s".$sheetClass").foreach(_.remove())
+      copy.querySelectorAllT[dom.Element](s".$sheetClass:not([$backgroundAttr])").foreach(_.remove())
       copy.outerHTML
 
   /** Mermaid 10 emits class-level rules with `!important` for classDef, but inline `style` declarations without it.

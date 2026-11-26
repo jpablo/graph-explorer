@@ -9,12 +9,15 @@ import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAtt
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.fromExpandedAttributes
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramLanguages, DiagramRenderInputs, Extractor, Printer, RenderOnlyDiagram, RenderState, Renderer}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.MermaidThemeAttr
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidInitDirective
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId, NodeId}
-import org.jpablo.graphexplorer.viewer.utils.TestHelpers
+import org.jpablo.graphexplorer.viewer.utils.{TestHelpers, Waits}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -580,6 +583,49 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
         assert(phases.sourceText.now().startsWith("FAKE:"), s"the edit did not print the graph: ${phases.sourceText.now()}")
         assertEquals(messages.size, 2, s"an edit that applies sends no message: $messages")
       }
+    }
+
+  test("On a Mermaid file, a second change of the theme applies: the init directive of the first change is kept"):
+    // Bug: on the desktop (a file), the Diagram panel set the theme to Dark, and the source got an init directive.
+    // A second change, to Forest, was refused: "it would remove the configuration directives". The printer writes
+    // the init directive back, so the guard must not count it as lost.
+    def check(condition: Boolean, clue: => String): Unit =
+      // In the Playwright runner a failure can arrive with an empty message. The console does reach the log.
+      if !condition then println(s"[InternalPhasesSpec] $clue")
+      assert(condition, clue)
+    def withTheme(graph: ViewerGraph, theme: String): ViewerGraph =
+      val attrs = graph.elements.graphAttributes
+      graph.copy(elements = graph.elements.copy(graphAttributes = attrs.copy(values = attrs.values.updated(MermaidThemeAttr, AttrValue(theme)))))
+    def themeOf(text: String): Option[String] = MermaidInitDirective.themeOf(text)
+    withGraphvizAsync { graphviz =>
+      var messages = List.empty[String]
+      val phases = new InternalPhases(
+        DefaultDiagramLanguages(graphviz),
+        initialSource = Some("flowchart LR\n  api[API] --> db[DB]\n"),
+        hiddenNodes = Val(ElementIds()),
+        pace = identity,
+        keepTextWhole = () => true,
+        refusedEdits = Observer(message => messages = messages :+ message)
+      )
+      // A read of `fullGraphV` is current only while its signal has a subscriber.
+      val fullGraph = phases.fullGraph.observe
+      def parsed = fullGraph.now().nodeIds.contains(NodeId("api"))
+
+      Waits
+        .settle(parsed, timeoutMs = 10000)
+        .flatMap { _ =>
+          check(parsed, s"precondition: the Mermaid parse did not end: ${fullGraph.now().nodeIds}")
+          check(phases.graphEditApplies, "precondition: a plain flowchart has nothing to drop")
+          phases.fullGraphV.update(withTheme(_, "dark"))
+          check(themeOf(phases.sourceText.now()).contains("dark"), s"the first change did not apply:\n${phases.sourceText.now()}\n$messages")
+          Waits.settle(fullGraph.now().elements.graphAttributes.get(MermaidThemeAttr).exists(_.toString == "dark"), timeoutMs = 10000)
+        }
+        .map { _ =>
+          check(phases.graphEditApplies, s"the init directive of the first change blocks graph edits:\n${phases.sourceText.now()}")
+          phases.fullGraphV.update(withTheme(_, "forest"))
+          check(messages.isEmpty, s"the second change was refused: $messages")
+          check(themeOf(phases.sourceText.now()).contains("forest"), s"the second change did not apply:\n${phases.sourceText.now()}")
+        }
     }
 
   test("A graph edit whose text cannot be written is refused, and the state does not fail"):

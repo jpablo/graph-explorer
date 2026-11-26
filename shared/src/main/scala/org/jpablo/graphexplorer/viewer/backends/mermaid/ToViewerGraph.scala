@@ -129,6 +129,7 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
   mermaidGraph.defaultEdgeInterpolate.foreach(v =>
     graphAttrs += MermaidDefaultLinkInterpolateAttr -> AttrValue(v)
   )
+  mermaidGraph.initConfig.foreach(config => graphAttrs ++= MermaidInitDirective.toAttributes(config))
 
   ViewerGraphElements(
     nodes = allNodes,
@@ -206,6 +207,7 @@ def stateDiagramToViewerGraphElements(diagram: MermaidStateGraph): ViewerGraphEl
   diagram.classDefs.foreach { (name, styles) =>
     if styles.nonEmpty then graphAttrs += AttributeId(MermaidClassDefPrefix + name) -> AttrValue(styles.mkString(","))
   }
+  diagram.initConfig.foreach(config => graphAttrs ++= MermaidInitDirective.toAttributes(config))
 
   ViewerGraphElements(
     nodes = allNodes,

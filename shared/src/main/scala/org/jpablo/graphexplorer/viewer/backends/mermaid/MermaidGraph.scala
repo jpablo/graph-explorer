@@ -100,5 +100,7 @@ case class MermaidGraph(
     title:     Option[String] = None,
     classDefs: Map[String, MermaidClassDef] = Map.empty,
     defaultEdgeStyle: List[String] = Nil,
-    defaultEdgeInterpolate: Option[String] = None
+    defaultEdgeInterpolate: Option[String] = None,
+    /** The merged init directive of the source, as JSON text (see [[MermaidInitDirective.configOf]]). */
+    initConfig: Option[String] = None
 ) derives ReadWriter

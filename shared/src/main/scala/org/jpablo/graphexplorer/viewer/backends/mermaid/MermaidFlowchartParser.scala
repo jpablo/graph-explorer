@@ -63,6 +63,7 @@ object MermaidFlowchartParser:
     var defaultEdgeInterpolate: Option[String] = None
     var sawHeader                              = false
     var inAccDescrBlock                        = false
+    var inDirective                            = false
     var failure: Option[String]                = None
 
     def registerVertex(vertex: MermaidVertex): Unit =
@@ -89,6 +90,9 @@ object MermaidFlowchartParser:
         val line       = rawLine.trim
         line match
           case ""                         => ()
+          // A `%%{...}%%` directive can have more than one line. MermaidInitDirective reads the init directive.
+          case _ if inDirective           => inDirective = !line.contains("}%%")
+          case _ if line.startsWith("%%{") => inDirective = !line.contains("}%%")
           case _ if line.startsWith("%%") => ()
           // A multi-line `accDescr { ... }` block continues to the line with `}`.
           case _ if inAccDescrBlock       => inAccDescrBlock = !line.contains("}")
@@ -195,7 +199,8 @@ object MermaidFlowchartParser:
             title = title,
             classDefs = classDefs.toMap,
             defaultEdgeStyle = defaultEdgeStyle,
-            defaultEdgeInterpolate = defaultEdgeInterpolate
+            defaultEdgeInterpolate = defaultEdgeInterpolate,
+            initConfig = MermaidInitDirective.configOf(text)
           )
         )
 
