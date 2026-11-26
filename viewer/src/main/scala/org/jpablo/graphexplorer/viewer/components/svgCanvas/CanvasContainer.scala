@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
 import org.jpablo.graphexplorer.viewer.desktop.ExternalLink
-import org.jpablo.graphexplorer.viewer.state.{EditorNotice, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{EditorNotice, UndoOps, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils, Platform}
 import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
 
@@ -74,6 +74,23 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     child.maybe <-- state.hoveredLink.signal.map(_.map(LinkStatus)),
     cls("gx-links-revealed") <-- linksRevealed.signal.distinct,
     documentEvents(_.onKeyDown) --> { e => if isCommandKeyName(e.key) then linksRevealed.set(true) },
+    // ⌘Z and ⇧⌘Z when the focus is not on the canvas: on a button of the toolbar
+    // or of a panel, for example after a click on Hide. The canvas handles its own
+    // keys and stops them. A text field, the source editor and a dialog keep theirs.
+    documentEvents(_.onKeyDown) --> { e =>
+      val elsewhere =
+        !e.defaultPrevented && !UndoOps.isEditable(e.target) &&
+          !(e.target match
+            case el: org.scalajs.dom.Element => el.matches("dialog[open], dialog[open] *")
+            case _                           => false
+          )
+      if elsewhere && UndoOps.isUndoKey(e) then
+        e.preventDefault()
+        state.history.undo()
+      else if elsewhere && UndoOps.isRedoKey(e) then
+        e.preventDefault()
+        state.history.redo()
+    },
     documentEvents(_.onKeyUp) --> { e => if isCommandKeyName(e.key) then linksRevealed.set(false) },
     // A window that loses the focus while the key is down (⌘-Tab) gets no
     // key-up. A blur ends the state, and each mouse move gives the real state.

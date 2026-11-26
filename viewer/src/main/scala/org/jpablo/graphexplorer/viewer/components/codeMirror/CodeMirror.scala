@@ -29,6 +29,11 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
   // and search, and the editor still shows a new text of the file.
   val readOnly = new Compartment()
 
+  def historyKey(key0: String, action: () => Unit): KeyBinding =
+    new KeyBindingSpec:
+      key = key0
+      run = (_: EditorView) => { action(); true }
+
   lazy val baseExtensions =
     js.Array[Any](
       codemirror.basicSetup,
@@ -37,7 +42,15 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
       EditorTheme.extension,
       wrapping.of(wrapExtension(state.wrapSourceLines.now())),
       readOnly.of(EditorState.readOnly.of(state.metadata.now().locked)),
-      EditorView.updateListener.of(updateSource(_))
+      EditorView.updateListener.of(updateSource(_)),
+      // Undo and redo use the history of the view (UndoOps), not the history of
+      // the editor. Thus ⌘Z in the source also undoes a hide or an edit on the
+      // canvas, in the order of the steps.
+      Prec.highest(keymap.of(js.Array[KeyBinding](
+        historyKey("Mod-z", () => state.history.undo()),
+        historyKey("Mod-Shift-z", () => state.history.redo()),
+        historyKey("Mod-y", () => state.history.redo())
+      )))
     )
 
   def updateSource(update: ViewUpdate): Unit =
@@ -82,11 +95,6 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
         effects = readOnly.reconfigure(EditorState.readOnly.of(locked))
       })
 
-    for _ <- state.undoEvent.events do
-      commands.undo(editorView)
-
-    for _ <- state.redoEvent.events do
-      commands.redo(editorView)
 
     // Source -> editor
     for newSource <- state.sourceText.signal.distinct do
