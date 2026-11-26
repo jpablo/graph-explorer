@@ -145,8 +145,19 @@ case class ViewerState(
     */
   lazy val storedName: Var[String] = Var("")
 
-  val undoEvent: EventBus[Unit]        = EventBus()
-  val redoEvent: EventBus[Unit]        = EventBus()
+  /** Undo and redo of this view: the text, the hidden elements, the folded
+    * groups and the selection (see `UndoOps`).
+    */
+  lazy val history: UndoOps =
+    UndoOps(
+      text         = sourceText.signal,
+      restoreText  = restoreSource,
+      hidden       = metadata.hiddenElements,
+      collapsed    = metadata.collapsedGroups,
+      selection    = selection.signal,
+      selectionNow = () => selection.now(),
+      select       = selection.set
+    )
   val editorNotice: Var[Option[EditorNotice]] = Var(None)
 
   // Open the sources panel only for genuine errors. Info notices (render-only diagram
@@ -748,5 +759,9 @@ case class ViewerState(
 
   currentTheme.signal.foreach: themeName =>
     setTheme(resolveTheme(themeName))
+
+  // The history starts with the view. Its first state is the state of the load,
+  // and each change before the first gesture of the user moves that state.
+  locally(history)
 
 end ViewerState

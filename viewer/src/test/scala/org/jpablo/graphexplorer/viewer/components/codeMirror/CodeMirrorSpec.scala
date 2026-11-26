@@ -83,8 +83,8 @@ class CodeMirrorSpec extends FunSuite with TestHelpers with LoggedChecks:
         root.unmount()
         state.sourceText.set("digraph after { x }")
         state.wrapSourceLines.update(!_)
-        state.undoEvent.emit(())
-        state.redoEvent.emit(())
+        state.history.undo()
+        state.history.redo()
         same(view.get.state.doc.toString, textBefore, "a change of the state got to the EditorView after the unmount")
 
   // A second mount of the same element makes a new EditorView. The unmount

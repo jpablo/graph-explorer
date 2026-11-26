@@ -464,9 +464,11 @@ fn main() {
                 // fires, and §7.4's question never gets asked — measured, not
                 // assumed. The run loop reported `Exit` and nothing before it.
                 //
-                // So Quit becomes an item we own. Everything else in the menu
-                // stays predefined: an app that edits text and lost ⌘C/⌘V would
-                // be a far worse trade than the bug this fixes.
+                // So Quit becomes an item we own. Undo and Redo are items we
+                // own too, because the page owns the history of the diagram.
+                // Everything else in the menu stays predefined: an app that
+                // edits text and lost ⌘C/⌘V would be a far worse trade than
+                // the bug this fixes.
                 #[cfg(target_os = "macos")]
                 install_menu_with_asking_quit(app)?;
 
@@ -525,7 +527,13 @@ fn main() {
             let unsaved = unsaved.clone();
             let closing = closing.clone();
             move |app, event| {
-                if event.id() == MENU_QUIT {
+                if let Some(script) = menu_event_script(event.id().as_ref()) {
+                    // Undo and Redo go to the page, which owns the history of
+                    // the diagram.
+                    for webview in app.webview_windows().values() {
+                        let _ = webview.eval(script);
+                    }
+                } else if event.id() == MENU_QUIT {
                     // The item this app owns, in place of the predefined Quit
                     // that terminates without asking anything.
                     if close_is_allowed(
@@ -591,9 +599,14 @@ fn main() {
 
 /// The macOS menu, with a Quit that asks before it goes (§7.4).
 ///
-/// Built by hand because only the Quit item needs to change and Tauri offers no
-/// way to swap one item of the default menu. Every other item is the predefined
-/// one, so Edit keeps working exactly as it did.
+/// Built by hand because Tauri offers no way to swap one item of the default
+/// menu. The app owns three items: Quit, Undo and Redo. Every other item is the
+/// predefined one, so Cut, Copy, Paste and Select All keep working as before.
+///
+/// The predefined Undo and Redo send the native `undo:` to WebKit. That undo
+/// does not know the history of the diagram, so the menu did nothing to the
+/// diagram. The items of the app send `ge:menu.undo` and `ge:menu.redo` to the
+/// page, and the page decides: the diagram history, or the undo of a text field.
 #[cfg(target_os = "macos")]
 fn install_menu_with_asking_quit(app: &tauri::App) -> Result<()> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -602,6 +615,8 @@ fn install_menu_with_asking_quit(app: &tauri::App) -> Result<()> {
     let name = "Graph Explorer Desktop";
 
     let quit = MenuItem::with_id(handle, MENU_QUIT, "Quit Graph Explorer Desktop", true, Some("Cmd+Q"))?;
+    let undo = MenuItem::with_id(handle, MENU_UNDO, "Undo", true, Some("Cmd+Z"))?;
+    let redo = MenuItem::with_id(handle, MENU_REDO, "Redo", true, Some("Shift+Cmd+Z"))?;
 
     let app_menu = Submenu::with_items(
         handle,
@@ -624,8 +639,8 @@ fn install_menu_with_asking_quit(app: &tauri::App) -> Result<()> {
         "Edit",
         true,
         &[
-            &PredefinedMenuItem::undo(handle, None)?,
-            &PredefinedMenuItem::redo(handle, None)?,
+            &undo,
+            &redo,
             &PredefinedMenuItem::separator(handle)?,
             &PredefinedMenuItem::cut(handle, None)?,
             &PredefinedMenuItem::copy(handle, None)?,
@@ -650,6 +665,23 @@ fn install_menu_with_asking_quit(app: &tauri::App) -> Result<()> {
 
 /// The id of the Quit item this app owns, rather than the predefined one.
 const MENU_QUIT: &str = "gx-quit";
+
+/// The ids of the Undo and Redo items this app owns.
+const MENU_UNDO: &str = "gx-undo";
+const MENU_REDO: &str = "gx-redo";
+
+/// The script that sends a menu item to the page, or `None` for an item that
+/// the shell handles itself.
+///
+/// The page listens for these window events, as it does for
+/// `ge:close.requested`.
+fn menu_event_script(id: &str) -> Option<&'static str> {
+    match id {
+        MENU_UNDO => Some("window.dispatchEvent(new CustomEvent('ge:menu.undo'));"),
+        MENU_REDO => Some("window.dispatchEvent(new CustomEvent('ge:menu.redo'));"),
+        _ => None,
+    }
+}
 
 /// Raise §7.4's question in the page: Save, Discard or Cancel.
 ///
@@ -4349,6 +4381,22 @@ fn spawn_library_watcher(app_handle: tauri::AppHandle, recent_write_hashes: Rece
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Edit → Undo and Edit → Redo send a window event to the page. The page
+    /// owns the history of the diagram. Other items send nothing.
+    #[test]
+    fn menu_undo_and_redo_send_a_window_event_to_the_page() {
+        assert_eq!(
+            menu_event_script(MENU_UNDO),
+            Some("window.dispatchEvent(new CustomEvent('ge:menu.undo'));")
+        );
+        assert_eq!(
+            menu_event_script(MENU_REDO),
+            Some("window.dispatchEvent(new CustomEvent('ge:menu.redo'));")
+        );
+        assert_eq!(menu_event_script(MENU_QUIT), None);
+        assert_eq!(menu_event_script("other"), None);
+    }
 
     /// `open_external` opens only an absolute http or https link. A diagram
     /// can come from any location, and the page can call the command, so the

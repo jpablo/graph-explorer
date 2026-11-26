@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, NavDirection, RightPanelSection, SaveResult, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, NavDirection, RightPanelSection, SaveResult, UndoOps, ViewerState}
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.scalajs.dom.KeyValue
@@ -609,8 +609,20 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val fit     = Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen"))
     val autoFit = Command("Auto fit", () => state.autoFitToggle(), always, description = Some("Zoom in the diagram"))
     val zoomIn  = Command("Zoom in", () => state.zoomIn(), always, description = Some("Zoom in the diagram"))
-    val undo    = Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action"))
-    val redo    = Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
+    val undo = Command(
+      "Undo",
+      () => state.history.undo(),
+      always,
+      Some(Shortcut("z", meta = true)),
+      description = Some("Undo the last action")
+    )
+    val redo = Command(
+      "Redo",
+      () => state.history.redo(),
+      always,
+      Some(Shortcut("z", shift = true, meta = true)),
+      description = Some("Redo the last action")
+    )
 
     val findElements = Command(
       "Find elements",
@@ -984,6 +996,15 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
           case SaveResult.Failed(message)   => state.errorBus.emit(s"Save failed: $message")
           // Not an error: an example simply has nowhere to go (§11).
           case SaveResult.Unsupported(message) => state.infoBus.emit(message)
+      return
+
+    // ⌘Z, ⇧⌘Z and their Ctrl forms (and Ctrl+Y) on each platform: the shortcut map
+    // knows only ⌘. The history of the view does the work (UndoOps).
+    if UndoOps.isUndoKey(ev) || UndoOps.isRedoKey(ev) then
+      ev.preventDefault()
+      ev.stopPropagation()
+      if UndoOps.isUndoKey(ev) then all.undo.execute(logEvent = !ev.repeat)
+      else all.redo.execute(logEvent = !ev.repeat)
       return
 
     // ⌘V / Ctrl+V is advertised by `pasteDiagram` but deliberately NOT dispatched
