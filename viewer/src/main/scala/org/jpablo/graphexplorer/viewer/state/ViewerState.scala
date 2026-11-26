@@ -99,7 +99,8 @@ case class ViewerState(
       MoveArrowEndpointOps,
       ExtendSelectionOps,
       UIState,
-      Persistence:
+      Persistence,
+      LocalFileOps:
 
   /** The id of this view, for the display and for a share link.
     *
@@ -432,8 +433,12 @@ case class ViewerState(
       sourceText = pacedSourceText,
       // A renderer cannot draw a source in a different language. Then it must
       // always draw the text of the visible graph.
-      viewDiffersFromSource = if sourceInItsLanguage then viewDiffersFromSource else Val(true)
+      viewDiffersFromSource = if sourceInItsLanguage then viewDiffersFromSource else Val(true),
+      localImages = localImages.signal
     )
+
+  // The images next to the file of the diagram (desktop).
+  followLocalImages()
 
   /** The state of the render of the current renderer: a render that is not
     * complete, a drawing, or no drawing with its cause. A board reads it for an
@@ -490,6 +495,7 @@ case class ViewerState(
               selection.set2(g)
               selection.toggleCollapse()
             },
+            openLink = openLink,
             onRendered = afterLayoutSwap(_, strategy)
           )
         }
@@ -700,7 +706,7 @@ case class ViewerState(
     resolveCollapsed(ids).filter(id => elementExists(graph, id))
 
   /** True when `id` is a group that the canvas shows as a box. */
-  private def hasBox(id: ElementId): Boolean =
+  private[state] def hasBox(id: ElementId): Boolean =
     id match
       case group: GroupId => visibleGraphNow().proxyForGroup.contains(group)
       case _              => false

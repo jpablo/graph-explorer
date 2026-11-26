@@ -6,9 +6,9 @@ import com.raquo.laminar.nodes.ChildNode
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
-import org.jpablo.graphexplorer.viewer.desktop.ExternalLink
+import org.jpablo.graphexplorer.viewer.desktop.DesktopDrop
 import org.jpablo.graphexplorer.viewer.state.{CanvasTransform, EditorNotice, FitMode, UndoOps, ViewerState}
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils, Platform}
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils, Platform, TransferItems}
 import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
 
 import scala.scalajs.js
@@ -89,7 +89,7 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
       LinkBadges.svgLinkOf(ev.target).foreach: link =>
         ev.preventDefault()
         if Platform.commandKey(ev.metaKey, ev.ctrlKey, Platform.isMac) then
-          LinkBadges.linkUrl(link).foreach(ExternalLink.open)
+          LinkBadges.linkUrl(link).foreach(state.openLink)
     },
     // The URL of the linked element under the pointer, as a browser shows it.
     child.maybe <-- state.hoveredLink.signal.map(_.map(LinkStatus)),
@@ -129,10 +129,24 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     //     reaches this handler.
     // Consuming the keydown instead would suppress this event entirely, which
     // is why Commands.handleKeyDown deliberately lets the chord through.
+    //
+    // An image on the clipboard (a screenshot) becomes an image node. Else the
+    // text replaces the diagram when it declares one, or becomes a text node
+    // (see `ImportOps.pasteTextFromGesture`).
     onPaste.preventDefault --> { ev =>
-      val text = Option(ev.clipboardData).map(_.getData("text/plain")).getOrElse("")
-      state.pasteDiagramFromGesture(text)
+      // Edit ▸ Paste has no key of its own, so the paste marks its own gesture:
+      // the history then has the paste as one step.
+      state.history.markGesture()
+      Option(ev.clipboardData) match
+        case None => state.pasteTextFromGesture("")
+        case Some(transfer) =>
+          TransferItems.imageFile(transfer) match
+            case Some(file) => state.pasteImageFromGesture(TransferItems.readImage(file))
+            case None       => state.pasteTextFromGesture(TransferItems.text(transfer))
     },
+    // A drop of files, links or text from outside of the page: each file becomes a node (an image node for an
+    // image), and so does each link. Text becomes a text node (see `ImportOps.dropFilesFromGesture`).
+    dropTarget(state),
     // The canvas CONSUMES the wheel gesture (it pans/zooms a transform, the page
     // never scrolls), so it must preventDefault — without it the browser sees an
     // unconsumed horizontal scroll chaining to an unscrollable viewport, and
@@ -271,3 +285,70 @@ extension (e: dom.MouseEvent)
   def clientCoords    = (ClientPoint(e.clientX, e.clientY), e.shiftKey)
   def leftButton      = e.button == 0
   def leftButtonMoved = e.buttons == 1
+
+/** The class of the canvas container while a drag of files, links or text is over the canvas (see style.scss). */
+private val DropTargetClass = "gx-drop-target"
+
+/** The handlers of a drop on the canvas, and the drop target that shows during the drag.
+  *
+  * The browser opens a dropped file in the window, and the diagram goes away. A `preventDefault` on `dragover` and on
+  * `drop` stops that, and lets the canvas take the drop.
+  *
+  * The browser sends `dragleave` each time the drag goes from the container to a child (the drawing), and `dragenter`
+  * for the child first. Thus a count of the enters, less the leaves, tells if the drag is over the canvas. The drop
+  * target goes away when the count is zero, and after the drop.
+  */
+private def dropTarget(state: ViewerState): Modifier[HtmlElement] =
+  val over  = Var(false)
+  var depth = 0
+  // The desktop gives a drop of files as Tauri events, and not as DOM events (see DesktopDrop).
+  val desktopOver = Var(false)
+  def accepts(ev: dom.DragEvent): Boolean = Option(ev.dataTransfer).exists(TransferItems.droppable)
+  Seq(
+    cls(DropTargetClass) <-- over.signal.combineWithFn(desktopOver.signal)(_ || _).distinct,
+    onMountUnmountCallbackWithState[HtmlElement, () => Unit](
+      mount = ctx =>
+        // A board item has no canvas of its own, and the window has one drop.
+        if state.embedded || !DesktopDrop.available then () => ()
+        else
+          DesktopDrop.install(
+            ctx.thisNode.ref,
+            desktopOver.set,
+            paths =>
+              // A drop has no key and no press on the canvas, so it marks its own gesture: the drop is one step.
+              state.history.markGesture()
+              state.dropPathsFromGesture(paths)
+          ),
+      unmount = (_, stop) => stop.foreach(_())
+    ),
+    onDragEnter --> { ev =>
+      if accepts(ev) then
+        ev.preventDefault()
+        depth += 1
+        over.set(true)
+    },
+    onDragOver --> { ev =>
+      if accepts(ev) then
+        ev.preventDefault()
+        ev.dataTransfer.dropEffect = dom.DataTransferDropEffectKind.copy
+        over.set(true)
+    },
+    onDragLeave --> { ev =>
+      if accepts(ev) then
+        depth = math.max(0, depth - 1)
+        if depth == 0 then over.set(false)
+    },
+    onDrop --> { ev =>
+      depth = 0
+      over.set(false)
+      Option(ev.dataTransfer).filter(TransferItems.droppable).foreach: transfer =>
+        ev.preventDefault()
+        // A drop has no key and no press on the canvas, so it marks its own gesture: the drop is one step.
+        state.history.markGesture()
+        val files = TransferItems.files(transfer)
+        val links = TransferItems.links(transfer)
+        if files.nonEmpty then state.dropFilesFromGesture(files.exists(TransferItems.isImage), TransferItems.readItems(files))
+        else if links.nonEmpty then state.dropLinksFromGesture(links)
+        else state.dropTextFromGesture(TransferItems.text(transfer))
+    }
+  )

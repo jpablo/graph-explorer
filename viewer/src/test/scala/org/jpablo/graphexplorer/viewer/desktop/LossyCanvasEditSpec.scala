@@ -132,12 +132,13 @@ class LossyCanvasEditSpec extends FunSuite with TestHelpers:
 
   test("a canvas edit on a Mermaid file keeps its directive and its click line"):
     // The printer drops a directive of a type other than `init`. It writes an init directive back, so that
-    // directive does not stop a canvas edit (see RoundTripLossSpec).
+    // directive does not stop a canvas edit (see RoundTripLossSpec). The graph keeps the link of a `click` line, but
+    // not a callback (see MermaidNodeLinkSpec).
     val mermaid =
       """%%{wrap}%%
         |flowchart LR
         |  api[API] --> db[(DB)]
-        |  click api "https://example.com" "Open"""".stripMargin
+        |  click api call openDocs()""".stripMargin
     installShell()
     withGraphvizAsync: graphviz =>
       val open     = DesktopDocumentRegistry.record("/tmp/lossy-loose.mmd", "rev-1", mermaid)

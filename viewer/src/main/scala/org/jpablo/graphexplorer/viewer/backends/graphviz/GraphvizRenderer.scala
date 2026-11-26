@@ -31,7 +31,10 @@ class GraphvizRenderer(graphviz: Graphviz) extends Renderer:
     // a Future. This keeps downstream reads synchronous with the graph edit that triggered them.
     // The DOT text keeps each id of the graph, so the SVG has the ids of the graph.
     // A render is never pending. A failed render gives no drawing, and the message of the error is the cause.
-    inputs.visibleGraph.map: graph =>
-      graphviz.textToSvg(DotText(DotPrinter.graphToText(graph, omitInternal = false))) match
+    // An image with a path relative to the diagram is drawn from its URL, with the size from its header (see
+    // LocalImages). The DOT text for Graphviz has the URL, and the source keeps the path.
+    inputs.visibleGraph.combineWith(inputs.localImages.distinct).map: (graph, images) =>
+      val dot = DotText(DotPrinter.graphToText(images.graph(graph), omitInternal = false))
+      graphviz.textToSvg(dot, images.table) match
         case Success(drawn) => RenderState.Drawn(drawn)
         case Failure(error) => RenderState.NoDrawing(Option(error.getMessage))

@@ -88,6 +88,9 @@ trait DiagramYY extends js.Object:
   /** Get all class definitions (classDef) in the diagram. */
   def getClasses(): js.Dictionary[MermaidClassDefJS] = js.native
 
+  /** The tooltip of a `click` line of the vertex `id` (`FlowDB.getTooltip`). */
+  def getTooltip(id: String): js.UndefOr[String] = js.native
+
 /** The database of a `stateDiagram-v2` diagram (Mermaid's StateDB).
   *
   * Note: This is an internal Mermaid API (checked against Mermaid 11.12). The
@@ -143,6 +146,13 @@ trait MermaidVertexJS extends js.Object:
   val styles: js.UndefOr[js.Array[String]] = js.native
   val classes: js.UndefOr[js.Array[String]] = js.native
   val `type`: js.UndefOr[String]           = js.native // shape type
+  // The image shape of Mermaid 11 (`id@{ img: "...", w: 60, h: 60 }`, `FlowDB.addVertex`)
+  val img: js.UndefOr[String]              = js.native
+  val assetWidth: js.UndefOr[Double]       = js.native
+  val assetHeight: js.UndefOr[Double]      = js.native
+  // The link of a `click id href "url"` line (`FlowDB.setLink`), and its window
+  val link: js.UndefOr[String]             = js.native
+  val linkTarget: js.UndefOr[String]       = js.native
 
 /** An edge (link) as returned by Mermaid's parser. */
 @js.native
@@ -211,7 +221,8 @@ object MermaidConfig:
       securityLevel: String = "loose",
       theme: String = "default",
       suppressErrorRendering: Boolean = false,
-      flowchart: js.UndefOr[FlowchartConfig] = js.undefined
+      flowchart: js.UndefOr[FlowchartConfig] = js.undefined,
+      maxTextSize: js.UndefOr[Int] = js.undefined
   ): js.Object =
     val obj = js.Dynamic.literal(
       startOnLoad = startOnLoad,
@@ -220,6 +231,7 @@ object MermaidConfig:
       suppressErrorRendering = suppressErrorRendering
     )
     flowchart.foreach(fc => obj.updateDynamic("flowchart")(fc))
+    maxTextSize.foreach(n => obj.updateDynamic("maxTextSize")(n))
     obj.asInstanceOf[js.Object]
 
 /** Flowchart-specific configuration. */

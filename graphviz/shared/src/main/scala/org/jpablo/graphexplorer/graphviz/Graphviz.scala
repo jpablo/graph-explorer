@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.graphviz
 
 import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
+import org.jpablo.graphexplorer.graphviz.html.ImageDim
 import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
@@ -67,7 +68,11 @@ object Graphviz:
           // a long-lived session would otherwise pin the last graph read.
           org.jpablo.graphexplorer.graphviz.layout.GraphMemo.clearAll()
 
-  def renderFormats(dot: String, formats: Seq[String]): MultipleRenderResult =
+  /** @param images the natural size of each image that the DOT text refers to (see [[ImageDim]]). Graphviz cannot
+    *   read an image, so the caller gives the sizes, as for the `images` option of viz-js. With no size, Graphviz
+    *   draws no image.
+    */
+  def renderFormats(dot: String, formats: Seq[String], images: ImageDim.Table = ImageDim.empty): MultipleRenderResult =
     DotParser.parse(dot) match
       case Left(err) =>
         failure(Vector(RenderError(Some("error"), err)))
@@ -79,7 +84,8 @@ object Graphviz:
           failure(unsupported.toVector.map(f => RenderError(Some("error"), s"unsupported format: $f")))
         else
           try
-            val g   = AttrResolver.resolve(ast)
+            val resolved = AttrResolver.resolve(ast)
+            val g        = if images.isEmpty then resolved else resolved.copy(images = images)
             val out = parsed.iterator.collect {
               case (name, Some(fmt)) => name -> emit(fmt, g)
             }.toMap

@@ -27,6 +27,7 @@ use uds_windows::{UnixListener, UnixStream};
 
 #[cfg(target_os = "macos")]
 mod frame_rate;
+mod local_files;
 
 /// The app icon, embedded in the binary (this build is unbundled, so there is
 /// no .app/.icns for macOS to read).
@@ -510,6 +511,9 @@ fn main() {
             complete_open,
             hash_text,
             open_external,
+            open_file_link,
+            write_asset,
+            local_image,
             set_unsaved,
             confirm_close,
             library_list,
@@ -2055,6 +2059,130 @@ async fn open_external(url: String) -> std::result::Result<(), IpcError> {
         Ok(status) if status.success() => Ok(()),
         Ok(status) => Err(IpcError::new("LINK_OPEN_FAILED", format!("{url}: the opener exited with {status}"))),
         Err(error) => Err(IpcError::new("LINK_OPEN_FAILED", format!("{url}: {error}"))),
+    }
+}
+
+/// The normalized path of a diagram that the shell watches, or a refusal.
+///
+/// The commands of the files next to a diagram work only for a diagram that
+/// the page has open. Thus the page cannot write or read next to any file.
+fn watched_diagram(watch_registry: &WatchRegistry, path: &str) -> std::result::Result<String, IpcError> {
+    let normalized = normalize_path(path).map_err(|err| IpcError::new("DOCUMENT_NOT_WATCHED", err))?;
+    let watched = watch_registry
+        .lock()
+        .map(|registry| registry.contains_key(&normalized))
+        .unwrap_or(false);
+    if watched {
+        Ok(normalized)
+    } else {
+        Err(IpcError::new(
+            "DOCUMENT_NOT_WATCHED",
+            format!("{normalized} is not an open diagram"),
+        ))
+    }
+}
+
+/// Save an image of a paste or a drop next to an open diagram, and give its
+/// path relative to the folder of the diagram (`arch.assets/img-3f2a….png`).
+/// See `local_files::write_asset_at`.
+#[tauri::command(rename_all = "camelCase")]
+fn write_asset(
+    state: tauri::State<'_, IpcState>,
+    diagram_path: String,
+    ext: String,
+    bytes_base64: String,
+) -> std::result::Result<String, IpcError> {
+    use base64::Engine;
+    let result = (|| {
+        let diagram = watched_diagram(&state.watch_registry, &diagram_path)?;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(bytes_base64.as_bytes())
+            .map_err(|err| IpcError::new("ASSET_REFUSED", format!("the image is not base64: {err}")))?;
+        let relative = local_files::write_asset_at(&state.access_policy, &diagram, &ext, &bytes)?;
+        Ok((relative, Some(content_hash(&bytes))))
+    })();
+    audited(&state.audit_logger, "asset.write", &diagram_path, result)
+}
+
+/// An image that the page can draw: its real path, and the start of its bytes
+/// for the size.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalImage {
+    path: String,
+    head_base64: String,
+}
+
+/// Let the page draw the image `src` of an open diagram.
+///
+/// The asset protocol has an empty scope (`tauri.conf.json`). This command
+/// adds ONE file to it, after the checks of `local_files::local_image_path`:
+/// an image file inside the folder of the diagram. The page then draws the
+/// file from `convertFileSrc(path)`. Graphviz needs the size of the image,
+/// so the command also gives the start of the file, and the page reads the
+/// size from its header.
+#[tauri::command(rename_all = "camelCase")]
+fn local_image(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, IpcState>,
+    diagram_path: String,
+    src: String,
+) -> std::result::Result<LocalImage, IpcError> {
+    use base64::Engine;
+    let diagram = watched_diagram(&state.watch_registry, &diagram_path)?;
+    let path = local_files::local_image_path(&state.access_policy, &diagram, &src)?;
+    let head = local_files::read_head(&path, local_files::IMAGE_HEAD_BYTES)
+        .map_err(|err| IpcError::new("IMAGE_MISSING", format!("{}: {err}", path.display())))?;
+    app.asset_protocol_scope()
+        .allow_file(&path)
+        .map_err(|err| IpcError::new("IMAGE_REFUSED", format!("{}: {err}", path.display())))?;
+    Ok(LocalImage {
+        path: strip_verbatim_prefix(&path),
+        head_base64: base64::engine::general_purpose::STANDARD.encode(head),
+    })
+}
+
+/// Open the link of a node: an http or https link in the browser, or a local
+/// file with its default app.
+///
+/// A local file that can run a program (`local_files::open_action`) does not
+/// open. It shows in the file manager, and the answer is `"revealed"`. Else
+/// the answer is `"opened"`. A relative link is relative to the folder of
+/// `diagramPath`.
+#[tauri::command(rename_all = "camelCase")]
+async fn open_file_link(
+    state: tauri::State<'_, IpcState>,
+    diagram_path: Option<String>,
+    link: String,
+) -> std::result::Result<String, IpcError> {
+    let target = local_files::link_target(&state.access_policy, diagram_path.as_deref(), &link)?;
+    let path = match target {
+        local_files::LinkTarget::Web(url) => {
+            open_external(url).await?;
+            return Ok("opened".to_string());
+        }
+        local_files::LinkTarget::File(path) => path,
+    };
+    let action = local_files::open_action(&path);
+    let answer = match action {
+        local_files::OpenAction::Open => "opened",
+        local_files::OpenAction::Reveal => "revealed",
+    };
+    state.audit_logger.log_event(
+        "link.open",
+        Some(&path.to_string_lossy()),
+        Some("ui"),
+        answer,
+        None,
+        None,
+    );
+    match local_files::opener(action, &path).status() {
+        Ok(status) if status.success() => Ok(answer.to_string()),
+        Ok(status) => Err(IpcError::new(
+            "LINK_OPEN_FAILED",
+            format!("{}: the opener exited with {status}", path.display()),
+        )),
+        Err(error) => Err(IpcError::new("LINK_OPEN_FAILED", format!("{}: {error}", path.display()))),
     }
 }
 
@@ -4425,6 +4553,33 @@ mod tests {
         ] {
             assert!(!is_openable_url(url), "allowed {url:?}");
         }
+    }
+
+    /// The files next to a diagram (`write_asset`, `local_image`) are only for
+    /// a diagram that the page has open. Thus the page cannot write or read
+    /// next to any file of the disk.
+    #[test]
+    fn the_files_next_to_a_diagram_need_a_watched_diagram() {
+        let dir = temp_dir_for("watched-diagram");
+        let file = dir.join("arch.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        let path = file.to_string_lossy().to_string();
+        let normalized = normalize_path(&path).expect("normalizable");
+        let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+
+        let refused = watched_diagram(&registry, &path).expect_err("a diagram with no watch");
+        assert_eq!(refused.code, "DOCUMENT_NOT_WATCHED");
+
+        registry.lock().expect("lock").insert(
+            normalized.clone(),
+            WatchDescriptor {
+                path: normalized.clone(),
+                format: "dot".to_string(),
+                revision: content_hash(b"digraph { a }"),
+            },
+        );
+        assert_eq!(watched_diagram(&registry, &path).expect("a watched diagram"), normalized);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     /// The relay keeps the codes of the page that tell the caller what to do

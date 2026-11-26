@@ -1185,6 +1185,16 @@ svg {
 
     justify-content: center;
 
+    // A drag of files, links or text over the canvas (CanvasContainer sets
+    // `gx-drop-target`). A dashed outline inside the edge and a light tint of
+    // the primary color show where the drop goes. The outline is inside the
+    // box, so the layout does not move.
+    &.gx-drop-target {
+      outline: 2px dashed var(--color-primary);
+      outline-offset: -6px;
+      background-color: color-mix(in oklab, var(--color-primary) 8%, var(--gx-canvas-bg));
+    }
+
     // While a pan moves the drawing (CanvasContainer sets `gx-panning`), the
     // drawing takes no pointer events. The pointer stays still and the drawing
     // moves under it. Else the browser hit-tests the drawing in each frame and

@@ -24,6 +24,12 @@ object MermaidFlowchartParser:
   // `accTitle` and `accDescr` are text for screen readers. The graph does not keep them. With case, as Mermaid.
   private val AccessibleLine = raw"^acc(?:Title|Descr)\s*:.*$$".r
   private val AccDescrBlock  = raw"^accDescr\s*\{(.*)$$".r
+  // A node with shape data (Mermaid 11): `id@{ shape: rect, label: "Text" }` or `id@{ img: "...", w: 60, h: 60 }`.
+  private val ShapeDataLine = raw"^([A-Za-z0-9_][A-Za-z0-9_-]*)\s*@\{(.*)\}\s*;?$$".r
+  // The link of a node (`click id href "url"`, or `click id "url"`), with a tooltip and a target. Mermaid reads the
+  // other `click` lines as a callback, which the graph does not keep.
+  private val LinkClickLine =
+    raw"""^click\s+([^\s,"]+)\s+(?:href\s+)?"([^"]*)"(?:\s+"([^"]*)")?(?:\s+(_self|_blank|_parent|_top))?\s*;?$$""".r
   private val EdgeLine =
     raw"^([^\s]+)\s+(<-->|<-\.->|<==>|-->|-\.->|==>|---|-\.-|===)(?:\|([^|]*)\|)?\s+([^\s]+)\s*;?$$".r
 
@@ -58,6 +64,7 @@ object MermaidFlowchartParser:
     val classAssignments = mutable.Map[String, List[String]]()
     val classDefs        = mutable.LinkedHashMap[String, MermaidClassDef]()
     val linkStyles       = mutable.Map[Int, (List[String], Option[String])]()
+    val links            = mutable.Map[String, (String, Option[String], Option[String])]()
 
     var direction: Option[String]              = None
     var defaultEdgeStyle: List[String]         = Nil
@@ -136,6 +143,10 @@ object MermaidFlowchartParser:
             else linkStyles(target.toInt) = (styles, interpolate)
           case StyleLine(id, body) =>
             nodeStyles(id) = body.stripSuffix(";").split(",").iterator.map(_.trim).filter(_.nonEmpty).toList
+          case ShapeDataLine(id, body) =>
+            val vertex = shapeDataVertex(id, shapeData(body))
+            registerVertex(vertex)
+            addMember(vertex.id)
           case EdgeLine(rawSource, arrow, rawLabel, rawTarget) =>
             (parseNodeRef(rawSource), parseNodeRef(rawTarget)) match
               case (Some(source), Some(target)) =>
@@ -152,6 +163,8 @@ object MermaidFlowchartParser:
                 )
               case _ =>
                 failure = Some(s"could not parse the Mermaid flowchart: invalid link endpoint at line $lineNumber")
+          case LinkClickLine(id, url, tooltip, target) =>
+            links(id) = (url.trim, Option(tooltip).filter(_.nonEmpty), Option(target))
           case other if ignoredDirective(other) => ()
           case other =>
             parseNodeRef(other.stripSuffix(";")).filter(v => v.id == nodeIdPrefix(other.stripSuffix(";"))) match
@@ -179,10 +192,15 @@ object MermaidFlowchartParser:
         nodeStyles.keys.foreach: id =>
           if !vertices.contains(id) then vertices(id) = MermaidVertex(id = id, text = id)
 
+        // As `FlowDB.setLink`, a link goes only to a node that exists.
         val vertexMap = vertices.iterator.map { case (id, vertex) =>
+          val link = links.get(id).filter(_._1.nonEmpty)
           id -> vertex.copy(
             styles = nodeStyles.getOrElse(id, vertex.styles),
-            classes = (vertex.classes ++ classAssignments.getOrElse(id, Nil)).distinct
+            classes = (vertex.classes ++ classAssignments.getOrElse(id, Nil)).distinct,
+            link = link.map(_._1).orElse(vertex.link),
+            tooltip = link.flatMap(_._2).orElse(vertex.tooltip),
+            linkTarget = link.flatMap(_._3).orElse(vertex.linkTarget)
           )
         }.toMap
 
@@ -248,6 +266,57 @@ object MermaidFlowchartParser:
     case "-.->" | "<-.->" | "-.-" => Some("dotted")
     case "==>" | "<==>" | "==="   => Some("thick")
     case _                        => None
+
+  /** The keys and the values of the shape data `body` (the text between `@{` and `}`). The data is a YAML map on one
+    * line: `key: value` pairs with `,` between them. A value in quotes can have a `,` or a `:`. Mermaid ends a string
+    * at the next quote, so the text has `#quot;` for a quote in a value.
+    */
+  private def shapeData(body: String): Map[String, String] =
+    val pairs   = mutable.ListBuffer[String]()
+    val current = StringBuilder()
+    var quote   = Option.empty[Char]
+    body.foreach: c =>
+      quote match
+        case Some(q) =>
+          current += c
+          if c == q then quote = None
+        case None if c == '"' || c == '\'' =>
+          current += c
+          quote = Some(c)
+        case None if c == ',' =>
+          pairs += current.toString
+          current.clear()
+        case None => current += c
+    pairs += current.toString
+    pairs.iterator
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .flatMap: pair =>
+        val colon = pair.indexOf(':')
+        Option.when(colon > 0)(pair.substring(0, colon).trim -> unquote(pair.substring(colon + 1).trim))
+      .toMap
+
+  private def unquote(value: String): String =
+    val bare =
+      if value.length >= 2 && (value.head == '"' || value.head == '\'') && value.last == value.head then
+        value.substring(1, value.length - 1)
+      else value
+    MermaidSourceScan.decodeQuotes(bare)
+
+  /** The vertex of a node with shape data, as Mermaid 11 (`FlowDB.addVertex`) makes it. An image with no label has
+    * the text "", and a node with no label has its id as its text.
+    */
+  private def shapeDataVertex(id: String, data: Map[String, String]): MermaidVertex =
+    val img   = data.get("img").filter(_.trim.nonEmpty)
+    val label = data.get("label").filter(_.trim.nonEmpty)
+    MermaidVertex(
+      id = id,
+      text = label.getOrElse(if img.isDefined then "" else id),
+      shape = data.get("shape").filter(_.nonEmpty),
+      img = img,
+      assetWidth = data.get("w").flatMap(_.toDoubleOption),
+      assetHeight = data.get("h").flatMap(_.toDoubleOption)
+    )
 
   private def nodeIdPrefix(value: String): String =
     value.takeWhile(MermaidSourceScan.isIdentifierChar)

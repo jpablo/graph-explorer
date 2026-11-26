@@ -54,6 +54,9 @@ object MermaidBackend:
   private def setInitialized(): Unit =
     windowDyn.__mermaidInitialized = true
 
+  /** The largest source that Mermaid draws, in characters. */
+  private[mermaid] val MaxTextSize = 20_000_000
+
   /** Initialize Mermaid.js only once, regardless of HMR reloads or multiple MermaidBackend instances. */
   private[mermaid] def ensureInitialized(): Unit =
     if !isInitialized then
@@ -63,7 +66,10 @@ object MermaidBackend:
           securityLevel = "loose",
           theme = "default",
           suppressErrorRendering = true,
-          flowchart = FlowchartConfig(htmlLabels = true, useMaxWidth = false)
+          flowchart = FlowchartConfig(htmlLabels = true, useMaxWidth = false),
+          // Mermaid draws "Maximum text size in diagram exceeded" in place of a source of more than 50 000
+          // characters (its default). An embedded image (`img: "data:..."`) is often larger than that.
+          maxTextSize = MaxTextSize
         )
       )
       setInitialized()

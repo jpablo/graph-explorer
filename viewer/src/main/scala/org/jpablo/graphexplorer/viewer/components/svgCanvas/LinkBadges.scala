@@ -10,7 +10,8 @@ import scala.scalajs.js
 /** The link icon of a linked element.
   *
   * A DOT `URL` or `href` attribute, or a Mermaid `click X href`, puts an element in an svg `<a>` link. The drawing does
-  * not show that the element has a link. Thus each element with an http or https link gets a link icon. The icon shows
+  * not show that the element has a link. Thus each element with a link that the page can open gets a link icon: an
+  * http or https link, and on the desktop, a link to a local file (see `ExternalLink.isOpenableHere`). The icon shows
   * while the pointer is on the element or on the icon, as the fold badge of a group does. A click on the icon opens
   * the link in the browser of the system, with no command key. While the icon shows, the canvas also shows the URL in
   * a strip (`hoveredLink` in `UIState`).
@@ -62,7 +63,7 @@ object LinkBadges:
   private def urlOf(el: dom.Element): Option[String] =
     val inside = Option(el.querySelector("a")).filter(_.namespaceURI == SvgNS)
     val around = Option(el.parentNode).collect { case p: dom.Element if p.namespaceURI == SvgNS && p.tagName == "a" => p }
-    inside.orElse(around).flatMap(linkUrl).filter(ExternalLink.isOpenable)
+    inside.orElse(around).flatMap(linkUrl).filter(ExternalLink.isOpenableHere)
 
   private def bbox(el: dom.Element): dom.SVGRect = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
 
@@ -85,8 +86,14 @@ object LinkBadges:
       val b = bbox(el)
       (b.x, b.y)
 
-  /** Add the link icons for the current drawing. Call it after each mount, as [[CountBadges.decorate]]. */
-  def decorate(mainGroup: dom.Element, strategy: SelectableElementStrategy): Unit =
+  /** Add the link icons for the current drawing. Call it after each mount, as [[CountBadges.decorate]]. A click on an
+    * icon gives its URL to `open`.
+    */
+  def decorate(
+      mainGroup: dom.Element,
+      strategy:  SelectableElementStrategy,
+      open:      String => Unit = url => ExternalLink.open(url)
+  ): Unit =
     def isGhost(el: dom.Element): Boolean = el.closest(s".${LayoutTransition.ghostClass}") != null
     val layer = CountBadges.layerOf(mainGroup)
     layer.querySelectorAllT[dom.Element](s"g.$badgeClass").foreach(_.remove())
@@ -100,7 +107,7 @@ object LinkBadges:
           val key      = index.toString
           val (x, y)   = anchor(el, strategy)
           val (lx, ly) = CountBadges.toLayer(el, layer, x, y)
-          val b        = badge(url)
+          val b        = badge(url, open)
           el.setAttribute(keyAttr, key)
           b.setAttribute(keyAttr, key)
           layer.appendChild(b)
@@ -151,13 +158,13 @@ object LinkBadges:
           None
       .headOption
 
-  private def badge(url: String): dom.Element =
+  private def badge(url: String, open: String => Unit): dom.Element =
     val g = dom.document.createElementNS(SvgNS, "g")
     g.setAttribute("class", s"$badgeClass ${SelectableElement.decorationClass}")
     g.setAttribute(urlAttr, url)
 
     val title = dom.document.createElementNS(SvgNS, "title")
-    title.textContent = "Open the link in the browser"
+    title.textContent = if ExternalLink.isOpenable(url) then "Open the link in the browser" else "Open the file"
     g.appendChild(title)
 
     val c = dom.document.createElementNS(SvgNS, "circle")
@@ -183,7 +190,7 @@ object LinkBadges:
       { (ev: dom.Event) =>
         ev.stopPropagation()
         ev.preventDefault()
-        ExternalLink.open(url)
+        open(url)
       }
     )
     g

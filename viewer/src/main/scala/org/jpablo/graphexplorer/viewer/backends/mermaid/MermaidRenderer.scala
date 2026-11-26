@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import com.raquo.airstream.core.Signal
-import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramRenderInputs, RenderState, Renderer}
+import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramRenderInputs, LocalImages, RenderState, Renderer}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElementStrategy}
@@ -34,15 +34,18 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
     * The Mermaid text of a graph does not always keep the ids of the graph
     * (see [[MermaidDrawnIds]]). A graph from a DOT source is the usual case.
     */
-  private def graphToSvg(graph: ViewerGraph): Future[SvgWithPositions] =
-    draw(MermaidPrinter.graphToText(graph, omitInternal = false), Some(mermaidDrawnIds(graph)))
+  private def graphToSvg(graph: ViewerGraph, images: LocalImages): Future[SvgWithPositions] =
+    draw(images.mermaidText(MermaidPrinter.graphToText(graph, omitInternal = false)), Some(mermaidDrawnIds(graph)))
 
   /** Draw `text`, and stamp the drawn ids on the SVG.
     *
     * With no `drawnIds`, the text is the source of the diagram. Then the parse
     * of a flowchart text gives the drawn ids of its arrows.
     */
-  private def draw(text: String, drawnIds: Option[MermaidDrawnIds]): Future[SvgWithPositions] =
+  private def draw(source: String, drawnIds: Option[MermaidDrawnIds]): Future[SvgWithPositions] =
+    // An image that does not load stops the whole drawing. An image with a path that the page cannot load shows as a
+    // gray box (see LocalImages).
+    val text = LocalImages.withPlaceholders(source)
     MermaidBackend.ensureInitialized()
     MermaidBackend.enqueue {
       val renderId = MermaidBackend.nextRenderId()
@@ -92,11 +95,14 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
       .flatMapSwitch: differs =>
         if differs then inputs.visibleGraph.map(Left(_): Either[ViewerGraph, String])
         else inputs.sourceText.map(Right(_): Either[ViewerGraph, String])
+      // The images with a path relative to the diagram are drawn from their URLs (see LocalImages).
+      .combineWith(inputs.localImages)
       .distinct
       .flatMapSwitch:
-        case Left(graph) =>
-          Signal.fromFuture(settled("the visible graph", graphToSvg(graph)))
-        case Right(mermaidText) =>
+        case (Left(graph), images) =>
+          Signal.fromFuture(settled("the visible graph", graphToSvg(graph, images)))
+        case (Right(source), images) =>
+          val mermaidText = images.mermaidText(source)
           if mermaidText.trim.isEmpty then
             Signal.fromValue(Some(RenderState.NoDrawing(None)): Option[RenderState])
           else

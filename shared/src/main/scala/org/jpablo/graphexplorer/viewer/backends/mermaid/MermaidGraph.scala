@@ -18,15 +18,33 @@ import upickle.default.*
   *   CSS classes applied to this vertex
   * @param shape
   *   The shape of the node (e.g., "rect", "circle", "diamond")
+  * @param img
+  *   The image of an image shape (`id@{ img: "..." }`, Mermaid 11)
+  * @param assetWidth
+  *   The width of the image, in pixels (`w:` of the shape data)
+  * @param assetHeight
+  *   The height of the image, in pixels (`h:` of the shape data)
+  * @param link
+  *   The link of a `click id href "url"` line
+  * @param linkTarget
+  *   The window of the link (`_blank`, `_self`, `_parent`, `_top`)
+  * @param tooltip
+  *   The tooltip of the click line
   */
 case class MermaidVertex(
-    id:        String,
-    text:      String,
-    labelType: Option[String] = None,
-    domId:     Option[String] = None,
-    styles:    List[String] = Nil,
-    classes:   List[String] = Nil,
-    shape:     Option[String] = None
+    id:          String,
+    text:        String,
+    labelType:   Option[String] = None,
+    domId:       Option[String] = None,
+    styles:      List[String] = Nil,
+    classes:     List[String] = Nil,
+    shape:       Option[String] = None,
+    img:         Option[String] = None,
+    assetWidth:  Option[Double] = None,
+    assetHeight: Option[Double] = None,
+    link:        Option[String] = None,
+    linkTarget:  Option[String] = None,
+    tooltip:     Option[String] = None
 ) derives ReadWriter
 
 /** Represents an edge (arrow/link) in a Mermaid flowchart.

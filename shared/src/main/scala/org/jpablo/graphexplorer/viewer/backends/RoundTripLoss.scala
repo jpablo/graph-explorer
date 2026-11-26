@@ -28,7 +28,9 @@ enum UnmodeledContent(val label: String) derives CanEqual:
     */
   case Directives extends UnmodeledContent("the configuration directives (`%%{...}%%` or front matter)")
 
-  /** Mermaid `click` lines. */
+  /** Mermaid `click` lines with a callback. A `click` line with a link (`click id href "url"`) is not in this set,
+    * because the graph keeps the link in `URL` and the printer writes it back.
+    */
   case ClickHandlers extends UnmodeledContent("the `click` lines")
 
   /** Mermaid `accTitle` and `accDescr`. */
@@ -171,7 +173,8 @@ object RoundTripLoss:
     *     flags a directive of another type, and an init directive that is not
     *     a JSON object, because the printer drops them.
     *   - `click`, `accTitle`, `accDescr` and `direction` are keywords at the
-    *     start of a statement. A `;` also separates two statements. The group
+    *     start of a statement. The graph of a flowchart keeps the link of a
+    *     `click` line, so the scan flags only a `click` line with a callback. A `;` also separates two statements. The group
     *     of a flowchart subgraph keeps its `direction`, so the scan flags a
     *     `direction` only in a composite state.
     *   - In a state diagram, `state X {` opens a composite state and `}` closes
@@ -181,6 +184,9 @@ object RoundTripLoss:
   private object MermaidLoss:
 
     private val Click       = """(?i)click\s+[A-Za-z0-9_].*""".r
+    // The link of one node, as `MermaidFlowchartParser` reads it. With case, as Mermaid.
+    private val LinkClick   =
+      """click\s+[^\s,"]+\s+(?:href\s+)?"[^"]*"(?:\s+"[^"]*")?(?:\s+(?:_self|_blank|_parent|_top))?\s*""".r
     private val Accessible  = """(?i)acc(?:Title|Descr)\s*[:{].*""".r
     private val AccDescrTop = """(?i)accDescr\s*\{.*""".r
     private val Direction   = """(?i)direction\s+(?:TB|TD|BT|LR|RL)\s*;?""".r
@@ -245,6 +251,7 @@ object RoundTripLoss:
               case StateLine.Other    => ()
           else
             statements(line).foreach:
+              case LinkClick()  => ()
               case Click()      => found += UnmodeledContent.ClickHandlers
               case Accessible() => found += UnmodeledContent.AccessibilityText
               case _            => ()

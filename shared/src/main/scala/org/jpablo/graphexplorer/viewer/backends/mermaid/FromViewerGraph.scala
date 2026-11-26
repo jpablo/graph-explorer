@@ -3,8 +3,8 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, BoldStyle, BorderStyle, Color, CornerStyle, Dir, FillColor, FontColor, FontName, FontSize, InvisibleStyle, Label, PenColor, PenWidth, Rankdir, Shape, Style}
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, BoldStyle, BorderStyle, Color, CornerStyle, Dir, FillColor, FontColor, FontName, FontSize, InvisibleStyle, Label, PenColor, PenWidth, Rankdir, Shape, Style, Target, Tooltip, URL}
+import org.jpablo.graphexplorer.viewer.graph.{ImageNode, ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
 import scala.collection.immutable.VectorMap
@@ -170,6 +170,7 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
       .filter(s => mermaidMappedShape(s).isEmpty)
       .foreach(s => lines.append(s"  class ${ids.node(nodeId)} $ShapeClassPrefix$s\n"))
   }
+  emitImageClassLines(lines, graph, ids)
   sortedGroups.foreach { case (groupId, group) =>
     if groupId != rootGroupId then
       groupStyleDirectiveCss(group).foreach { css =>
@@ -177,6 +178,7 @@ private def viewerGraphToMermaidFlowchartText(graph: ViewerGraph): String =
       }
   }
   emitGroupClassLines(lines, sortedGroups, rootGroupId, ids)
+  emitLinkLines(lines, graph, ids)
 
   // The end of the text: the place of the comments with no statement after them.
   anchors += CommentAnchor(lines.length, None, "  ")
@@ -317,6 +319,29 @@ private def edgeEnds(arrow: Arrow): (NodeId, NodeId, Boolean, Boolean) =
 
 /** Serialize a node with its shape and label. */
 private def serializeNode(nodeId: NodeId, node: ViewerNode, ids: MermaidIds): String =
+  ImageNode.of(node.attributes) match
+    case Some(image) => serializeImageNode(ids.node(nodeId), image)
+    case None        => serializeShapedNode(nodeId, node, ids)
+
+/** An image node in the image shape of Mermaid 11: `id@{ img: "...", label: "...", w: 400, h: 300, constraint: "on" }`.
+  *
+  * The shape data is YAML, and the Mermaid lexer ends a string of it at the next `"`, with no escape. Thus a quote in
+  * the label is the entity `#quot;`, as in a bracket label. With `constraint: "on"`, Mermaid keeps the aspect ratio of
+  * the image. A class of the node goes on a `class` line (see `emitImageClassLines`).
+  */
+private def serializeImageNode(safeId: String, image: ImageNode.Spec): String =
+  val label = Option(MermaidLabelText.fromStored(image.label)).filter(_.nonEmpty)
+  val fields =
+    List(s"img: ${shapeDataString(image.src)}") ++
+      label.map(l => s"label: ${shapeDataString(l)}") ++
+      image.size.toList.flatMap((w, h) => List(s"w: $w", s"h: $h", "constraint: \"on\""))
+  s"$safeId@{ ${fields.mkString(", ")} }"
+
+/** A double-quoted string of the shape data. Mermaid reads `#quot;` in it as a quote. */
+private def shapeDataString(text: String): String =
+  "\"" + MermaidSourceScan.encodeQuotes(text.replace("\n", " ")) + "\""
+
+private def serializeShapedNode(nodeId: NodeId, node: ViewerNode, ids: MermaidIds): String =
   val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
   val classOpt = node.attributes.values.get(MermaidClassAttr).map(_.toString).filter(_.nonEmpty)
@@ -578,7 +603,10 @@ private def shouldEmitStandaloneNode(nodeId: NodeId, node: ViewerNode, connected
   // A node with a new id needs a line of its own, because only that line can carry its old id as its label
   val renamed = ids.renamed(nodeId)
 
-  !connectedNodeIds.contains(nodeId) || hasExplicitLabel || hasShape || hasClass || hasCssStyle || renamed
+  // Only the line of its own can carry the image of an image node
+  val isImage = ImageNode.of(node.attributes).isDefined
+
+  !connectedNodeIds.contains(nodeId) || hasExplicitLabel || hasShape || hasClass || hasCssStyle || renamed || isImage
 
 private def emitClassDefLines(lines: StringBuilder, graphAttributes: Attributes): Unit =
   collectClassDefBodies(graphAttributes).foreach { case (className, body) =>
@@ -612,6 +640,31 @@ private def emitDefaultLinkStyleLine(lines: StringBuilder, graphAttributes: Attr
   mergeMermaidCssBodies(defaultStyleOpt, defaultInterpolateOpt).foreach { body =>
     lines.append(s"  linkStyle default $body\n")
   }
+
+/** The classes of each image node. The image shape `id@{ ... }` takes no `:::` suffix, so a `class` line has them. */
+private def emitImageClassLines(lines: StringBuilder, graph: ViewerGraph, ids: MermaidIds): Unit =
+  graph.nodes.foreach { case (nodeId, node) =>
+    if ImageNode.of(node.attributes).isDefined then
+      val classNames = node.attributes.values.get(MermaidClassAttr).map(_.toString).toVector.flatMap(parseMermaidClassNames)
+      if classNames.nonEmpty then lines.append(s"  class ${ids.node(nodeId)} ${classNames.mkString(",")}\n")
+  }
+
+/** The link of each node with a `URL`: `click id href "url" "tooltip" _target`.
+  *
+  * Mermaid ends a string at the next quote, with no escape. Thus a quote in the link is the URL escape `%22`, and a
+  * quote in the tooltip is an apostrophe. Mermaid reads only the four standard targets.
+  */
+private def emitLinkLines(lines: StringBuilder, graph: ViewerGraph, ids: MermaidIds): Unit =
+  graph.nodes.foreach { case (nodeId, node) =>
+    def value(attr: AttributeId) = node.attributes.get(attr).map(_.toString.replace('\n', ' ').trim).filter(_.nonEmpty)
+    value(URL.attrId).foreach: url =>
+      val tooltip = value(Tooltip.attrId).map(t => s""" "${t.replace('"', '\'')}"""").getOrElse("")
+      val target  = value(Target.attrId).filter(LinkTargets.contains).map(t => s" $t").getOrElse("")
+      lines.append(s"""  click ${ids.node(nodeId)} href "${url.replace("\"", "%22")}"$tooltip$target\n""")
+  }
+
+/** The targets of a link that Mermaid reads (`LINK_TARGET` of its lexer). */
+private val LinkTargets = Set("_self", "_blank", "_parent", "_top")
 
 private def emitGroupClassLines(
     lines:        StringBuilder,
@@ -671,7 +724,8 @@ private def mergeCssOverrides(
   else Some(formatMermaidCssBody(merged))
 
 private[mermaid] def nodeStyleDirectiveCss(node: ViewerNode): Option[String] =
-  val attrs = node.attributes.values
+  // The image form implies `penwidth=0`. Mermaid draws no border on an image, so the style line does not write it.
+  val attrs = ImageNode.withoutForm(node.attributes).values
   mergeCssOverrides(
     cssDeclarationsOf(attrs, Style.attrId),
     Seq(

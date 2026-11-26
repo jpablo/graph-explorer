@@ -3,11 +3,12 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, ArrowPosition}
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{Viz, VizJS}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{ImageSize, RenderOptions, Viz, VizJS}
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.domUtils.{parseSVG, querySelectorAllT}
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.graphviz.Graphviz as ScalaGraphviz
+import org.jpablo.graphexplorer.graphviz.html.ImageDim
 import upickle.default.*
 
 import scala.concurrent.Future
@@ -37,17 +38,24 @@ class Graphviz(viz: Viz):
     * port bug we want visible (it surfaces to the `Try`-wrapped callers), not
     * silently masked. Downstream consumption (`read[SimpleGraph]` /
     * `getEdgePos` / `parseSVG`) is identical for both engines. */
-  private def renderScala(dot: String, formats: Seq[String]): RenderOutputs =
-    val r = ScalaGraphviz.renderFormats(dot, formats)
+  private def renderScala(dot: String, formats: Seq[String], images: ImageDim.Table): RenderOutputs =
+    val r = ScalaGraphviz.renderFormats(dot, formats, images)
     RenderOutputs(r.status, r.output, r.errors.map(_.message).mkString("; "))
 
-  private def renderViz(dot: String, formats: Seq[String]): RenderOutputs =
-    val r = viz.renderFormats(dot, js.Array(formats*))
+  private def renderViz(dot: String, formats: Seq[String], images: ImageDim.Table): RenderOutputs =
+    // viz-js reads a size with a unit. The table has points.
+    val sizes = images.toSeq.map((name, dim) => ImageSize(name, s"${dim.w}pt", s"${dim.h}pt"))
+    val options = if sizes.isEmpty then js.undefined else RenderOptions(images = js.Array(sizes*))
+    val r = viz.renderFormats(dot, js.Array(formats*), options)
     RenderOutputs(r.status, r.output.toMap, r.errors.toSeq.map(_.message).mkString("; "))
 
-  private def renderOutputs(dot: String, formats: Seq[String]): RenderOutputs =
-    if Graphviz.usesDotEngine(dot) then renderScala(dot, formats)
-    else renderViz(dot, formats) // non-dot layout engine → viz-js (not ported)
+  /** Graphviz draws an image only when it has the size of the image. The size of an embedded image (a `data:` URI)
+    * comes from the text itself (see [[DotImages]]).
+    */
+  private def renderOutputs(dot: String, formats: Seq[String], extra: ImageDim.Table = ImageDim.empty): RenderOutputs =
+    val images = DotImages.table(dot) ++ extra
+    if Graphviz.usesDotEngine(dot) then renderScala(dot, formats, images)
+    else renderViz(dot, formats, images) // non-dot layout engine → viz-js (not ported)
 
   /** Used to parse the DOT text in CodeMirror and render it to a graph.
     *
@@ -83,12 +91,13 @@ class Graphviz(viz: Viz):
       else throw new Exception(s"Graphviz rendering failed: ${result.status} - ${result.errors}")
     }
 
-  /** The last step in the rendering process.
+  /** The last step in the rendering process. `images` gives the size of each image that the text does not hold
+    * (an image file next to the diagram, see `LocalImages`).
     */
-  def textToSvg(dot: DotText): Try[SvgWithPositions] =
+  def textToSvg(dot: DotText, images: ImageDim.Table = ImageDim.empty): Try[SvgWithPositions] =
     Try {
       // all formats js.Array("canon", "dot", "xdot", "json0", "json", "svg", "dot_json")
-      val result = renderOutputs(dot.value, Seq("svg", "json0"))
+      val result = renderOutputs(dot.value, Seq("svg", "json0"), images)
       if result.status == "success" then
         val result_svg   = result.output("svg")
         val result_json0 = result.output("json0")

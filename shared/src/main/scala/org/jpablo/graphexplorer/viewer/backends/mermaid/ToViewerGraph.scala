@@ -2,8 +2,8 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, CornerStyle, GraphType, Label, Rankdir, Shape, Style}
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, CornerStyle, GraphType, Label, Rankdir, Shape, Style, Target, Tooltip, URL}
+import org.jpablo.graphexplorer.viewer.graph.{ImageNode, ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
 import scala.collection.immutable.VectorMap
@@ -248,6 +248,46 @@ private def compositeToAttributes(composite: MermaidCompositeState): Attributes 
 
 /** Converts a MermaidVertex to Attributes. */
 private def vertexToAttributes(vertex: MermaidVertex): Attributes =
+  // `FlowDB.setLink` gives the node of a link the class `clickable`. The link line gives it back, so the class is not
+  // a class of the source.
+  val v = if vertex.link.isDefined then vertex.copy(classes = vertex.classes.filterNot(_ == ClickableClass)) else vertex
+  val attrs = v.img.filter(_.trim.nonEmpty) match
+    case Some(src) => imageVertexToAttributes(v, src)
+    case None      => shapedVertexToAttributes(v)
+  attrs ++ linkAttributes(v)
+
+/** The class that Mermaid gives to a node with a link. */
+private val ClickableClass = "clickable"
+
+/** The link of a `click id href "url" "tooltip" _target` line, in the DOT attributes `URL`, `tooltip` and `target`. */
+private def linkAttributes(vertex: MermaidVertex): Attributes =
+  vertex.link.map(_.trim).filter(_.nonEmpty) match
+    case None => Attributes.fromOrdered(Nil)
+    case Some(url) =>
+      Attributes.fromOrdered(
+        List(URL.attrId -> AttrValue(url)) ++
+          vertex.tooltip.filter(_.nonEmpty).map(t => Tooltip.attrId -> AttrValue(t)) ++
+          vertex.linkTarget.filter(_.nonEmpty).map(t => Target.attrId -> AttrValue(t))
+      )
+
+/** The attributes of an image shape: the image form of [[ImageNode]], then the styles and the classes. */
+private def imageVertexToAttributes(vertex: MermaidVertex, src: String): Attributes =
+  val size =
+    for
+      w <- vertex.assetWidth.filter(_ > 0)
+      h <- vertex.assetHeight.filter(_ > 0)
+    yield (math.round(w).toInt, math.round(h).toInt)
+  // Mermaid gives the text "" to an image with no label.
+  val label = if vertex.text == vertex.id then "" else MermaidLabelText.toStored(vertex.text)
+  val form  = ImageNode.attributes(ImageNode.Spec(src.trim, size, label))
+  val (_, cssClasses) = vertex.classes.partition(_.startsWith(ShapeClassPrefix))
+  val extra = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
+  vertex.domId.foreach(v => extra += MermaidDomIdAttr -> AttrValue(v))
+  if vertex.styles.nonEmpty then extra += Style.attrId -> AttrValue(vertex.styles.mkString(","))
+  if cssClasses.nonEmpty then extra += MermaidClassAttr -> AttrValue(cssClasses.mkString(" "))
+  Attributes.fromOrdered(form.values.toList ++ extra)
+
+private def shapedVertexToAttributes(vertex: MermaidVertex): Attributes =
   val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
 
   // Label (use text if different from id), converted to the stored (DOT-escaped) form

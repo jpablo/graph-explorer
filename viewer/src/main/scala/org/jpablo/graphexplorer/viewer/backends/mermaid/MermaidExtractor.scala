@@ -96,7 +96,7 @@ class MermaidExtractor(using ExecutionContext) extends Extractor:
           kind = diagram.`type`,
           details = MermaidBackend.renderOnlyDetails(diagram.`type`)
         ))
-    val vertices  = convertVertices(MermaidBackend.jsMapToDict(yy.getVertices()))
+    val vertices  = convertVertices(MermaidBackend.jsMapToDict(yy.getVertices()), tooltipOf(yy))
     val jsEdges   = yy.getEdges()
     val edges     = convertEdges(jsEdges)
     val edgesWithSourceLabels =
@@ -141,9 +141,19 @@ class MermaidExtractor(using ExecutionContext) extends Extractor:
   // The convert functions decode the labels and the titles here, where they leave Mermaid: the parser results keep
   // the internal entity codes of Mermaid (see MermaidSourceScan.decodeEntityCodes).
 
+  /** The tooltip of the `click` line of a vertex, by the id of the vertex. */
+  private def tooltipOf(yy: DiagramYY): String => Option[String] =
+    val getTooltip = yy.asInstanceOf[js.Dynamic].selectDynamic("getTooltip")
+    if js.typeOf(getTooltip) != "function" then _ => None
+    else id => yy.getTooltip(id).toOption.filter(_.nonEmpty)
+
   /** Convert Mermaid JS vertices to Scala model. */
-  private def convertVertices(jsVertices: js.Dictionary[MermaidVertexJS]): Map[String, MermaidVertex] =
+  private def convertVertices(
+      jsVertices: js.Dictionary[MermaidVertexJS],
+      tooltip:    String => Option[String]
+  ): Map[String, MermaidVertex] =
     jsVertices.map { case (id, v) =>
+      val link = v.link.toOption.filter(_.trim.nonEmpty)
       id -> MermaidVertex(
         id = v.id,
         text = MermaidSourceScan.decodeEntityCodes(v.text),
@@ -151,7 +161,13 @@ class MermaidExtractor(using ExecutionContext) extends Extractor:
         domId = v.domId.toOption,
         styles = v.styles.toOption.map(_.toList).getOrElse(Nil),
         classes = v.classes.toOption.map(_.toList).getOrElse(Nil),
-        shape = v.`type`.toOption
+        shape = v.`type`.toOption,
+        img = v.img.toOption.filter(_.nonEmpty),
+        assetWidth = v.assetWidth.toOption.filter(w => !w.isNaN),
+        assetHeight = v.assetHeight.toOption.filter(h => !h.isNaN),
+        link = link,
+        linkTarget = link.flatMap(_ => v.linkTarget.toOption.filter(_.nonEmpty)),
+        tooltip = link.flatMap(_ => tooltip(v.id))
       )
     }.toMap
 

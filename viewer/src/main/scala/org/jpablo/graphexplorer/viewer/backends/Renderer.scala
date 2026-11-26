@@ -24,13 +24,19 @@ import scala.concurrent.Future
   *   It is also always true when the source is in a different language than the renderer
   *   draws (a DOT source with the Mermaid renderer). The renderer cannot draw that source, so
   *   `visibleGraph` is the only input that it can draw.
+  * @param localImages
+  *   The images of the diagram that have a path relative to its file, with their URLs.
   */
 final case class DiagramRenderInputs(
     visibleGraph: Signal[ViewerGraph],
     sourceText:   Signal[String],
     // No default on purpose: Mermaid's hide/show/collapse behavior depends on this signal,
     // and a defaulted-false caller would silently disable it.
-    viewDiffersFromSource: Signal[Boolean]
+    viewDiffersFromSource: Signal[Boolean],
+    /** The URL and the size of each image with a path relative to the diagram. A renderer
+      * draws such an image from its URL (see [[LocalImages]]). The source keeps the path.
+      */
+    localImages: Signal[LocalImages] = Signal.fromValue(LocalImages.empty)
 )
 
 /** The state of the drawing that a renderer gives for its inputs.

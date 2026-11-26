@@ -94,8 +94,9 @@ class RoundTripLossSpec extends FunSuite:
   test("mermaid: a directive of another type is flagged"):
     assertEquals(mermaid("%%{wrap}%%\nflowchart LR\n  a --> b"), Set(Directives))
 
-  test("mermaid: click lines, in both forms"):
-    assertEquals(mermaid("flowchart LR\n  a --> b\n  click a \"https://example.com\" \"Open\""), Set(ClickHandlers))
+  test("mermaid: click lines with a callback, in both forms"):
+    // A click line with a link is not flagged, because the graph keeps the link (see MermaidNodeLinkSpec).
+    assertEquals(mermaid("flowchart LR\n  a --> b\n  click a callback \"Open\""), Set(ClickHandlers))
     assertEquals(mermaid("flowchart LR\n  a --> b\n  click b call callback()"), Set(ClickHandlers))
 
   test("mermaid: accessibility text"):
@@ -106,7 +107,7 @@ class RoundTripLossSpec extends FunSuite:
     assertEquals(mermaid("flowchart TD\n  subgraph s\n    direction LR\n    a --> b\n  end"), Set.empty)
 
   test("mermaid: several kinds at once"):
-    val text = "%%{wrap}%%\nflowchart LR\n  %% note\n  a --> b\n  click a \"https://x\""
+    val text = "%%{wrap}%%\nflowchart LR\n  %% note\n  a --> b\n  click a call go()"
     assertEquals(mermaid(text), Set(Directives, ClickHandlers))
 
   test("mermaid: what the model keeps is not flagged"):

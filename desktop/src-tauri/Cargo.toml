@@ -16,7 +16,12 @@ serde_json = "1.0"
 # `DefaultHasher` was a u64 SipHash over a lossily-decoded String — a different
 # algorithm, a different width, and explicitly not stable across Rust releases.
 sha2 = "0.10"
-tauri = { version = "2.1.1", features = ["image-png"] }
+# `protocol-asset`: the page draws an image of a diagram from a path relative
+# to the diagram (`arch.assets/img-3f2a.png`). The scope of the protocol is
+# empty, and `local_image` adds one checked file at a time.
+tauri = { version = "2.1.1", features = ["image-png", "protocol-asset"] }
+# The bytes of a pasted image cross the IPC as base64 text (`write_asset`).
+base64 = "0.22"
 
 # P5 deleted four dependencies along with the loopback HTTP server (D4):
 # tiny_http (the server), base64 + rand (the token it needed), and urlencoding

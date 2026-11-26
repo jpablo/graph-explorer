@@ -1,8 +1,12 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, PastedDiagram}
+import org.jpablo.graphexplorer.viewer.backends.mermaid.isMermaidStateDiagram
+import org.jpablo.graphexplorer.viewer.graph.{InsertItem, NodeInsertion}
+import org.jpablo.graphexplorer.viewer.models.GroupId
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /** Bringing a whole document IN — the mirror of [[ExportOps]], which only ever
@@ -95,9 +99,117 @@ trait ImportOps:
       case Some(pasted) => applyPaste(pasted)
       case None         => infoBus.emit("The clipboard holds no DOT or Mermaid diagram")
 
+  /** The paste gesture (⌘V on the canvas) with the text of the clipboard.
+    *
+    *   - Text that declares a DOT or a Mermaid diagram replaces the diagram ([[pasteDiagramFromGesture]]).
+    *   - Other text becomes a new node, with the text as its label ([[insertItems]]).
+    *   - Blank text, and SVG markup, change nothing. "Copy selection as SVG" is one key away from ⌘V, and its markup is
+    *     not a label.
+    */
+  def pasteTextFromGesture(raw: String): Unit =
+    if PastedDiagram.from(raw).exists(_.declared) || raw.trim.isEmpty || ImportOps.isSvgMarkup(raw) then
+      pasteDiagramFromGesture(raw)
+    else insertItems(Seq(InsertItem.Text(raw)), "paste the text")
+
+  /** The paste gesture with an image on the clipboard. `read` gives the image item. It reads the file, so it is
+    * asynchronous. The refusal comes first, so that a locked diagram does not wait for the read.
+    */
+  def pasteImageFromGesture(read: => Future[InsertItem]): Unit =
+    insertFromGesture("paste the image", image = true, read.map(Seq(_)))
+
+  /** The drop gesture of files on the canvas. `read` gives one item for each file (see `TransferItems.readItems`).
+    * `images` tells if a file is an image, before the read. All the files become nodes in one change, so Undo removes
+    * them in one step.
+    */
+  def dropFilesFromGesture(images: Boolean, read: => Future[Seq[InsertItem]]): Unit =
+    insertFromGesture("drop the files", images, read)
+
+  /** The drop gesture of links (from a browser): a node for each link, with the link as its label and its URL. A
+    * command-click on the node opens the link.
+    */
+  def dropLinksFromGesture(links: Seq[String]): Unit =
+    insertItems(links.map(link => InsertItem.File(link, Some(link))), "drop the link")
+
+  /** The drop gesture of text: a new node with the text as its label.
+    *
+    * Unlike a paste, a drop never replaces the diagram, also for text that declares a diagram: a dropped `.dot` file
+    * also only gives a node. Blank text, and SVG markup, change nothing.
+    */
+  /** The drop gesture of files from the desktop: Tauri gives the paths of the files (see `DesktopDrop`). An image
+    * file becomes an image node, and each other file becomes a node with a link to the file. A command-click on the
+    * node opens the file.
+    */
+  def dropPathsFromGesture(paths: Seq[String]): Unit =
+    if paths.nonEmpty then
+      val images = paths.exists(p => org.jpablo.graphexplorer.viewer.desktop.DesktopFiles.imageTypeOf(p).isDefined)
+      insertFromGesture("drop the files", images, readDroppedPaths(paths))
+
+  def dropTextFromGesture(raw: String): Unit =
+    if raw.trim.isEmpty || ImportOps.isSvgMarkup(raw) then infoBus.emit("Nothing to drop: the drag holds no text")
+    else insertItems(Seq(InsertItem.Text(raw)), "drop the text")
+
+  /** Refuse now, or read the items and add them. `action` names the gesture in the message, for example "drop the
+    * files".
+    */
+  private def insertFromGesture(action: String, image: Boolean, read: => Future[Seq[InsertItem]]): Unit =
+    insertRefusal(action, image) match
+      case Some(message) => errorBus.emit(message)
+      case None =>
+        // A diagram with a file keeps each image as a file next to it (see `LocalFileOps.storeImages`).
+        read.flatMap(storeImages).onComplete:
+          case Success(items) => insertItems(items, action)
+          case Failure(error) => errorBus.emit(s"The viewer did not $action: ${error.getMessage}")
+
+  /** Add a new node for each item, as the New node command adds a node: with no arrow, and in the selected group when
+    * a group is selected. The layout gives the place of each node (see `NodeInsertion`). The new nodes become the
+    * selection. A selected box is its collapsed group: the nodes go into the group, and the box stays selected, as for
+    * New node.
+    *
+    * The edit is one canvas edit, so the printer of the language of the diagram writes the nodes, and Undo removes all
+    * of them in one step. A paste and a drop use this one function.
+    */
+  def insertItems(items: Seq[InsertItem], action: String): Unit =
+    val image = items.exists:
+      case _: InsertItem.Image => true
+      case _                   => false
+    if items.nonEmpty then
+      insertRefusal(action, image) match
+        case Some(message) => errorBus.emit(message)
+        case None =>
+          // The setter of `fullGraphV` can still refuse the edit (a file would lose content). Then the selection stays.
+          val applies = phases.graphEditApplies
+          val target  = selection.targets().ids.headOption
+          val group   = target.collect { case g: GroupId => g }
+          phases.fullGraphV.update: graph =>
+            val (next, ids) = NodeInsertion.insertAll(graph, items, group)
+            // A node in a collapsed group has no shape on the canvas. Then its box stays selected.
+            if applies && !target.exists(hasBox) then selection.set1(ids.toSet)
+            next
+
+  /** Why the gesture `action` (for example "paste the image") cannot add a node now, or `None` when it can. */
+  private def insertRefusal(action: String, image: Boolean): Option[String] =
+    if metadata.now().locked then
+      Some(s"The viewer did not $action, because the diagram is locked. Unlock the diagram to change it.")
+    else
+      loadStatus.now() match
+        case DiagramLoadStatus.RenderOnly(_) =>
+          Some(s"The viewer did not $action, because the diagram is view-only. Change its text instead.")
+        case DiagramLoadStatus.Failed(_) =>
+          Some(s"The viewer did not $action, because the text of the diagram has an error. Correct the text first.")
+        case _ if image && isMermaidStateDiagram(fullGraphNow()) =>
+          Some(s"The viewer did not $action, because a Mermaid state diagram cannot show an image.")
+        case _ => None
+
   private def applyPaste(pasted: PastedDiagram): Unit =
     if metadata.now().locked then
       errorBus.emit("The viewer did not paste the diagram, because the diagram is locked. Unlock the diagram to change it.")
     else
       replaceSource(pasted.source, pasted.format)
       infoBus.emit(s"Pasted ${pasted.format.displayName} diagram from the clipboard")
+
+object ImportOps:
+
+  /** True when `text` is SVG markup, for example the text of "Copy selection as SVG". */
+  def isSvgMarkup(text: String): Boolean =
+    val t = text.trim.toLowerCase
+    t.startsWith("<svg") || (t.startsWith("<?xml") && t.contains("<svg"))

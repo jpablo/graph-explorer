@@ -35,6 +35,8 @@ def SvgCanvas(
     onToggleCollapsed: org.jpablo.graphexplorer.viewer.models.NodeId => Unit = _ => (),
     /** The fold badge's action on an EXPANDED group (collapse it). */
     onCollapseGroup: org.jpablo.graphexplorer.viewer.models.GroupId => Unit = _ => (),
+    /** The action of a click on a link icon: open the URL (see `ViewerState.openLink`). */
+    openLink: String => Unit = url => org.jpablo.graphexplorer.viewer.desktop.ExternalLink.open(url),
     /** Runs once the svg is MOUNTED (viewport anchoring, transitions — anything
       * needing real client geometry). */
     onRendered: dom.svg.SVG => Unit = _ => ()
@@ -221,7 +223,7 @@ def SvgCanvas(
           rawSvg.ref.style.setProperty("max-width", "none")
           rawSvg.ref.style.setProperty("max-height", "none")
           CountBadges.decorate(mainGroup, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
-          LinkBadges.decorate(mainGroup, strategy)
+          LinkBadges.decorate(mainGroup, strategy, openLink)
           onRendered(rawSvg.ref)
         },
         // --------------------------------------------------------
