@@ -40,7 +40,7 @@ object CountBadges:
     * which meant you had to select a group to discover it could fold at all. */
   val activeClass = "gx-badge-active"
 
-  private val layerClass = "gx-badge-layer"
+  private[svgCanvas] val layerClass = "gx-badge-layer"
   private val gidAttr    = "data-gid"
 
   /** The group the pointer is over now. It is parked on the svg rather than in

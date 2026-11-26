@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, NavDirection, RightPanelSection, SaveResult, UndoOps, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, FitMode, NavDirection, RightPanelSection, SaveResult, UndoOps, ViewerState}
 import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot.minimalGraphText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.scalajs.dom.KeyValue
@@ -609,7 +609,28 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Copy a link that holds this diagram")
     )
     val zoomOut = Command("Zoom out", () => state.zoomOut(), always, description = Some("Zoom out the diagram"))
-    val fit     = Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen"))
+    val fit = Command(
+      "Fit",
+      () => state.fitDiagram.emit(FitMode.Page),
+      always,
+      Some(Shortcut("f")),
+      description = Some("Fit the diagram to the screen")
+    )
+    val fitWidth = Command(
+      "Fit width",
+      () => state.fitDiagram.emit(FitMode.Width),
+      always,
+      Some(Shortcut("w")),
+      description = Some("Fit the width of the diagram to the screen")
+    )
+    // ⇧H, because h hides the selection. Structurizr uses h for the height.
+    val fitHeight = Command(
+      "Fit height",
+      () => state.fitDiagram.emit(FitMode.Height),
+      always,
+      Some(Shortcut("h", shift = true)),
+      description = Some("Fit the height of the diagram to the screen")
+    )
     val autoFit = Command("Auto fit", () => state.autoFitToggle(), always, description = Some("Zoom in the diagram"))
     val zoomIn  = Command("Zoom in", () => state.zoomIn(), always, description = Some("Zoom in the diagram"))
     val undo = Command(
@@ -929,6 +950,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     zoom -> List(
       all.zoomOut,
       all.fit,
+      all.fitWidth,
+      all.fitHeight,
       all.zoomIn
     ),
     undoRedo -> List(

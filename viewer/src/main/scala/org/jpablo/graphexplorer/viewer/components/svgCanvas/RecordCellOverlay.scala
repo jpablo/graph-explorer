@@ -15,8 +15,8 @@ import scala.scalajs.js
   * record layout.
   */
 object RecordCellOverlay:
-  private val overlayId = "record-cell-overlay"
-  private val dropId    = "record-cell-drop-overlay"
+  private[svgCanvas] val overlayId = "record-cell-overlay"
+  private[svgCanvas] val dropId    = "record-cell-drop-overlay"
   private val SvgNS     = "http://www.w3.org/2000/svg"
 
   /** The cell outline's width in CLIENT px, written inline rather than left to

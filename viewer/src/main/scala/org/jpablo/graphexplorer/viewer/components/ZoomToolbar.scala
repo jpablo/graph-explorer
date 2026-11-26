@@ -36,11 +36,10 @@ def ZoomToolbar(views: Signal[DiagramView], settings3D: Settings3D, renderers: L
     cls    := "floating-toolbar",
     // ---------- zoom ----------
     Button(span().dashIcon, onClick(_.sample(views)) --> (_.commands.all.zoomOut.execute())).tiny.ghost,
-    Button(
-      // The label is the same for each view, so `distinct` keeps the DOM as it is.
-      text <-- views.map(_.commands.all.fit.shortLabel).distinct,
-      onClick(_.sample(views)) --> (_.commands.all.fit.execute())
-    ).tiny.ghost,
+    // The labels are the same for each view, so `distinct` keeps the DOM as it is.
+    fitButton(views, "zoom-fit", _.all.fit)(text <-- views.map(_.commands.all.fit.shortLabel).distinct),
+    fitButton(views, "zoom-fit-width", _.all.fitWidth)(i(cls := "bi bi-arrows")),
+    fitButton(views, "zoom-fit-height", _.all.fitHeight)(i(cls := "bi bi-arrows-vertical")),
     Button(
       title := "Auto fit",
       "Auto",
@@ -59,6 +58,24 @@ def ZoomToolbar(views: Signal[DiagramView], settings3D: Settings3D, renderers: L
     // The layout picker and navigation toggle only mean something while the
     // 3D scene is up. Switching layouts morphs the drawing live.
     child.maybe <-- settings3D.active.distinct.map(on => Option.when(on)(threeDControls(views, settings3D)))
+  )
+
+/** A button of a fit: Fit, Fit width or Fit height. The tooltip gives the name and the key of the command, for
+  * example "Fit width (w)".
+  */
+private def fitButton(views: Signal[DiagramView], buttonId: String, command: Commands => Command[?])(
+    content: Modifier[HtmlElement]
+) =
+  val tip = views.map(v => command(v.commands)).map(c => c.withShortcut(c.shortLabel)).distinct
+  Tooltip(
+    tip,
+    cls := TooltipPos.top,
+    Button(
+      idAttr := buttonId,
+      aria.label <-- tip,
+      content,
+      onClick(_.sample(views)) --> (v => command(v.commands).execute())
+    ).tiny.ghost
   )
 
 /** The renderer of this diagram (ADR 0002). Auto is the renderer of the language of the source.

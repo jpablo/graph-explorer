@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
 import org.jpablo.graphexplorer.viewer.desktop.ExternalLink
-import org.jpablo.graphexplorer.viewer.state.{EditorNotice, UndoOps, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{CanvasTransform, EditorNotice, FitMode, UndoOps, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils, Platform}
 import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
 
@@ -40,7 +40,28 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // `gx-panning` in style.scss). The wheel listener is on this div, so the
     // pan continues.
     cls("gx-panning") <-- state.panning,
-    state.fitDiagram.events --> state.resetView(),
+    // A fit needs the size of the SVG box and the bounds of the drawing (see `CanvasFit`). The drawing is the SVG
+    // child of this div. The state has no DOM, thus this div gives the measure to the state while it is mounted.
+    // Fit (f, the Fit button, `gx fit`) then measures through `resetView`. In 3D, no SVG child shows: Fit uses the
+    // fallback of the state, and the scene does its own fit.
+    inContext: container =>
+      def fitOf(mode: FitMode): Option[CanvasTransform] =
+        Option(container.ref.querySelector(":scope > svg"))
+          .flatMap(el => CanvasFit.transform(el.asInstanceOf[dom.svg.SVG], mode))
+      var unregister = () => ()
+      Seq(
+        onMountUnmountCallback(
+          mount = _ => unregister = state.measureFitWith(fitOf),
+          unmount = _ =>
+            unregister()
+            unregister = () => ()
+        ),
+        state.fitDiagram.events --> {
+          case FitMode.Page => state.resetView()
+          case mode         => fitOf(mode).foreach(state.fitAxis)
+        }
+      )
+    ,
     // the main canvas!! Either the engine's SVG or the experimental three.js
     // scene — a fresh Scene3D per toggle-on, so 3D state never outlives the
     // mode. view3DActive, not view3D: disabling the 3D feature in Preferences
@@ -74,23 +95,16 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     child.maybe <-- state.hoveredLink.signal.map(_.map(LinkStatus)),
     cls("gx-links-revealed") <-- linksRevealed.signal.distinct,
     documentEvents(_.onKeyDown) --> { e => if isCommandKeyName(e.key) then linksRevealed.set(true) },
-    // ⌘Z and ⇧⌘Z when the focus is not on the canvas: on a button of the toolbar
-    // or of a panel, for example after a click on Hide. The canvas handles its own
-    // keys and stops them. A text field, the source editor and a dialog keep theirs.
-    documentEvents(_.onKeyDown) --> { e =>
-      val elsewhere =
-        !e.defaultPrevented && !UndoOps.isEditable(e.target) &&
-          !(e.target match
-            case el: org.scalajs.dom.Element => el.matches("dialog[open], dialog[open] *")
-            case _                           => false
-          )
-      if elsewhere && UndoOps.isUndoKey(e) then
-        e.preventDefault()
-        state.history.undo()
-      else if elsewhere && UndoOps.isRedoKey(e) then
-        e.preventDefault()
-        state.history.redo()
-    },
+    // The keys of the canvas when the focus is not on the canvas. After a diagram opens, the focus is on the body.
+    // After a click on a button of the toolbar or of a panel, the focus is on the button. The canvas handles its own
+    // keys below, thus this listener ignores a key from inside the canvas. This listener also gives ⌘Z and ⇧⌘Z to
+    // the history when the focus is on a button. See `routesToCanvas` for the keys that stay with their owners.
+    // A board item shows only the drawing and has no canvas, and the workspace mounts one canvas. The check of
+    // `embedded` makes sure that an embedded view never takes the keys of the page.
+    inContext: container =>
+      documentEvents(_.onKeyDown).filter(e => !state.embedded && routesToCanvas(e, container.ref)) -->
+        commands.handleKeyDown
+    ,
     documentEvents(_.onKeyUp) --> { e => if isCommandKeyName(e.key) then linksRevealed.set(false) },
     // A window that loses the focus while the key is down (⌘-Tab) gets no
     // key-up. A blur ends the state, and each mouse move gives the real state.
@@ -102,6 +116,8 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // TODO: this makes the "ArrowFromSourceToPointer" disappear when the focus is lost.
     // Perhaps the solution is to make sure the focus is not lost when clicking on the arrow?
 //    onBlur --> state.mouseAction.inactive(),
+    // The keys of the canvas when the canvas has the focus. A handled key stops here, and the document-level
+    // listener above ignores a key from inside the canvas. Thus a key runs its command one time.
     onKeyDown --> commands.handleKeyDown,
     // ⌘V / Ctrl+V, bound as the browser's own PASTE EVENT rather than as a
     // keyboard shortcut in `handleKeyDown`. Three things fall out of that:
@@ -167,6 +183,41 @@ private def gestureNumber(e: dom.Event, name: String): Option[Double] =
   val v = e.asInstanceOf[js.Dynamic].selectDynamic(name)
   if js.typeOf(v) == "number" then Some(v.asInstanceOf[Double]).filter(x => !x.isNaN && !x.isInfinite)
   else None
+
+/** The keys that a focused control uses: the browser clicks a button on Enter or Space, and moves in a group or
+  * scrolls the panel on an arrow key.
+  */
+private val controlKeys = Set("Enter", " ", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight")
+
+/** The elements that the browser or ARIA treats as an interactive control. */
+private val controlSelector =
+  "button, a[href], summary, [role=button], [role=link], [role=menuitem], [role=menuitemcheckbox], " +
+    "[role=menuitemradio], [role=tab], [role=option], [role=checkbox], [role=radio], [role=switch], " +
+    "[role=slider], [role=spinbutton], [role=listbox], [role=menu], [role=menubar], [role=tablist], " +
+    "[role=radiogroup], [role=tree], [role=treeitem], [role=grid]"
+
+/** True when the document-level listener gives the key `e` to the commands of the canvas.
+  *
+  * The key stays with its owner in these cases:
+  *   - A different listener handled the key (it called `preventDefault`).
+  *   - The key comes from inside the canvas. The canvas has its own listener, and a second call runs the command two
+  *     times.
+  *   - The focus is on a text field, a text area, a select, or an element with editable content (the source editor,
+  *     the label editor, the search of the command palette, the filter of the element list).
+  *   - The focus is inside an open dialog.
+  *   - The key is Escape inside the element list, which closes the list.
+  *   - The focus is on a button, a link or another control, and the key is one of `controlKeys`.
+  */
+private[svgCanvas] def routesToCanvas(e: dom.KeyboardEvent, canvas: dom.Element): Boolean =
+  !e.defaultPrevented && (e.target match
+    case el: dom.Element =>
+      !canvas.contains(el) &&
+        !UndoOps.isEditable(el) &&
+        el.closest("dialog[open]") == null &&
+        !(e.key == "Escape" && el.closest("#elements-list") != null) &&
+        !(controlKeys(e.key) && el.matches(controlSelector))
+    case _ => true
+  )
 
 /** True when `key` (a `KeyboardEvent.key`) is the command key of the platform. */
 private def isCommandKeyName(key: String): Boolean =

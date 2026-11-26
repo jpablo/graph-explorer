@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.LayoutTransition
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.{CanvasFit, LayoutTransition}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId}
 import org.scalajs.dom
 
@@ -87,7 +87,9 @@ trait LayoutStabilityOps:
     // Under auto-fit, FIT is the framing policy: re-frame the new drawing now
     // (synchronously, pre-paint) and let the transition glide elements from
     // their old screen positions into the refit frame. Anchoring stands aside.
-    if autoFit.now() then resetView()
+    // The fit measures `newSvg` itself. The transition has not started yet,
+    // so each element is at its new place.
+    if autoFit.now() then resetView(CanvasFit.transform(newSvg, FitMode.Page))
     else
       pendingAnchor.foreach { (id, oldX, oldY) =>
         SelectableElement

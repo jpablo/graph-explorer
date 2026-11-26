@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.LabelSummary
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.layout3d.{DotPlanar3D, ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D, PlanarHints, Vec3}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
-import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.{FitMode, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.{Button, RangeSlider, ghost, tiny}
 import org.scalajs.dom
 
@@ -48,7 +48,7 @@ def Scene3D(state: ViewerState, scene: GraphScene3D): Div =
     // The toolbar's Auto and Fit speak to the 3D camera exactly as they do to
     // the 2D transform.
     state.autoFit.signal --> scene.setAutoFit,
-    state.fitDiagram.events --> (_ => scene.fitNow()),
+    state.fitDiagram.events --> scene.fitNow,
     state.face3DFront.events --> (_ => scene.faceFront()),
     // Labels bake theme colors into their textures at paint time, so a theme
     // switch must repaint them. setTheme's own observer registered first, so
@@ -1017,8 +1017,8 @@ final class GraphScene3D(state: ViewerState):
 
   def setAutoFit(on: Boolean): Unit = autoFitOn = on
 
-  /** One-shot exact fit — the toolbar's Fit button. */
-  def fitNow(): Unit = fitCamera(1.0)
+  /** One-shot exact fit — the toolbar's Fit button, and Fit width and Fit height. */
+  def fitNow(mode: FitMode): Unit = fitCamera(1.0, mode)
 
   /** Snap orthogonal to the drawing plane: view straight down −z with a level
     * horizon, then exact-fit. The trackball's freedom means there is no force
@@ -1088,7 +1088,7 @@ final class GraphScene3D(state: ViewerState):
     * it; alpha = 1 snaps (fresh graph load). The fog rides along: clear
     * through the drawing's front face, fading behind it.
     */
-  private def fitCamera(alpha: Double): Unit =
+  private def fitCamera(alpha: Double, mode: FitMode = FitMode.Page): Unit =
     if layout.positions.nonEmpty && !renderer.xr.isPresenting then
       locally:
         val target0 = orbitTarget
@@ -1147,7 +1147,15 @@ final class GraphScene3D(state: ViewerState):
         val (aX1, bX1, aY1, bY1) = solveAbout(roughCenter)
         val center1 =
           roughCenter + right * (tanH * (aX1 - bX1) / 2) + up * (tanV * (aY1 - bY1) / 2)
-        val dist1 = math.max(2.0, math.max((aX1 + bX1) / 2, (aY1 + bY1) / 2))
+        // The distance that fits the axes of the mode: both for Fit, one for Fit width and Fit height.
+        def distFor(aX: Double, bX: Double, aY: Double, bY: Double) =
+          val w = (aX + bX) / 2
+          val h = (aY + bY) / 2
+          mode match
+            case FitMode.Page   => math.max(w, h)
+            case FitMode.Width  => w
+            case FitMode.Height => h
+        val dist1 = math.max(2.0, distFor(aX1, bX1, aY1, bY1))
 
         // Refinement: equal world-space slack is not equal PROJECTED slack
         // when the extreme pills sit at different depths (measured 0.14 NDC of
@@ -1172,7 +1180,7 @@ final class GraphScene3D(state: ViewerState):
             up * ((minNY + maxNY) / 2 * dist1 * tanV)
         val (aX2, bX2, aY2, bY2) = solveAbout(center)
         val fitDist =
-          math.max(2.0, math.max((aX2 + bX2) / 2, (aY2 + bY2) / 2)) * 1.04
+          math.max(2.0, distFor(aX2, bX2, aY2, bY2)) * 1.04
 
         val newTarget = target0 + (center - target0) * alpha
         val newDist   = dirRaw.length + (fitDist - dirRaw.length) * alpha

@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, SvgPoint}
+import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
 
 trait SvgTransformOps:
   this: ViewerState =>
@@ -45,7 +45,23 @@ trait SvgTransformOps:
   // drawing directly.
   val autoFit = Var(!embedded)
 
-  val fitDiagram = EventBus[Unit]()
+  /** Fit, Fit width and Fit height. The 2D canvas and the 3D scene do the fit, because they know their size. */
+  val fitDiagram = EventBus[FitMode]()
+
+  /** The measure of the fit of the drawing. The 2D canvas sets it when it mounts (see [[measureFitWith]]). It is
+    * empty when no canvas is mounted, for example in an embedded view (an item of a board). The measure itself gives
+    * no transform when the canvas has no SVG: before the first render, and in 3D.
+    */
+  private var fitMeasure = Option.empty[FitMode => Option[CanvasTransform]]
+
+  /** The canvas gives the measure of a fit (see `CanvasFit`). [[resetView]] needs it, because the state has no DOM.
+    *
+    * @return
+    *   the function that removes the measure. It does nothing when a different canvas set a newer measure.
+    */
+  def measureFitWith(measure: FitMode => Option[CanvasTransform]): () => Unit =
+    fitMeasure = Some(measure)
+    () => if fitMeasure.exists(_ eq measure) then fitMeasure = None
 
   def autoFitToggle() =
     autoFit.update(!_)
@@ -139,13 +155,39 @@ trait SvgTransformOps:
 
   // ---- entry points ------------------------------------------------------
 
+  /** Fit width or Fit height: put the drawing at `target` (see [[CanvasTransform.fit]]).
+    *
+    * Auto goes off. Else the next layout fits all of the drawing again.
+    */
+  def fitAxis(target: CanvasTransform): Unit =
+    userMoved()
+    setPanNow(target.pan)
+    Var.set(
+      zoomValue   -> target.zoom,
+      translateXY -> target.pan
+    )
+
+  /** Fit: all of the drawing, with a margin of [[CanvasTransform.FitMarginPx]] (see [[CanvasTransform.fit]]).
+    *
+    * The canvas measures the drawing (see [[measureFitWith]]). Without a measure (no canvas, a canvas with no size,
+    * the 3D view), the fit is [[CanvasTransform.fallback]]. Auto stays as it is.
+    */
   def resetView(): Unit =
+    resetView(fitMeasure.flatMap(_(FitMode.Page)))
+
+  /** Fit to `target`, a fit that the caller measured. An empty `target` gives [[CanvasTransform.fallback]].
+    *
+    * The fit after a layout gives the target of the NEW svg. Then the measure does not depend on the order in which
+    * the new svg and the old svg go in and out of the canvas.
+    */
+  def resetView(target: Option[CanvasTransform]): Unit =
+    val fit = target.getOrElse(CanvasTransform.fallback)
     // A fit is a DESTINATION, not a gesture. A glide to it would move the
     // whole drawing across the canvas on every re-layout under auto-fit.
-    setPanNow(SvgPoint.origin)
+    setPanNow(fit.pan)
     Var.set(
-      zoomValue   -> SvgTransformOps.FitZoom,
-      translateXY -> SvgPoint.origin
+      zoomValue   -> fit.zoom,
+      translateXY -> fit.pan
     )
 
   /** Cancel a CLIENT-space delta (px) EXACTLY: content that moved right by
@@ -258,8 +300,80 @@ final case class CanvasTransform(zoom: Double, pan: SvgPoint) derives CanEqual:
   /** The value of the `transform` attribute of the drawing group. */
   def css: String = s"scale($zoom) translate(${pan.x} ${pan.y})"
 
+object CanvasTransform:
+
+  /** The margin between the drawing and each edge of the SVG box after a fit, in CSS px. */
+  val FitMarginPx = 8.0
+
+  /** The fit when the canvas cannot measure the drawing: the viewBox at 90%, at the center. */
+  val fallback: CanvasTransform = CanvasTransform(SvgTransformOps.FitZoom, SvgPoint.origin)
+
+  /** The transform of a fit of the drawing.
+    *
+    * The SVG shows its viewBox as large as its box allows ("meet"), and a zoom of 1 shows all of the viewBox. The
+    * zoom scales around the center c of the viewBox (see `CanvasRoot.centerScaleOrigin`). Thus the transform draws a
+    * user point p at (box center) + meet · zoom · (p + pan − c), in px.
+    *
+    * The fit uses the bounds of the drawing, not the viewBox. The viewBox can have padding around the drawing.
+    *
+    *   - [[FitMode.Page]]: the Fit button. All of the drawing, as large as the box minus the margins allows.
+    *   - [[FitMode.Width]]: the width of the drawing is the width of the box minus the two margins.
+    *   - [[FitMode.Height]]: the height of the drawing is the height of the box minus the two margins.
+    *
+    * On each axis, a drawing that fits between the margins is at the center. A drawing that is larger than the box
+    * shows its start at the margin: its top after Fit width, its left side after Fit height.
+    *
+    * @param boxW    the width of the SVG box, in px
+    * @param boxH    the height of the SVG box, in px
+    * @param viewBox the viewBox, in user units
+    * @param drawing the bounds of the drawing, in user units (the space inside the drawing group)
+    * @param margin  the margin at each edge, in px
+    */
+  def fit(
+      mode:    FitMode,
+      boxW:    Double,
+      boxH:    Double,
+      viewBox: BBox,
+      drawing: BBox,
+      margin:  Double = FitMarginPx
+  ): CanvasTransform =
+    if boxW <= 0 || boxH <= 0 || viewBox.width <= 0 || viewBox.height <= 0 then fallback
+    else
+      // A drawing with no size (no marks, or one point) fits as its viewBox.
+      val d = if drawing.width > 0 || drawing.height > 0 then drawing else viewBox
+      // px for each user unit at a zoom of 1.
+      val meet   = math.min(boxW / viewBox.width, boxH / viewBox.height)
+      val availW = (boxW - 2 * margin) max 1
+      val availH = (boxH - 2 * margin) max 1
+      // px for each user unit that fits the width, and the height. A line has no size on one axis.
+      val kx   = if d.width > 0 then availW / d.width else Double.PositiveInfinity
+      val ky   = if d.height > 0 then availH / d.height else Double.PositiveInfinity
+      val page = kx min ky
+      val k = mode match
+        case FitMode.Page   => page
+        case FitMode.Width  => if kx.isInfinite then page else kx
+        case FitMode.Height => if ky.isInfinite then page else ky
+      // The pan on one axis. A drawing that fits between the margins goes to the center. A larger one puts its start
+      // at the margin.
+      def axisPan(boxLen: Double, avail: Double, start: Double, len: Double, center: Double): Double =
+        if k * len > avail * (1 + 1e-9) then (margin - boxLen / 2) / k - start + center
+        else center - (start + len / 2)
+      CanvasTransform(
+        k / meet,
+        SvgPoint(
+          axisPan(boxW, availW, d.x, d.width, viewBox.x + viewBox.width / 2),
+          axisPan(boxH, availH, d.y, d.height, viewBox.y + viewBox.height / 2)
+        )
+      )
+
+/** The kinds of fit: all of the drawing (the Fit button), its width, or its height. */
+enum FitMode derives CanEqual:
+  case Page, Width, Height
+
 private[state] object SvgTransformOps:
-  /** The zoom of the Fit button. It is also the zoom when a diagram opens. */
+  /** The zoom of a fit with no measure of the drawing (see [[CanvasTransform.fallback]]). It is also the zoom of a
+    * diagram before its first render.
+    */
   val FitZoom = 0.90
 
   def anchoredPan(currentPan: SvgPoint, anchor: SvgPoint, origin: SvgPoint, oldZoom: Double, newZoom: Double): SvgPoint =
