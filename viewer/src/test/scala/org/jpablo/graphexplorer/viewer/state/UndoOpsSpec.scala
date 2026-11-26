@@ -213,7 +213,10 @@ class UndoOpsSpec extends FunSuite with TestHelpers with LoggedChecks:
       v.state.selection.hide()
       val content = box.querySelector(".cm-content")
       check(content != null, "precondition: no source editor")
-      val init = js.Dynamic.literal(key = "z", metaKey = true, ctrlKey = !dom.window.navigator.platform.toLowerCase.contains("mac"), bubbles = true, cancelable = true)
+      // The undo key of the platform: ⌘Z on the Mac, Ctrl+Z on Linux (the CI). CodeMirror reads ⌘ and Ctrl
+      // together as `Meta-Ctrl-z`, which is not the undo key.
+      val mac  = dom.window.navigator.platform.toLowerCase.contains("mac")
+      val init = js.Dynamic.literal(key = "z", metaKey = mac, ctrlKey = !mac, bubbles = true, cancelable = true)
       content.dispatchEvent(new dom.KeyboardEvent("keydown", init.asInstanceOf[dom.KeyboardEventInit]))
       val shown = !v.hidden.contains(c)
       root.unmount()
