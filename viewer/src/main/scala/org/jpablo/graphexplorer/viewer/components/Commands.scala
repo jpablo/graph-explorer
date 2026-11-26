@@ -76,8 +76,11 @@ case class Command[-A](
     shortcut:           Option[Shortcut] = None,
     description:        Option[String] = None
 ):
-  def labelWithShortcut =
-    description.getOrElse(shortLabel) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
+  def labelWithShortcut = withShortcut(description.getOrElse(shortLabel))
+
+  /** The text, and then the shortcut of the command in parentheses, if it has one. */
+  def withShortcut(text: String): String =
+    text + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
 
   def execute(arg: Option[A] = None, logEvent: Boolean = true): Unit =
     // Log to GA — unless the caller marks this as a repeat (a held-down arrow

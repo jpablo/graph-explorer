@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePrevi
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.minimal.defaultNodeTheme
 import org.jpablo.graphexplorer.viewer.models.Attributes
-import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.{UndoOps, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.Platform
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -62,18 +62,28 @@ def Toolbar(
     */
   def viewTip(tip: DiagramView => String): Signal[String] = views.map(tip).distinct
 
-  /** An icon button whose tooltip and action come from the current view. */
-  def viewIconButton(icon: String, tip: DiagramView => String)(action: ViewAction): Div =
-    val text = viewTip(tip)
+  /** An icon button for a step of the history of the current view.
+    *
+    * The button is disabled when the history has no step for it. The tooltip names the step, for example "Undo
+    * Hide", or says `empty` ("Nothing to undo").
+    */
+  def historyButton(icon: String, buttonId: String, verb: String, empty: String)(
+      command: Commands => Command[?],
+      step:    UndoOps => Signal[Option[String]]
+  ): Div =
+    val steps = views.flatMapSwitch(v => step(v.state.history).map(s => (v, s)))
+    val text  = steps.map((v, s) => command(v.commands).withShortcut(s.fold(empty)(label => s"$verb $label"))).distinct
     Tooltip(
       text,
       cls := TooltipPos.bottom,
       button(
-        typ := "button",
-        cls := "gx-icon-btn",
+        typ    := "button",
+        idAttr := buttonId,
+        cls    := "gx-icon-btn",
         aria.label <-- text,
+        disabled <-- steps.map(_._2.isEmpty).distinct,
         i(cls := icon),
-        onClick(_.sample(views)) --> action
+        onClick(_.sample(views)) --> (v => command(v.commands).execute())
       )
     )
 
@@ -267,8 +277,8 @@ def Toolbar(
       CommandsPanel(views, isMac).amend(cls := "hidden lg:block"),
       div(
         cls := "gx-tool-group",
-        viewIconButton("bi-arrow-counterclockwise", _.commands.all.undo.labelWithShortcut)(_.commands.all.undo.execute()),
-        viewIconButton("bi-arrow-clockwise", _.commands.all.redo.labelWithShortcut)(_.commands.all.redo.execute())
+        historyButton("bi-arrow-counterclockwise", "toolbar-undo", "Undo", "Nothing to undo")(_.all.undo, _.undoLabel),
+        historyButton("bi-arrow-clockwise", "toolbar-redo", "Redo", "Nothing to redo")(_.all.redo, _.redoLabel)
       ),
       PanelSectionToggles(views.map(_.state)).amend(cls := "gx-tool-group"),
       Dropdown(

@@ -509,6 +509,11 @@ svg {
   &.danger:hover {
     @apply bg-error/15 text-error;
   }
+
+  // A button with nothing to do, for example Undo with no step. Written last, so that it wins over `:hover`.
+  &:disabled {
+    @apply cursor-default bg-transparent text-base-content/25;
+  }
 }
 
 // "You are here" in a list of things you can open. Same signal `.gx-icon-btn.active` uses —
