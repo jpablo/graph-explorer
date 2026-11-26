@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.state.{MetadataOps, ViewerState}
+import org.jpablo.graphexplorer.viewer.widgets.{InputField, InputVariant, TextAreaField, TextAreaVariant}
 import org.scalajs.dom
 
 import scala.scalajs.js
@@ -41,9 +42,10 @@ object DiagramAboutView:
         cls := "gx-tag-list",
         children <-- ops.tags.signal.split(identity)((tag, _, _) => chip(ops, tag))
       ),
-      input(
+      InputField(
+        InputVariant.xs,
         idAttr      := "diagram-tag-input",
-        cls         := "input input-xs gx-tag-input",
+        cls         := "gx-tag-input",
         typ         := "text",
         placeholder := "Add a tag, then press Enter",
         controlled(value <-- draft.signal, onInput.mapToValue --> draft),
@@ -85,9 +87,10 @@ object DiagramAboutView:
     div(
       cls := "gx-about-field",
       label(cls := "gx-about-label", forId := "diagram-notes", "Notes"),
-      textArea(
+      // `amend` keeps the type of the element, so the handlers below can read the text.
+      TextAreaField(TextAreaVariant.xs).amend(
         idAttr      := "diagram-notes",
-        cls         := "textarea textarea-xs gx-notes",
+        cls         := "gx-notes",
         rows        := 3,
         placeholder := "Notes about this diagram",
         value <-- ops.notes.signal.composeChanges(_.filter(_ => !focused.now())),

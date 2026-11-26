@@ -60,6 +60,15 @@ object InputVariant:
   val sm: Mods    = cls := "input-sm"
   val ghost: Mods = cls := "input-ghost"
 
+/** Bare daisyUI textarea for call sites that set the size themselves (the
+  * notes box of the Diagram panel). */
+def TextAreaField(mods: Mods*) =
+  textArea(cls := "textarea", mods)
+
+/** The textarea family's variant tokens (see [[SelectVariant]]). */
+object TextAreaVariant:
+  val xs: Mods = cls := "textarea-xs"
+
 /** daisyUI's boxed input: a `label.input` that lays out icons/affixes around a
   * `grow` inner input (the library search, the command palette). */
 def InputBox(mods: Mods*) =
