@@ -212,8 +212,8 @@ class NodeDragSpec extends FunSuite with TestHelpers with LoggedChecks with Canv
             Some(s"the node does not follow the pointer: transform=${g.getAttribute("transform")}")
           else None
       check(duringOk.isEmpty, duringOk.getOrElse(""))
-      // The old node stays at the drop place until the new svg replaces it, so that the layout transition starts
-      // there. The release must not put the node back first: the layout changes after the event handler.
+      // The old node stays at the drop place until the new svg replaces it, so that the screen never shows it at its
+      // old place. The release must not put the node back first: the layout changes after the event handler.
       val dropped = Option(oldA.getAttribute("transform"))
       check(dropped.exists(_.contains("translate")), s"the release put the node back before the new render: $dropped")
       redrawn(canvas, before, a).map: _ =>
@@ -506,5 +506,81 @@ class NodeDragSpec extends FunSuite with TestHelpers with LoggedChecks with Canv
           redrawn(canvas, before2, a).map: _ =>
             val a2 = centerOf(shapeOf(canvas.nodeGroup(a).get))
             check(math.abs(a2._2 - (a1._2 - grid * scale)) <= 1.5, s"Shift+Up did not move the node up on the screen: ${a1._2} -> ${a2._2}")
+
+  // ------------------------------------------------------------ the release, with the layout animation on (as the app)
+
+  /** The route of each arrow: its id, the `d` of its drawn path, and the `d` of its hit area. */
+  private def routes(canvas: TestCanvas): Seq[(String, String, String)] =
+    canvas.box
+      .querySelectorAll("g.edge")
+      .toSeq
+      .collect { case g: dom.Element => g }
+      .map: g =>
+        val drawn = Option(g.querySelector("path:not(.edge-hit-area)")).map(_.getAttribute("d")).getOrElse("")
+        val hit   = Option(g.querySelector("path.edge-hit-area")).map(_.getAttribute("d")).getOrElse("")
+        (g.id, drawn, hit)
+
+  /** A canvas of a free layout with the layout animation on, as the app has it. The body starts after the
+    * animation of Freeze ends.
+    */
+  private def withAnimatedFreeCanvas(source: String, first: NodeId)(body: TestCanvas => Future[Unit]): Future[Unit] =
+    withCanvas(source, first): canvas =>
+      sizeLikeApp(canvas)
+      check(canvas.state.animateLayoutChanges.now(), "precondition: the layout animation is off")
+      check(!LayoutTransition.reducedMotion, "precondition: the test browser asks for reduced motion")
+      freeze(canvas, first).flatMap(_ => Waits.after(600)).flatMap(_ => body(canvas))
+
+  // Found in the desktop app on 2026-11-27 (a screen recording). During a drag, dotted lines follow the node, and
+  // the arrows of the old drawing stay at their old routes. The release drew each arrow first at its OLD route, to
+  // the place of the node before the drag, and then animated it to the new route. In the manual mode the person
+  // puts each node, so the release must show the new drawing at once.
+  test("the release of a drag in a free layout draws each arrow at its new route at once, with no animation"):
+    withAnimatedFreeCanvas(dot, a): canvas =>
+      val before = canvas.svg
+      drag(canvas, d, 80, 40)()
+      redrawn(canvas, before, a).map: _ =>
+        // `redrawn` waits 30 ms after the new svg: the animation (300 ms) of a layout change runs at that time.
+        val transitioning = canvas.svg.classList.contains(LayoutTransition.transitioningClass)
+        val stale         = routes(canvas).filter((_, drawn, hit) => drawn != hit)
+        check(
+          !transitioning && stale.isEmpty,
+          s"after the release, the arrows animate from their old routes: transitioning=$transitioning; arrows not at " +
+            s"their new route: ${stale.map((id, drawn, hit) => s"$id drawn=${drawn.take(40)} hit=${hit.take(40)}").mkString("; ")}"
+        )
+
+  // Found in the same recording: after a drop near the top edge of the visible area, the whole drawing jumped up and
+  // grew, and then it came back to the old view. In the manual mode the view must not change after a drop, not even
+  // for a moment: the person zooms or pans when they want.
+  test("a drop beyond the edge of the drawing keeps the view: each other node keeps its place and size on the screen"):
+    withAnimatedFreeCanvas(dot, d): canvas =>
+      val others = Seq(b, c, d)
+      def boxes: Map[NodeId, (Double, Double, Double, Double)] =
+        others
+          .map: id =>
+            val r = shapeOf(canvas.nodeGroup(id).get).getBoundingClientRect()
+            id -> (r.left, r.top, r.width, r.height)
+          .toMap
+      def moved(boxes0: Map[NodeId, (Double, Double, Double, Double)], boxes1: Map[NodeId, (Double, Double, Double, Double)]) =
+        others.filter: id =>
+          val (l0, t0, w0, h0) = boxes0(id)
+          val (l1, t1, w1, h1) = boxes1(id)
+          math.abs(l1 - l0) > 1 || math.abs(t1 - t0) > 1 || math.abs(w1 - w0) > 1 || math.abs(h1 - h0) > 1
+      def report(at: String, boxes0: Map[NodeId, (Double, Double, Double, Double)], boxes1: Map[NodeId, (Double, Double, Double, Double)]) =
+        s"the view changed $at the drop: these nodes moved or changed size on the screen: " +
+          moved(boxes0, boxes1).map(id => s"$id ${boxes0(id)} -> ${boxes1(id)}").mkString("; ")
+      val boxes0 = boxes
+      val before = canvas.svg
+      // Up, past the top edge of the drawing and of the canvas: the drawing grows at the top.
+      val top = shapeOf(canvas.nodeGroup(a).get).getBoundingClientRect().top - canvas.box.getBoundingClientRect().top
+      drag(canvas, a, 40, -(top + 40))()
+      redrawn(canvas, before, d)
+        .flatMap: _ =>
+          // Right after the new svg (`redrawn` waits 30 ms): the time of the jump in the recording.
+          val early = boxes
+          check(moved(boxes0, early).isEmpty, report("right after", boxes0, early))
+          Waits.after(600)
+        .map: _ =>
+          val late = boxes
+          check(moved(boxes0, late).isEmpty, report("after", boxes0, late))
 
 end NodeDragSpec

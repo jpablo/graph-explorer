@@ -76,6 +76,37 @@ object LayoutTransition:
     val r = el.getBoundingClientRect()
     (r.left + r.width / 2, r.top + r.height / 2, r.width, r.height)
 
+  /** The marks of the selection that are children of a selected element (see `SelectableElement.select`). */
+  private val selectionMarkSelector =
+    s":scope > rect.${SelectableElement.selectionRectClass}, :scope > rect.${SelectableElement.selectionCasingClass}"
+
+  /** The client rect of `el` without the marks of the selection, as (center x, center y, width, height).
+    *
+    * The marks are outside the border of the element, at a fixed distance in px (see `SelectionCasing`). Thus the
+    * size of a marked box does not change in proportion to the size of the element. A tween that scales a selected
+    * node by the ratio of its marked boxes gave the node a wrong size and place at frame 0. The marks are at the same
+    * distance on each side, so the center does not change.
+    *
+    * An element with no marks gives its client rect.
+    */
+  private def unmarkedBox(el: dom.Element): (Double, Double, Double, Double) =
+    val marks = el.querySelectorAll(selectionMarkSelector)
+    if marks.length == 0 then clientBox(el)
+    else
+      val markSet = marks.toSet
+      val rects =
+        el.children.toSeq
+          .filterNot(markSet.contains)
+          .map(_.getBoundingClientRect())
+          .filter(r => r.width > 0 || r.height > 0)
+      if rects.isEmpty then clientBox(el)
+      else
+        val left   = rects.map(_.left).min
+        val top    = rects.map(_.top).min
+        val right  = rects.map(_.right).max
+        val bottom = rects.map(_.bottom).max
+        ((left + right) / 2, (top + bottom) / 2, right - left, bottom - top)
+
   /** `boxes` are client rects (cx, cy, w, h): the size channel of the morph is
     * PER ELEMENT (old measured size over new measured size), which covers both
     * the global frame rescale and elements whose intrinsic size changed (a
@@ -86,6 +117,7 @@ object LayoutTransition:
     * was a very visible pop).
     */
   final case class Snapshot(
+      // Without the marks of the selection (see [[unmarkedBox]]). A tween measures the new element in the same way.
       boxes:     Map[String, (Double, Double, Double, Double)],
       edges:     Map[String, Vector[(Double, Double)]],
       edgeParts: Map[String, (Double, Double, Double, Double)],
@@ -95,6 +127,9 @@ object LayoutTransition:
       // which placed every exit ghost at raw old-layout coordinates — visibly
       // displaced (typically to the right) before fading.
       ghostBBoxes: Map[String, (Double, Double, Double, Double)],
+      // The client rect of each element WITH the marks of the selection. An exit ghost keeps its marks, and
+      // `ghostBBoxes` includes them, so the ghost uses this rect.
+      ghostBoxes: Map[String, (Double, Double, Double, Double)],
       sheet:     Option[(Double, Double, Double, Double)]
   ):
     def isEmpty: Boolean = boxes.isEmpty && edges.isEmpty
@@ -179,17 +214,19 @@ object LayoutTransition:
       (if n == 0 then id else s"$id##s$n", se)
 
   def capture(oldSvg: dom.svg.SVG, strategy: SelectableElementStrategy): Snapshot =
-    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, None)
+    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, None)
     val els         = SelectableElement.findAll(oldSvg, strategy)
     val boxes       = Map.newBuilder[String, (Double, Double, Double, Double)]
     val edges       = Map.newBuilder[String, Vector[(Double, Double)]]
     val edgeParts   = Map.newBuilder[String, (Double, Double, Double, Double)]
     val ghosts      = Map.newBuilder[String, dom.Element]
     val ghostBBoxes = Map.newBuilder[String, (Double, Double, Double, Double)]
+    val ghostBoxes  = Map.newBuilder[String, (Double, Double, Double, Double)]
     correlationKeys(els).foreach { (key, se) =>
       ghosts += key -> se.ref
       val bb = se.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
       ghostBBoxes += key -> (bb.x, bb.y, bb.width, bb.height)
+      ghostBoxes += key -> clientBox(se.ref)
       if se.arrowId.isDefined then
         edgePathOf(se.ref).foreach { path =>
           for ctm <- ctmOf(path); samples <- samplePath(path) do
@@ -201,14 +238,14 @@ object LayoutTransition:
         se.ref.querySelectorAll("polygon, ellipse").zipWithIndex.foreach { (h, i) =>
           edgeParts += edgeHeadKey(key, i) -> clientBox(h)
         }
-        boxes += key -> clientBox(se.ref) // fallback correlation for edges without a path
-      else boxes += key -> clientBox(se.ref)
+        boxes += key -> unmarkedBox(se.ref) // fallback correlation for edges without a path
+      else boxes += key -> unmarkedBox(se.ref)
     }
     val sheet = sheetOf(oldSvg).map { p =>
       val r = p.getBoundingClientRect()
       (r.left, r.top, r.width, r.height)
     }
-    Snapshot(boxes.result(), edges.result(), edgeParts.result(), ghosts.result(), ghostBBoxes.result(), sheet)
+    Snapshot(boxes.result(), edges.result(), edgeParts.result(), ghosts.result(), ghostBBoxes.result(), ghostBoxes.result(), sheet)
 
   /** Start the transition on the NEW svg (mounted, transform applied).
     * Returns a cancel function, or None when there is nothing to animate.
@@ -324,7 +361,7 @@ object LayoutTransition:
     def rectTween(el: dom.Element, old: (Double, Double, Double, Double)): Unit =
       ctmOf(el).foreach { ctm =>
         val (oldX, oldY, oldW, oldH)     = old
-        val (newX, newY, newW, newH)     = clientBox(el)
+        val (newX, newY, newW, newH)     = unmarkedBox(el)
         val (cfx, cfy)                   = ctm.toLocal(newX, newY)
         val kx0                          = if newW > 0 then oldW / newW else 1.0
         val ky0                          = if newH > 0 then oldH / newH else 1.0
@@ -377,7 +414,7 @@ object LayoutTransition:
           frame        <- ghostRefFrame.toVector
           (key, el)    <- snap.ghosts.toVector.sortBy(_._1)
           if !newKeys.contains(key)
-          oldClient    <- snap.boxes.get(key).toVector
+          oldClient    <- snap.ghostBoxes.get(key).toVector
           // bbox from capture time: el is detached by now, and getBBox() on a
           // detached element is 0×0 — the ghost then rendered displaced.
           (bbX, bbY, bbW, bbH) <- snap.ghostBBoxes.get(key).toVector

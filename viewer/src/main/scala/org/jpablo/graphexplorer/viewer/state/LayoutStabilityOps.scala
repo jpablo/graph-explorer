@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.airstream.core.Transaction
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{CanvasFit, CanvasRoot, LayoutTransition}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId}
@@ -59,6 +60,8 @@ trait LayoutStabilityOps:
     * screen position.
     */
   def beforeLayoutSwap(strategy: SelectableElementStrategy): Unit =
+    // The old drawing was a free layout, and the state now gives a free layout for the new drawing.
+    val freeToFree = drawnFreeOffset.isDefined && drawsFreeLayoutNow
     pendingAnchor = None
     pendingTransition = None
     pendingFreeMap =
@@ -72,7 +75,11 @@ trait LayoutStabilityOps:
       // measurements are visual (client space), so an interrupted animation
       // continues from wherever it was instead of snapping.
       // A hidden document gets no animation frames, so it gets no transition (see LayoutTransition.animate).
-      if animateLayoutChanges.now() && !LayoutTransition.reducedMotion && !LayoutTransition.documentHidden then
+      // A swap from a free layout to a free layout gets no transition: in the manual mode the person puts each node,
+      // and the new drawing shows at once.
+      if animateLayoutChanges.now() && !LayoutTransition.reducedMotion && !LayoutTransition.documentHidden &&
+        !freeToFree
+      then
         pendingTransition = Some(LayoutTransition.capture(old, strategy))
       val nodes =
         SelectableElement
@@ -185,7 +192,17 @@ trait LayoutStabilityOps:
     pendingAnchor = None
     pendingFreeMap = None
     drawnFreeOffset = Option.when(drawsFreeLayoutNow)(layoutOffsetNow())
-    // Anchor first, animate second: the tween's "new" measurements must see
-    // the compensated pan, or every element would glide by the anchor delta.
-    cancelTransition = pendingTransition.flatMap(LayoutTransition.animate(newSvg, strategy, _))
+    // The new view first, the transition second. The transition measures the new drawing in client space. If it
+    // measures before the drawing group has the new zoom and pan, frame 0 starts from a wrong frame, and each element
+    // jumps. The view writes above are `Var.set` calls. Inside a transaction, a `Var.set` runs in a later
+    // transaction, and the drawing group gets the new transform there (the `transform` binder of `SvgCanvas`). Thus
+    // the transition starts in a transaction after those writes. Airstream runs it in the same task, before the
+    // browser paints. Outside a transaction, the writes and the transition run at once, in this order.
+    val snapshot = pendingTransition
     pendingTransition = None
+    snapshot.foreach: snap =>
+      Transaction: _ =>
+        // A newer render can come before this transaction. Then this svg is not the drawing any more, and the newer
+        // swap has its own transition.
+        if lastRenderedSvg.exists(_ eq newSvg) && newSvg.isConnected then
+          cancelTransition = LayoutTransition.animate(newSvg, strategy, snap)
