@@ -583,4 +583,82 @@ class NodeDragSpec extends FunSuite with TestHelpers with LoggedChecks with Canv
           val late = boxes
           check(moved(boxes0, late).isEmpty, report("after", boxes0, late))
 
+  // ------------------------------------------------------------ the stand-in of an arrow during a drag
+
+  /** A client point. */
+  private type Pt = (Double, Double)
+
+  /** The distance from `p` to the border of the client rect `r`, inside or outside it. */
+  private def toBorder(p: Pt, r: dom.DOMRect): Double =
+    val (x, y)  = p
+    val inside  = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
+    if inside then Seq(x - r.left, r.right - x, y - r.top, r.bottom - y).min
+    else
+      val dx = (r.left - x) max 0.0 max (x - r.right)
+      val dy = (r.top - y) max 0.0 max (y - r.bottom)
+      math.hypot(dx, dy)
+
+  private def toClient(e: dom.Element, x: Double, y: Double): Pt =
+    val m = e.asInstanceOf[scala.scalajs.js.Dynamic].getScreenCTM()
+    val a = m.a.asInstanceOf[Double]; val b2 = m.b.asInstanceOf[Double]; val c2 = m.c.asInstanceOf[Double]
+    val d2 = m.d.asInstanceOf[Double]; val e2 = m.e.asInstanceOf[Double]; val f = m.f.asInstanceOf[Double]
+    (a * x + c2 * y + e2, b2 * x + d2 * y + f)
+
+  /** The stand-in of an arrow: where its stroke starts, and the tip of its head (None with no head), in client
+    * points. The stroke is a `path` or a `line`, in the stand-in or the stand-in itself. The head is a `polygon` in
+    * the stand-in, or the marker at the end of the stroke.
+    */
+  private def standIn(link: dom.Element): (Pt, Option[Pt]) =
+    val stroke =
+      if link.tagName.equalsIgnoreCase("path") || link.tagName.equalsIgnoreCase("line") then link
+      else Option(link.querySelector("path")).orElse(Option(link.querySelector("line"))).get
+    def pointAt(length: Double): Pt =
+      if stroke.tagName.equalsIgnoreCase("line") then
+        val (x1, y1, x2, y2) = Seq("x1", "y1", "x2", "y2").map(stroke.getAttribute(_).toDouble) match
+          case Seq(a1, b1, a2, b2) => (a1, b1, a2, b2)
+          case _                   => (0.0, 0.0, 0.0, 0.0)
+        if length == 0 then toClient(stroke, x1, y1) else toClient(stroke, x2, y2)
+      else
+        val p = stroke.asInstanceOf[scala.scalajs.js.Dynamic].getPointAtLength(length)
+        toClient(stroke, p.x.asInstanceOf[Double], p.y.asInstanceOf[Double])
+    val total =
+      if stroke.tagName.equalsIgnoreCase("line") then 1.0
+      else stroke.asInstanceOf[scala.scalajs.js.Dynamic].getTotalLength().asInstanceOf[Double]
+    val start = pointAt(0)
+    val polygonTip = Option(link.querySelector("polygon")).map: head =>
+      val pts = head.getAttribute("points").trim.split("\\s+").toVector.filter(_.contains(',')).map: s =>
+        val xy = s.split(',')
+        toClient(head, xy(0).toDouble, xy(1).toDouble)
+      pts.maxBy(p => math.hypot(p._1 - start._1, p._2 - start._2))
+    val markerTip = Option(stroke.getAttribute("marker-end")).filter(_.nonEmpty).map(_ => pointAt(total))
+    (start, polygonTip.orElse(markerTip))
+
+  // Found in the same recording: during a drag, an arrow with one moved end became a dashed straight line between the
+  // CENTERS of its two nodes, with no head. The person could not see it as the arrow. The stand-in must look like the
+  // arrow: it goes from the border of the source to the border of the target, and it has its head at the target.
+  test("during a drag, each arrow with one moved end shows as an arrow from border to border, with its head at the target"):
+    val boxes = "digraph G {\n  node [shape=box]\n  a -> c\n  c -> d\n}"
+    withFreeCanvas(boxes, a): canvas =>
+      val problems = mutable.ArrayBuffer.empty[String]
+      var count    = 0
+      drag(canvas, c, 140, 30):
+        val links = canvas.svg.querySelectorAll(s".${NodeDrag.LinkClass}").toSeq.collect { case e: dom.Element => e }
+        count = links.length
+        val rect = (id: NodeId) => shapeOf(canvas.nodeGroup(id).get).getBoundingClientRect()
+        def box(r: dom.DOMRect) = f"${r.left}%.1f,${r.top}%.1f,${r.right}%.1f,${r.bottom}%.1f"
+        // The arrow a -> c has the moved node at its target, and c -> d has it at its source.
+        val expected = Seq((a, c), (c, d))
+        val found = links.map(standIn)
+        expected.foreach: (s, t) =>
+          val matches = found.exists:
+            case (start, Some(tip)) => toBorder(start, rect(s)) <= 2.5 && toBorder(tip, rect(t)) <= 2.5
+            case _                  => false
+          if !matches then
+            val seen = found.map((st, tip) => s"start=$st tip=$tip").mkString("; ")
+            problems += s"no stand-in of $s -> $t starts on the border of $s (${box(rect(s))}) and has its head " +
+              s"tip on the border of $t (${box(rect(t))}): $seen"
+      check(count == 2, s"the drag shows $count stand-ins, not one for each of the 2 arrows with one moved end")
+      check(problems.isEmpty, problems.mkString("\n"))
+      Future.unit
+
 end NodeDragSpec

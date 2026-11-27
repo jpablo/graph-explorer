@@ -1235,8 +1235,10 @@ svg {
     }
 
     // A drag of nodes (NodeDrag). The nodes follow the pointer with a
-    // transform. An arrow with one moved end shows as a straight dashed line
-    // until the next render routes it. The snap grid shows under the drawing.
+    // transform. An arrow with one moved end goes away, and a stand-in shows
+    // until the next render routes the arrow. The stand-in is a copy of the
+    // arrow from border to border, with its head at the target. The snap grid
+    // shows under the drawing.
     svg.gx-node-dragging {
       cursor: grabbing;
 
@@ -1247,12 +1249,33 @@ svg {
       }
     }
 
+    // The stand-in of an arrow during a drag: the primary color, and a dashed
+    // line. The head and the tail keep their shapes, with no dash. An open
+    // head (fill none) stays open.
     .gx-drag-link {
-      stroke: var(--color-primary);
-      stroke-width: 1.5px;
-      stroke-dasharray: 4 3;
-      vector-effect: non-scaling-stroke;
       pointer-events: none;
+
+      path,
+      polygon,
+      polyline,
+      ellipse {
+        stroke: var(--color-primary);
+        stroke-width: 1.5px;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      polygon,
+      ellipse,
+      path:not(:first-of-type) {
+        &:not([fill="none"]) {
+          fill: var(--color-primary);
+        }
+      }
+
+      path:first-of-type {
+        stroke-dasharray: 5 3;
+      }
     }
 
     .gx-snap-grid circle {

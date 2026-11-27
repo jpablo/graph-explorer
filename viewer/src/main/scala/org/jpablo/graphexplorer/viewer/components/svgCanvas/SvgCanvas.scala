@@ -178,8 +178,10 @@ def SvgCanvas(
         // The press becomes a drag. It is not the first click of a double-click.
         forgetClick()
         val visible = viewerOps.drawnArrowEndsNow()
+        val shapes  = BendRender.nodeShapes(mainGroup, nodePositions, nodeSizes)
         val drag =
-          viewerOps.startNodeDrag(a.pressed).flatMap(NodeDrag.begin(rawSvg.ref, mainGroup, strategy, _, visible))
+          viewerOps.startNodeDrag(a.pressed).flatMap: plan =>
+            NodeDrag.begin(rawSvg.ref, mainGroup, strategy, plan, visible, edgePositions, shapes, viewerOps.bendsNow)
         nodeDrag = drag
         drag.foreach(_.update(end.x - a.rect.start.x, end.y - a.rect.start.y, alt))
         val phase = if drag.isDefined then NodePress.Dragging else NodePress.Inert

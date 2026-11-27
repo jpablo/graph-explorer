@@ -168,6 +168,41 @@ object BendRender:
       val controls = route.segments.headOption.map(_.p0).toList ++ route.segments.flatMap(s => List(s.c1, s.c2, s.p1))
       ArrowPosition(drawing(route.tail.tip), drawing(route.head.tip), controls.map(drawing))
 
+  /** The position `current` of the arrow `edge`, with each end at the drawn tip of its decoration.
+    *
+    * Graphviz stops an arrowhead a small distance before the end of the arrow, and the stroke of the head covers the
+    * gap. A copy of the arrow with a thinner stroke shows the gap. Thus the tip here is the point of the decoration
+    * that is farthest along the end of the path. An end with no decoration stays.
+    */
+  def drawnTips(edge: dom.Element, current: ArrowPosition): ArrowPosition =
+    val spline = edge.querySelectorAll("path").toSeq.collect { case e: dom.Element => e }.find(p => !p.classList.contains(SelectableElement.hitAreaClass))
+    val old    = spline.map(p => BendPath.parsePath(p.getAttribute("d"))).getOrElse(Vector.empty)
+    if old.isEmpty then current
+    else
+      val keep    = spline.toSet
+      val headTip = Vec(current.endPoint.x, -current.endPoint.y)
+      val tailTip = Vec(current.startPoint.x, -current.startPoint.y)
+      val points =
+        edge.querySelectorAll("polygon, polyline, ellipse, path").toSeq.collect:
+          case e: dom.Element if !keep.contains(e) && !e.classList.contains(SelectableElement.hitAreaClass) => e
+        .flatMap: e =>
+          if e.tagName.equalsIgnoreCase("ellipse") then
+            (for
+              cx <- num(e, "cx")
+              cy <- num(e, "cy")
+              rx <- num(e, "rx")
+              ry <- num(e, "ry")
+            yield Vector(Vec(cx - rx, cy), Vec(cx + rx, cy), Vec(cx, cy - ry), Vec(cx, cy + ry))).getOrElse(Vector.empty)
+          else if e.tagName.equalsIgnoreCase("path") then BendPath.pathPoints(e.getAttribute("d"))
+          else pointsOf(e.getAttribute("points"))
+      def tip(at: Vec, base: Vec, other: Vec): Vec =
+        (at - base).unit.filter(_ => (at - base).length > 0.5).fold(at): dir =>
+          val own = points.filter(p => (p - at).length <= (p - other).length)
+          own.map(p => (p - base).dot(dir)).maxOption.fold(at)(far => base + dir * far)
+      val head = tip(headTip, old.last.p1, tailTip)
+      val tail = tip(tailTip, old.head.p0, headTip)
+      current.copy(startPoint = Point(tail.x, -tail.y), endPoint = Point(head.x, -head.y))
+
   /** The center of a decoration: the center of its box. */
   private def centerOf(e: dom.Element): Option[Vec] =
     val points =

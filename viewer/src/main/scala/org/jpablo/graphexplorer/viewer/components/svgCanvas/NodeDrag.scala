@@ -1,5 +1,9 @@
 package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
+import org.jpablo.graphexplorer.gxcore.layout.BendPath.{NodeShape, Vec}
+import org.jpablo.graphexplorer.gxcore.model.LayoutPoint
+import org.jpablo.graphexplorer.viewer.backends.graphviz.BendRender
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.ArrowPosition
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.models.{ArrowId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.state.ManualLayoutOps
@@ -16,8 +20,13 @@ import scala.scalajs.js
   *
   * During the drag:
   *   - An arrow between two moved nodes moves with them: it gets the same `translate`.
-  *   - An arrow with one moved end goes away, and a straight dashed line joins the centers of its two nodes. The
-  *     spline of Graphviz has no meaning for the new place, and the next render gives the true route.
+  *   - An arrow with one moved end goes away, and a stand-in shows in its place. The stand-in is a copy of the arrow
+  *     with a different style: it has no id, no hit area, no label, and it takes no pointer events. Each move routes
+  *     the stand-in again with [[BendRender.reroute]], from the border of the source to the border of the target.
+  *     The shape of the moved node moves by the delta of the drag. The path goes through the stored bends of the
+  *     arrow: when a move takes one end only, the bends stay. With no bends, the path is straight. The head turns
+  *     to the new direction, and its tip is on the border of the target. The next render gives the true route.
+  *     When the canvas cannot route a copy (the arrow has no Graphviz path), the arrow goes away with no stand-in.
   *   - Without Alt, the canvas shows the snap grid under the drawing, in layout points.
   *
   * The SVG of a free layout comes from Graphviz: the nodes and the arrows are children of the root group, and a
@@ -28,8 +37,8 @@ final class NodeDrag private (
     mainGroup: dom.svg.G,
     /** The node groups and the arrows that move as one. */
     rigid: Seq[dom.Element],
-    /** Each arrow with one moved end: the arrow, its line, the fixed center, and the moving center (SVG units). */
-    stretched: Seq[(dom.Element, dom.Element, (Double, Double), (Double, Double))],
+    /** Each arrow with one moved end, and its stand-in, if the canvas can route one. */
+    stretched: Seq[(dom.Element, Option[NodeDrag.StandIn])],
     /** Client pixels for one SVG unit, on each axis. */
     pxX: Double,
     pxY: Double
@@ -51,11 +60,7 @@ final class NodeDrag private (
     val (sx, sy) = (current._1, -current._2)
     for (e, original) <- originalTransforms do
       e.setAttribute("transform", s"translate(${fmt(sx)} ${fmt(sy)})" + original.fold("")(" " + _))
-    for (_, line, fixed, moving) <- stretched do
-      line.setAttribute("x1", fmt(fixed._1))
-      line.setAttribute("y1", fmt(fixed._2))
-      line.setAttribute("x2", fmt(moving._1 + sx))
-      line.setAttribute("y2", fmt(moving._2 + sy))
+    for (_, standIn) <- stretched; s <- standIn do s.route(Vec(sx, sy))
     showGrid(!alt)
 
   /** Put back the drawing as it was before the drag. */
@@ -64,9 +69,9 @@ final class NodeDrag private (
       original match
         case Some(t) => e.setAttribute("transform", t)
         case None    => e.removeAttribute("transform")
-    for (edge, line, _, _) <- stretched do
+    for (edge, standIn) <- stretched do
       edge.asInstanceOf[dom.html.Element].style.removeProperty("visibility")
-      line.remove()
+      standIn.foreach(_.element.remove())
     showGrid(false)
     mainGroup.ownerSVGElement.classList.remove(NodeDrag.DraggingClass)
 
@@ -98,21 +103,71 @@ object NodeDrag:
   /** On the svg while nodes follow the pointer (see style.scss). */
   val DraggingClass = "gx-node-dragging"
 
-  /** The class of the straight line of an arrow with one moved end. */
+  /** The class of the stand-in of an arrow with one moved end. */
   val LinkClass = "gx-drag-link"
 
   /** The class of the layer of the snap grid. */
   val GridClass = "gx-snap-grid"
 
-  /** Start the look of a drag. `arrows` gives the visible arrows with their two ends. None when the SVG has no group
-    * for the pressed node.
+  /** The stand-in of an arrow with one moved end: a copy of the arrow, routed again at each move.
+    *
+    * @param element   the copy, in the SVG after the arrow
+    * @param start     the position of the copy at the start (the position of the arrow)
+    * @param fixed     the shape of the end that stays, in SVG units
+    * @param moving    the shape of the end that moves, at the start
+    * @param sourceMoves true when the moved node is the source of the arrow
+    * @param bends     the stored bends of the arrow, in SVG units
+    */
+  final class StandIn(
+      val element: dom.Element,
+      start:       ArrowPosition,
+      fixed:       NodeShape,
+      moving:      NodeShape,
+      sourceMoves: Boolean,
+      bends:       Vector[Vec]
+  ):
+    private var position = start
+
+    /** Route the copy for the move `d` of the moved node (SVG units). False when the copy has no Graphviz path. */
+    def route(d: Vec): Boolean =
+      val moved = shifted(moving, d)
+      val (source, target) = if sourceMoves then (moved, fixed) else (fixed, moved)
+      BendRender.reroute(element, position, source, target, bends) match
+        case Some(next) =>
+          position = next
+          true
+        case None => false
+
+  private def shifted(shape: NodeShape, d: Vec): NodeShape =
+    shape match
+      case NodeShape.Ellipse(c, rx, ry) => NodeShape.Ellipse(c + d, rx, ry)
+      case NodeShape.Polygon(ps)        => NodeShape.Polygon(ps.map(_ + d))
+
+  /** A copy of the arrow `edge` for a stand-in: with no ids, no hit area, no labels and no tooltip, so that the
+    * selection and the hit tests do not see it. The copy goes after the arrow.
+    */
+  private def copyOf(edge: dom.Element): dom.Element =
+    val copy = edge.cloneNode(true).asInstanceOf[dom.Element]
+    copy.querySelectorAll(s".${SelectableElement.hitAreaClass}, text, title, foreignObject").foreach(_.remove())
+    (copy +: copy.querySelectorAll("[id]").toSeq.collect { case e: dom.Element => e }).foreach(_.removeAttribute("id"))
+    copy.setAttribute("class", LinkClass)
+    copy.setAttribute("pointer-events", "none")
+    edge.parentNode.insertBefore(copy, edge.nextSibling)
+    copy
+
+  /** Start the look of a drag. `arrows` gives the visible arrows with their two ends. `positions` gives the position
+    * of each arrow in the SVG, by the value of its id. `shapes` gives the shape of a node in the SVG, and `bends` the
+    * stored bends of an arrow, in layout points. None when the SVG has no group for the pressed node.
     */
   def begin(
       svg:       dom.svg.SVG,
       mainGroup: dom.svg.G,
       strategy:  SelectableElementStrategy,
       plan:      NodeDragPlan,
-      arrows:    Iterable[(ArrowId, NodeId, NodeId)]
+      arrows:    Iterable[(ArrowId, NodeId, NodeId)],
+      positions: Map[String, ArrowPosition],
+      shapes:    NodeId => Option[NodeShape],
+      bends:     ArrowId => Vector[LayoutPoint]
   ): Option[NodeDrag] =
     val groups = SelectableElement.query(svg, ElementIds(plan.nodes), strategy).flatMap(e => e.nodeId.map(_ -> e.ref)).toMap
     for
@@ -120,38 +175,29 @@ object NodeDrag:
       ctm     <- Option(pressed.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
       if ctm.a > 0 && ctm.d > 0
     yield
-      val touched   = arrows.filter((_, s, t) => plan.nodes.contains(s) || plan.nodes.contains(t)).toVector
-      val edgeOf    = SelectableElement.query(svg, ElementIds(touched.map(_._1).toSet), strategy).flatMap(e => e.arrowId.map(_ -> e.ref)).toMap
+      val touched     = arrows.filter((_, s, t) => plan.nodes.contains(s) || plan.nodes.contains(t)).toVector
+      val edgeOf      = SelectableElement.query(svg, ElementIds(touched.map(_._1).toSet), strategy).flatMap(e => e.arrowId.map(_ -> e.ref)).toMap
       val (both, one) = touched.partition((_, s, t) => plan.nodes.contains(s) && plan.nodes.contains(t))
-      val ends      = SelectableElement.query(svg, ElementIds(one.flatMap((_, s, t) => Seq(s, t)).toSet), strategy).flatMap(e => e.nodeId.map(_ -> e.ref)).toMap
-      val toLocal   = Option(mainGroup.getScreenCTM()).map(_.inverse())
-      val firstNode = (0 until mainGroup.children.length).map(mainGroup.children.item).find(_.matches(strategy.nodeSelector))
-      def centerOf(e: dom.Element): Option[(Double, Double)] =
-        toLocal.map: m =>
-          val r  = e.getBoundingClientRect()
-          val pt = svg.createSVGPoint()
-          pt.x = r.left + r.width / 2
-          pt.y = r.top + r.height / 2
-          val local = pt.matrixTransform(m)
-          (local.x, local.y)
       val stretched =
         one.flatMap: (id, s, t) =>
-          val (fixedId, movingId) = if plan.nodes.contains(s) then (t, s) else (s, t)
-          for
-            edge   <- edgeOf.get(id)
-            fixed  <- ends.get(fixedId).flatMap(centerOf)
-            moving <- ends.get(movingId).flatMap(centerOf)
-          yield
-            val line = dom.document.createElementNS(SvgNs, "line")
-            line.setAttribute("class", LinkClass)
-            line.setAttribute("x1", fixed._1.toString)
-            line.setAttribute("y1", fixed._2.toString)
-            line.setAttribute("x2", moving._1.toString)
-            line.setAttribute("y2", moving._2.toString)
+          edgeOf.get(id).map: edge =>
+            val sourceMoves = plan.nodes.contains(s)
+            val (fixedId, movingId) = if sourceMoves then (t, s) else (s, t)
+            val standIn =
+              for
+                position <- positions.get(id.value)
+                fixed    <- shapes(fixedId)
+                moving   <- shapes(movingId)
+              yield
+                val copy = copyOf(edge)
+                StandIn(copy, BendRender.drawnTips(copy, position), fixed, moving, sourceMoves, bends(id).map(BendRender.toSvg(_, plan.offset)))
+            // A copy with no Graphviz path cannot follow the node: it goes away.
+            val routed = standIn.filter: s =>
+              val ok = s.route(Vec(0, 0))
+              if !ok then s.element.remove()
+              ok
             edge.asInstanceOf[dom.html.Element].style.setProperty("visibility", "hidden")
-            // Under the nodes: the fill of a node covers the end of the line at its center.
-            mainGroup.insertBefore(line, firstNode.orNull)
-            (edge, line, fixed, moving)
+            (edge, routed)
       svg.classList.add(DraggingClass)
       NodeDrag(plan, mainGroup, groups.values.toSeq ++ both.flatMap((id, _, _) => edgeOf.get(id)), stretched, ctm.a, ctm.d)
 
