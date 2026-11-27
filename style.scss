@@ -547,6 +547,13 @@ svg {
   }
 }
 
+// The line between Manual and the engines in the Engine list (EngineSelect). It has the
+// color and the weight of the rule of a section above, not the black border of a plain `hr`.
+// A popup that the system draws ignores this style.
+.gx-engine-select hr {
+  @apply border-0 h-px bg-base-300 my-1 mx-2;
+}
+
 // ── The About section of the Diagram panel ───────────────────────────────────
 // The tags and the notes of the diagram. Each control takes the full width of the
 // panel, and the chips wrap, so the section fits a narrow panel.

@@ -32,8 +32,10 @@ object EngineSelect:
       SelectVariant.xs,
       cls   := "gx-engine-select",
       title := "The layout engine",
-      row.options.map(o => option(o.name, value := o.value.toString)),
+      // Manual is first, and a line puts it apart from the engines: it is a mode, not an engine.
       option("Manual", value := manual, title := manualTitle),
+      hr(),
+      row.options.map(o => option(o.name, value := o.value.toString)),
       controlled(
         value <-- shown,
         onChange.mapToValue --> { picked =>
@@ -66,8 +68,10 @@ object EngineSelect:
             SelectVariant.xs,
             cls   := "gx-engine-select",
             title := "The layout engine",
-            option("Automatic", value := auto, title := "Mermaid places each node"),
+            // The same order as the Engine row of a DOT diagram: Manual, a line, and the automatic layout.
             option("Manual", value := manual, title := manualTitle),
+            hr(),
+            option("Automatic", value := auto, title := "Mermaid places each node"),
             controlled(
               value <-- state.hasFreeLayout.map(free => if free then manual else auto),
               onChange.mapToValue --> { picked =>

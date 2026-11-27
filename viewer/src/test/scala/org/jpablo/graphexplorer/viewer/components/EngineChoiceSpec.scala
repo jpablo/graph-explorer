@@ -45,6 +45,10 @@ class EngineChoiceSpec extends FunSuite with TestHelpers with LoggedChecks:
         .asInstanceOf[dom.html.Select]
     def optionTexts: List[String] =
       engine.querySelectorAll("option").toList.map(_.textContent)
+
+    /** The children of the select, in order: the text of an option, or "—" for a line (`hr`). */
+    def items: List[String] =
+      engine.children.toList.map(c => if c.tagName.equalsIgnoreCase("hr") then "—" else c.textContent)
     def text: String          = state.sourceText.now()
     def hasPositions: Boolean = state.layout.now().hasPositions
 
@@ -87,6 +91,9 @@ class EngineChoiceSpec extends FunSuite with TestHelpers with LoggedChecks:
     withPanel("engine-dot-offer", DiagramFormat.DOT, dot): panel =>
       check(panel.optionTexts.contains("Manual"), s"no Manual choice: ${panel.optionTexts}")
       check(panel.optionTexts.contains("Hierarchical"), s"the engines are gone: ${panel.optionTexts}")
+      // Manual is first, and a line puts it apart from the engines.
+      check(panel.items.take(3) == List("Manual", "—", "Hierarchical"), s"the order is ${panel.items}")
+      check(panel.items.count(_ == "—") == 1, s"the list has more than one line: ${panel.items}")
       check(panel.engine.value == "dot", s"an automatic diagram shows ${panel.engine.value}, not dot")
       Future.unit
 
@@ -133,10 +140,10 @@ class EngineChoiceSpec extends FunSuite with TestHelpers with LoggedChecks:
             check(panel.state.layout.now() == frozen, s"one undo did not bring back the positions: ${panel.state.layout.now()}")
             check(panel.text == before, s"one undo did not bring back the source:\n${panel.text}")
 
-  test("the Engine row of a Mermaid flowchart offers Automatic and Manual"):
+  test("the Engine row of a Mermaid flowchart offers Manual and Automatic"):
     withPanel("engine-mermaid", DiagramFormat.Mermaid, mermaid): panel =>
       val before = panel.text
-      check(panel.optionTexts == List("Automatic", "Manual"), s"the choices are ${panel.optionTexts}")
+      check(panel.items == List("Manual", "—", "Automatic"), s"the choices are ${panel.items}")
       check(panel.engine.value == "auto", s"an automatic flowchart shows ${panel.engine.value}")
       panel.pick("manual")
       settled(panel.hasPositions).flatMap: _ =>
