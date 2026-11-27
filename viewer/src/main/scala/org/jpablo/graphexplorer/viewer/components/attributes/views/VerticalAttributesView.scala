@@ -157,7 +157,7 @@ private def AttributesViewRow(attRow: AttributeRow) =
               span(
                 cls := "attr-value",
                 cls("flex items-center gap-1") := row.labelAction.isDefined,
-                buildInputCell(row),
+                row.customCell.fold(buildInputCell(row))(_()),
                 row.labelAction.map(_())
               )
             )
@@ -172,16 +172,20 @@ private def AttributesViewRow(attRow: AttributeRow) =
 def buildFieldSets(rows: Seq[AttributeRow]): Seq[HtmlElement] =
   val sections = splitIntoSections(rows)
   sections.flatMap: (header, sectionRows) =>
-    val inputs = sectionRows.collect { case ia: InputAttribute => ia }
+    val inputs = sectionRows.filter { case _: SectionHeader => false; case _ => true }
+    // An InputElement is a row that draws itself, for example the Engine row of a Mermaid flowchart.
     val fieldSets =
-      inputs.map: row =>
-        fieldSet(
-          cls := "fieldset",
-          AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
-        )
+      inputs.collect:
+        case row: InputAttribute =>
+          fieldSet(
+            cls := "fieldset",
+            AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
+          )
+        case row: InputElement =>
+          fieldSet(cls := "fieldset", cls("hidden") <-- row.hidden, row.element)
     header.toSeq.map(h => sectionHeading(h, inputs)) ++ fieldSets
 
-private def sectionHeading(header: SectionHeader, rows: Seq[InputAttribute]) =
+private def sectionHeading(header: SectionHeader, rows: Seq[AttributeRow]) =
   val allHidden =
     if rows.isEmpty then Signal.fromValue(true)
     else Signal.combineSeq(rows.map(_.hidden)).map(_.forall(identity))

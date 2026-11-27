@@ -46,7 +46,7 @@ trait DiagramLanguages:
     */
   def rendererById(id: String): Option[Renderer] = renderers.find(_.id == id)
 
-  /** The renderer of a diagram with stored positions, when the person selected no renderer (ADR 0004). It can pin a
+  /** The renderer of a diagram in the manual mode, when the person selected no renderer (ADR 0004). It can pin a
     * node at a position.
     */
   def freeLayoutRenderer: Renderer = renderer(DiagramFormat.DOT)

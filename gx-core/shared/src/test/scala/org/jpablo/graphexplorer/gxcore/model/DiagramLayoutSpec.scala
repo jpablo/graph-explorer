@@ -143,6 +143,76 @@ class DiagramLayoutSpec extends FunSuite:
     val bent = layout.withBends("a->b#1", Vector(LayoutPoint(9, 18)))
     assertEquals(bent.withoutPositions.arrows, Map.empty)
 
+  // ------------------------------------------------------------ the manual mode
+
+  test("the manual mode is the key \"manual\" after the version, also with no position"):
+    val manual = DiagramLayout(manual = true)
+    val text   = DiagramLayout.render(manual)
+    assertEquals(text, "{\n  \"version\": 1,\n  \"manual\": true,\n  \"nodes\": {}\n}\n")
+    assertEquals(DiagramLayout.parse(text), Right(manual))
+    assert(manual.isManual)
+    assert(!manual.hasPositions)
+    assertNotEquals(manual, DiagramLayout.empty)
+
+  test("a layout with the flag off has no \"manual\" key, as a file of an older build"):
+    assert(!DiagramLayout.render(layout).contains("manual"))
+    assert(!DiagramLayout.empty.isManual)
+
+  test("a read and a write of a manual layout with positions, bends and unknown keys give the same layout"):
+    val text =
+      """{"version": 1, "manual": true, "grid": 8, "nodes": {"a": {"x": 1, "y": 2, "locked": true}},
+        | "arrows": {"a->b#1": {"points": [{"x": 3, "y": 4}]}}}""".stripMargin
+    val read = DiagramLayout.parse(text).fold(fail(_), identity)
+    assert(read.manual)
+    assertEquals(read.other, Vector("grid" -> "8"))
+    val rendered = DiagramLayout.render(read)
+    assertEquals(DiagramLayout.parse(rendered), Right(read))
+    assert(rendered.contains("\"manual\": true"), rendered)
+    assert(rendered.contains("\"grid\": 8"), rendered)
+    assert(rendered.contains("\"locked\": true"), rendered)
+
+  test("an old file with positions and no flag reads as manual"):
+    val read = DiagramLayout.parse("""{"version": 1, "nodes": {"a": {"x": 1, "y": 2}}}""").fold(fail(_), identity)
+    assert(!read.manual)
+    assert(read.isManual)
+
+  test("an old file with no position and no flag reads as automatic"):
+    val read = DiagramLayout.parse("""{"version": 1, "nodes": {}, "grid": 8}""").fold(fail(_), identity)
+    assert(!read.isManual)
+
+  test("a stored position gives the manual mode, also with the flag off"):
+    val read = DiagramLayout.parse("""{"version": 1, "manual": false, "nodes": {"a": {"x": 1, "y": 2}}}""").fold(fail(_), identity)
+    assert(read.isManual)
+
+  test("a reader refuses a \"manual\" key that is not true or false"):
+    val result = DiagramLayout.parse("""{"version": 1, "manual": "yes", "nodes": {}}""")
+    assert(result.left.exists(_.contains("manual")), result.toString)
+
+  test("asManual sets the mode and keeps the positions"):
+    val manual = layout.asManual
+    assert(manual.manual)
+    assertEquals(manual.nodes, layout.nodes)
+    assertEquals(manual.arrows, layout.arrows)
+    assert(manual.asManual eq manual)
+
+  test("arranged leaves the manual mode, removes the positions and the bends, and keeps the unknown keys"):
+    val read = DiagramLayout
+      .parse("""{"version": 1, "manual": true, "grid": 8, "nodes": {"a": {"x": 1, "y": 2}}, "arrows": {"a->b#1": {"points": []}}}""")
+      .fold(fail(_), identity)
+    val arranged = read.arranged
+    assert(!arranged.isManual)
+    assertEquals(arranged.nodes, Map.empty)
+    assertEquals(arranged.arrows, Map.empty)
+    assertEquals(arranged.other, Vector("grid" -> "8"))
+    assert(!DiagramLayout.render(arranged).contains("manual"))
+    assertEquals(DiagramLayout(manual = true).arranged, DiagramLayout.empty)
+
+  test("the restriction keeps the manual mode, also when no stored id is in the graph"):
+    assert(layout.restrictedTo(Set("c")).isManual)
+    assert(!layout.restrictedTo(Set("c")).hasPositions)
+    assert(DiagramLayout(manual = true).restrictedTo(Set.empty).isManual)
+    assert(!DiagramLayout.empty.restrictedTo(Set("a")).isManual)
+
   test("a point rounds to two decimals"):
     assertEquals(LayoutPoint(1.23456, -7.891).rounded, LayoutPoint(1.23, -7.89))
 

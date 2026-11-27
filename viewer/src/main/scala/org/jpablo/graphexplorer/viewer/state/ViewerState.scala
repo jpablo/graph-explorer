@@ -238,9 +238,9 @@ case class ViewerState(
     * language can draw it, from the source. Thus the selection does not apply
     * to that kind.
     *
-    * With no selection, a diagram with stored positions is a free layout, and
+    * With no selection, a diagram in the manual mode is a free layout, and
     * the renderer that can pin a node draws it (ADR 0004). Thus a Mermaid
-    * flowchart with positions goes to Graphviz. A selected renderer still
+    * flowchart in the manual mode goes to Graphviz. A selected renderer still
     * wins: Mermaid then draws the diagram, and the positions stay in the
     * layout with no effect.
     */

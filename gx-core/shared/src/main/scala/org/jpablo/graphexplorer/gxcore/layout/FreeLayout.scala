@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowId, AttributeId, Attributes, NodeId}
 
-/** The graph that Graphviz draws for a diagram with stored positions (ADR 0004).
+/** The graph that Graphviz draws for a diagram in the manual mode (ADR 0004).
   *
   * The free layout pins each node with a stored position (`pos="x,y!"`), and
   * the engine places each other node around the pinned nodes. The pins go
@@ -33,13 +33,16 @@ object FreeLayout:
 
   /** The graph for the render.
     *
-    * The same graph when the layout has no position. Thus a diagram with no
-    * stored position renders exactly as before. The caller gives the layout
-    * restricted to the nodes of the full graph (`DiagramLayout.restrictedTo`).
-    * A stored id that this graph does not have adds no node.
+    * The same graph when the layout is not manual (`DiagramLayout.isManual`).
+    * Thus an automatic diagram renders exactly as before. A manual layout
+    * always uses `neato`, also with no position: an empty diagram in the
+    * manual mode, and a node with no position, get an automatic place from
+    * `neato`. The caller gives the layout restricted to the nodes of the full
+    * graph (`DiagramLayout.restrictedTo`). A stored id that this graph does
+    * not have adds no node.
     */
   def renderGraph(graph: ViewerGraph, layout: DiagramLayout): ViewerGraph =
-    if !layout.hasPositions then graph
+    if !layout.isManual then graph
     else
       val elements = graph.elements
       val nodes = elements.nodes.map: (id, node) =>
@@ -76,11 +79,11 @@ object FreeLayout:
 
   /** The bend points of each arrow of `graph` that has bend points, by its id (part 4 of the feature).
     *
-    * The bends apply only in a free layout. A diagram with no stored position draws with its own engine, and that
+    * The bends apply only in a free layout (the manual mode). An automatic diagram draws with its own engine, and that
     * engine routes each arrow. A key that the graph does not have gives nothing, and the layout keeps it.
     */
   def bendsByArrow(graph: ViewerGraph, layout: DiagramLayout): Map[ArrowId, Vector[LayoutPoint]] =
-    if !layout.hasPositions || layout.arrows.isEmpty then Map.empty
+    if !layout.isManual || layout.arrows.isEmpty then Map.empty
     else
       arrowKeys(graph).flatMap: (id, key) =>
         val points = layout.bends(key)

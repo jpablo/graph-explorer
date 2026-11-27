@@ -576,7 +576,7 @@ object DiagramSnapshot:
       tags:  List[String] = Nil,
       notes: String = "",
       // The text of a layout file (ADR 0004), as a desktop diagram has it next
-      // to its file. Empty for a diagram with no stored position, so that an
+      // to its file. Empty for an automatic diagram with no layout, so that an
       // older payload and a diagram with no layout keep the same JSON.
       layout: String = ""
   ) derives ReadWriter

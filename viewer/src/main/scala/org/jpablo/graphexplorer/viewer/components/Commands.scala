@@ -432,14 +432,14 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "Freeze layout",
       () => state.freezeLayout(),
       always,
-      description = Some("Keep each node at its place: store the current positions as a free layout")
+      description = Some("Go to the manual mode: keep each node at its place as a free layout")
     )
 
     val arrangeLayout = Command(
       "Arrange",
       () => state.arrangeLayout(),
-      _ => state.layout.now().hasPositions,
-      description = Some("Remove each stored position, and lay out the diagram automatically again")
+      _ => state.layout.now().isManual,
+      description = Some("Leave the manual mode: remove each stored position, and lay out the diagram automatically again")
     )
 
     val toggleLayoutAnimation = Command(

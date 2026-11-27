@@ -2,13 +2,14 @@
 
 Status: accepted (2026-11-26)
 
-A person wants to put the nodes of a diagram at places of their choice. We use an ambient model: there is no mode switch. A node with a stored position stays exactly at that position. A node with no stored position gets an automatic place around the pinned nodes. A diagram with no stored position draws exactly as before, with the same engine.
+A person wants to put the nodes of a diagram at places of their choice. A diagram has one of two modes: automatic or manual. The layout stores the mode. In the manual mode, a node with a stored position stays exactly at that position, and a node with no stored position gets an automatic place around the pinned nodes. An automatic diagram draws exactly as before, with the same engine.
 
 The positions are a **layout**. The layout is not in the source. A diagram with a file keeps its layout in a side file next to the file: `<dir>/<base name>.layout.json`. This is the name pattern of the `<base name>.assets/` folder of the images. A diagram of the browser library keeps the text of that file in its library entry. Thus the stored text of a browser layout is the text of a layout file, as for a board (ADR 0003).
 
 ```json
 {
   "version": 1,
+  "manual": true,
   "nodes": {
     "api": { "x": 27, "y": 18 },
     "db":  { "x": 127.5, "y": -18.25 }
@@ -22,11 +23,13 @@ The positions are a **layout**. The layout is not in the source. A diagram with 
 - The units are Graphviz points (1/72 inch). A node position is the center of the node. The y axis goes up, as in Graphviz.
 - The key of a node is its id. The key of an arrow is `<source>[:<port>]-><target>[:<port>]#<n>`, where `n` counts the arrows with the same ends in the order of the source. The arrows hold the bend points (see "Bend points" below). The key does not use the DOT edge number, because a new arrow earlier in the file changes that number.
 - A reader refuses a newer `version`. A reader keeps each key that it does not know, and a write gives it back.
+- `"manual": true` stores the manual mode (`DiagramLayout.manual`). A write puts the key only when the mode is on. A file with no `"manual"` key has the flag off.
+- A stored position also gives the manual mode (`DiagramLayout.isManual`). A file of an older build has positions and no flag, so it reads as manual. A file with no position and no flag reads as automatic. Only the manual mode stores a position, so the rule does not change the meaning of a file.
 - The layout keeps an id that the graph does not have. The render ignores it. Thus a rename and its undo do not lose a position. Freeze replaces the positions of the drawn nodes, and Arrange removes all positions.
 
-## How a diagram with positions draws
+## How a manual diagram draws
 
-When a node of the graph has a stored position, Graphviz draws the diagram with the `neato` engine. The text for the render gets `pos="x,y!"` on each node with a position, and the graph gets `layout=neato`, `inputscale=72`, `splines=true` and `overlap=true`. The source never gets these attributes.
+When the diagram is in the manual mode, Graphviz draws it with the `neato` engine, also when no node has a stored position. The text for the render gets `pos="x,y!"` on each node with a position, and the graph gets `layout=neato`, `inputscale=72`, `splines=true` and `overlap=true`. The source never gets these attributes.
 
 - `neato` keeps each pinned node exactly at its place, also in a group. We checked this with viz-js 3.14 (Graphviz 13). `fdp` lays out a group as one unit. It moved the pinned nodes of a group, and it moved the pinned nodes around the group.
 - `neato` draws each group as a box around its nodes. A node with no position can go inside the box of a group that it is not in. We accept this for now.
@@ -34,11 +37,13 @@ When a node of the graph has a stored position, Graphviz draws the diagram with 
 - `overlap=true` (the default) turns off the overlap removal. The overlap removal (`overlap=false`) moved a pinned node in our check.
 - Graphviz moves the box of the drawing to the origin. Thus the drawing of a pinned node is at its position plus one offset for the whole drawing. The app finds the offset from a pinned node when it reads places from a drawing.
 
-A Mermaid flowchart with stored positions also draws with Graphviz, from its graph. The renderer selector shows this: Auto says "Auto — Free layout (Graphviz)". A renderer that the person selects still wins. Mermaid then draws the diagram, and the positions stay with no effect. A Mermaid kind with no graph (a sequence diagram) has no positions.
+A Mermaid flowchart in the manual mode also draws with Graphviz, from its graph. The renderer selector shows this: Auto says "Auto — Free layout (Graphviz)". A renderer that the person selects still wins. Mermaid then draws the diagram, and the positions stay with no effect. A Mermaid kind with no graph (a sequence diagram) has no positions.
 
 ## Freeze and Arrange
 
-**Freeze** reads the place of each drawn node from the current drawing, and stores it. Freeze stores no bend point: `neato` routes each arrow until the person changes the route. Graphviz gives the places in its `json0` output. Mermaid gives the place of a node in the `translate` transforms of its SVG, in pixels, and the app uses one pixel as one point. **Arrange** removes each position and each bend point, and the diagram goes back to the automatic layout. An automatic layout has no bend points. Each is one step of the undo history. The history holds the layout with the text, the hidden elements and the folded groups. The changes of one gesture are one step, so a later drag of a node is one step.
+**Freeze** sets the manual mode. It also reads the place of each drawn node from the current drawing, and stores it. An empty diagram, or a diagram with no drawing yet, has no place to read. Freeze then sets only the mode, and it shows no error. `neato` places each later node with no position, and the diagram stays in the manual mode. Freeze stores no bend point: `neato` routes each arrow until the person changes the route. Graphviz gives the places in its `json0` output. Mermaid gives the place of a node in the `translate` transforms of its SVG, in pixels, and the app uses one pixel as one point. **Arrange** removes the manual mode, each position and each bend point, and the diagram goes back to the automatic layout. An automatic layout has no bend points. Each is one step of the undo history. The history holds the layout with the text, the hidden elements and the folded groups. The changes of one gesture are one step, so a later drag of a node is one step.
+
+The Engine row of the Diagram panel shows the two commands. Its list has the engines of Graphviz and **Manual**. Manual is Freeze: it sets the stored mode, also on an empty diagram. The source does not get the word "manual". The row shows Manual while the diagram is in the manual mode. A different engine on a manual diagram is Arrange, and then the engine goes to the `layout` attribute when the source has a different engine. Both changes are one step of the undo history. A Mermaid flowchart has an Engine row with **Automatic** (Arrange) and **Manual** (Freeze). The palette commands "Freeze layout" and "Arrange" stay.
 
 ## The drag of a node
 
@@ -47,7 +52,7 @@ In a free layout, a press on a node and a move of more than 4 pixels drags the n
 - During the drag, the app does not draw the diagram again. It moves the SVG of each node with a `translate`. An arrow between two moved nodes moves with them. An arrow with one moved end shows as a straight dashed line. The release stores one move (`moveNodesBy`), and the next render routes the arrows. Thus a drag is one step of the undo history.
 - The drag snaps the center of the pressed node to a grid of 9 points (1/8 inch), and the other nodes move by the same amount. The default node of Graphviz is 54 by 36 points, so its sides are also on the grid. During the drag, the canvas shows this grid under the drawing, in the units of the layout. The background of the canvas is a pattern in screen pixels, and it does not show the grid of the layout. ⌥ (Alt) drags with no snap.
 - A drag turns Auto off, as a pan does. Then the next layout does not fit the view again, and the dropped node stays under the pointer.
-- In a diagram with no position, a drag does not move the node, and it does not freeze the diagram. The canvas offers Freeze. Freeze and a drag in one gesture would draw the diagram again during the drag, with `neato` and new arrows.
+- In an automatic diagram, a drag does not move the node, and it does not freeze the diagram. The canvas offers Freeze. Freeze and a drag in one gesture would draw the diagram again during the drag, with `neato` and new arrows.
 - A locked diagram takes a drag. A lock protects the source, and the layout is not the source (see Save).
 - ⇧ and an arrow key move the selected nodes by one step of the grid. As for a drag, Auto goes off. After the new layout, the canvas keeps the map from the layout to the screen, so the moved nodes move on the screen and the other nodes stay. Before this rule, the canvas kept the selected node still on the screen, and the rest of the drawing moved.
 
@@ -101,13 +106,13 @@ When a move takes both ends of an arrow (a drag or a nudge of a selection), the 
 
 ## Save
 
-On the desktop, a change of the layout stays in memory until a save, as an edit of the source does, and the window shows the diagram as unsaved. ⌘S writes the source and the side file. The side file write is a compare-and-swap on the hash of the bytes that the app read (`write_layout`), and an empty layout removes the side file. The shell writes the side file only next to a watched diagram, with a name that comes from the diagram file, with no link at that name, and with an atomic rename. A locked diagram still saves its layout, because the layout is not the source: a tool can make the file again, and the positions of the person stay. A layout file is not a diagram: `gx add` refuses it. The library holds entries by path, so the side file does not show in `gx ls`.
+On the desktop, a change of the layout stays in memory until a save, as an edit of the source does, and the window shows the diagram as unsaved. ⌘S writes the source and the side file. The side file write is a compare-and-swap on the hash of the bytes that the app read (`write_layout`), and an empty layout removes the side file. An empty layout is automatic, with no position and no unknown key. A manual layout with no position keeps its side file, so that the mode stays. The shell writes the side file only next to a watched diagram, with a name that comes from the diagram file, with no link at that name, and with an atomic rename. A locked diagram still saves its layout, because the layout is not the source: a tool can make the file again, and the positions of the person stay. A layout file is not a diagram: `gx add` refuses it. The library holds entries by path, so the side file does not show in `gx ls`.
 
 ## Considered options
 
 - **`pos` attributes in the source.** One file holds all of the diagram, and Graphviz reads it with no help. But a Mermaid source has no `pos`, a canvas edit of a DOT file must then write each position into the text of the person, and a tool that makes the file again removes the positions. The source then also has the engine attributes, and the diagram draws differently in other tools.
 - **Nudges of the `dot` layout.** The app keeps `dot`, and it moves each node by a stored offset after the layout. The look of the automatic layout stays. But the arrows do not follow a moved node, and an offset has no meaning after an edit that changes the ranks.
-- **A separate "Manual" engine or mode.** The person selects a mode, and the app then draws each node at its place. This adds a switch that a person must find and understand, and a diagram with two positions must still place the other nodes. The ambient model gives the same result with no switch.
+- **An ambient model with no mode.** A stored position made the diagram manual, and a diagram with no position was automatic. This needs no switch. But an empty diagram, or a diagram with no drawing yet, has no position, so Manual did nothing on it and showed an error. A person expects Manual to switch to the manual mode. Thus the layout now stores the mode (2026-11-27), and a position still gives the mode for an older file.
 - **The layout in the library metadata on the desktop.** The metadata already holds the hidden elements. But the positions are the work of the person, and that work must be a file that the person owns, next to the diagram (ADR 0003 has the same rule for a board). A rename or a move of a file outside the app also loses its metadata.
 
 ## Consequences

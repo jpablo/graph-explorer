@@ -34,8 +34,9 @@ class GraphvizRenderer(graphviz: Graphviz) extends Renderer:
     // A render is never pending. A failed render gives no drawing, and the message of the error is the cause.
     // An image with a path relative to the diagram is drawn from its URL, with the size from its header (see
     // LocalImages). The DOT text for Graphviz has the URL, and the source keeps the path.
-    // A stored position pins its node, and neato places each other node (the free layout, ADR 0004). The pins go
-    // only into this text. An empty layout gives the same graph, so a diagram with no position draws as before.
+    // In the manual mode, a stored position pins its node, and neato places each other node (the free layout,
+    // ADR 0004). The pins go only into this text. A layout that is not manual gives the same graph, so an automatic
+    // diagram draws as before.
     // An arrow with bend points goes through them (part 4). neato honours the `pos` of an arrow only with its `-n2`
     // option, and viz-js does not give that option. Thus the renderer draws the path of such an arrow again in the SVG
     // of neato (see BendRender).

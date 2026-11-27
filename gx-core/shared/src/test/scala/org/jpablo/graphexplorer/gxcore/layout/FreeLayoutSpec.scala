@@ -121,6 +121,24 @@ class FreeLayoutSpec extends FunSuite:
     // With no position, the diagram is not a free layout, and Graphviz routes each arrow.
     assertEquals(FreeLayout.bendsByArrow(dotGraph, pinned.copy(nodes = Map.empty)), Map.empty)
 
+  test("a manual layout with no position uses neato, and gives no pin"):
+    val graph = FreeLayout.renderGraph(dotGraph, DiagramLayout(manual = true))
+    val attrs = graph.elements.graphAttributes.values.map((k, v) => k.value -> v.toString)
+    assertEquals(attrs.get("layout"), Some("neato"))
+    assertEquals(attrs.get("inputscale"), Some("72"))
+    assert(!layoutText(graph).contains("pos="), layoutText(graph))
+
+  test("an automatic layout with unknown keys gives the same render input"):
+    val layout = DiagramLayout(other = Vector("grid" -> "8"))
+    assert(FreeLayout.renderGraph(dotGraph, layout) eq dotGraph)
+
+  test("the bends apply in a manual layout with no position"):
+    val second = Arrow(q, c, seq = 5)
+    val bends  = Vector(LayoutPoint(9, 18))
+    val manual = DiagramLayout(manual = true).withBends("x\"y->c#2", bends)
+    assertEquals(FreeLayout.bendsByArrow(dotGraph, manual), Map(second.id -> bends))
+    assertEquals(FreeLayout.bendsByArrow(dotGraph, manual.arranged), Map.empty)
+
   test("the keys of the arrows with both ends in a set of nodes"):
     assertEquals(FreeLayout.arrowKeysWithin(dotGraph, Set(q, c)), Set("x\"y->c#1", "x\"y->c#2"))
     assertEquals(FreeLayout.arrowKeysWithin(dotGraph, Set(ab, c)), Set.empty[String])

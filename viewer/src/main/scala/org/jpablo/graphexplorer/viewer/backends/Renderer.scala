@@ -30,7 +30,7 @@ import scala.concurrent.Future
   *   The images of the diagram that have a path relative to its file, with their URLs.
   * @param layout
   *   The stored positions of the nodes of the full graph (ADR 0004). A renderer that can pin a node draws each
-  *   node with a position at that position. An empty layout changes nothing.
+  *   node with a position at that position. A layout that is not manual changes nothing.
   * @param bends
   *   The bend points of each arrow with bend points in a free layout, by the id of the arrow (ADR 0004, part 4). The
   *   keys of the layout file come from the full graph, so the state gives the bends by arrow id. A renderer that can

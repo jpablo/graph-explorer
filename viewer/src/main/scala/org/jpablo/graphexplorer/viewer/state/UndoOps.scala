@@ -158,8 +158,8 @@ final class UndoOps(
     val foldChanged   = before.collapsed != after.collapsed
     val layoutChanged = before.layout != after.layout
     if !textChanged && !hideChanged && !foldChanged && layoutChanged then
-      if !after.layout.hasPositions then "Arrange"
-      else if !before.layout.hasPositions then "Freeze layout"
+      if !after.layout.isManual then "Arrange"
+      else if !before.layout.isManual then "Freeze layout"
       else "Move"
     else if !textChanged && hideChanged && !foldChanged && !layoutChanged then
       if after.hidden.size >= before.hidden.size then "Hide" else "Show"

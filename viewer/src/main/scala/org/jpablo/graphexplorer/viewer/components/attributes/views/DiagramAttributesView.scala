@@ -53,6 +53,9 @@ def DiagramAttributesView(state: ViewerState) =
       .copy(labelAction = Some(editTitle), customCell = Some(shownTitle))
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty)
+
+  // "Layout" inside a section called LAYOUT says nothing; this row picks the engine.
+  val engineRow = row(Layout, InputType.select, label = Some("Engine"))
   div(
     idAttr := "diagram-attributes-view",
     div(cls := "attributes-title flex-none", h2("Diagram")),
@@ -76,8 +79,8 @@ def DiagramAttributesView(state: ViewerState) =
           hidden = labelRelatedHidden
         ),
         SectionHeader("Layout"),
-        // "Layout" inside a section called LAYOUT says nothing; this row picks the engine.
-        row(Layout, InputType.select, label = Some("Engine")),
+        // The engines of Graphviz, and "Manual" (ADR 0004).
+        engineRow.copy(customCell = Some(() => EngineSelect.dot(state, engineRow))),
         row(Rankdir, InputType.menuWithExtra(4), label = Some("Direction")).copy(options = directionOptions),
         // Graphviz measures all three in inches.
         row(RankSep, range(start = Some(0.02), end = Some(2.0), step = Some(0.05)), label = Some("Rank gap"), unit = Some("in")),

@@ -40,6 +40,8 @@ def MermaidDiagramAttributesView(state: ViewerState) =
         SectionHeader("Title"),
         labelRow,
         SectionHeader("Layout"),
+        // Mermaid places the nodes, or the person does (ADR 0004).
+        EngineSelect.mermaidRow(state),
         row(Rankdir, InputType.menuWithExtra(4), label = Some("Direction")).copy(options = directionOptions),
         SectionHeader("Text"),
         row(MermaidTheme, InputType.select, label = Some("Theme")),

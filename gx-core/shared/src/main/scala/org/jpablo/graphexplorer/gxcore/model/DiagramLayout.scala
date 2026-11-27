@@ -47,15 +47,34 @@ final case class ArrowBends(points: Vector[LayoutPoint], other: Vector[(String, 
   * The keys of `nodes` are node ids. The layout keeps an id that the graph does
   * not have: an edit of the source can bring the node back, for example an
   * undo of a rename. The render ignores such an id ([[restrictedTo]]).
+  *
+  * The manual mode is a stored fact ([[isManual]]). Manual (Freeze) sets it,
+  * also on an empty diagram, and Arrange ([[arranged]]) removes it. The file
+  * keeps it in the key `"manual"`.
+  *
+  * @param manual the stored flag of the manual mode. A stored position also
+  *   gives the manual mode (see [[isManual]]).
   */
 final case class DiagramLayout(
     nodes:  Map[String, NodePlace] = Map.empty,
     arrows: Map[String, ArrowBends] = Map.empty,
-    other:  Vector[(String, String)] = Vector.empty
+    other:  Vector[(String, String)] = Vector.empty,
+    manual: Boolean = false
 ) derives CanEqual:
 
   /** True when at least one node has a stored position. */
   def hasPositions: Boolean = nodes.nonEmpty
+
+  /** True when the diagram is in the manual mode: the free layout draws it, a drag moves a node, and a new node goes
+    * to the point of the person.
+    *
+    * The flag [[manual]] gives the mode. A stored position also gives it, because a layout file of an older build has
+    * positions and no flag. Only the manual mode stores a position, so a position with no flag is a manual layout.
+    */
+  def isManual: Boolean = manual || hasPositions
+
+  /** The layout in the manual mode, with the same positions. */
+  def asManual: DiagramLayout = if manual then this else copy(manual = true)
 
   def point(id: String): Option[LayoutPoint] = nodes.get(id).map(_.point)
 
@@ -92,15 +111,18 @@ final case class DiagramLayout(
   def withoutBends(keys: Set[String]): DiagramLayout =
     keys.foldLeft(this)((done, key) => done.withBends(key, Vector.empty))
 
-  /** The layout with no position and no bend point. The keys that this build does not know stay. */
+  /** The layout with no position and no bend point. The mode and the keys that this build does not know stay. */
   def withoutPositions: DiagramLayout = copy(nodes = Map.empty, arrows = Map.empty)
 
+  /** Arrange: the automatic layout, with no position and no bend point. The keys that this build does not know stay. */
+  def arranged: DiagramLayout = copy(nodes = Map.empty, arrows = Map.empty, manual = false)
+
   /** The positions of the nodes of `ids` only. The render uses this, so that it ignores an id that the graph does
-    * not have.
+    * not have. The mode does not change: a manual layout with only ids that the graph does not have stays manual.
     */
   def restrictedTo(ids: Set[String]): DiagramLayout =
     if nodes.keysIterator.forall(ids.contains) then this
-    else copy(nodes = nodes.filter((id, _) => ids.contains(id)))
+    else copy(nodes = nodes.filter((id, _) => ids.contains(id)), manual = isManual)
 
 object DiagramLayout:
 
@@ -124,6 +146,10 @@ object DiagramLayout:
     * The reader refuses a version that is newer than [[Version]], because a
     * write of this build could then remove content. A file with no version is
     * version 1.
+    *
+    * A file with no `"manual"` key has the flag off. A file of an older build
+    * with positions is still manual, because a position gives the manual mode
+    * ([[DiagramLayout.isManual]]).
     */
   def parse(text: String): Either[String, DiagramLayout] =
     try
@@ -140,7 +166,13 @@ object DiagramLayout:
         objectOf(value, "the nodes").map((id, place) => id -> parseNode(id, place)).toMap
       val arrows = root.get("arrows").fold(Map.empty[String, ArrowBends]): value =>
         objectOf(value, "the arrows").map((key, bends) => key -> parseArrow(key, bends)).toMap
-      Right(DiagramLayout(nodes, arrows, unknown(root, Set("version", "nodes", "arrows"))))
+      val manual = root.get("manual") match
+        case None => false
+        case Some(value) =>
+          JsonText.toValue(value) match
+            case ujson.Bool(b) => b
+            case _             => throw BadLayout(s"manual is not true or false: ${JsonText.render(value)}")
+      Right(DiagramLayout(nodes, arrows, unknown(root, Set("version", "manual", "nodes", "arrows")), manual))
     catch
       case BadLayout(message) => Left(message)
       case NonFatal(e)        => Left(s"the layout file is not valid JSON: ${e.getMessage}")
@@ -186,6 +218,9 @@ object DiagramLayout:
     * nodes and the arrows are in the order of their keys, and each key that
     * this build does not know comes after the known keys, in the order of the
     * read.
+    *
+    * The key `"manual": true` comes after the version when the flag is on. A
+    * layout with the flag off has no such key, as a file of an older build.
     */
   def render(layout: DiagramLayout): String =
     def num(v: Double): BufferedValue = JsonText.of(ujson.Num(v))
@@ -195,7 +230,9 @@ object DiagramLayout:
         id -> JsonText.obj(Vector("x" -> num(place.x), "y" -> num(place.y)), place.other)),
       Vector.empty
     )
-    val known = Vector("version" -> num(Version.toDouble), "nodes" -> nodes) ++
+    val known = Vector("version" -> num(Version.toDouble)) ++
+      Option.when(layout.manual)("manual" -> JsonText.of(ujson.True)) ++
+      Vector("nodes" -> nodes) ++
       Option.when(layout.arrows.nonEmpty)(
         "arrows" -> JsonText.obj(
           layout.arrows.toVector.sortBy(_._1).map((key, bends) =>

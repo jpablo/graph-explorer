@@ -10,9 +10,11 @@ import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 
 /** The manual layout of a diagram (ADR 0004).
   *
-  * There is no mode. A node with a stored position stays there, and a node with
-  * no stored position gets an automatic place around the pinned nodes. A
-  * diagram with no stored position draws as before.
+  * The manual mode is a stored fact of the layout (`DiagramLayout.isManual`).
+  * Manual (Freeze) sets it, also on an empty diagram or before the first
+  * drawing, and Arrange removes it. In the manual mode, a node with a stored
+  * position stays there, and a node with no stored position gets an automatic
+  * place around the pinned nodes. An automatic diagram draws as before.
   *
   * The layout is not in the source. A diagram with a file keeps it in a side
   * file next to the file, and a diagram of the browser library keeps it in its
@@ -48,8 +50,8 @@ trait ManualLayoutOps:
       .combineWithFn(fullGraph)((stored, graph) => stored.restrictedTo(graph.nodeIds.map(_.value)))
       .distinct
 
-  /** True when a node of the graph has a stored position: the diagram is a free layout. */
-  lazy val hasFreeLayout: Signal[Boolean] = activeLayout.map(_.hasPositions).distinct
+  /** True when the diagram is in the manual mode: the diagram is a free layout. */
+  lazy val hasFreeLayout: Signal[Boolean] = activeLayout.map(_.isManual).distinct
 
   private lazy val drawingObs      = svgWithPositions.observe
   private lazy val activeLayoutObs = activeLayout.observe
@@ -93,25 +95,27 @@ trait ManualLayoutOps:
       .nextOption()
       .getOrElse((0.0, 0.0))
 
-  /** Freeze: store the current place of each drawn node, so that the diagram keeps its look as a free layout.
+  /** Freeze (Manual): set the manual mode, and store the current place of each drawn node, so that the diagram keeps
+    * its look as a free layout.
     *
-    * The stored positions of the other nodes (a hidden node) stay. A selected renderer that cannot pin a node
-    * (Mermaid) goes back to Auto in the same change, so that the free layout shows.
+    * An empty diagram, or a diagram with no drawing yet, has no place to store. It still goes to the manual mode, and
+    * `neato` then places each node with no position. The stored positions of the other nodes (a hidden node) stay. A
+    * selected renderer that cannot pin a node (Mermaid) goes back to Auto in the same change, so that the free layout
+    * shows. The change is one step of the undo history.
     */
   def freezeLayout(): Unit =
     if renderOnlyNow then infoBus.emit("Positions do not apply to this kind of diagram.")
     else
-      val places = nodePlacesNow()
-      if places.isEmpty then errorBus.emit("The diagram has no drawing yet. Wait for the drawing, and then freeze the layout.")
-      else
-        val next = layout.now().placed(places.map((id, p) => id.value -> p))
-        val selectedOther = metadata.renderer.now().flatMap(languages.rendererById).exists(_.id != languages.freeLayoutRenderer.id)
-        if selectedOther then Var.set(layout -> next, metadata.metadata -> metadata.now().copy(renderer = None))
-        else layout.set(next)
+      val next = layout.now().placed(nodePlacesNow().map((id, p) => id.value -> p)).asManual
+      val selectedOther = metadata.renderer.now().flatMap(languages.rendererById).exists(_.id != languages.freeLayoutRenderer.id)
+      if selectedOther then Var.set(layout -> next, metadata.metadata -> metadata.now().copy(renderer = None))
+      else if next != layout.now() then layout.set(next)
 
-  /** Arrange: remove each stored position. The diagram goes back to the automatic layout. */
+  /** Arrange: leave the manual mode, and remove each stored position and each bend point. The diagram goes back to
+    * the automatic layout.
+    */
   def arrangeLayout(): Unit =
-    layout.update(_.withoutPositions)
+    layout.update(_.arranged)
 
   /** Store the position of each node of `points`. Each other node keeps its position. */
   def placeNodes(points: Map[NodeId, LayoutPoint]): Unit =
@@ -141,8 +145,8 @@ trait ManualLayoutOps:
     freezeOffer.set(false)
     freezeLayout()
 
-  /** True when a node of the graph has a stored position now. */
-  def hasFreeLayoutNow: Boolean = activeLayoutObs.now().hasPositions
+  /** True when the diagram is in the manual mode now. */
+  def hasFreeLayoutNow: Boolean = activeLayoutObs.now().isManual
 
   private lazy val rendererObs = currentRenderer.observe
 
@@ -264,7 +268,9 @@ trait ManualLayoutOps:
   lazy val activeBends: Signal[Map[ArrowId, Vector[LayoutPoint]]] =
     activeLayout.combineWithFn(fullGraph)((stored, graph) => FreeLayout.bendsByArrow(graph, stored)).distinct
 
-  /** True when the canvas draws the free layout now: the diagram has positions, and the renderer can pin a node. */
+  /** True when the canvas draws the free layout now: the diagram is in the manual mode, and the renderer can pin a
+    * node.
+    */
   def drawsFreeLayoutNow: Boolean =
     !renderOnlyNow && hasFreeLayoutNow && rendererObs.now().id == languages.freeLayoutRenderer.id
 
