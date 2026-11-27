@@ -71,7 +71,8 @@ trait LayoutStabilityOps:
       // Snapshot for the transition FIRST, mid-flight if one is running — the
       // measurements are visual (client space), so an interrupted animation
       // continues from wherever it was instead of snapping.
-      if animateLayoutChanges.now() && !LayoutTransition.reducedMotion then
+      // A hidden document gets no animation frames, so it gets no transition (see LayoutTransition.animate).
+      if animateLayoutChanges.now() && !LayoutTransition.reducedMotion && !LayoutTransition.documentHidden then
         pendingTransition = Some(LayoutTransition.capture(old, strategy))
       val nodes =
         SelectableElement

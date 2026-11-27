@@ -54,6 +54,11 @@ object LayoutTransition:
   def reducedMotion: Boolean =
     dom.window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
+  /** True when the person does not see the document: a background tab, a minimized window, or a window behind other
+    * windows. The browser then stops `requestAnimationFrame`, so a transition cannot make progress.
+    */
+  def documentHidden: Boolean = dom.document.visibilityState == "hidden"
+
   /** Screen CTM as (scaleX, scaleY, translate) — our transforms never rotate
     * or skew, so b/c are ignored.
     */
@@ -209,7 +214,7 @@ object LayoutTransition:
     * Returns a cancel function, or None when there is nothing to animate.
     */
   def animate(newSvg: dom.svg.SVG, strategy: SelectableElementStrategy, snap: Snapshot): Option[() => Unit] =
-    if snap.isEmpty || unmeasurable(newSvg) then return None
+    if snap.isEmpty || documentHidden || unmeasurable(newSvg) then return None
     val els = SelectableElement.findAll(newSvg, strategy)
     if els.isEmpty then None
     else
@@ -460,8 +465,18 @@ object LayoutTransition:
       newSvg.classList.remove(transitioningClass)
       newSvg.dispatchEvent(new dom.Event(transitionEndEvent))
 
-    var rafId = 0
-    var done  = false
+    var rafId   = 0
+    var timerId = 0
+    var done    = false
+    // The single end path for a completion, a cancel, a hide, and the timer fallback. The `done` flag makes it run once.
+    lazy val onHidden: js.Function1[dom.Event, Unit] = (_: dom.Event) => if documentHidden then end()
+    def end(): Unit =
+      if !done then
+        done = true
+        dom.window.cancelAnimationFrame(rafId)
+        dom.window.clearTimeout(timerId)
+        dom.document.removeEventListener("visibilitychange", onHidden)
+        finish()
     // The clock starts at the FIRST frame, not at setup: the synchronous
     // mount + measurement work preceding it can easily eat the whole
     // duration, which would finish the animation before it is ever seen.
@@ -472,16 +487,15 @@ object LayoutTransition:
         val t = ((now - t0) / DurationMs) min 1.0
         applyFrame(ease(t))
         if t < 1.0 then rafId = dom.window.requestAnimationFrame(step)
-        else
-          done = true
-          finish()
+        else end()
 
     newSvg.classList.add(transitioningClass)
     applyFrame(0.0)
     rafId = dom.window.requestAnimationFrame(step)
+    // With no animation frame, the transition stays at frame 0: the drawing shows the OLD routes. A hidden document
+    // stops the frames, so the transition ends when the document becomes hidden. The timer ends the transition when
+    // the frames stop for a different cause. A hidden page runs timers too, at most once a second.
+    dom.document.addEventListener("visibilitychange", onHidden)
+    timerId = dom.window.setTimeout(() => end(), DurationMs * 2 + 500)
 
-    () =>
-      if !done then
-        done = true
-        dom.window.cancelAnimationFrame(rafId)
-        finish()
+    () => end()
