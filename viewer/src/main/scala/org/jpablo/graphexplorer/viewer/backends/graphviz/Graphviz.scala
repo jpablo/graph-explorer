@@ -25,7 +25,11 @@ case class SvgWithPositions(
     /** The width and the height of each drawn node, by its id, in points (Graphviz only). An arrow with bend points
       * ends on the box of a node with no shape in the SVG (see `BendRender`).
       */
-    nodeSizes: Map[String, (Double, Double)] = Map.empty
+    nodeSizes: Map[String, (Double, Double)] = Map.empty,
+    /** The label of each subgraph, by its name (Graphviz only). A free layout gives each group the room for its label
+      * (see `ClusterLabelRoom`).
+      */
+    groupLabels: Map[String, ClusterLabelRoom.GroupLabel] = Map.empty
 )
 
 /** Backend-neutral render result (the slice both engines expose). */
@@ -113,7 +117,7 @@ class Graphviz(viz: Viz):
         val edgePos      = simplegraph.getEdgePos(graph)
         val svg          = parseSVG(result_svg)
         Graphviz.addEdgeHitAreas(svg.ref)
-        SvgWithPositions(svg, edgePos, simplegraph.getNodePos(graph), Graphviz.nodeSizes(graph))
+        SvgWithPositions(svg, edgePos, simplegraph.getNodePos(graph), Graphviz.nodeSizes(graph), ClusterLabelRoom.labels(graph))
       else
         dom.console.group("Graphviz.renderToSvg")
         dom.console.error(dot.value)

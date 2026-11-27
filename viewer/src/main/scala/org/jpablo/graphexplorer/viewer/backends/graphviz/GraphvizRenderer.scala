@@ -40,11 +40,15 @@ class GraphvizRenderer(graphviz: Graphviz) extends Renderer:
     // An arrow with bend points goes through them (part 4). neato honours the `pos` of an arrow only with its `-n2`
     // option, and viz-js does not give that option. Thus the renderer draws the path of such an arrow again in the SVG
     // of neato (see BendRender).
+    // neato draws each group as a tight box around its nodes, with no room for the label. In a free layout, each box
+    // gets the room for its label, as in dot (see ClusterLabelRoom). The nodes do not move.
     inputs.visibleGraph
       .combineWith(inputs.localImages.distinct, inputs.layout.distinct, inputs.bends.distinct)
       .map: (graph, images, layout, bends) =>
         val drawn = FreeLayout.renderGraph(images.graph(graph), layout)
         val dot   = DotText(DotPrinter.graphToText(drawn, omitInternal = false))
         graphviz.textToSvg(dot, images.table) match
-          case Success(svg)   => RenderState.Drawn(BendRender.applyTo(svg, graph, layout, bends))
+          case Success(svg) =>
+            val rerouted = BendRender.applyTo(svg, graph, layout, bends)
+            RenderState.Drawn(if layout.isManual then ClusterLabelRoom.applyTo(rerouted) else rerouted)
           case Failure(error) => RenderState.NoDrawing(Option(error.getMessage))

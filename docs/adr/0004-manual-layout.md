@@ -32,7 +32,14 @@ The positions are a **layout**. The layout is not in the source. A diagram with 
 When the diagram is in the manual mode, Graphviz draws it with the `neato` engine, also when no node has a stored position. The text for the render gets `pos="x,y!"` on each node with a position, and the graph gets `layout=neato`, `inputscale=72`, `splines=true` and `overlap=true`. The source never gets these attributes.
 
 - `neato` keeps each pinned node exactly at its place, also in a group. We checked this with viz-js 3.14 (Graphviz 13). `fdp` lays out a group as one unit. It moved the pinned nodes of a group, and it moved the pinned nodes around the group.
-- `neato` draws each group as a box around its nodes. A node with no position can go inside the box of a group that it is not in. We accept this for now.
+- `neato` draws each group as a tight box around its nodes, with no room for the label. The label then goes on the top nodes, and a node covers it. Thus the app changes each box in the SVG to the box that `dot` draws (`ClusterLabelRoom`):
+  - The box gets a margin of 8 points around its nodes and around the box of each child group.
+  - The box gets a band for the label, with the height of the label plus 8 points. The band is at the top, or at the bottom for `labelloc=b`. The label goes to the middle of the band. `labeljust=l` puts the label at the left, and `labeljust=r` puts it at the right. Else the label is at the center.
+  - The box is at least as wide as the label plus two margins. A wider box grows by the same amount on each side.
+  - The sheet of the drawing, the viewBox and the size of the SVG grow, so that they hold each box.
+  - The nodes and the arrows do not move. The width and the height of a label come from Graphviz (`lwidth` and `lheight` of `json0`). The browser can draw the text a little wider than this estimate.
+  - `neato` draws only the groups at the top level. It does not draw a group in a group.
+- A node with no position can go inside the box of a group that it is not in. We accept this for now.
 - `inputscale=72` reads a position in points. With no `inputscale`, Graphviz reads a position in inches.
 - `overlap=true` (the default) turns off the overlap removal. The overlap removal (`overlap=false`) moved a pinned node in our check.
 - Graphviz moves the box of the drawing to the origin. Thus the drawing of a pinned node is at its position plus one offset for the whole drawing. The app finds the offset from a pinned node when it reads places from a drawing.

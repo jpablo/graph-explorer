@@ -230,7 +230,7 @@ object BendRender:
   private val Number = """-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?""".r
 
   /** The points of a `points` attribute: `x,y x,y ...`. */
-  private def pointsOf(text: String): Vector[Vec] =
+  private[graphviz] def pointsOf(text: String): Vector[Vec] =
     Option(text).fold(Vector.empty): t =>
       val values = Number.findAllIn(t).flatMap(_.toDoubleOption).toVector
       values.grouped(2).collect { case Vector(x, y) => Vec(x, y) }.toVector
@@ -239,7 +239,7 @@ object BendRender:
   /** The path data with each pair of numbers moved. Graphviz writes a decoration path with absolute `M` and `C`
     * commands, so each pair is a point.
     */
-  private def mapPathPoints(d: String, move: Vec => Vec): String =
+  private[graphviz] def mapPathPoints(d: String, move: Vec => Vec): String =
     val tokens = """[A-Za-z]|-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?""".r.findAllIn(d).toVector
     val out    = Vector.newBuilder[String]
     var pending = Option.empty[Double]
@@ -257,6 +257,6 @@ object BendRender:
 
   private def num(e: dom.Element, name: String): Option[Double] = Option(e.getAttribute(name)).flatMap(_.trim.toDoubleOption)
 
-  private def fmt(v: Double): String = (math.round(v * 1000).toDouble / 1000).toString
+  private[graphviz] def fmt(v: Double): String = (math.round(v * 1000).toDouble / 1000).toString
 
 end BendRender
