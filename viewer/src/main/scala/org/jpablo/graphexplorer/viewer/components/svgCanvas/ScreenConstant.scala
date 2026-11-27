@@ -183,7 +183,7 @@ object ScreenConstant:
     * new-arrow circles came to dwarf the count badges they stand beside.
     */
   private val controlSelector =
-    s"g.${CountBadges.badgeClass}, g.new-arrow-control, g.edge-endpoint-disk"
+    s"g.${CountBadges.badgeClass}, g.new-arrow-control, g.edge-endpoint-disk, g.${BendControls.HandleClass}, g.${BendControls.DragDotClass}"
 
   /** Every screen-constant control on the canvas. The query reads no layout. */
   def controls(svg: dom.svg.SVG): Seq[dom.Element] =

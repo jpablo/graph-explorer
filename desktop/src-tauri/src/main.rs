@@ -514,6 +514,8 @@ fn main() {
             open_file_link,
             write_asset,
             local_image,
+            read_layout,
+            write_layout,
             set_unsaved,
             confirm_close,
             library_list,
@@ -2102,6 +2104,44 @@ fn write_asset(
         Ok((relative, Some(content_hash(&bytes))))
     })();
     audited(&state.audit_logger, "asset.write", &diagram_path, result)
+}
+
+/// Read the layout side file of an open diagram (`<name>.layout.json`, ADR
+/// 0004). `null` when the diagram has no side file. See
+/// `local_files::read_layout_at`.
+#[tauri::command(rename_all = "camelCase")]
+fn read_layout(
+    state: tauri::State<'_, IpcState>,
+    diagram_path: String,
+) -> std::result::Result<Option<local_files::LayoutFile>, IpcError> {
+    let diagram = watched_diagram(&state.watch_registry, &diagram_path)?;
+    local_files::read_layout_at(&state.access_policy, &diagram)
+}
+
+/// The answer of `write_layout`: the revision of the side file, or `null`
+/// when no side file stays.
+#[derive(Debug, Serialize)]
+struct LayoutWritten {
+    revision: Option<String>,
+}
+
+/// Write the layout side file of an open diagram, with a compare-and-swap on
+/// the revision that the page read. A `null` text removes the side file. See
+/// `local_files::write_layout_at`.
+#[tauri::command(rename_all = "camelCase")]
+fn write_layout(
+    state: tauri::State<'_, IpcState>,
+    diagram_path: String,
+    text: Option<String>,
+    base_revision: Option<String>,
+) -> std::result::Result<LayoutWritten, IpcError> {
+    let result = (|| {
+        let diagram = watched_diagram(&state.watch_registry, &diagram_path)?;
+        let revision =
+            local_files::write_layout_at(&state.access_policy, &diagram, text.as_deref(), base_revision.as_deref())?;
+        Ok((LayoutWritten { revision: revision.clone() }, revision))
+    })();
+    audited(&state.audit_logger, "layout.write", &diagram_path, result)
 }
 
 /// An image that the page can draw: its real path, and the start of its bytes

@@ -39,6 +39,13 @@ trait CanvasFixture:
     * test stops a mouse action, removes the canvas, and puts the URL back.
     */
   def withCanvas(dot: String, firstNode: NodeId)(body: TestCanvas => Future[Unit]): Future[Unit] =
+    withCanvasWhen(dot, s"the canvas shows the node $firstNode")(_.nodeGroup(firstNode).isDefined)(body)
+
+  /** Show `source` in a canvas in the document, and run `body` when `ready` is true. A source that a different
+    * renderer draws (Mermaid) has no Graphviz node groups, so it needs a different test of the start.
+    */
+  def withCanvasWhen(source: String, what: String)(ready: TestCanvas => Boolean)(body: TestCanvas => Future[Unit]): Future[Unit] =
+    val dot       = source
     val startHref = dom.window.location.href
     val owner     = ManualOwner()
     withGraphvizAsync: graphviz =>
@@ -50,10 +57,11 @@ trait CanvasFixture:
       dom.document.body.appendChild(box)
       val root   = render(box, CanvasContainer(state, commands))
       val canvas = TestCanvas(state, box)
+      def isReady = canvas.box.querySelector("svg") != null && ready(canvas)
       Waits
-        .settle(canvas.nodeGroup(firstNode).isDefined, timeoutMs = 10000)
+        .settle(isReady, timeoutMs = 10000)
         .flatMap: _ =>
-          check(canvas.nodeGroup(firstNode).isDefined, s"precondition: the canvas does not show the node $firstNode")
+          check(isReady, s"precondition: not true: $what")
           body(canvas)
         .transform: outcome =>
           state.mouseAction.inactive()

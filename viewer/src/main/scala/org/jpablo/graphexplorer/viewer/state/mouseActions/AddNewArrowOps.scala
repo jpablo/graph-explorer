@@ -135,7 +135,9 @@ trait AddNewArrowOps:
           (ev: dom.MouseEvent) => {
             ev.stopPropagation()
             mouseAction.inactive()
-            createNodeMaybePrompt(direction = direction)
+            // The new node gets an automatic place next to its source, also in a free layout: the pointer is on the
+            // control, at the side of the source node.
+            createNodeMaybePrompt(direction = direction, at = None)
           }
         )
 

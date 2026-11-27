@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import org.jpablo.graphexplorer.viewer.utils.BBox
 import org.scalajs.dom
 
-private[svgCanvas] object CanvasRoot:
+private[viewer] object CanvasRoot:
   private val SvgNamespace   = "http://www.w3.org/2000/svg"
   private val RootClass      = "gx-canvas-root"
   private val NonDrawingTags = Set("defs", "style", "title", "desc", "metadata", "script")

@@ -1073,6 +1073,12 @@ svg {
     @apply top-14;
   }
 
+  // The offer of Freeze (CanvasContainer) moves below the strip in the same way.
+  // A drag selects the node, so the strip shows when the offer shows.
+  &:has(#selection-toolbar:not(.hidden)) #gx-freeze-offer {
+    @apply top-14;
+  }
+
   // Color-row TRIGGER anatomy (the Docs/Canva idiom): identity glyph over a
   // live color bar. The glyph says what gets painted (bucket = fill, square =
   // border, line = edge stroke, A = text); the bar says which color, and takes
@@ -1213,6 +1219,64 @@ svg {
     // zoom bar (`bottom-14`), because the zoom bar covers the bottom-left
     // corner of a narrow canvas. It takes no pointer events. A pan moves the
     // drawing away from the element, so the strip goes away during a pan.
+    // The offer of Freeze after a drag on a node of an automatic layout
+    // (CanvasContainer, ADR 0004). It is at the top center, as the View-only
+    // chip, and it stays until the person freezes or closes it.
+    #gx-freeze-offer {
+      @apply top-2 left-2/4 -translate-x-2/4 px-2.5 py-1 text-xs select-none;
+      max-width: calc(100% - 1rem);
+    }
+
+    // A drag of nodes (NodeDrag). The nodes follow the pointer with a
+    // transform. An arrow with one moved end shows as a straight dashed line
+    // until the next render routes it. The snap grid shows under the drawing.
+    svg.gx-node-dragging {
+      cursor: grabbing;
+
+      #record-cell-overlay,
+      .gx-badge-layer,
+      .gx-link-badge {
+        visibility: hidden;
+      }
+    }
+
+    .gx-drag-link {
+      stroke: var(--color-primary);
+      stroke-width: 1.5px;
+      stroke-dasharray: 4 3;
+      vector-effect: non-scaling-stroke;
+      pointer-events: none;
+    }
+
+    .gx-snap-grid circle {
+      fill: color-mix(in oklab, var(--color-base-content) 30%, transparent);
+    }
+
+    // The bend points of the selected arrow in a free layout (ADR 0004, part 4). A handle moves its bend, and a drag on
+    // the path of the selected arrow adds a bend.
+    .gx-bend-handle,
+    .gx-bend-drag-dot {
+      cursor: move;
+
+      circle {
+        stroke-width: 1.5px;
+        stroke: var(--gx-control);
+        fill: white;
+        vector-effect: non-scaling-stroke;
+        filter: drop-shadow(0px 1px 1px var(--gx-shadow-soft));
+      }
+    }
+
+    svg.gx-bend-dragging {
+      cursor: move;
+
+      .edge-endpoint-disk,
+      .gx-badge-layer,
+      .gx-link-badge {
+        visibility: hidden;
+      }
+    }
+
     #gx-link-status {
       @apply absolute bottom-14 left-2 z-10 flex items-start gap-1.5 px-2 py-1;
       @apply rounded-md border border-base-300 bg-base-100/95 shadow-sm text-xs;
@@ -1908,6 +1972,7 @@ svg.gx-transitioning .gx-expand-badge,
 svg.gx-transitioning .gx-link-badge,
 svg.gx-transitioning .new-arrow-control,
 svg.gx-transitioning .edge-endpoint-disk,
+svg.gx-transitioning .gx-bend-handle,
 // The cell overlay belongs here for the same reason — it is placed from frame-0
 // geometry, so mid-flight it marks where the row USED to be. It was tolerable
 // while the overlay was a thin outline; the veil is a record-sized translucent

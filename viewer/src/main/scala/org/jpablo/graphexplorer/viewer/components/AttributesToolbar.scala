@@ -148,10 +148,26 @@ private def selectionView(state: ViewerState, commands: Commands, selectedNodes:
 
   (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
     case (true, false, false) =>
-      ToolbarArrowsAttributesView(
-        state,
-        all.resetSelectionAttributes,
-        updates = state.elementAttributesUpdates(ElementIds(arrowIds))
+      // In a free layout, an arrow with bend points gets "Reset arrow route" (ADR 0004, part 4).
+      val bent = state.activeBends.map(bends => arrowIds.exists(bends.contains)).distinct
+      div(
+        cls := "flex flex-row items-center gap-1",
+        ToolbarArrowsAttributesView(
+          state,
+          all.resetSelectionAttributes,
+          updates = state.elementAttributesUpdates(ElementIds(arrowIds))
+        ),
+        child.maybe <-- bent.map: show =>
+          Option.when(show):
+            Button(
+              cls := "gx-reset-arrow-route",
+              i(cls := "bi bi-bezier2"),
+              "Straighten",
+              onClick --> { _ =>
+                all.resetArrowRoute.execute()
+                state.canvasContainerFocus.emit(true)
+              }
+            ).tiny.ghost.toTooltip(all.resetArrowRoute.labelWithShortcut)
       )
 
     case (false, true, false) =>

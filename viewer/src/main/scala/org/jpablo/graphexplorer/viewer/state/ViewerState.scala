@@ -17,7 +17,7 @@ import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
 import org.jpablo.graphexplorer.gxcore.command.SourceCommand
-import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LayoutPoint, LibraryEntry}
 import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
 
@@ -100,7 +100,8 @@ case class ViewerState(
       ExtendSelectionOps,
       UIState,
       Persistence,
-      LocalFileOps:
+      LocalFileOps,
+      ManualLayoutOps:
 
   /** The id of this view, for the display and for a share link.
     *
@@ -147,7 +148,7 @@ case class ViewerState(
   lazy val storedName: Var[String] = Var("")
 
   /** Undo and redo of this view: the text, the hidden elements, the folded
-    * groups and the selection (see `UndoOps`).
+    * groups, the layout and the selection (see `UndoOps`).
     */
   lazy val history: UndoOps =
     UndoOps(
@@ -155,6 +156,7 @@ case class ViewerState(
       restoreText  = restoreSource,
       hidden       = metadata.hiddenElements,
       collapsed    = metadata.collapsedGroups,
+      layout       = layout,
       selection    = selection.signal,
       selectionNow = () => selection.now(),
       select       = selection.set
@@ -235,13 +237,19 @@ case class ViewerState(
     * Mermaid sequence diagram) has no graph, so only the renderer of its
     * language can draw it, from the source. Thus the selection does not apply
     * to that kind.
+    *
+    * With no selection, a diagram with stored positions is a free layout, and
+    * the renderer that can pin a node draws it (ADR 0004). Thus a Mermaid
+    * flowchart with positions goes to Graphviz. A selected renderer still
+    * wins: Mermaid then draws the diagram, and the positions stay in the
+    * layout with no effect.
     */
   val currentRenderer: Signal[Renderer] =
     currentFormat
-      .combineWithFn(metadata.renderer.signal, sourceHasNoGraph): (format, selected, noGraph) =>
+      .combineWithFn(metadata.renderer.signal, sourceHasNoGraph, hasFreeLayout): (format, selected, noGraph, free) =>
         val ofLanguage = languages.renderer(format)
         if noGraph then ofLanguage
-        else selected.flatMap(languages.rendererById).getOrElse(ofLanguage)
+        else selected.flatMap(languages.rendererById).getOrElse(if free then languages.freeLayoutRenderer else ofLanguage)
       .distinct
 
   /** The drawing comes from the renderer, so the strategy that reads its SVG does also. */
@@ -337,9 +345,22 @@ case class ViewerState(
     val selected: Signal[String] =
       metadata.renderer.signal.map(_.filter(id => languages.rendererById(id).isDefined).getOrElse(auto))
 
-    /** The renderer that Auto gives now, for the label of the option. */
+    /** The renderer that Auto gives now, for the label of the option. A free layout says so, because the
+      * renderer then is not the renderer of the language (ADR 0004).
+      */
     val autoLabel: Signal[String] =
-      currentFormat.map(format => s"$auto — ${languages.renderer(format).label}")
+      currentFormat.combineWithFn(hasFreeLayout): (format, free) =>
+        if free then s"$auto — Free layout (${languages.freeLayoutRenderer.label})"
+        else s"$auto — ${languages.renderer(format).label}"
+
+    /** The label of the option of `renderer`. The renderer of the free layout says that it draws one, and a
+      * different renderer says that it does not use the positions.
+      */
+    def labelOf(renderer: Renderer): Signal[String] =
+      hasFreeLayout.map: free =>
+        if !free then renderer.label
+        else if renderer.id == languages.freeLayoutRenderer.id then s"${renderer.label} — Free layout"
+        else s"${renderer.label} — no positions"
 
     def select(value: String): Unit =
       metadata.renderer.set(Option.when(value != auto)(value))
@@ -434,7 +455,9 @@ case class ViewerState(
       // A renderer cannot draw a source in a different language. Then it must
       // always draw the text of the visible graph.
       viewDiffersFromSource = if sourceInItsLanguage then viewDiffersFromSource else Val(true),
-      localImages = localImages.signal
+      localImages = localImages.signal,
+      layout = activeLayout,
+      bends = activeBends
     )
 
   // The images next to the file of the diagram (desktop).
@@ -445,10 +468,21 @@ case class ViewerState(
     * item, so that it can tell a render that waits from a render that failed.
     */
   val renderState: Signal[RenderState] =
+    renderStateWithStrategy.map(_._1).distinct
+
+  /** The state of the render, with the selection strategy of the renderer that drew it.
+    *
+    * The canvas reads a drawing with the strategy of its own renderer. A change of the renderer changes the
+    * strategy at once, and the new drawing comes after it. A combination of the two signals gave the old drawing
+    * with the new strategy for a moment: the canvas then built a second canvas on the old svg, and it did not show
+    * the new drawing. A Mermaid flowchart that became a free layout (ADR 0004) kept its Mermaid drawing.
+    */
+  private lazy val renderStateWithStrategy: Signal[(RenderState, SelectableElementStrategy)] =
     currentRenderer
       .combineWithFn(currentFormat)((renderer, sourceFormat) => (renderer, renderer.format == sourceFormat))
       .distinct
-      .flatMapSwitch((renderer, sourceInItsLanguage) => renderer.render(renderInputsFor(sourceInItsLanguage)))
+      .flatMapSwitch: (renderer, sourceInItsLanguage) =>
+        renderer.render(renderInputsFor(sourceInItsLanguage)).map(_ -> renderer.selectionStrategy)
       .distinct
 
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
@@ -469,7 +503,7 @@ case class ViewerState(
   // 6. SVG with extra elements: selection rect, etc.
   // svgWithPositions ~> finalSVG
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
-    svgWithPositions.combineWith(selectionStrategy).map: (svgOpt, strategy) =>
+    renderStateWithStrategy.map((state, strategy) => (state.drawing, strategy)).distinct.map: (svgOpt, strategy) =>
       svgOpt.map: svgWithPos =>
         withLog("5. [visibleText -> SVG]", level = phases.logLevel) {
           beforeLayoutSwap(strategy) // the OLD svg is still mounted here
@@ -480,6 +514,8 @@ case class ViewerState(
             mouseAction = mouseAction,
             edgePositions = svgWithPos.edgePositions,
             strategy = strategy,
+            nodePositions = svgWithPos.nodePositions,
+            nodeSizes = svgWithPos.nodeSizes,
             // consistent with THIS svg: any change to graph/hidden/collapsed re-renders.
             // Computed on the COLLAPSE-APPLIED view, so a box whose members have
             // concealed outside neighbors wears the badge itself.
@@ -511,22 +547,31 @@ case class ViewerState(
   val promptLabelBeforeNewNode: Var[Boolean] = Var(true)
 
   // ------------- New node flow -------------
-  case class PendingNewNode(attributes: Attributes, direction: ArrowDirection)
+  /** A new node that waits for its label. `at` is the place of the node in a free layout, from the moment of the
+    * gesture: the pointer goes to the dialog after the gesture.
+    */
+  case class PendingNewNode(attributes: Attributes, direction: ArrowDirection, at: Option[LayoutPoint] = None)
   val pendingNewNodeV: Var[Option[PendingNewNode]] = Var(None)
 
   // ------------- New group flow -------------
   case class PendingNewGroup(elementIds: ElementIds)
   val pendingNewGroupV: Var[Option[PendingNewGroup]] = Var(None)
 
-  /** Creates a new node, optionally prompting for the label before creation based on settings. */
+  /** Creates a new node, optionally prompting for the label before creation based on settings.
+    *
+    * In a free layout, the node goes to `at`: by default the pointer over the canvas, else the center of the visible
+    * canvas (see `ManualLayoutOps.newNodePlaceNow`). In an automatic diagram, `at` is None and the layout places the
+    * node.
+    */
   def createNodeMaybePrompt(
       attributes: Attributes = Attributes.empty,
-      direction:  ArrowDirection = ArrowDirection.forward
+      direction:  ArrowDirection = ArrowDirection.forward,
+      at:         Option[LayoutPoint] = newNodePlaceNow()
   ): Unit =
     if promptLabelBeforeNewNode.now() then
-      pendingNewNodeV.set(Some(PendingNewNode(attributes, direction)))
+      pendingNewNodeV.set(Some(PendingNewNode(attributes, direction, at)))
     else
-      addNodeWithSmartConnection(attributes, direction)
+      addNodeWithSmartConnection(attributes, direction, at)
 
   /** Creates a new group from the current selection, prompting for its label. */
   def createGroupMaybePrompt(elementIds: ElementIds): Unit =
@@ -571,9 +616,21 @@ case class ViewerState(
     */
   def addNodeWithSmartConnection(
       attributes: Attributes = Attributes.empty,
-      direction:  ArrowDirection = ArrowDirection.forward
+      direction:  ArrowDirection = ArrowDirection.forward,
+      at:         Option[LayoutPoint] = None
   ): Unit =
     val applies = phases.graphEditApplies
+    at.filter(_ => applies) match
+      case Some(place) =>
+        // A free layout: the node and its place are one change (see `ManualLayoutOps.setGraphWithPlaces`).
+        val selectedElementId        = selection.targets().ids.headOption
+        val (newGraph, newNodeId, _) = phases.fullGraphV.now().addNodeWithSmartConnection(selectedElementId, attributes, direction)
+        setGraphWithPlaces(newGraph, Seq(newNodeId -> place))
+        if !selectedElementId.exists(hasBox) then selection.set2(newNodeId)
+      case None => addNodeWithNoPlace(attributes, direction, applies)
+
+  /** [[addNodeWithSmartConnection]] with no place: the layout places the node. */
+  private def addNodeWithNoPlace(attributes: Attributes, direction: ArrowDirection, applies: Boolean): Unit =
     phases.fullGraphV.update: fullGraph =>
       // A box gives its group. Then the new node goes into that group, as for the
       // expanded group, and no arrow ends on the box.

@@ -427,6 +427,21 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Unfold every collapsed group")
     )
 
+    // Manual layout (ADR 0004). Each is one step of the undo history.
+    val freezeLayout = Command(
+      "Freeze layout",
+      () => state.freezeLayout(),
+      always,
+      description = Some("Keep each node at its place: store the current positions as a free layout")
+    )
+
+    val arrangeLayout = Command(
+      "Arrange",
+      () => state.arrangeLayout(),
+      _ => state.layout.now().hasPositions,
+      description = Some("Remove each stored position, and lay out the diagram automatically again")
+    )
+
     val toggleLayoutAnimation = Command(
       "Toggle layout animation",
       () => state.animateLayoutChanges.update(!_),
@@ -738,6 +753,14 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Reverse the Head/Tail *Style* of the selected arrows")
     )
 
+    // Manual layout, part 4 (ADR 0004): the bends of the selected arrows go, and Graphviz routes them again.
+    val resetArrowRoute = Command(
+      "Reset arrow route",
+      () => state.resetSelectedArrowRoutes(),
+      _ => state.hasBentArrowSelectedNow,
+      description = Some("Remove the bend points of the selected arrows: Graphviz routes them again")
+    )
+
     // ── Keyboard navigation (KeyboardNavOps) ──────────────────────────────
     // The four arrow keys walk the diagram from the selected element, in
     // SCREEN directions. One shared description; the palette shows all four
@@ -760,6 +783,23 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val navigateRight = navCommand("Navigate right", "ArrowRight", NavDirection.NavRight)
     val navigateUp    = navCommand("Navigate up", "ArrowUp", NavDirection.NavUp)
     val navigateDown  = navCommand("Navigate down", "ArrowDown", NavDirection.NavDown)
+
+    // ── Nudge (manual layout, ADR 0004) ───────────────────────────────────
+    // Shift and an arrow key move the selected nodes of a free layout by one step of the snap grid. The plain arrow
+    // keys stay the navigation above. The key is free for the canvas only in a free layout with a selected node, so
+    // the key does its default in each other case.
+    private def nudgeCommand(label: String, key: String, dx: Int, dy: Int) =
+      Command(
+        label,
+        () => state.nudgeSelection(dx, dy),
+        _ => state.hasFreeLayoutNow && state.hasSelectedNodesNow,
+        shortcut = Some(Shortcut(key, shift = true)),
+        description = Some(s"$label: move the selected nodes of a free layout by one step of the grid")
+      )
+    val nudgeLeft  = nudgeCommand("Nudge left", "ArrowLeft", -1, 0)
+    val nudgeRight = nudgeCommand("Nudge right", "ArrowRight", 1, 0)
+    val nudgeUp    = nudgeCommand("Nudge up", "ArrowUp", 0, 1)
+    val nudgeDown  = nudgeCommand("Nudge down", "ArrowDown", 0, -1)
 
     // ── Record cells (RecordCellOps) ──────────────────────────────────────
     // Structured record-label editing: the cell selection level. Buttons live
@@ -905,6 +945,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.editRecordLabelRaw,
       all.reverseArrows,
       all.reverseArrowsStyle,
+      all.resetArrowRoute,
       all.resetSelectionAttributes,
       all.clearSelection
 //      all.resetLayout
@@ -930,6 +971,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.hideAllNodes,
       all.collapseAllGroups,
       all.expandAllGroups,
+      all.freezeLayout,
+      all.arrangeLayout,
+      all.nudgeLeft,
+      all.nudgeRight,
+      all.nudgeUp,
+      all.nudgeDown,
       all.toggleLayoutAnimation,
       all.deleteHiddenElements
     ),

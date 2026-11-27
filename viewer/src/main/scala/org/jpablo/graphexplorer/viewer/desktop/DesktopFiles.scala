@@ -8,8 +8,8 @@ import org.scalajs.dom
 import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js
 
-/** The files next to a diagram on the desktop: the shell commands `write_asset`, `local_image` and `open_file_link`,
-  * and the asset URL of a file (`convertFileSrc`).
+/** The files next to a diagram on the desktop: the shell commands `write_asset`, `local_image`, `open_file_link`,
+  * `read_layout` and `write_layout`, and the asset URL of a file (`convertFileSrc`).
   *
   * A diagram with a file keeps an image of a paste or a drop as a file next to the diagram, and not as a `data:` URI
   * in its source (see `local_files.rs`). The page cannot read or write a file by itself, so it asks the shell.
@@ -19,6 +19,39 @@ object DesktopFiles:
   val WriteAsset   = "write_asset"
   val LocalImage   = "local_image"
   val OpenFileLink = "open_file_link"
+  val ReadLayout   = "read_layout"
+  val WriteLayout  = "write_layout"
+
+  /** The layout side file of a diagram (`<base name>.layout.json`, ADR 0004) as the shell read it: its text, and
+    * the content hash of its bytes.
+    */
+  final case class LayoutOnDisk(text: String, revision: String) derives CanEqual
+
+  /** The side file of the layout of the diagram at `diagramPath`, or `None` when the diagram has no side file. */
+  def readLayout(diagramPath: String)(using ExecutionContext): Future[Option[LayoutOnDisk]] =
+    DesktopIpc
+      .invoke(ReadLayout, js.Dynamic.literal(diagramPath = diagramPath))
+      .transform(identity, failureOf)
+      .map: value =>
+        if value == null || js.isUndefined(value) then None
+        else
+          val text     = DesktopIpc.asString(value, "text").getOrElse(throw IllegalStateException("the side file has no text"))
+          val revision = DesktopIpc.asString(value, "revision").getOrElse(throw IllegalStateException("the side file has no revision"))
+          Some(LayoutOnDisk(text, revision))
+
+  /** Write the side file of the layout of the diagram at `diagramPath`, with a compare-and-swap on `baseRevision`.
+    * `None` as the base: the shell expects no side file. `None` as the text: the shell removes the side file. The
+    * result is the revision of the new side file, or `None` when no side file stays. A side file that changed on
+    * disk gives the failure `LAYOUT_CONFLICT`.
+    */
+  def writeLayout(diagramPath: String, text: Option[String], baseRevision: Option[String])(using
+      ExecutionContext
+  ): Future[Option[String]] =
+    val args = js.Dynamic.literal(diagramPath = diagramPath, text = text.orNull, baseRevision = baseRevision.orNull)
+    DesktopIpc
+      .invoke(WriteLayout, args)
+      .transform(identity, failureOf)
+      .map(value => if value == null || js.isUndefined(value) then None else DesktopIpc.asString(value, "revision"))
 
   /** The extensions of an image file, and the media type of each one. */
   private val ImageTypes: Map[String, String] = Map(

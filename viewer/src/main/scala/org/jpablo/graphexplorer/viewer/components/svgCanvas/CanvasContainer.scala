@@ -4,12 +4,12 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ChildNode
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
-import org.jpablo.graphexplorer.viewer.components.Commands
+import org.jpablo.graphexplorer.viewer.components.{Commands, toSvgPoint}
 import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDrop
-import org.jpablo.graphexplorer.viewer.state.{CanvasTransform, EditorNotice, FitMode, UndoOps, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{CanvasTransform, EditorNotice, FitMode, ManualLayoutOps, UndoOps, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils, Platform, TransferItems}
-import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
+import org.jpablo.graphexplorer.viewer.widgets.{Button, IconButtonTitled, Tooltip, TooltipPos, primary, tiny}
 
 import scala.scalajs.js
 
@@ -30,6 +30,8 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
   // The stylesheet then shows the link icon of each linked element
   // (LinkBadges), and gives a linked element the hand pointer.
   val linksRevealed = Var(false)
+  // The last client point of the pointer over the canvas, or None when the pointer is not over the canvas.
+  var pointer = Option.empty[ClientPoint]
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,
@@ -49,13 +51,30 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
         Option(container.ref.querySelector(":scope > svg"))
           .flatMap(el => CanvasFit.transform(el.asInstanceOf[dom.svg.SVG], mode))
       var unregister = () => ()
+      // The place of a new node in a free layout (ADR 0004, part 3): the state converts a client point with this
+      // geometry. The last place of the pointer over the canvas comes from the moves below.
+      val geometry = ManualLayoutOps.PlaceGeometry(
+        drawingPoint = at => drawingPointAt(container.ref, at),
+        pointer = () => pointer,
+        visibleCenter = () => visibleCenterOf(container.ref)
+      )
       Seq(
         onMountUnmountCallback(
-          mount = _ => unregister = state.measureFitWith(fitOf),
+          mount = _ =>
+            val stopFit    = state.measureFitWith(fitOf)
+            val stopPlaces = state.measurePlacesWith(geometry)
+            unregister = () =>
+              stopFit()
+              stopPlaces()
+          ,
           unmount = _ =>
             unregister()
             unregister = () => ()
+            pointer = None
         ),
+        // The pointer over the canvas. A paste and New node put a new node there in a free layout.
+        onMouseMove --> { e => pointer = Some(ClientPoint(e.clientX, e.clientY)) },
+        onMouseLeave --> { _ => pointer = None },
         state.fitDiagram.events --> {
           case FitMode.Page => state.resetView()
           case mode         => fitOf(mode).foreach(state.fitAxis)
@@ -79,6 +98,10 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     onMouseDown --> { _ =>
       if state.editorNotice.now().exists(n => !n.isError) then viewOnlyNudge.emit(())
     },
+    // A drag on a node of an automatic layout offers Freeze (ADR 0004). The offer goes away when the diagram becomes
+    // a free layout, for example by the command or by an undo.
+    child.maybe <-- state.freezeOffer.signal.map(Option.when(_)(FreezeOffer(state))),
+    state.hasFreeLayout --> { free => if free && state.freezeOffer.now() then state.freezeOffer.set(false) },
     // A DOT `URL` or `href` attribute and a Mermaid `click X href` put the
     // element in an svg `<a>` link. A click on the canvas only selects. Thus the
     // canvas cancels the link, so that the window stays on the diagram. The
@@ -140,9 +163,11 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
       Option(ev.clipboardData) match
         case None => state.pasteTextFromGesture("")
         case Some(transfer) =>
+          // In a free layout, the new node goes to the pointer, or to the center of the visible canvas.
+          val at = state.newNodePlaceNow()
           TransferItems.imageFile(transfer) match
-            case Some(file) => state.pasteImageFromGesture(TransferItems.readImage(file))
-            case None       => state.pasteTextFromGesture(TransferItems.text(transfer))
+            case Some(file) => state.pasteImageFromGesture(TransferItems.readImage(file), at)
+            case None       => state.pasteTextFromGesture(TransferItems.text(transfer), at)
     },
     // A drop of files, links or text from outside of the page: each file becomes a node (an image node for an
     // image), and so does each link. Text becomes a text node (see `ImportOps.dropFilesFromGesture`).
@@ -184,6 +209,31 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     ),
     onGestureEnd --> state.pinchEnd()
   )
+
+/** The point of the drawing under the client point `at`, in points with the y axis up, or None with no drawing.
+  *
+  * The drawing group has the transform of the canvas (the pan and the zoom), and Graphviz draws the place `(x, y)` at
+  * the point `(x, -y)` of that group (see `NodeDrag`). Thus the inverse of the screen matrix of the group gives the
+  * point of the group, and the y axis turns around.
+  */
+private def drawingPointAt(container: dom.Element, at: ClientPoint): Option[(Double, Double)] =
+  Option(container.querySelector(":scope > svg")).collect { case svg: dom.svg.SVG => svg }.flatMap: svg =>
+    Option(CanvasRoot.mainGroup(svg).getScreenCTM()).filter(m => m.a != 0 && m.d != 0).map: ctm =>
+      val local = at.toSvgPoint(ctm)
+      (local.x, -local.y)
+
+/** The client point at the center of the visible part of the canvas: the box of the canvas inside the window. A canvas
+  * out of the window gives the center of its box.
+  */
+private def visibleCenterOf(container: dom.Element): Option[ClientPoint] =
+  val r      = container.getBoundingClientRect()
+  val left   = math.max(r.left, 0)
+  val top    = math.max(r.top, 0)
+  val right  = math.min(r.right, dom.window.innerWidth.toDouble)
+  val bottom = math.min(r.bottom, dom.window.innerHeight.toDouble)
+  if r.width <= 0 || r.height <= 0 then None
+  else if right > left && bottom > top then Some(ClientPoint((left + right) / 2, (top + bottom) / 2))
+  else Some(ClientPoint(r.left + r.width / 2, r.top + r.height / 2))
 
 // scalajs-dom has no type for the WebKit `GestureEvent`, and Chromium has no
 // such class. Thus the canvas reads the properties of the event dynamically.
@@ -281,6 +331,20 @@ private def ViewOnlyChip(notice: EditorNotice, nudge: EventStream[Unit]) =
     }
   )
 
+/** The offer of Freeze after a drag on a node of an automatic layout. A drag does not change the layout in silence:
+  * the person decides. Freeze stores the place of each node, and then a drag moves the nodes.
+  */
+private def FreezeOffer(state: ViewerState) =
+  div(
+    idAttr := "gx-freeze-offer",
+    cls    := "floating-toolbar",
+    role   := "status",
+    span(cls := "gx-freeze-text", "The layout is automatic. Freeze it to move nodes by hand."),
+    Button(cls := "gx-freeze-accept", "Freeze layout", onClick --> { _ => state.acceptFreezeOffer() }).tiny.primary,
+    IconButtonTitled("bi bi-x", "Close", cls := "gx-freeze-dismiss")(state.freezeOffer.set(false)),
+    onKeyDown.filter(_.key == "Escape") --> { _ => state.freezeOffer.set(false) }
+  )
+
 extension (e: dom.MouseEvent)
   def clientCoords    = (ClientPoint(e.clientX, e.clientY), e.shiftKey)
   def leftButton      = e.button == 0
@@ -314,10 +378,11 @@ private def dropTarget(state: ViewerState): Modifier[HtmlElement] =
           DesktopDrop.install(
             ctx.thisNode.ref,
             desktopOver.set,
-            paths =>
+            (paths, point) =>
               // A drop has no key and no press on the canvas, so it marks its own gesture: the drop is one step.
               state.history.markGesture()
-              state.dropPathsFromGesture(paths)
+              // In a free layout, the new nodes go to the drop point.
+              state.dropPathsFromGesture(paths, point.flatMap(state.layoutPointAt))
           ),
       unmount = (_, stop) => stop.foreach(_())
     ),
@@ -347,8 +412,10 @@ private def dropTarget(state: ViewerState): Modifier[HtmlElement] =
         state.history.markGesture()
         val files = TransferItems.files(transfer)
         val links = TransferItems.links(transfer)
-        if files.nonEmpty then state.dropFilesFromGesture(files.exists(TransferItems.isImage), TransferItems.readItems(files))
-        else if links.nonEmpty then state.dropLinksFromGesture(links)
-        else state.dropTextFromGesture(TransferItems.text(transfer))
+        // In a free layout, the new nodes go to the drop point.
+        val at = state.layoutPointAt(ClientPoint(ev.clientX, ev.clientY))
+        if files.nonEmpty then state.dropFilesFromGesture(files.exists(TransferItems.isImage), TransferItems.readItems(files), at)
+        else if links.nonEmpty then state.dropLinksFromGesture(links, at)
+        else state.dropTextFromGesture(TransferItems.text(transfer), at)
     }
   )

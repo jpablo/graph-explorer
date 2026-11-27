@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
+import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 import org.scalajs.dom
 
 import scala.scalajs.js
@@ -78,9 +79,9 @@ object DesktopDrop:
       x >= r.left && x < r.right && y >= r.top && y < r.bottom
 
   /** Follow the drags of files over `target`. `over` gets true while a drag is over `target`. `onDrop` gets the paths
-    * of a drop over `target`. Call the result to stop.
+    * of a drop over `target`, and the drop point in the client pixels of the page. Call the result to stop.
     */
-  def install(target: dom.Element, over: Boolean => Unit, onDrop: Seq[String] => Unit): () => Unit =
+  def install(target: dom.Element, over: Boolean => Unit, onDrop: (Seq[String], Option[ClientPoint]) => Unit): () => Unit =
     listener match
       case None => () => ()
       case Some(listen) =>
@@ -99,7 +100,7 @@ object DesktopDrop:
         on(Drop): payload =>
           over(false)
           val paths = pathsOf(payload)
-          if paths.nonEmpty && isOver(target, payload) then onDrop(paths)
+          if paths.nonEmpty && isOver(target, payload) then onDrop(paths, pointOf(payload).map(ClientPoint(_, _)))
         () =>
           stopped = true
           unlistens.foreach(_())

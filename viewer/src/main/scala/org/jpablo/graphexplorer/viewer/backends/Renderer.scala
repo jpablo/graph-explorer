@@ -1,9 +1,11 @@
 package org.jpablo.graphexplorer.viewer.backends
 
 import com.raquo.airstream.core.Signal
+import org.jpablo.graphexplorer.gxcore.model.{DiagramLayout, LayoutPoint}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models.ArrowId
 
 import scala.concurrent.Future
 
@@ -26,6 +28,13 @@ import scala.concurrent.Future
   *   `visibleGraph` is the only input that it can draw.
   * @param localImages
   *   The images of the diagram that have a path relative to its file, with their URLs.
+  * @param layout
+  *   The stored positions of the nodes of the full graph (ADR 0004). A renderer that can pin a node draws each
+  *   node with a position at that position. An empty layout changes nothing.
+  * @param bends
+  *   The bend points of each arrow with bend points in a free layout, by the id of the arrow (ADR 0004, part 4). The
+  *   keys of the layout file come from the full graph, so the state gives the bends by arrow id. A renderer that can
+  *   pin a node draws each such arrow through its bend points.
   */
 final case class DiagramRenderInputs(
     visibleGraph: Signal[ViewerGraph],
@@ -36,7 +45,9 @@ final case class DiagramRenderInputs(
     /** The URL and the size of each image with a path relative to the diagram. A renderer
       * draws such an image from its URL (see [[LocalImages]]). The source keeps the path.
       */
-    localImages: Signal[LocalImages] = Signal.fromValue(LocalImages.empty)
+    localImages: Signal[LocalImages] = Signal.fromValue(LocalImages.empty),
+    layout: Signal[DiagramLayout] = Signal.fromValue(DiagramLayout.empty),
+    bends: Signal[Map[ArrowId, Vector[LayoutPoint]]] = Signal.fromValue(Map.empty)
 )
 
 /** The state of the drawing that a renderer gives for its inputs.

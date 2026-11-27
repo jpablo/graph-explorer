@@ -442,6 +442,111 @@ pub(crate) fn opener(action: OpenAction, path: &Path) -> std::process::Command {
     }
 }
 
+/// The largest layout side file that the page can read or write.
+pub(crate) const MAX_LAYOUT_BYTES: usize = 16 * 1024 * 1024;
+
+/// The layout side file of a diagram, as `read_layout` gives it to the page:
+/// its text, and the content hash of its bytes.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LayoutFile {
+    pub(crate) text: String,
+    pub(crate) revision: String,
+}
+
+/// The layout side file of the diagram at `diagram_path`:
+/// `<dir>/<name>.layout.json`, with the name of the diagram with no
+/// extension, as the `<name>.assets` folder has it. The name comes from the
+/// diagram file only, so the page cannot give a path.
+pub(crate) fn layout_path_of(diagram_path: &str) -> std::result::Result<PathBuf, IpcError> {
+    let (_, dir, stem) = diagram_file(diagram_path)?;
+    Ok(dir.join(format!("{stem}.layout.json")))
+}
+
+/// The side file at `path` now: `None` when no file has the name. A link
+/// with the name is refused, because a read or a write through it reaches a
+/// different file.
+fn current_layout(path: &Path) -> std::result::Result<Option<LayoutFile>, IpcError> {
+    let refused = |why: &str| IpcError::new("LAYOUT_REFUSED", format!("{}: {why}", path.display()));
+    let failed = |why: String| IpcError::new("LAYOUT_READ_FAILED", format!("{}: {why}", path.display()));
+    match fs::symlink_metadata(path) {
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(failed(err.to_string())),
+        Ok(meta) if !meta.is_file() => Err(refused("the layout file is not a regular file")),
+        Ok(meta) if meta.len() > MAX_LAYOUT_BYTES as u64 => {
+            Err(refused(&format!("the layout file has more than {MAX_LAYOUT_BYTES} bytes")))
+        }
+        Ok(_) => {
+            let bytes = fs::read(path).map_err(|err| failed(err.to_string()))?;
+            let revision = content_hash(&bytes);
+            let text = String::from_utf8(bytes).map_err(|_| refused("the layout file is not UTF-8"))?;
+            Ok(Some(LayoutFile { text, revision }))
+        }
+    }
+}
+
+/// Read the layout side file of the diagram at `diagram_path`.
+pub(crate) fn read_layout_at(
+    access_policy: &AccessPolicy,
+    diagram_path: &str,
+) -> std::result::Result<Option<LayoutFile>, IpcError> {
+    let path = layout_path_of(diagram_path)?;
+    permitted(access_policy, &path)?;
+    current_layout(&path)
+}
+
+/// Write the layout side file of the diagram at `diagram_path`, and give the
+/// revision of the new file, or `None` when no file stays.
+///
+/// - The write is a compare-and-swap: `base_revision` is the revision that
+///   the page read, and `None` means that the page read no file. A
+///   different file on disk is a `LAYOUT_CONFLICT`, and the file stays.
+/// - `text` of `None` removes the file. The page does this when the layout
+///   has no content (Arrange).
+/// - The text must be a JSON object. The page owns its schema.
+/// - The write is atomic: the bytes go into a temporary file in the folder,
+///   and a rename gives the name (`write_file_atomic`).
+pub(crate) fn write_layout_at(
+    access_policy: &AccessPolicy,
+    diagram_path: &str,
+    text: Option<&str>,
+    base_revision: Option<&str>,
+) -> std::result::Result<Option<String>, IpcError> {
+    let refused = |why: String| IpcError::new("LAYOUT_REFUSED", why);
+    if let Some(text) = text {
+        if text.len() > MAX_LAYOUT_BYTES {
+            return Err(refused(format!("the layout has more than {MAX_LAYOUT_BYTES} bytes")));
+        }
+        match serde_json::from_str::<serde_json::Value>(text) {
+            Ok(serde_json::Value::Object(_)) => {}
+            _ => return Err(refused("the layout is not a JSON object".to_string())),
+        }
+    }
+    let path = layout_path_of(diagram_path)?;
+    permitted(access_policy, &path)?;
+    let current = current_layout(&path)?;
+    let current_revision = current.as_ref().map(|file| file.revision.as_str());
+    if current_revision != base_revision {
+        return Err(IpcError::new(
+            "LAYOUT_CONFLICT",
+            format!("{} changed on disk since the page read it", path.display()),
+        ));
+    }
+    let failed = |why: String| IpcError::new("LAYOUT_WRITE_FAILED", format!("{}: {why}", path.display()));
+    match text {
+        None => {
+            if current.is_some() {
+                fs::remove_file(&path).map_err(|err| failed(err.to_string()))?;
+            }
+            Ok(None)
+        }
+        Some(text) => {
+            crate::write_file_atomic(&path.to_string_lossy(), text).map_err(|err| failed(format!("{err:#}")))?;
+            Ok(Some(content_hash(text.as_bytes())))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -792,6 +897,140 @@ mod tests {
         if let LinkTarget::File(path) = target {
             assert_eq!(open_action(&path), OpenAction::Reveal);
         }
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // --------------------------------------------------------- layout side file
+
+    const LAYOUT: &str = "{\n  \"version\": 1,\n  \"nodes\": {\n    \"a\": {\"x\": 1, \"y\": 2}\n  }\n}\n";
+
+    #[test]
+    fn the_layout_file_is_next_to_the_diagram_with_its_base_name() {
+        let dir = fresh_dir("layout-path");
+        let diagram = diagram_in(&dir, "arch.v2.dot");
+        assert_eq!(layout_path_of(&diagram).expect("the path"), dir.join("arch.v2.layout.json"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_diagram_with_no_layout_file_reads_none() {
+        let dir = fresh_dir("layout-none");
+        let diagram = diagram_in(&dir, "arch.dot");
+        assert_eq!(read_layout_at(&no_policy(), &diagram).expect("the read"), None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_layout_write_makes_the_file_and_a_read_gives_its_text_and_revision() {
+        let dir = fresh_dir("layout-write-read");
+        let diagram = diagram_in(&dir, "arch.dot");
+
+        let revision = write_layout_at(&no_policy(), &diagram, Some(LAYOUT), None).expect("the write");
+
+        assert_eq!(revision, Some(content_hash(LAYOUT.as_bytes())));
+        assert_eq!(fs::read_to_string(dir.join("arch.layout.json")).expect("the file"), LAYOUT);
+        let read = read_layout_at(&no_policy(), &diagram).expect("the read").expect("a file");
+        assert_eq!(read, LayoutFile { text: LAYOUT.to_string(), revision: content_hash(LAYOUT.as_bytes()) });
+        // The write leaves no temporary file in the folder.
+        let mut names: Vec<String> = fs::read_dir(&dir)
+            .expect("the folder")
+            .map(|e| e.expect("entry").file_name().to_string_lossy().to_string())
+            .collect();
+        names.sort();
+        assert_eq!(names, vec!["arch.dot".to_string(), "arch.layout.json".to_string()]);
+        // The diagram does not change.
+        assert_eq!(fs::read_to_string(&diagram).expect("the diagram"), "digraph { a }");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_layout_write_is_a_compare_and_swap_on_the_revision() {
+        let dir = fresh_dir("layout-cas");
+        let diagram = diagram_in(&dir, "arch.dot");
+        let first = write_layout_at(&no_policy(), &diagram, Some(LAYOUT), None).expect("the first write");
+
+        // No base: the write expects no file, and a file exists.
+        let refused = write_layout_at(&no_policy(), &diagram, Some("{\"version\": 1}"), None).expect_err("no base");
+        assert_eq!(refused.code, "LAYOUT_CONFLICT");
+        // A stale base.
+        let refused = write_layout_at(&no_policy(), &diagram, Some("{\"version\": 1}"), Some("stale")).expect_err("stale");
+        assert_eq!(refused.code, "LAYOUT_CONFLICT");
+        assert_eq!(fs::read_to_string(dir.join("arch.layout.json")).expect("the file"), LAYOUT);
+        // A base with no file.
+        let other = diagram_in(&dir, "other.dot");
+        let refused = write_layout_at(&no_policy(), &other, Some(LAYOUT), first.as_deref()).expect_err("no file");
+        assert_eq!(refused.code, "LAYOUT_CONFLICT");
+
+        // The current base.
+        let second = write_layout_at(&no_policy(), &diagram, Some("{\"version\": 1}"), first.as_deref()).expect("the write");
+        assert_eq!(second, Some(content_hash(b"{\"version\": 1}")));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_layout_write_with_no_text_removes_the_file() {
+        let dir = fresh_dir("layout-remove");
+        let diagram = diagram_in(&dir, "arch.dot");
+        let revision = write_layout_at(&no_policy(), &diagram, Some(LAYOUT), None).expect("the write");
+
+        assert_eq!(write_layout_at(&no_policy(), &diagram, None, revision.as_deref()).expect("the removal"), None);
+        assert!(!dir.join("arch.layout.json").exists(), "the file stays");
+        // A removal of no file with no base does nothing.
+        assert_eq!(write_layout_at(&no_policy(), &diagram, None, None).expect("nothing to remove"), None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_layout_write_refuses_a_text_that_is_not_a_json_object() {
+        let dir = fresh_dir("layout-json");
+        let diagram = diagram_in(&dir, "arch.dot");
+        for text in ["", "not json", "[1, 2]", "\"text\""] {
+            let refused = write_layout_at(&no_policy(), &diagram, Some(text), None).expect_err(text);
+            assert_eq!(refused.code, "LAYOUT_REFUSED", "{text:?}");
+        }
+        assert!(!dir.join("arch.layout.json").exists(), "a refused write made the file");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_layout_command_refuses_a_diagram_that_is_not_a_file_and_a_denied_folder() {
+        let dir = fresh_dir("layout-input");
+        let missing = dir.join("missing.dot").to_string_lossy().to_string();
+        assert_eq!(read_layout_at(&no_policy(), &missing).expect_err("missing").code, "DOCUMENT_MISSING");
+        assert_eq!(
+            write_layout_at(&no_policy(), &missing, Some(LAYOUT), None).expect_err("missing").code,
+            "DOCUMENT_MISSING"
+        );
+        let folder = dir.to_string_lossy().to_string();
+        assert_eq!(read_layout_at(&no_policy(), &folder).expect_err("a folder").code, "DOCUMENT_MISSING");
+
+        let diagram = diagram_in(&dir, "arch.dot");
+        let deny = AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: vec![dir.clone()],
+        };
+        assert_eq!(read_layout_at(&deny, &diagram).expect_err("denied").code, "DOCUMENT_DENIED");
+        assert_eq!(write_layout_at(&deny, &diagram, Some(LAYOUT), None).expect_err("denied").code, "DOCUMENT_DENIED");
+        assert!(!dir.join("arch.layout.json").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_layout_command_refuses_a_link_at_the_name_of_the_layout_file() {
+        let dir = fresh_dir("layout-link");
+        let diagram = diagram_in(&dir, "arch.dot");
+        let outside = dir.join("secret.txt");
+        fs::write(&outside, "{\"version\": 1}").expect("the other file");
+        std::os::unix::fs::symlink(&outside, dir.join("arch.layout.json")).expect("the link");
+
+        assert_eq!(read_layout_at(&no_policy(), &diagram).expect_err("a link").code, "LAYOUT_REFUSED");
+        let revision = content_hash(b"{\"version\": 1}");
+        assert_eq!(
+            write_layout_at(&no_policy(), &diagram, Some(LAYOUT), Some(&revision)).expect_err("a link").code,
+            "LAYOUT_REFUSED"
+        );
+        assert_eq!(fs::read_to_string(&outside).expect("the other file"), "{\"version\": 1}");
         let _ = fs::remove_dir_all(&dir);
     }
 }

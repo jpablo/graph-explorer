@@ -208,6 +208,35 @@ trait SvgTransformOps:
     if scaleX > 0 && scaleY > 0 then
       snapPan(translateXY.now() - SvgPoint(dx / scaleX, dy / scaleY))
 
+  /** Keep the screen scale and the screen place of an anchor after a new layout of a free layout (ADR 0004).
+    *
+    * A new layout gives a new viewBox. The svg shows its viewBox as large as its box allows, so a larger drawing
+    * gets a smaller screen scale, and each node moves on the screen. In a free layout, the person put the nodes at
+    * their places on the screen, so the screen scale must stay.
+    *
+    * The anchor is now at the client point `now`, at `scaleNow` client px for one user unit. Before the new layout,
+    * it was at `before`, at `scaleBefore`. The zoom changes by `scaleBefore / scaleNow` around the anchor, and the pan
+    * then moves the anchor back to `before`. The two values change in one write, with no layout read after it.
+    *
+    * @param mainGroup the drawing group of the new svg
+    */
+  def keepScaleAndPlace(mainGroup: dom.svg.G, now: ClientPoint, before: ClientPoint, scaleNow: Double, scaleBefore: Double): Unit =
+    if scaleNow > 0 && scaleBefore > 0 then
+      Option(mainGroup.getScreenCTM()).foreach: ctm =>
+        val oldZoom = zoomValue.now()
+        val newZoom = (oldZoom * scaleBefore / scaleNow) max minZoom
+        val anchor  = now.toSvgPoint(ctm)
+        val origin  = SvgTransformOps.transformOrigin(mainGroup)
+        val zoomed  = SvgTransformOps.anchoredPan(translateXY.now(), anchor, origin, oldZoom, newZoom)
+        // The client px for one user unit at the new zoom.
+        val scale = scaleNow * newZoom / oldZoom
+        val pan   = zoomed - SvgPoint((now.x - before.x) / scale, (now.y - before.y) / scale)
+        setPanNow(pan)
+        Var.set(
+          zoomValue   -> newZoom,
+          translateXY -> pan
+        )
+
   /** Pan the canvas by a CLIENT-space delta (px), with wheel semantics: a
     * positive `dx` scrolls the view right (content moves left). Same
     * client→user-space conversion as [[handleWheel]]'s pan branch.

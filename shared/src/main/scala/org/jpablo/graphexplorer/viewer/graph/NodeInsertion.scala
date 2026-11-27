@@ -77,6 +77,25 @@ object NodeInsertion:
     val inGroup  = group.filter(graph.groupIds.contains)
     (inGroup.fold(withNode)(g => withNode.modify(_.elements.memberships).using(_ + (id -> g))), id)
 
+  /** An estimate of the size of the new node for `item`, in points (width, height). The true size is known only after
+    * the render. A free layout uses the estimate to put several new nodes in a column with no overlap.
+    *
+    * An image node has its display size (one pixel is one point). A text node and a file node have the default node
+    * of Graphviz (54 by 36 points) at least. A longer label makes the node wider: about 7 points for each character of
+    * the longest line, at the default font size of 14 points. Each line adds about 17 points to the height.
+    */
+  def estimatedSize(item: InsertItem): (Double, Double) =
+    def ofText(text: String): (Double, Double) =
+      val lines = normalized(text).split('\n').toVector
+      val width = lines.map(_.length).maxOption.getOrElse(0) * 7.0 + 16
+      (math.max(54.0, width), math.max(36.0, lines.size * 17.0 + 8))
+    item match
+      case InsertItem.Text(text) => ofText(text)
+      case InsertItem.Image(_, w, h) =>
+        val (dw, dh) = displaySize(w, h)
+        (dw.toDouble, dh.toDouble)
+      case InsertItem.File(name, _) => ofText(name)
+
   /** `graph` with a new node for each item, in the order of the items, and the ids of the nodes. One drop of several
     * files is one change of the graph, so Undo removes all the nodes in one step.
     */

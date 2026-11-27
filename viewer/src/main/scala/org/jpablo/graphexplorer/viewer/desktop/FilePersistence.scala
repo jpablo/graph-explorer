@@ -1,8 +1,10 @@
 package org.jpablo.graphexplorer.viewer.desktop
 
 import com.raquo.airstream.core.{EventStream, Signal}
+import com.raquo.airstream.eventbus.EventBus
+import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.gxcore.fs.LineEnding
-import org.jpablo.graphexplorer.gxcore.model.{DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.gxcore.model.{DiagramLayout, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.library.DesktopLibrary
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.{DiagramPersistence, DiagramSnapshot, DocumentSessionId, SaveResult}
@@ -27,6 +29,13 @@ import scala.util.control.NonFatal
   *
   * `library` is `None` when the desktop has no library (a test, or a desktop
   * whose library did not load). Then the metadata stays in memory.
+  *
+  * The layout (ADR 0004) is in a side file next to the file:
+  * `<base name>.layout.json`. The store reads the side file when the view
+  * opens ([[externalLayout]]). A change of the layout stays in memory until a
+  * save, as an edit of the source does, and the view is dirty until then
+  * ([[savedLayout]]). A save writes the side file with a compare-and-swap on
+  * its revision. A layout with no content removes the side file.
   */
 final class FilePersistence(session: DocumentSessionId, library: Option[DesktopLibrary]) extends DiagramPersistence:
 
@@ -53,6 +62,87 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
         DiagramSnapshot.minimal()
 
   private var current = initial
+
+  /** The side file as this store knows it: the path of its diagram, the layout, the revision of its bytes (`None`:
+    * no side file), and the reason when this build cannot read it.
+    */
+  private final case class DiskLayout(
+      path:       String,
+      layout:     DiagramLayout,
+      revision:   Option[String],
+      unreadable: Option[String] = None
+  ) derives CanEqual
+
+  /** `None` until the read of the side file ends, and always with no shell. */
+  private val disk: Var[Option[DiskLayout]] = Var(None)
+
+  /** The layout of each read of the side file. A save does not come through here. */
+  private val loadedLayouts = EventBus[DiagramLayout]()
+
+  override def externalLayout: EventStream[DiagramLayout] = loadedLayouts.events
+
+  override def savedLayout: Signal[Option[DiagramLayout]] = disk.signal.map(_.map(_.layout))
+
+  override def savedLayoutNow: Option[DiagramLayout] = disk.now().map(_.layout)
+
+  // The read of the side file goes through the shell, so it ends after the
+  // view opens. The view then takes the layout (`Persistence.followLayout`).
+  // A failed read counts as no side file: a later save then expects no side
+  // file, and the shell refuses it if one exists.
+  locally:
+    import scala.concurrent.ExecutionContext.Implicits.global
+    for open <- DesktopDocumentRegistry.get(session) if DesktopIpc.available do
+      DesktopFiles
+        .readLayout(open.path)
+        .map:
+          case None => DiskLayout(open.path, DiagramLayout.empty, None)
+          case Some(onDisk) =>
+            DiagramLayout.parse(onDisk.text) match
+              case Right(layout) => DiskLayout(open.path, layout, Some(onDisk.revision))
+              case Left(message) =>
+                org.scalajs.dom.console.warn(s"The layout file of ${open.path} does not load: $message")
+                DiskLayout(open.path, DiagramLayout.empty, Some(onDisk.revision), Some(message))
+        .recover:
+          case error =>
+            org.scalajs.dom.console.warn(s"The layout file of ${open.path} does not load: ${error.getMessage}")
+            DiskLayout(open.path, DiagramLayout.empty, None)
+        .foreach: read =>
+          disk.set(Some(read))
+          loadedLayouts.emit(read.layout)
+
+  /** Write the side file when the layout of `next` is not the layout on disk. */
+  private def writeLayout(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
+    (DesktopDocumentRegistry.get(session), disk.now()) match
+      case (None, _) => Future.successful(SaveResult.Failed("this document session is no longer open"))
+      // No shell, or the read did not end: the store knows no side file, so it writes none.
+      case (_, None) => Future.successful(SaveResult.Saved)
+      case (Some(open), Some(known)) =>
+        // After a rename, the side file of the new path is a different file.
+        val base = if known.path == open.path then known.revision else None
+        known.unreadable match
+          case Some(message) if known.path == open.path =>
+            Future.successful(SaveResult.Failed(s"The app did not write the layout file, because it cannot read it: $message"))
+          case _ if known.path == open.path && known.layout == next.layout => Future.successful(SaveResult.Saved)
+          case _ =>
+            val text = Option.unless(next.layout == DiagramLayout.empty)(DiagramLayout.render(next.layout))
+            if text.isEmpty && base.isEmpty then
+              disk.set(Some(DiskLayout(open.path, next.layout, None)))
+              Future.successful(SaveResult.Saved)
+            else
+              DesktopFiles
+                .writeLayout(open.path, text, base)
+                .map: revision =>
+                  disk.set(Some(DiskLayout(open.path, next.layout, revision)))
+                  SaveResult.Saved
+                .recover:
+                  case DesktopIpc.IpcFailure("LAYOUT_CONFLICT", _) =>
+                    SaveResult.Conflict("The layout file changed on disk. Reload the diagram and try again.")
+                  case error => SaveResult.Failed(s"The app did not write the layout file: ${error.getMessage}")
+
+  /** A locked file saves its layout, and not its source (ADR 0004). */
+  override def saveLayoutNow(next: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] =
+    update(next)
+    writeLayout(next)
 
   /** The metadata of the entry, after each change from a different writer.
     *
@@ -174,13 +264,20 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
               case DesktopIpc.SaveOutcome.Saved(_, revision) => Some(revision)
               case _                                         => None
             DesktopDocumentRegistry.endSave(session, text, written)
-            outcome match
+            outcome
+          .flatMap: outcome =>
+            // The side file of the layout is a different file. It gets its
+            // write also when the write of the source fails.
+            writeLayout(next).map(layoutResult => (outcome, layoutResult))
+          .map: (outcome, layoutResult) =>
+            val sourceResult = outcome match
               case DesktopIpc.SaveOutcome.Saved(_, _)         => SaveResult.Saved
               case DesktopIpc.SaveOutcome.Conflict(_)         =>
                 SaveResult.Conflict("The file changed on disk. Reload it and try again.")
               case DesktopIpc.SaveOutcome.NotWatched(message) => SaveResult.Failed(message)
               case DesktopIpc.SaveOutcome.Failed(message)     => SaveResult.Failed(message)
               case DesktopIpc.SaveOutcome.Unavailable         => SaveResult.Unsupported("Saving a file needs the desktop app")
+            if sourceResult == SaveResult.Saved then layoutResult else sourceResult
 
   /** The shell lost the watch of the file, so the save wrote nothing. Register
     * the watch again (`open_document`), and retry the save one time.

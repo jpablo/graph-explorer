@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import org.jpablo.graphexplorer.gxcore.model.LayoutPoint
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, PastedDiagram}
 import org.jpablo.graphexplorer.viewer.backends.mermaid.isMermaidStateDiagram
 import org.jpablo.graphexplorer.viewer.graph.{InsertItem, NodeInsertion}
@@ -106,29 +107,29 @@ trait ImportOps:
     *   - Blank text, and SVG markup, change nothing. "Copy selection as SVG" is one key away from ⌘V, and its markup is
     *     not a label.
     */
-  def pasteTextFromGesture(raw: String): Unit =
+  def pasteTextFromGesture(raw: String, at: Option[LayoutPoint] = None): Unit =
     if PastedDiagram.from(raw).exists(_.declared) || raw.trim.isEmpty || ImportOps.isSvgMarkup(raw) then
       pasteDiagramFromGesture(raw)
-    else insertItems(Seq(InsertItem.Text(raw)), "paste the text")
+    else insertItems(Seq(InsertItem.Text(raw)), "paste the text", at)
 
   /** The paste gesture with an image on the clipboard. `read` gives the image item. It reads the file, so it is
     * asynchronous. The refusal comes first, so that a locked diagram does not wait for the read.
     */
-  def pasteImageFromGesture(read: => Future[InsertItem]): Unit =
-    insertFromGesture("paste the image", image = true, read.map(Seq(_)))
+  def pasteImageFromGesture(read: => Future[InsertItem], at: Option[LayoutPoint] = None): Unit =
+    insertFromGesture("paste the image", image = true, read.map(Seq(_)), at)
 
   /** The drop gesture of files on the canvas. `read` gives one item for each file (see `TransferItems.readItems`).
     * `images` tells if a file is an image, before the read. All the files become nodes in one change, so Undo removes
     * them in one step.
     */
-  def dropFilesFromGesture(images: Boolean, read: => Future[Seq[InsertItem]]): Unit =
-    insertFromGesture("drop the files", images, read)
+  def dropFilesFromGesture(images: Boolean, read: => Future[Seq[InsertItem]], at: Option[LayoutPoint] = None): Unit =
+    insertFromGesture("drop the files", images, read, at)
 
   /** The drop gesture of links (from a browser): a node for each link, with the link as its label and its URL. A
     * command-click on the node opens the link.
     */
-  def dropLinksFromGesture(links: Seq[String]): Unit =
-    insertItems(links.map(link => InsertItem.File(link, Some(link))), "drop the link")
+  def dropLinksFromGesture(links: Seq[String], at: Option[LayoutPoint] = None): Unit =
+    insertItems(links.map(link => InsertItem.File(link, Some(link))), "drop the link", at)
 
   /** The drop gesture of text: a new node with the text as its label.
     *
@@ -139,25 +140,26 @@ trait ImportOps:
     * file becomes an image node, and each other file becomes a node with a link to the file. A command-click on the
     * node opens the file.
     */
-  def dropPathsFromGesture(paths: Seq[String]): Unit =
+  def dropPathsFromGesture(paths: Seq[String], at: Option[LayoutPoint] = None): Unit =
     if paths.nonEmpty then
       val images = paths.exists(p => org.jpablo.graphexplorer.viewer.desktop.DesktopFiles.imageTypeOf(p).isDefined)
-      insertFromGesture("drop the files", images, readDroppedPaths(paths))
+      insertFromGesture("drop the files", images, readDroppedPaths(paths), at)
 
-  def dropTextFromGesture(raw: String): Unit =
+  def dropTextFromGesture(raw: String, at: Option[LayoutPoint] = None): Unit =
     if raw.trim.isEmpty || ImportOps.isSvgMarkup(raw) then infoBus.emit("Nothing to drop: the drag holds no text")
-    else insertItems(Seq(InsertItem.Text(raw)), "drop the text")
+    else insertItems(Seq(InsertItem.Text(raw)), "drop the text", at)
 
   /** Refuse now, or read the items and add them. `action` names the gesture in the message, for example "drop the
-    * files".
+    * files". `at` is the place of the gesture in a free layout. The read can take time, and the place stays the place
+    * of the gesture.
     */
-  private def insertFromGesture(action: String, image: Boolean, read: => Future[Seq[InsertItem]]): Unit =
+  private def insertFromGesture(action: String, image: Boolean, read: => Future[Seq[InsertItem]], at: Option[LayoutPoint]): Unit =
     insertRefusal(action, image) match
       case Some(message) => errorBus.emit(message)
       case None =>
         // A diagram with a file keeps each image as a file next to it (see `LocalFileOps.storeImages`).
         read.flatMap(storeImages).onComplete:
-          case Success(items) => insertItems(items, action)
+          case Success(items) => insertItems(items, action, at)
           case Failure(error) => errorBus.emit(s"The viewer did not $action: ${error.getMessage}")
 
   /** Add a new node for each item, as the New node command adds a node: with no arrow, and in the selected group when
@@ -167,8 +169,13 @@ trait ImportOps:
     *
     * The edit is one canvas edit, so the printer of the language of the diagram writes the nodes, and Undo removes all
     * of them in one step. A paste and a drop use this one function.
+    *
+    * In a free layout, `at` is the point of the gesture (see `ManualLayoutOps.layoutPointAt`). The first node goes
+    * there, and the next nodes go below it in a column (`ManualLayoutOps.columnPlaces`). The nodes and their places
+    * are one change, so Undo removes the nodes and their places in one step. With no `at`, the layout places the
+    * nodes.
     */
-  def insertItems(items: Seq[InsertItem], action: String): Unit =
+  def insertItems(items: Seq[InsertItem], action: String, at: Option[LayoutPoint] = None): Unit =
     val image = items.exists:
       case _: InsertItem.Image => true
       case _                   => false
@@ -180,11 +187,18 @@ trait ImportOps:
           val applies = phases.graphEditApplies
           val target  = selection.targets().ids.headOption
           val group   = target.collect { case g: GroupId => g }
-          phases.fullGraphV.update: graph =>
-            val (next, ids) = NodeInsertion.insertAll(graph, items, group)
-            // A node in a collapsed group has no shape on the canvas. Then its box stays selected.
-            if applies && !target.exists(hasBox) then selection.set1(ids.toSet)
-            next
+          at.filter(_ => applies) match
+            case Some(first) =>
+              val (next, ids) = NodeInsertion.insertAll(phases.fullGraphV.now(), items, group)
+              val places      = ManualLayoutOps.columnPlaces(first, items.map(NodeInsertion.estimatedSize))
+              setGraphWithPlaces(next, ids.zip(places))
+              if !target.exists(hasBox) then selection.set1(ids.toSet)
+            case None =>
+              phases.fullGraphV.update: graph =>
+                val (next, ids) = NodeInsertion.insertAll(graph, items, group)
+                // A node in a collapsed group has no shape on the canvas. Then its box stays selected.
+                if applies && !target.exists(hasBox) then selection.set1(ids.toSet)
+                next
 
   /** Why the gesture `action` (for example "paste the image") cannot add a node now, or `None` when it can. */
   private def insertRefusal(action: String, image: Boolean): Option[String] =

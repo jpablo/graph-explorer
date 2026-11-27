@@ -5,6 +5,19 @@ import org.jpablo.graphexplorer.viewer.models.ArrowId
 
 package object simplegraph:
 
+  /** The center of each node of a render, by the name of the node, in points. The y axis goes up, as in Graphviz.
+    * A node with no `pos` has no entry. Freeze reads the current place of each node here (ADR 0004).
+    */
+  def getNodePos(graph: SimpleGraph): Map[String, Point] =
+    graph.objects.getOrElse(Nil).iterator
+      .collect { case SimpleGraphObject.Node(node) => node }
+      .flatMap: node =>
+        node.pos.flatMap: pos =>
+          pos.split(',') match
+            case Array(x, y) => (x.trim.toDoubleOption zip y.trim.toDoubleOption).map((px, py) => node.name -> Point(px, py))
+            case _           => None
+      .toMap
+
   def getEdgePos(graph: SimpleGraph): Map[String, ArrowPosition] =
     val edgePositions = scala.collection.mutable.Map[String, ArrowPosition]()
 

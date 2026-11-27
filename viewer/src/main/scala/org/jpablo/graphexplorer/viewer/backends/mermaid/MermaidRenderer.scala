@@ -62,13 +62,14 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
         // Before extractEdgePositions also, which reads the ids of the arrows.
         MermaidBackend.stampDrawnIds(svg.ref, drawnIds.getOrElse(sourceIds))
         val edgePositions = extractEdgePositions(svg.ref)
+        val nodePositions = MermaidRenderer.nodeCenters(svg.ref)
         // After extractEdgePositions, so the id-less clones don't pollute the positions map
         MermaidBackend.addEdgeHitAreas(svg.ref)
         // The last step: the sheet covers the viewBox, and fixViewBoxCase
         // (in normalizeRenderedSvg) can set the viewBox.
         MermaidBackend.addSheet(svg.ref, MermaidBackend.backgroundOf(text))
         dom.console.info(s"[mermaid] textToSvg complete id=$renderId edges=${edgePositions.size}")
-        SvgWithPositions(svg, edgePositions)
+        SvgWithPositions(svg, edgePositions, nodePositions)
     }
 
   override def selectionStrategy: SelectableElementStrategy = MermaidSelectionStrategy
@@ -203,3 +204,35 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
       }
 
     positions.toMap
+
+object MermaidRenderer:
+
+  private val Translate = """translate\(\s*(-?[0-9.eE+-]+)(?:[\s,]+(-?[0-9.eE+-]+))?\s*\)""".r
+
+  /** The sum of the `translate` transforms of `e` and of each of its parents up to `root`. */
+  private def offsetOf(e: dom.Element, root: dom.Element): (Double, Double) =
+    Iterator
+      .iterate(e)(_.parentNode match { case p: dom.Element => p; case _ => null })
+      .takeWhile(el => el != null && !(el eq root))
+      .flatMap(el => Option(el.getAttribute("transform")))
+      .flatMap(Translate.findAllMatchIn)
+      .foldLeft((0.0, 0.0)): (sum, m) =>
+        val x = m.group(1).toDoubleOption.getOrElse(0.0)
+        val y = Option(m.group(2)).flatMap(_.toDoubleOption).getOrElse(0.0)
+        (sum._1 + x, sum._2 + y)
+
+  /** The center of each node of a Mermaid drawing, by the id of its node, in pixels, with the y axis up.
+    *
+    * Mermaid puts each node at its center with a `translate` transform. A node in a subgraph is in a group with a
+    * `translate` of its own, so the center is the sum of the transforms up to the SVG. The y axis of the SVG goes
+    * down, and the y axis of a layout goes up. Freeze reads these centers (ADR 0004).
+    */
+  def nodeCenters(svg: dom.svg.SVG): Map[String, Point] =
+    val nodes = svg.querySelectorAll(MermaidSelectionStrategy.nodeSelector)
+    (0 until nodes.length).iterator
+      .map(i => nodes.item(i).asInstanceOf[dom.Element])
+      .flatMap: e =>
+        Try(MermaidSelectionStrategy.extractNodeId(e).value).toOption.filter(_.nonEmpty).map: id =>
+          val (x, y) = offsetOf(e, svg)
+          id -> Point(x, -y)
+      .toMap

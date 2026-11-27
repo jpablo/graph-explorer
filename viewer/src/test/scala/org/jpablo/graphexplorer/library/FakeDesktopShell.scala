@@ -25,6 +25,9 @@ final class FakeDesktopShell:
   /** The diagram files, by path. */
   val files: mutable.Map[String, String] = mutable.Map.empty
 
+  /** The layout side file of each diagram (`<base name>.layout.json`), by the path of the diagram. */
+  val layouts: mutable.Map[String, String] = mutable.Map.empty
+
   /** `library/metadata/`, by entry file name. */
   val entries: mutable.Map[String, String] = mutable.Map.empty
 
@@ -297,6 +300,31 @@ final class FakeDesktopShell:
               case Some(gate) =>
                 given scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
                 gate.map(_ => reply).toJSPromise
+
+      // `read_layout` in `main.rs`: the text and the revision of the side file, or null for no side file.
+      case "read_layout" =>
+        val path = canonical(str(a, "diagramPath"))
+        if !files.contains(path) then refuse("DOCUMENT_MISSING", s"no such file: $path")
+        else ok(layouts.get(path).fold[js.Any](null)(text => js.Dynamic.literal(text = text, revision = hash(text))))
+
+      // `write_layout` in `main.rs`: a compare-and-swap on the revision of the side file. A null base expects no
+      // side file, and a null text removes the side file.
+      case "write_layout" =>
+        val path    = canonical(str(a, "diagramPath"))
+        val text    = optional(a, "text")
+        val base    = optional(a, "baseRevision")
+        val current = layouts.get(path)
+        if !files.contains(path) then refuse("DOCUMENT_MISSING", s"no such file: $path")
+        else if current.map(hash) != base then
+          js.Promise.reject(js.Dynamic.literal(code = "LAYOUT_CONFLICT", message = "the layout file changed on disk"))
+        else
+          text match
+            case None =>
+              layouts.remove(path)
+              ok(js.Dynamic.literal(revision = null))
+            case Some(t) =>
+              layouts(path) = t
+              ok(js.Dynamic.literal(revision = hash(t)))
 
       case "complete_open" =>
         completeOpen(a)

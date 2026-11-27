@@ -68,6 +68,14 @@ _Avoid_: document, text, document tier
 What Graph Explorer keeps about a diagram outside its source: the tags, the notes, the hidden elements, and the collapsed groups. Any diagram can have metadata.
 _Avoid_: record, record tier, diagram state
 
+**Layout**:
+The hand positions of the nodes of a diagram, and the bend points of its arrows, outside its source (ADR 0004). A diagram with a file keeps its layout in a file next to it, `<name>.layout.json`. A diagram with a layout is a free layout: each node with a position stays there, and each other node gets an automatic place.
+_Avoid_: manual mode, positions file, pos attributes
+
+**Bend point**:
+A point of the layout that an arrow of a free layout goes through. An arrow with bend points is a smooth curve through them, in their order. An arrow with no bend point gets an automatic route.
+_Avoid_: waypoint, control point, vertex
+
 **Live view**:
 What a desktop window shows now: one diagram, with its selection and its viewport. A live view is not saved, and it exists only while the window is open.
 _Avoid_: session, session tier, view state

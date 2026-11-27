@@ -196,6 +196,43 @@ class DesktopFilesSpec extends FunSuite with TestHelpers with TimerHelpers:
         _ = check(c.errors.isEmpty, s"errors: ${c.errors}")
       yield ()
 
+  test("in a free layout, a Tauri drop of two files puts the first at the drop point and the second below it"):
+    import org.jpablo.graphexplorer.gxcore.model.LayoutPoint
+    import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewNodePlacementSpec.{centerOf, pxPerPoint, shapeOf, sizeLikeApp}
+    withFile(dotFile, "digraph G {\n  a -> b\n}"): c =>
+      sizeLikeApp(c.box)
+      c.state.animateLayoutChanges.set(false)
+      def nodeGroup(id: String) = c.svg.toSeq.flatMap(_.querySelectorAll("g.node").toSeq).find(_.id == NodeId(id).toSvg)
+      val before = c.svg.get
+      c.state.history.markGesture()
+      c.state.placeNodes(Map(NodeId("a") -> LayoutPoint(0, 0), NodeId("b") -> LayoutPoint(0, -90)))
+      for
+        _ <- waitFor("the free layout drawing")(!(c.svg.get eq before) && nodeGroup("a").isDefined)
+        _ <- after(30)(())
+        g        = nodeGroup("a").get
+        scale    = pxPerPoint(g)
+        (ax, ay) = centerOf(shapeOf(g))
+        // 45 points (5 grid steps) to the right of a. Tauri gives the point in its own unit (`DesktopDrop.positionScale`).
+        p     = (ax + 45 * scale, ay)
+        k     = DesktopDrop.positionScale
+        paths = js.Array("/work/report.pdf", "/work/notes.txt")
+        _     = c.shell.emit("tauri://drag-drop", js.Dynamic.literal(paths = paths, position = position((p._1 * k, p._2 * k))))
+        _ <- waitFor(s"the nodes, errors ${c.errors}, source:\n${c.source}")(
+               c.nodeIds.contains(NodeId("report")) && c.nodeIds.contains(NodeId("notes"))
+             )
+        report = c.state.layout.now().point("report")
+        notes  = c.state.layout.now().point("notes")
+        _ = check(report.contains(LayoutPoint(45, 0)), s"the place of the first file: $report")
+        _ = check(notes.exists(n => n.x == 45 && n.y < -36), s"the place of the second file: $notes")
+        _ <- waitFor("the drawing of the new nodes")(nodeGroup("report").isDefined && nodeGroup("notes").isDefined)
+        _ <- after(30)(())
+        (rx, ry) = centerOf(shapeOf(nodeGroup("report").get))
+        _ = check(math.abs(rx - p._1) <= 9 * scale && math.abs(ry - p._2) <= 9 * scale, s"the first file is drawn at ($rx, $ry), the point is $p")
+        _ = c.state.history.undo()
+        _ = check(c.state.layout.now().point("report").isEmpty, s"one undo did not remove the places: ${c.state.layout.now()}")
+        _ <- waitFor("the undo of the nodes")(!c.nodeIds.contains(NodeId("report")) && !c.nodeIds.contains(NodeId("notes")))
+      yield ()
+
   test("the drop target follows the Tauri drag, and a drop out of the canvas adds nothing"):
     val text = "digraph G {\n  a -> b\n}"
     withFile(dotFile, text): c =>

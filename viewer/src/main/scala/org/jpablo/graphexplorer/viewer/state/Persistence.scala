@@ -17,7 +17,7 @@ enum LeaveIntent derives CanEqual:
   case Navigate(route: Route)
   case CloseWindow
 import org.jpablo.graphexplorer.gxcore.command.ElementRef
-import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
+import org.jpablo.graphexplorer.gxcore.model.{DiagramLayout, DiagramMetadata}
 import org.jpablo.graphexplorer.viewer.desktop.DesktopDocumentRegistry
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
@@ -74,10 +74,24 @@ trait Persistence:
     target match
       case ViewTarget.File(_) =>
         documentSession
-          .combineWith(sourceText.signal)
-          .map((session, text) => session.exists(!_.holds(text)))
+          .combineWith(sourceText.signal, layoutDirty)
+          .map((session, text, layoutChanged) => session.exists(!_.holds(text)) || layoutChanged)
           .distinct // the same comparison `documentIsDirty` makes, in Signal form
       case _ => Signal.fromValue(false)
+
+  /** The layout holds a change that the store does not have (ADR 0004).
+    *
+    * Only a file can be in this state: its layout goes to the side file with a
+    * save, as its source does. A browser diagram keeps each change at once.
+    */
+  lazy val layoutDirty: Signal[Boolean] =
+    persistence.savedLayout
+      .combineWith(layout.signal)
+      .map((saved, now) => saved.exists(_ != now))
+      .distinct
+
+  /** The same question as [[layoutDirty]], answered now. */
+  def layoutIsDirty: Boolean = persistence.savedLayoutNow.exists(_ != layout.now())
 
   /** What this view is holding up, while the person answers (§7.4).
     *
@@ -146,6 +160,16 @@ trait Persistence:
     persistence.external.foreach: next =>
       if metadata.now() != next then metadata.set(next)
 
+  /** Take the layout that the store reads after the open: the side file of a file (ADR 0004).
+    *
+    * The read is not a step of the history. A person can change the layout
+    * before the read ends. Then the view keeps that change, and the view is
+    * dirty, because the store holds a different layout.
+    */
+  private def followLayout(): Unit =
+    persistence.externalLayout.foreach: next =>
+      if layout.now() == persistence.initial.layout && layout.now() != next then history.adoptLayout(next)
+
   /** True when a file is behind this view (§8).
     *
     * A canvas edit writes the whole graph again, and the file then takes that
@@ -190,7 +214,7 @@ trait Persistence:
   def documentIsDirty: Boolean =
     target match
       case ViewTarget.File(session) =>
-        DesktopDocumentRegistry.get(session).exists(!_.holds(sourceText.now()))
+        DesktopDocumentRegistry.get(session).exists(!_.holds(sourceText.now())) || layoutIsDirty
       case _ => false
 
   /** The file changed under an edit, and both versions are kept (§7.3). */
@@ -225,6 +249,8 @@ trait Persistence:
       case ViewTarget.File(session) =>
         DesktopDocumentRegistry.acceptRemote(session)
         DesktopDocumentRegistry.get(session).foreach(open => adoptFileText(open.sourceText))
+        // The layout goes back to the side file too (ADR 0004).
+        persistence.savedLayoutNow.foreach(history.adoptLayout)
       case _ => ()
 
   /** ViewerSettings below is deliberately NOT branched by the target: theme,
@@ -274,6 +300,7 @@ trait Persistence:
     val restoredMetadata = restoredDiagram.metadata
     metadata.set(restoredMetadata.copy(autoDetectFormat = Some(restoredMetadata.autoDetectFormat.getOrElse(true))))
     storedName.set(restoredDiagram.name)
+    layout.set(restoredDiagram.layout)
 
     // The diagram workspace gives its own `leftPanelVisible`,
     // `rightPanelActiveSection` and `settings3D` to the view, and these Vars
@@ -323,7 +350,8 @@ trait Persistence:
         metadata.signal,
         storedName.signal,
         sourceText.signal,
-        formatSelection.signal
+        formatSelection.signal,
+        layout.signal
       )
       .changes
       .distinct
@@ -403,7 +431,8 @@ trait Persistence:
       source = sourceText.now(),
       format = Some(formatSelection.now().toString),
       metadata = metadata.now(),
-      name = storedName.now()
+      name = storedName.now(),
+      layout = layout.now()
     )
 
   /** Save this diagram, because the person asked (§11).
@@ -421,8 +450,18 @@ trait Persistence:
   def save()(using ExecutionContext): Future[SaveResult] =
     // A locked file gets no write. This occurs when the lock comes while the
     // editor holds an edit, for example from `gx lock`.
+    //
+    // The layout is not the source. Thus a locked file still saves its layout
+    // to its side file (ADR 0004): a tool can make the file again, and the
+    // positions of the person stay.
+    val lockedMessage = "The diagram is locked, so the app did not write the file. Unlock the diagram to save."
     if isFileBacked && metadata.now().locked then
-      Future.successful(SaveResult.Failed("The diagram is locked, so the app did not write the file. Unlock the diagram to save."))
+      val sourceDirty = documentSessionNow.exists(!_.holds(sourceText.now()))
+      if !layoutIsDirty then Future.successful(SaveResult.Failed(lockedMessage))
+      else
+        persistence.saveLayoutNow(snapshot()).map:
+          case SaveResult.Saved if sourceDirty => SaveResult.Failed(lockedMessage)
+          case other                           => other
     else persistence.saveNow(snapshot())
 
   /** Initializes persistence by restoring state and setting up synchronization.
@@ -449,6 +488,7 @@ trait Persistence:
     Transaction(_ => setupStateSynchronization())
     attachToSession()
     followMetadata()
+    followLayout()
 
   /** Release the store when the view goes away (§10).
     *
@@ -473,7 +513,11 @@ final case class DiagramSnapshot(
     source:   String,
     format:   Option[String],
     metadata: DiagramMetadata,
-    name:     String = ""
+    name:     String = "",
+    /** The stored positions of the nodes (ADR 0004). A file keeps them in its side file, and a browser diagram in
+      * its entry.
+      */
+    layout:   DiagramLayout = DiagramLayout.empty
 ) derives CanEqual
 
 object DiagramSnapshot:
@@ -530,7 +574,11 @@ object DiagramSnapshot:
       locked: Boolean = false,
       // The tags and the notes of the About section, in `DiagramMetadata`.
       tags:  List[String] = Nil,
-      notes: String = ""
+      notes: String = "",
+      // The text of a layout file (ADR 0004), as a desktop diagram has it next
+      // to its file. Empty for a diagram with no stored position, so that an
+      // older payload and a diagram with no layout keep the same JSON.
+      layout: String = ""
   ) derives ReadWriter
 
   given ReadWriter[DiagramSnapshot] = readwriter[Stored].bimap[DiagramSnapshot](toStored, fromStored)
@@ -548,8 +596,22 @@ object DiagramSnapshot:
       extractor = m.extractor,
       locked = m.locked,
       tags = m.tags,
-      notes = m.notes
+      notes = m.notes,
+      layout = if snapshot.layout == DiagramLayout.empty then "" else DiagramLayout.render(snapshot.layout)
     )
+
+  /** The layout of a stored text. A text that this build cannot read (a newer version) gives no layout, with a
+    * warning in the console. Only this viewer writes the browser library, so a newer version occurs only after a
+    * downgrade of the web app.
+    */
+  private def layoutOf(text: String): DiagramLayout =
+    if text.isEmpty then DiagramLayout.empty
+    else
+      DiagramLayout.parse(text) match
+        case Right(layout) => layout
+        case Left(message) =>
+          dom.console.warn(s"The layout of a diagram does not load: $message")
+          DiagramLayout.empty
 
   private def fromStored(stored: Stored): DiagramSnapshot =
     DiagramSnapshot(
@@ -565,7 +627,8 @@ object DiagramSnapshot:
         tags = stored.tags,
         notes = stored.notes
       ),
-      name = stored.projectName
+      name = stored.projectName,
+      layout = layoutOf(stored.layout)
     )
 
 case class ViewerSettings(

@@ -1,9 +1,9 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import com.raquo.airstream.core.EventStream
+import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.gxcore.model.DiagramMetadata
+import org.jpablo.graphexplorer.gxcore.model.{DiagramLayout, DiagramMetadata}
 import org.jpablo.graphexplorer.library.Library
 import org.jpablo.graphexplorer.viewer.desktop.FilePersistence
 import org.jpablo.graphexplorer.viewer.models.DiagramId
@@ -54,6 +54,24 @@ trait DiagramPersistence:
 
   /** Save now, because the person asked (§11). */
   def saveNow(state: DiagramSnapshot)(using ExecutionContext): Future[SaveResult]
+
+  /** The layout that the store reads after the open (ADR 0004). A file reads its side file then, because the read
+    * goes through the shell. The other stores give the layout in [[initial]], so their streams are empty.
+    */
+  def externalLayout: EventStream[DiagramLayout] = EventStream.empty
+
+  /** The layout that the store holds, when a save writes the layout apart from each change: the side file of a
+    * file. `None`: the store keeps each change of the layout at once, so the layout is never unsaved.
+    */
+  def savedLayout: Signal[Option[DiagramLayout]] = Signal.fromValue(None)
+
+  /** The value of [[savedLayout]] now. */
+  def savedLayoutNow: Option[DiagramLayout] = None
+
+  /** Save the layout only, and not the source. A locked file uses this (ADR 0004). A store that keeps the layout
+    * with each change saves as [[saveNow]] does.
+    */
+  def saveLayoutNow(state: DiagramSnapshot)(using ExecutionContext): Future[SaveResult] = saveNow(state)
 
   /** The message for the person, each time the store refuses a write that
     * [[update]] started. Only the browser library can refuse a write in this

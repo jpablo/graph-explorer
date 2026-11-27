@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz
 
 import com.raquo.airstream.core.Signal
+import org.jpablo.graphexplorer.gxcore.layout.FreeLayout
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramRenderInputs, RenderState, Renderer}
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
@@ -33,8 +34,16 @@ class GraphvizRenderer(graphviz: Graphviz) extends Renderer:
     // A render is never pending. A failed render gives no drawing, and the message of the error is the cause.
     // An image with a path relative to the diagram is drawn from its URL, with the size from its header (see
     // LocalImages). The DOT text for Graphviz has the URL, and the source keeps the path.
-    inputs.visibleGraph.combineWith(inputs.localImages.distinct).map: (graph, images) =>
-      val dot = DotText(DotPrinter.graphToText(images.graph(graph), omitInternal = false))
-      graphviz.textToSvg(dot, images.table) match
-        case Success(drawn) => RenderState.Drawn(drawn)
-        case Failure(error) => RenderState.NoDrawing(Option(error.getMessage))
+    // A stored position pins its node, and neato places each other node (the free layout, ADR 0004). The pins go
+    // only into this text. An empty layout gives the same graph, so a diagram with no position draws as before.
+    // An arrow with bend points goes through them (part 4). neato honours the `pos` of an arrow only with its `-n2`
+    // option, and viz-js does not give that option. Thus the renderer draws the path of such an arrow again in the SVG
+    // of neato (see BendRender).
+    inputs.visibleGraph
+      .combineWith(inputs.localImages.distinct, inputs.layout.distinct, inputs.bends.distinct)
+      .map: (graph, images, layout, bends) =>
+        val drawn = FreeLayout.renderGraph(images.graph(graph), layout)
+        val dot   = DotText(DotPrinter.graphToText(drawn, omitInternal = false))
+        graphviz.textToSvg(dot, images.table) match
+          case Success(svg)   => RenderState.Drawn(BendRender.applyTo(svg, graph, layout, bends))
+          case Failure(error) => RenderState.NoDrawing(Option(error.getMessage))

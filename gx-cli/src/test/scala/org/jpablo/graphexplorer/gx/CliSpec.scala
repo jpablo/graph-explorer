@@ -1215,6 +1215,15 @@ class CliSpec extends FunSuite:
     assertEquals(r.library.list(), Vector.empty, "add wrote some entries before it failed")
   }
 
+  tmp.test("add of the layout file of a diagram is exit 4, and adds nothing") { dir =>
+    arch(dir)
+    write(dir, "arch.layout.json", "{\"version\": 1, \"nodes\": {}}")
+    val r = Run(dir)
+    assertEquals(r("add", "arch.layout.json"), ExitCode.InvalidPathOrPolicy)
+    assert(r.stderr.contains("layout file"), r.stderr)
+    assertEquals(r.library.list(), Vector.empty, "add took a layout file as a diagram")
+  }
+
   tmp.test("remove takes a diagram out of the library, and the file stays") { dir =>
     val f = arch(dir)
     Run(dir)("tag", "arch.dot", "x")

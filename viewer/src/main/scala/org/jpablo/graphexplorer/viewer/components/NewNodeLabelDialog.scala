@@ -26,8 +26,9 @@ def NewNodeLabelDialog(state: ViewerState) =
       // The rule of the Edit Label dialog: HTML-like markup stays HTML.
       val attrs  = pending.attributes + (Label.attrId -> AttributeRow.labelValue(text))
       val dir    = pending.direction
-      // Create node with provided label, then select/focus continues as usual
-      state.addNodeWithSmartConnection(attrs, dir)
+      // Create node with provided label, then select/focus continues as usual. In a free layout, the node goes to
+      // the place of the gesture that opened the dialog.
+      state.addNodeWithSmartConnection(attrs, dir, pending.at)
     closeDialog()
 
   /** The graph of the preview: the diagram with the new node, which has the

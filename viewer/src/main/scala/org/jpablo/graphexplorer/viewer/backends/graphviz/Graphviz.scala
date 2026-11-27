@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, ArrowPosition}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, ArrowPosition, Point}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{ImageSize, RenderOptions, Viz, VizJS}
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.domUtils.{parseSVG, querySelectorAllT}
@@ -17,7 +17,15 @@ import scala.util.Try
 
 case class SvgWithPositions(
     svg:           ReactiveSvgElement[dom.svg.SVG],
-    edgePositions: Map[String, ArrowPosition]
+    edgePositions: Map[String, ArrowPosition],
+    /** The center of each drawn node, by its id, with the y axis up (as in Graphviz). Graphviz gives points, and
+      * Mermaid gives pixels. Freeze reads the current place of each node here (ADR 0004).
+      */
+    nodePositions: Map[String, Point] = Map.empty,
+    /** The width and the height of each drawn node, by its id, in points (Graphviz only). An arrow with bend points
+      * ends on the box of a node with no shape in the SVG (see `BendRender`).
+      */
+    nodeSizes: Map[String, (Double, Double)] = Map.empty
 )
 
 /** Backend-neutral render result (the slice both engines expose). */
@@ -105,7 +113,7 @@ class Graphviz(viz: Viz):
         val edgePos      = simplegraph.getEdgePos(graph)
         val svg          = parseSVG(result_svg)
         Graphviz.addEdgeHitAreas(svg.ref)
-        SvgWithPositions(svg, edgePos)
+        SvgWithPositions(svg, edgePos, simplegraph.getNodePos(graph), Graphviz.nodeSizes(graph))
       else
         dom.console.group("Graphviz.renderToSvg")
         dom.console.error(dot.value)
@@ -115,6 +123,14 @@ class Graphviz(viz: Viz):
     }
 
 object Graphviz:
+
+  /** The width and the height of each node of a render, in points. Graphviz gives them in inches. */
+  private[graphviz] def nodeSizes(graph: SimpleGraph): Map[String, (Double, Double)] =
+    graph.objects.getOrElse(Nil).iterator
+      .collect { case simplegraph.SimpleGraphObject.Node(node) => node }
+      .flatMap: node =>
+        (node.width.flatMap(_.toDoubleOption) zip node.height.flatMap(_.toDoubleOption)).map((w, h) => node.name -> (w * 72, h * 72))
+      .toMap
 
   /** Graphviz edges are thin splines — a hard click target, same as Mermaid's
     * (see MermaidBackend.addEdgeHitAreas). Clone each edge group's spline as an

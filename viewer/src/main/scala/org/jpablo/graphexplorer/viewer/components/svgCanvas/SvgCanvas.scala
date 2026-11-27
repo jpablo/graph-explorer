@@ -5,26 +5,35 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
-import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.gxcore.layout.BendPath
+import org.jpablo.graphexplorer.gxcore.model.LayoutPoint
+import org.jpablo.graphexplorer.viewer.backends.graphviz.BendRender
+import org.jpablo.graphexplorer.viewer.components.toSvgPoint
+import org.jpablo.graphexplorer.viewer.models.{ArrowId, ElementId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
-import org.jpablo.graphexplorer.viewer.state.{CanvasTransform, DiagramSelectionOps, RecordCellOps, SelectedCell, UIState}
-import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
+import org.jpablo.graphexplorer.viewer.state.{CanvasTransform, DiagramSelectionOps, ManualLayoutOps, RecordCellOps, SelectedCell, UIState}
+import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, MouseActionRect}
 
 import scala.scalajs.js
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.ArrowPosition
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 // rawSvg is the SVG element as it comes from DOT or Mermaid
 def SvgCanvas(
     rawSvg:        ReactiveSvgElement[dom.svg.SVG],
     transform:     Signal[CanvasTransform],
-    viewerOps:     DiagramSelectionOps & RecordCellOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
+    viewerOps:     DiagramSelectionOps & RecordCellOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState &
+      ManualLayoutOps,
     mouseAction:   MouseActionVar,
     edgePositions: Map[String, ArrowPosition],
     strategy:      SelectableElementStrategy,
+    /** The center and the size of each drawn node (see `SvgWithPositions`). A bend drag ends an arrow on the box of a
+      * node with no shape in the SVG. */
+    nodePositions: Map[String, Point] = Map.empty,
+    nodeSizes:     Map[String, (Double, Double)] = Map.empty,
     /** Concealed-neighbor counts per visible node (successors, predecessors) —
       * the expand-badge model — and the badge click's action. */
     concealedCounts:   Map[org.jpablo.graphexplorer.viewer.models.NodeId, (Int, Int)] = Map.empty,
@@ -70,10 +79,10 @@ def SvgCanvas(
       .flatMap(_.asNodeId)
       .flatMap(nodeId => viewerOps.recordCells.cellPathAtClientPoint(nodeId, end.x, end.y).map(nodeId -> _))
 
-  def handleElementClick(ev: dom.MouseEvent, now: Double, currentElementIdO: Option[ElementId]): Boolean =
+  def handleElementClick(ev: dom.MouseEvent, now: Double, currentElementIdO: Option[ElementId]): ClickResult =
     val isRepeatClick = currentElementIdO.exists: id =>
       lastClickedElementId.contains(id) && (now - lastClickTimestamp) < doubleClickThreshold
-    val handled = currentElementIdO match
+    val result: ClickResult = currentElementIdO match
       case Some(nodeId: NodeId)
           if viewerOps.recordCells.isCellEditable(nodeId) &&
             viewerOps.selection.now().size == 1 &&
@@ -86,9 +95,11 @@ def SvgCanvas(
             ev.preventDefault()
             ev.stopPropagation()
             viewerOps.recordCells.selectCell(nodeId, path)
-            if isRepeatClick then viewerOps.recordCells.editCell(SelectedCell(nodeId, path))
-            true
-          case None => false
+            if isRepeatClick then
+              viewerOps.recordCells.editCell(SelectedCell(nodeId, path))
+              ClickResult.Edited
+            else ClickResult.CellSelected
+          case None => ClickResult.NotHandled
       case Some(currentElementId) if isRepeatClick =>
         // Double click detected on a selectable element
         ev.preventDefault()
@@ -96,19 +107,22 @@ def SvgCanvas(
         // Ensure the element is selected before editing (in case the first click didn't select it)
         viewerOps.selection.set(ElementIds.from(currentElementId))
         viewerOps.selection.editSelectedLabel()
-        true
-      case _ => false
+        ClickResult.Edited
+      case _ => ClickResult.NotHandled
     // Bookkeeping for the next click: a consumed double-click resets (so a triple
     // click does not re-open the editor); anything else arms the element clicked.
     currentElementIdO match
-      case Some(id) if !(handled && isRepeatClick) =>
+      case Some(id) if !(result != ClickResult.NotHandled && isRepeatClick) =>
         lastClickTimestamp = now
         lastClickedElementId = Some(id)
-      case _ =>
-        lastClickTimestamp = 0.0
-        lastClickedElementId = None
-    handled
+      case _ => forgetClick()
+    result
   end handleElementClick
+
+  /** The next press is not the second click of a double-click. */
+  def forgetClick(): Unit =
+    lastClickTimestamp = 0.0
+    lastClickedElementId = None
 
   def queryElements(elems: ElementIds) =
     SelectableElement.query(rawSvg.ref, elems, strategy)
@@ -130,6 +144,190 @@ def SvgCanvas(
   val allSelectable =
     SelectableElement.findAll(rawSvg.ref, strategy)
 
+  // --- The drag of nodes (manual layout, ADR 0004) ---
+
+  /** The look of the drag in flight, if any (see `NodeDrag`). */
+  var nodeDrag = Option.empty[NodeDrag]
+
+  /** The look of the drag of a bend in flight, if any (see `BendControls.BendDrag`). */
+  var bendDrag = Option.empty[BendControls.BendDrag]
+
+  /** The node of the full graph under the target of a press. A collapsed group box is not a node of the full graph,
+    * so a press on it keeps its old meaning. The search starts at the target itself: the label of a Mermaid node is
+    * HTML in a `foreignObject`, and a search of svg elements only does not find it.
+    */
+  def pressedNode(target: dom.EventTarget): Option[NodeId] =
+    target match
+      case el: dom.Element =>
+        Option(el.closest(strategy.nodeSelector))
+          .flatMap(SelectableElement.fromDomElement(_, strategy))
+          .flatMap(_.nodeId)
+          .filter(viewerOps.isGraphNodeNow)
+      case _ => None
+
+  /** A click on the node `id`: the selection rule of a click (Shift adds or removes the node). */
+  def clickOn(id: NodeId, shift: Boolean): Unit =
+    viewerOps.selection.updateSelectionStatus(id)(shift)
+
+  /** A move of the pointer during a press on a node. The action changes only at a change of phase: a move of a drag
+    * writes the svg directly, and the signals of the canvas do not run for each move.
+    */
+  def onNodePressMove(a: MoveNodesAction, end: ClientPoint, alt: Boolean): Unit =
+    a.phase match
+      case NodePress.Pending if NodePress.isDrag(a.rect.update(end, a.rect.shift)) =>
+        // The press becomes a drag. It is not the first click of a double-click.
+        forgetClick()
+        val visible = viewerOps.drawnArrowEndsNow()
+        val drag =
+          viewerOps.startNodeDrag(a.pressed).flatMap(NodeDrag.begin(rawSvg.ref, mainGroup, strategy, _, visible))
+        nodeDrag = drag
+        drag.foreach(_.update(end.x - a.rect.start.x, end.y - a.rect.start.y, alt))
+        val phase = if drag.isDefined then NodePress.Dragging else NodePress.Inert
+        mouseAction.start(a.copy(rect = a.rect.update(end, a.rect.shift), alt = alt, phase = phase))
+      case NodePress.Dragging =>
+        nodeDrag.foreach(_.update(end.x - a.rect.start.x, end.y - a.rect.start.y, alt))
+      case _ => ()
+
+  /** The release of a press on a node: a click selects, and a drag stores one move. */
+  def onNodePressEnd(a: MoveNodesAction): Unit =
+    mouseAction.inactive()
+    a.phase match
+      case NodePress.Pending  => if a.clickOnRelease then clickOn(a.pressed, a.rect.shift)
+      case NodePress.Inert    => ()
+      case NodePress.Dragging =>
+        nodeDrag.foreach: drag =>
+          val (dx, dy) = drag.delta
+          if dx == 0 && dy == 0 then drag.cancel()
+          else
+            val before = viewerOps.layout.now()
+            viewerOps.moveNodesBy(drag.nodes, dx, dy)
+            // The move gives a new render, which replaces this svg. Until then the nodes stay where the person put
+            // them, so that the layout transition starts from there. The event handler runs in a transaction of
+            // Airstream, so the layout changes after it. With no change, no render comes, and the drawing goes back.
+            drag.hold()
+            js.timers.setTimeout(0)(if viewerOps.layout.now() eq before then drag.cancel())
+        nodeDrag = None
+
+  /** Stop a drag with no move: Escape, or a new press before the release. */
+  def cancelNodeDrag(): Unit =
+    nodeDrag.foreach(_.cancel())
+    nodeDrag = None
+    bendDrag.foreach(_.cancel())
+    bendDrag = None
+
+  // --- The bend points of the selected arrow (manual layout, ADR 0004, part 4) ---
+
+  /** The last click on a bend handle: the arrow, the index of the bend, and the time. A second click soon after it is
+    * a double-click, and it removes the bend.
+    */
+  var lastBendClick = Option.empty[(ArrowId, Int, Double)]
+
+  /** The point of the SVG for a layout point, with the offset of the layout now. */
+  def layoutToSvg(p: LayoutPoint): BendPath.Vec = BendRender.toSvg(p, viewerOps.layoutOffsetNow())
+
+  /** The arrow of a press on the path of the selected arrow: in a free layout, a drag there adds a bend. Shift keeps
+    * the meaning of a click with Shift (a change of the selection).
+    */
+  def pressedBendPath(ev: dom.MouseEvent): Option[ArrowId] =
+    if ev.shiftKey || !viewerOps.drawsFreeLayoutNow then None
+    else
+      ev.target match
+        case el: dom.Element if el.tagName.equalsIgnoreCase("path") =>
+          Option(el.closest(strategy.edgeSelector))
+            .flatMap(SelectableElement.fromDomElement(_, strategy))
+            .flatMap(_.arrowId)
+            .filter(id => selection.now().size == 1 && selection.now().contains(id))
+        case _ => None
+
+  /** A press on the handle of the bend `index` of the arrow `arrow`. A second press soon after a click is a
+    * double-click: it removes the bend. Else the press can become a drag of the bend.
+    */
+  def onBendHandlePress(arrow: ArrowId, index: Int, ev: dom.MouseEvent): Unit =
+    if ev.button == 0 then
+      ev.stopPropagation()
+      ev.preventDefault()
+      cancelNodeDrag()
+      forgetClick()
+      val now = js.Date.now()
+      lastBendClick match
+        case Some((id, i, at)) if id == arrow && i == index && now - at < ManualLayoutOps.DoubleClickMs =>
+          lastBendClick = None
+          mouseAction.inactive()
+          viewerOps.removeBend(arrow, index, now)
+        case _ =>
+          lastBendClick = Some((arrow, index, now))
+          val pos = ClientPoint(ev.clientX, ev.clientY)
+          mouseAction.start(MoveBendAction(MouseActionRect(pos, pos, false), arrow, index, insert = false, NodePress.Pending))
+
+  /** The handles of the selected arrow: in a free layout, at each of its bends. A drag of a bend hides them. */
+  def refreshBendHandles(elem: Option[SelectableElement], action: MouseAction): Unit =
+    val show = action match
+      case Inactive          => true
+      case a: MoveBendAction => a.phase == NodePress.Pending
+      case _                 => false
+    val arrow = elem.flatMap(_.arrowId).filter(_ => show && viewerOps.drawsFreeLayoutNow)
+    val bends = arrow.fold(Vector.empty)(viewerOps.bendsNow)
+    BendControls.refresh(mainGroup, bends.map(layoutToSvg), (i, ev) => arrow.foreach(onBendHandlePress(_, i, ev)))
+
+  /** The start of the look of a drag of a bend. None when the canvas cannot draw it. */
+  def beginBendDrag(a: MoveBendAction): Option[BendControls.BendDrag] =
+    if !viewerOps.drawsFreeLayoutNow || !viewerOps.startBendDrag() then None
+    else
+      for
+        (from, to) <- viewerOps.drawnArrowEndsOf(a.arrow)
+        edge     <- queryElements(ElementIds.from(a.arrow)).headOption.map(_.ref)
+        position <- edgePositions.get(a.arrow.value)
+        shape     = BendRender.nodeShapes(mainGroup, nodePositions, nodeSizes)
+        source   <- shape(from)
+        target   <- shape(to)
+        ctm      <- Option(mainGroup.getScreenCTM()).filter(m => m.a != 0 && m.d != 0)
+        base      = viewerOps.bendsNow(a.arrow)
+        if a.insert || base.indices.contains(a.index)
+      yield
+        val (ox, oy) = viewerOps.layoutOffsetNow()
+        def toLayout(at: ClientPoint): LayoutPoint =
+          val local = at.toSvgPoint(ctm)
+          LayoutPoint(local.x + ox, -local.y + oy)
+        def drawingToLayout(x: Double, y: Double) = BendPath.Vec(x + ox, y + oy)
+        val pressAt = toLayout(a.rect.start)
+        val (index, origin) =
+          if a.insert then
+            val start = drawingToLayout(position.startPoint.x, position.startPoint.y)
+            val end   = drawingToLayout(position.endPoint.x, position.endPoint.y)
+            val at    = BendPath.insertionIndex(start, base.map(p => BendPath.Vec(p.x, p.y)), end, BendPath.Vec(pressAt.x, pressAt.y))
+            (at, pressAt)
+          else (a.index, base(a.index))
+        BendControls.BendDrag(mainGroup, edge, position, source, target, a.arrow, base, index, a.insert, origin, pressAt, toLayout, layoutToSvg)
+
+  /** A move of the pointer during a press on a bend or on the path. The action changes only at a change of phase. */
+  def onBendPressMove(a: MoveBendAction, end: ClientPoint, alt: Boolean): Unit =
+    a.phase match
+      case NodePress.Pending if NodePress.isDrag(a.rect.update(end, a.rect.shift)) =>
+        forgetClick()
+        lastBendClick = None
+        val drag = beginBendDrag(a)
+        bendDrag = drag
+        drag.foreach(_.update(end, alt))
+        val phase = if drag.isDefined then NodePress.Dragging else NodePress.Inert
+        mouseAction.start(a.copy(rect = a.rect.update(end, a.rect.shift), phase = phase))
+      case NodePress.Dragging =>
+        bendDrag.foreach(_.update(end, alt))
+      case _ => ()
+
+  /** The release of a press on a bend or on the path: a drag stores the new bends in one change. */
+  def onBendPressEnd(a: MoveBendAction): Unit =
+    mouseAction.inactive()
+    if a.phase == NodePress.Dragging then
+      bendDrag.foreach: drag =>
+        if !drag.changed then drag.cancel()
+        else
+          val before = viewerOps.layout.now()
+          viewerOps.setArrowBends(drag.arrow, drag.points)
+          // As for a drag of nodes: the new path stays until the new render replaces this svg.
+          drag.hold()
+          js.timers.setTimeout(0)(if viewerOps.layout.now() eq before then drag.cancel())
+    bendDrag = None
+
   // Fires when a layout transition lands (LayoutTransition.finish dispatches it
   // on this svg). Overlay controls built at mount were positioned at frame 0 —
   // the OLD layout, by the transition's pixel-exact contract — so they must be
@@ -150,6 +348,7 @@ def SvgCanvas(
   def refreshOverlayControls(elem: Option[SelectableElement], action: MouseAction): Unit =
     viewerOps.handleNewArrowControls(mainGroup, elem, action)
     viewerOps.handleArrowEndpointControl(mainGroup, elem, action, edgePositions)
+    refreshBendHandles(elem, action)
 
   /** The screen scale of this canvas. It keeps its measures, so that a pan or
     * a zoom reads no layout after the write of the transform. */
@@ -230,25 +429,88 @@ def SvgCanvas(
         // Mouse events
         // --------------------------------------------------------
         // 1. Drawing a selecting rectangle (OR dbl-click) starts here. Other actions start in their respective elements.
+        //
+        // A press on a node of a diagram with a graph starts a node press. A short move is a click, and a longer move
+        // drags the nodes (see `onNodePressMove`). A press on a node that is already selected waits for the release
+        // to select, so that a drag keeps a multi-selection. A press on any other node selects at once, as before.
         onMouseDown.filter(leftButton).map(ev => (ev, clientCoords(ev))) --> { case (ev, (pos, shift)) =>
-          val handled = handleElementClick(
+          cancelNodeDrag()
+          val result = handleElementClick(
             ev,
             js.Date.now(),
             findClosestElementId(js.Array(ev.target.asInstanceOf[dom.Element]), strategy = strategy)
           )
-          if !handled then
-            mouseAction.start(ExtendSelectionAction(MouseActionRect(pos, pos, shift)))
+          val rect = MouseActionRect(pos, pos, shift)
+          (result, pressedNode(ev.target)) match
+            case (ClickResult.Edited, _) => ()
+            case (ClickResult.CellSelected, Some(node)) =>
+              mouseAction.start(MoveNodesAction(rect, node, ev.altKey, clickOnRelease = false, NodePress.Pending))
+            case (ClickResult.NotHandled, Some(node)) =>
+              val alreadySelected = viewerOps.inDragSelection(node)
+              if !alreadySelected then clickOn(node, shift)
+              mouseAction.start(MoveNodesAction(rect, node, ev.altKey, clickOnRelease = alreadySelected, NodePress.Pending))
+            case (ClickResult.NotHandled, None) =>
+              // A press on the path of the selected arrow of a free layout can add a bend (part 4). A click there
+              // keeps the selection, as before.
+              pressedBendPath(ev) match
+                case Some(arrow) => mouseAction.start(MoveBendAction(rect, arrow, -1, insert = true, NodePress.Pending))
+                case None        => mouseAction.start(ExtendSelectionAction(rect))
+            case _ => ()
         },
-        // 2. Any ongoing action is updated here (i.e., mouse position)
-        onMouseMove.filter(leftButtonMoved).map(clientCoords) --> mouseAction.updateEndpoint.tupled,
+        // 2. Any ongoing action is updated here (i.e., mouse position). A node press follows the pointer on the
+        // document (below), so that a drag continues outside of the svg.
+        onMouseMove.filter(leftButtonMoved).map(clientCoords) --> { (end, shift) =>
+          mouseAction.now() match
+            case _: MoveNodesAction | _: MoveBendAction =>
+            case _                                      => mouseAction.updateEndpoint(end, shift)
+        },
         // 3. Any ongoing action ends here
         onMouseUp.filter(leftButton)(_.withCurrentValueOf(mouseAction.signal)) --> { (ev, previousAction) =>
-          mouseAction.inactive()
           previousAction match
-            case a: AddNewArrowAction       => viewerOps.handleAddNewArrowMouseUp(ev, a)
-            case a: MoveArrowEndpointAction => viewerOps.handleMoveArrowStartMouseUp(ev, a)
-            case _                          =>
+            case _: MoveNodesAction         => // The document listener below ends it.
+            case _: MoveBendAction          => // The document listener below ends it.
+            case a: AddNewArrowAction       => mouseAction.inactive(); viewerOps.handleAddNewArrowMouseUp(ev, a)
+            case a: MoveArrowEndpointAction => mouseAction.inactive(); viewerOps.handleMoveArrowStartMouseUp(ev, a)
+            case _                          => mouseAction.inactive()
         },
+        // A node press: the moves and the release, also outside of the svg. Escape stops a drag with no move.
+        documentEvents(_.onMouseMove) --> { ev =>
+          mouseAction.now() match
+            case a: MoveNodesAction if ev.buttons == 1 => onNodePressMove(a, ClientPoint(ev.clientX, ev.clientY), ev.altKey)
+            case a: MoveBendAction if ev.buttons == 1  => onBendPressMove(a, ClientPoint(ev.clientX, ev.clientY), ev.altKey)
+            case _                                     =>
+        },
+        documentEvents(_.onMouseUp).filter(leftButton) --> { _ =>
+          mouseAction.now() match
+            case a: MoveNodesAction => onNodePressEnd(a)
+            case a: MoveBendAction  => onBendPressEnd(a)
+            case _                  =>
+        },
+        documentEvents(_.onKeyDown).filter(_.key == "Escape") --> { _ =>
+          mouseAction.now() match
+            case _: MoveNodesAction | _: MoveBendAction =>
+              cancelNodeDrag()
+              mouseAction.inactive()
+            case _ =>
+        },
+        // A double-click on the empty canvas of a free layout adds a node at that point (ADR 0004, part 3). A
+        // double-click on an element keeps its meaning: the press handler above edits the label. In an automatic
+        // diagram, a double-click on the empty canvas does nothing, as before.
+        onDblClick.filter(leftButton) --> { ev =>
+          val onElement = ev.target match
+            case el: dom.Element =>
+              findClosestElementId(js.Array(el), strategy = strategy).isDefined || el.closest(s".${BendControls.HandleClass}") != null
+            case _ => true
+          // A double-click on a bend handle removes the bend (part 4). The new render can put the empty canvas under
+          // the pointer before the double-click event: that event must not add a node.
+          if !onElement && !viewerOps.removedBendRecently(js.Date.now()) then
+            viewerOps.newNodeAtClient(ClientPoint(ev.clientX, ev.clientY))
+        },
+        // The svg can go away during a drag (a new render): the look of the drag goes with it.
+        onUnmountCallback: _ =>
+          nodeDrag = None
+          bendDrag = None
+        ,
         // --------------------------------------------------------
         // derived events
         // --------------------------------------------------------
@@ -353,6 +615,17 @@ def SvgCanvas(
       )
     }
 end SvgCanvas
+
+/** What a press did in `handleElementClick`. */
+private enum ClickResult derives CanEqual:
+  /** The press is not a click of the cell level and not a double-click. */
+  case NotHandled
+
+  /** The press selected a cell of the selected record. */
+  case CellSelected
+
+  /** The press opened an editor: a double-click. */
+  case Edited
 
 /** True while an editable element (input/textarea/contenteditable, incl. the CodeMirror
   * source editor) has keyboard focus — used to avoid stealing focus to the canvas.

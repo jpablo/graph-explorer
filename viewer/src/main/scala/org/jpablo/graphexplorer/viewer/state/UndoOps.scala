@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.{Signal, Transaction}
 import com.raquo.airstream.ownership.{Owner, Subscription}
 import com.raquo.airstream.state.{StrictSignal, Var}
+import org.jpablo.graphexplorer.gxcore.model.DiagramLayout
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
 import org.scalajs.dom
 
@@ -10,8 +11,8 @@ import scala.scalajs.js
 
 /** Undo and redo of one view of a diagram.
   *
-  * A step holds the source text, the hidden elements and the folded groups, before and after a change, and the
-  * selection. The history watches these values, and does not wait for each writer to report a change. Thus each path
+  * A step holds the source text, the hidden elements, the folded groups and the layout (the stored positions of the
+  * nodes, ADR 0004), before and after a change, and the selection. The history watches these values, and does not wait for each writer to report a change. Thus each path
   * records its steps: the canvas, the panels, the dialogs, the source editor and the commands of `gx`.
   *
   * Only a change that comes after a gesture of the user is a step: the load of a diagram is not a step. A click or a
@@ -31,6 +32,7 @@ final class UndoOps(
     restoreText: String => Unit,
     hidden:      Var[ElementIds],
     collapsed:   Var[Set[GroupId]],
+    layout:      Var[DiagramLayout],
     selection:   Signal[ElementIds],
     selectionNow: () => ElementIds,
     select:      ElementIds => Unit,
@@ -38,7 +40,7 @@ final class UndoOps(
 )(using owner: Owner):
 
   /** The part of the state that a step changes. */
-  final case class Content(text: String, hidden: ElementIds, collapsed: Set[GroupId])
+  final case class Content(text: String, hidden: ElementIds, collapsed: Set[GroupId], layout: DiagramLayout)
 
   /** A state of the history: the content, and the selection that goes with it. */
   final case class Snapshot(content: Content, selection: ElementIds)
@@ -50,7 +52,7 @@ final class UndoOps(
 
   private val history = UndoHistory[Snapshot]()
 
-  private def contentNow(): Content = Content(text.now(), hidden.now(), collapsed.now())
+  private def contentNow(): Content = Content(text.now(), hidden.now(), collapsed.now(), layout.now())
 
   /** The last state that the history knows. A change is the difference from it. */
   private var current = Snapshot(contentNow(), selectionNow())
@@ -65,6 +67,13 @@ final class UndoOps(
     * and an undo must select the node again.
     */
   private var selectionAtGesture = Option.empty[ElementIds]
+
+  /** The content of an undo or a redo while its writes arrive. The writes of one step can come in more than one
+    * transaction: the text, the hidden elements, the folds and the layout. A mix of the old values and the new values
+    * is not a new step. Before this, an undo of a step that changed the text and the layout (a new node at a place,
+    * ADR 0004) recorded the mix as a new step, and the new step removed the redo.
+    */
+  private var restoring = Option.empty[Content]
 
   private val state = Var((false, false, Option.empty[String], Option.empty[String]))
 
@@ -88,34 +97,53 @@ final class UndoOps(
 
   /** A click or a key of the user outside of a text field: the next change is a new step. */
   def markGesture(): Unit =
+    restoring = None
     interacted = true
     gesture += 1
     selectionAtGesture = Some(selectionNow())
 
   /** A key in a text field: the user acts, but the typing continues the same step. */
   def markTyping(): Unit =
+    restoring = None
     interacted = true
+
+  /** Take the layout of the store with no step: the load of a side file is not a step (ADR 0004). */
+  def adoptLayout(next: DiagramLayout): Unit =
+    current = current.copy(content = current.content.copy(layout = next))
+    layout.set(next)
 
   def undo(): Unit = history.undo().foreach(apply)
   def redo(): Unit = history.redo().foreach(apply)
 
   /** Remove all the steps, for example when a different diagram loads into the view. */
   def clear(): Unit =
+    restoring = None
     history.clear()
     current = Snapshot(contentNow(), selectionNow())
     refresh()
 
   private def apply(target: Snapshot): Unit =
     // The history knows the target first. Thus the changes below are not a new step.
+    // With no difference, no write comes, and the next change is a new step.
+    restoring = Option.when(contentNow() != target.content)(target.content)
     current = target
     Transaction: _ =>
       if text.now() != target.content.text then restoreText(target.content.text)
       hidden.set(target.content.hidden)
       collapsed.set(target.content.collapsed)
+      layout.set(target.content.layout)
       select(target.selection)
     refresh()
 
   private def onChange(next: Content): Unit =
+    restoring match
+      case Some(target) =>
+        // A write of an undo or of a redo. The history follows the content, and records no step.
+        current = current.copy(content = next)
+        if next == target then restoring = None
+      case None => recordChange(next)
+
+  private def recordChange(next: Content): Unit =
     if next != current.content then
       val before = current.copy(selection = selectionAtGesture.getOrElse(current.selection))
       current = Snapshot(next, selectionNow())
@@ -127,16 +155,21 @@ final class UndoOps(
   private def label(before: Content, after: Content): String =
     val textChanged = before.text != after.text
     val hideChanged = before.hidden != after.hidden
-    val foldChanged = before.collapsed != after.collapsed
-    if !textChanged && hideChanged && !foldChanged then
+    val foldChanged   = before.collapsed != after.collapsed
+    val layoutChanged = before.layout != after.layout
+    if !textChanged && !hideChanged && !foldChanged && layoutChanged then
+      if !after.layout.hasPositions then "Arrange"
+      else if !before.layout.hasPositions then "Freeze layout"
+      else "Move"
+    else if !textChanged && hideChanged && !foldChanged && !layoutChanged then
       if after.hidden.size >= before.hidden.size then "Hide" else "Show"
-    else if !textChanged && foldChanged && !hideChanged then
+    else if !textChanged && foldChanged && !hideChanged && !layoutChanged then
       if after.collapsed.size >= before.collapsed.size then "Fold" else "Unfold"
     else "Edit"
 
   Signal
-    .combine(text, hidden.signal, collapsed.signal)
-    .foreach((t, h, c) => onChange(Content(t, h, c)))
+    .combine(text, hidden.signal, collapsed.signal, layout.signal)
+    .foreach((t, h, c, l) => onChange(Content(t, h, c, l)))
 
   selection.foreach: sel =>
     current = current.copy(selection = sel)

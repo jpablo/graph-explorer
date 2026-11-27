@@ -94,7 +94,9 @@ private def rendererSelect(views: Signal[DiagramView], renderers: List[Renderer]
     cls    := "w-auto",
     title  := "Renderer",
     option(value := ViewerState.autoRenderer, text <-- views.flatMapSwitch(_.state.rendererOption.autoLabel)),
-    renderers.map(renderer => option(value := renderer.id, renderer.label)),
+    renderers.map(renderer =>
+      option(value := renderer.id, text <-- views.flatMapSwitch(_.state.rendererOption.labelOf(renderer)))
+    ),
     controlled(
       value <-- views.flatMapSwitch(_.state.rendererOption.selected),
       onChange.mapToValue --> picks.writer

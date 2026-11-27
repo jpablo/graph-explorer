@@ -14,7 +14,7 @@ import org.jpablo.graphexplorer.gxcore.command.{
   SourceCommands
 }
 import org.jpablo.graphexplorer.gxcore.fs.*
-import org.jpablo.graphexplorer.gxcore.model.{Board, ContentHash, DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.gxcore.model.{Board, ContentHash, DiagramLayout, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.gxcore.rpc.ChannelError
 import org.jpablo.graphexplorer.gxcore.store.{MetadataError, MetadataMigrationExecutor, MetadataMigrationResult}
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, RoundTripLoss, UnmodeledContent}
@@ -315,6 +315,15 @@ object Cli:
     if Files.isRegularFile(path) then Right(path)
     else
       env.err(if Files.exists(path) then s"gx: $path is not a file" else s"gx: $path does not exist")
+      Left(ExitCode.InvalidPathOrPolicy)
+
+  /** The layout side file of a diagram (`<name>.layout.json`, ADR 0004) is not a diagram. Thus it does not go into
+    * the library.
+    */
+  private def notLayoutFile(path: Path, env: CliEnv): Either[Int, Path] =
+    if !DiagramLayout.isLayoutPath(path.toString) then Right(path)
+    else
+      env.err(s"gx: $path is the layout file of a diagram, not a diagram. Add the diagram file.")
       Left(ExitCode.InvalidPathOrPolicy)
 
   /** A file, its text and its hash as gx read them, and the parsed diagram. */
@@ -1091,7 +1100,7 @@ object Cli:
 
   private def add(command: Command, args: Args, env: CliEnv): Int =
     // Each file is checked before the first write, so a bad file adds nothing.
-    val checked = files(command, args, env).flatMap(eachOrStop(_)(requireFile(_, env)))
+    val checked = files(command, args, env).flatMap(eachOrStop(_)(p => requireFile(p, env).flatMap(notLayoutFile(_, env))))
     val results = checked.flatMap: paths =>
       eachOrStop(paths): path =>
         for
