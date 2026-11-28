@@ -1291,3 +1291,65 @@ class ViewerGraphToTextSpec extends FunSuite:
     assert(text.contains(""""a" [label=""]"""), text)
     assert(text.contains(""""a" -> "b" [label=""]"""), text)
   }
+
+  // ---- HTML-like labels on each label key (see HtmlLabels.labelKeys)
+
+  /** A graph with the node `a` and the arrow `a -> b`. Each has the given attributes. */
+  private def labelGraph(
+      nodeAttrs:  List[(String, String)],
+      arrowAttrs: List[(String, String)] = Nil
+  ): ViewerGraphElements =
+    import scala.collection.immutable.VectorMap
+    def attrs(kvs: List[(String, String)]) =
+      Attributes(VectorMap.from(kvs.map((k, v) => AttributeId(k) -> AttrValue(v))))
+    val a     = NodeId("a")
+    val b     = NodeId("b")
+    val arrow = Arrow(a, b, seq = 0, attributes = attrs(arrowAttrs))
+    ViewerGraphElements(
+      nodes = VectorMap(a -> ViewerNode.nodeNoDefaults(a, attrs(nodeAttrs)), b -> ViewerNode.nodeNoDefaults(b)),
+      arrows = Map(arrow.id -> arrow)
+    )
+
+  /** The layout text and the file text of `elements`. */
+  private def bothTexts(elements: ViewerGraphElements): List[(String, String)] =
+    List(
+      "layout" -> viewerGraphElementsToText(elements),
+      "file"   -> viewerGraphElementsToText(elements, omitInternal = true)
+    )
+
+  test("an xlabel with markup is written in the HTML form, in the layout text and in the file text") {
+    val elements = labelGraph(List("xlabel" -> "abc<BR/><I>123</I>"))
+    bothTexts(elements).foreach: (what, text) =>
+      assert(text.contains("xlabel=<abc<BR/><I>123</I>>"), s"$what: the xlabel is not in the HTML form:\n$text")
+      assert(!text.contains("xlabel=\""), s"$what: the xlabel is a quoted string:\n$text")
+  }
+
+  test("a headlabel and a taillabel with markup are written in the HTML form") {
+    val elements = labelGraph(Nil, List("headlabel" -> "<B>head</B>", "taillabel" -> "<I>tail</I>"))
+    bothTexts(elements).foreach: (what, text) =>
+      assert(text.contains("headlabel=<<B>head</B>>"), s"$what: the headlabel is not in the HTML form:\n$text")
+      assert(text.contains("taillabel=<<I>tail</I>>"), s"$what: the taillabel is not in the HTML form:\n$text")
+  }
+
+  test("a plain xlabel stays a quoted string") {
+    val elements = labelGraph(List("xlabel" -> "a < b"), List("headlabel" -> "h", "taillabel" -> "t"))
+    bothTexts(elements).foreach: (what, text) =>
+      assert(text.contains("xlabel=\"a < b\""), s"$what: the plain xlabel is not a quoted string:\n$text")
+      assert(text.contains("headlabel=\"h\""), s"$what: the plain headlabel is not a quoted string:\n$text")
+      assert(text.contains("taillabel=\"t\""), s"$what: the plain taillabel is not a quoted string:\n$text")
+  }
+
+  test("a multi-line HTML xlabel keeps its lines") {
+    val label    = "<TABLE>\n<TR><TD>one</TD></TR>\n<TR><TD>two</TD></TR>\n</TABLE>"
+    val elements = labelGraph(List("xlabel" -> label))
+    bothTexts(elements).foreach: (what, text) =>
+      val lines = text.linesIterator.map(_.trim).toVector
+      val start = lines.indexWhere(_.startsWith("xlabel=<"))
+      assert(start >= 0, s"$what: the xlabel is not in the HTML form:\n$text")
+      val body = lines.drop(start).takeWhile(l => !l.startsWith(">")).mkString("\n")
+      assert(
+        body.contains("<TABLE>\n<TR><TD>one</TD></TR>\n<TR><TD>two</TD></TR>\n</TABLE>"),
+        s"$what: the xlabel lost its lines:\n$text"
+      )
+      assert(!text.contains("xlabel=\""), s"$what: the xlabel is a quoted string:\n$text")
+  }

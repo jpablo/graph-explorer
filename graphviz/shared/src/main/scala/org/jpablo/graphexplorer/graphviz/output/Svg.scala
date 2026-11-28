@@ -1237,13 +1237,21 @@ object Svg:
               sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), NodeSize.LabelCtx.of(g, Some(n.id)), n.attrs.getOrElse("fontname", "Times-Roman"),
                 n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize),
                 valign = va, spaceY = if va != 'c' then NodeSize.labelSpaceY(n, g) else 0.0)
-        // external label (addXLabels): plain text at its placed centre,
-        // emitted after the shape+label (emit_node xlabel order).
+        // external label (addXLabels) at its placed centre, emitted after
+        // the shape+label (emit_node xlabel order). An HTML-like xlabel draws
+        // its parsed content (emit_html_label), with the font of the node,
+        // as XLabels.place sizes it. Else the label is plain text.
         n.attrs.get("xlabel").filter(_.nonEmpty).foreach { xl =>
           xlabels.nodes.get(n.id).foreach { p =>
             val (lx, ly) = tf(p.cx, p.cy)
-            sb ++= textLines(lx, ly, xl, n.attrs.get("fontcolor").getOrElse(""), NodeSize.LabelCtx.of(g, Some(n.id)),
-              n.attrs.getOrElse("fontname", "Times-Roman"))
+            val col  = n.attrs.get("fontcolor").getOrElse("")
+            val html =
+              if n.attrs.isHtml("xlabel") then
+                htmlLabel(lx, ly, xl, col, n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0),
+                  n.attrs.getOrElse("fontname", "Times-Roman"), "black")
+              else None
+            sb ++= html.getOrElse(textLines(lx, ly, xl, col, NodeSize.LabelCtx.of(g, Some(n.id)),
+              n.attrs.getOrElse("fontname", "Times-Roman")))
           }
         }
         if anchored then sb ++= "</a>\n</g>\n" // svg_end_anchor
@@ -1452,8 +1460,14 @@ object Svg:
             xlabels.edges.get(ix).foreach { p =>
               if eLblAnchored then edgeAnchorOpen(s"$edgeObjId-label", eLblUrl, eLblTip, eLblTgt)
               val (lx, ly) = tf(p.cx, p.cy)
-              sb ++= textLines(lx, ly, xl, e.attrs.get("fontcolor").getOrElse(""), labelCtx,
-                e.attrs.getOrElse("fontname", "Times-Roman"))
+              // An HTML-like xlabel draws its parsed content, as for a node.
+              val col  = e.attrs.get("fontcolor").getOrElse("")
+              val html =
+                if e.attrs.isHtml("xlabel") then
+                  htmlLabel(lx, ly, xl, col, e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0),
+                    e.attrs.getOrElse("fontname", "Times-Roman"), "black")
+                else None
+              sb ++= html.getOrElse(textLines(lx, ly, xl, col, labelCtx, e.attrs.getOrElse("fontname", "Times-Roman")))
               // gv passes the spline to the xlabel's emit_edge_label too, so a
               // decorated edge attaches BOTH of its labels.
               if decorated then attachment(lx, ly, p.w, p.h, xl)

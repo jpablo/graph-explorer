@@ -1,0 +1,41 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 82 208",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N",
+      "xlabel": "abc<BR\/><I>123<\/I>"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "fontsize": "10",
+      "label": "\\N",
+      "xlabel": "<TABLE BORDER=\"0\"><TR><TD>x<\/TD><TD><B>y<\/B><\/TD><\/TR><\/TABLE>"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "label": "\\N",
+      "xlabel": "plain"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "xlabel": "<B>edge<\/B><BR\/>two"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 2
+    }
+  ]
+}

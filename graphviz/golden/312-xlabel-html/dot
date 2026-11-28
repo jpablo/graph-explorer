@@ -1,0 +1,24 @@
+digraph G {
+	graph [bb="0,0,81.993,208"];
+	node [label="\N"];
+	a	[height=0.5,
+		pos="54.993,162",
+		width=0.75,
+		xlabel=<abc<BR/><I>123</I>>,
+		xlp="17.493,194"];
+	b	[fontsize=10,
+		height=0.5,
+		pos="54.993,90",
+		width=0.75,
+		xlabel=<<TABLE BORDER="0"><TR><TD>x</TD><TD><B>y</B></TD></TR></TABLE>>,
+		xlp="15.993,118"];
+	a -> b	[pos="e,54.993,108.1 54.993,143.7 54.993,136.41 54.993,127.73 54.993,119.54",
+		xlabel=<<B>edge</B><BR/>two>,
+		xlp="41.386,140.13"];
+	c	[height=0.5,
+		pos="54.993,18",
+		width=0.75,
+		xlabel=plain,
+		xlp="13.997,44.4"];
+	b -> c	[pos="e,54.993,36.104 54.993,71.697 54.993,64.407 54.993,55.726 54.993,47.536"];
+}

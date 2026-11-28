@@ -13,6 +13,20 @@ package org.jpablo.graphexplorer.viewer.formats.dot
   */
 object HtmlLabels:
 
+  /** The attributes that accept an HTML-like label, per the Graphviz docs.
+    *
+    * The DOT printer writes the value of one of these keys in the `<...>` form
+    * when `isHtml` is true for the value. The printer writes the value of each
+    * other key as a quoted string.
+    */
+  val labelKeys: Set[String] = Set("label", "xlabel", "headlabel", "taillabel")
+
+  /** True when the attribute `key` accepts an HTML-like label. */
+  def acceptsHtml(key: String): Boolean = labelKeys.contains(key)
+
+  /** True when the printer writes `value` of the attribute `key` in the `<...>` form. */
+  def isHtmlFor(key: String, value: String): Boolean = acceptsHtml(key) && isHtml(value)
+
   /** True when a label value should be serialized in DOT's `<...>` html form
     * and edited as markup. Newline-tolerant and case-insensitive.
     */

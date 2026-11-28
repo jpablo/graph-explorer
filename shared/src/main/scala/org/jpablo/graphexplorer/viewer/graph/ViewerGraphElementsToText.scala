@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
+import org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, GraphType, GvId, HeadPort, Id, Label, Name, TailPort}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.{Arrow, GroupId, NodeId, ViewerGroup, ViewerNode, Attributes as ViewerAttributes}
@@ -18,7 +19,7 @@ def viewerGraphElementsToText(
 
   // The one html-ness predicate (shared with the editing UI — see HtmlLabels)
   def isHtmlLabel(value: String): Boolean =
-    org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels.isHtml(value)
+    HtmlLabels.isHtml(value)
 
   // Detect if this is a complex graph with nested subgraphs or has HTML labels
   // (a nested subgraph = a membership whose child is itself a group)
@@ -27,12 +28,16 @@ def viewerGraphElementsToText(
     case _                      => false
   }
 
+  // An HTML-like value of a label key (see `HtmlLabels.labelKeys`) with more than one line.
+  def isMultiLineHtml(key: String, value: String): Boolean =
+    HtmlLabels.isHtmlFor(key, value) && value.trim.split("\n").length > 1
+
+  // True when the attributes have a multi-line HTML-like label of one of the label keys.
+  def hasMultiLineHtml(attrs: ViewerAttributes): Boolean =
+    attrs.values.exists((attrId, attrValue) => isMultiLineHtml(attrId.value, attrValue.toString))
+
   // Check if any node has HTML labels with multi-line content
-  val hasComplexHtmlLabels = elements.nodes.exists { case (_, node) =>
-    node.attributes.values.get(Label.attrId)
-      .map(_.toString)
-      .exists(label => isHtmlLabel(label) && label.trim.split("\n").length > 1)
-  }
+  val hasComplexHtmlLabels = elements.nodes.exists((_, node) => hasMultiLineHtml(node.attributes))
 
   // Helper function for padding - use 4 spaces for complex graphs or graphs with multi-line HTML labels, 2 for simple
   def padding(level: Int): String =
@@ -197,7 +202,8 @@ def viewerGraphElementsToText(
     if (attrs.isEmpty) ""
     else {
       val formattedAttrs = attrs.map { case (key, value) =>
-        if (key == "label") s"$key=${formatLabelValue(value)}"
+        // Each label key (see `HtmlLabels.labelKeys`) can have an HTML-like value.
+        if (HtmlLabels.acceptsHtml(key)) s"$key=${formatLabelValue(value)}"
         else s"${attributeKey(key)}=${quoted(value)}"
       }
       s" [${formattedAttrs.mkString(", ")}]"
@@ -208,23 +214,21 @@ def viewerGraphElementsToText(
   def formatAttributesMultiLine(attrs: List[(String, String)], level: Int, forceMultiLine: Boolean = false): String = {
     if (attrs.isEmpty) ""
     else if (
-      forceMultiLine || hasNestedSubgraphs || hasComplexHtmlLabels || attrs.exists { case (k, v) =>
-        k == "label" && isHtmlLabel(v) && v.trim.split("\n").length > 1
-      }
+      forceMultiLine || hasNestedSubgraphs || hasComplexHtmlLabels || attrs.exists((k, v) => isMultiLineHtml(k, v))
     ) {
       val formattedAttrs = attrs.zipWithIndex.map { case ((key, value), idx) =>
         val isLast = idx == attrs.length - 1
         // HTML labels use comma with space, others use comma without space
         val comma = if (isLast) "" else if (hasComplexHtmlLabels) ", " else ","
 
-        if (key == "label" && isHtmlLabel(value) && value.trim.split("\n").length > 1) {
+        if (isMultiLineHtml(key, value)) {
           // Special formatting for multi-line HTML labels - each line of HTML on its own line
           val lines = value.trim.split("\n").map(_.trim).filter(_.nonEmpty)
           // Use extra indentation for HTML content
           val htmlPadding = if (hasComplexHtmlLabels) "              " else s"${padding(level + 2)}"
           val htmlLines   = lines.map(line => s"$htmlPadding$line").mkString("\n")
           s"${padding(level + 1)}$key=<\n$htmlLines\n${padding(level + 1)}>$comma"
-        } else if (key == "label") {
+        } else if (HtmlLabels.acceptsHtml(key)) {
           s"${padding(level + 1)}$key=${formatLabelValue(value)}$comma"
         } else {
           s"${padding(level + 1)}${attributeKey(key)}=${quoted(value)}$comma"
@@ -301,9 +305,7 @@ def viewerGraphElementsToText(
   def emitNode(node: ViewerNode, level: Int): Unit = {
     emittedNodes += node.id
     val nodeAttrs = collectNodeAttributes(node)
-    val hasMultiLineHtmlLabel = node.attributes.values.get(Label.attrId)
-      .map(_.toString)
-      .exists(label => isHtmlLabel(label) && label.trim.split("\n").length > 1)
+    val hasMultiLineHtmlLabel = hasMultiLineHtml(node.attributes)
     val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1)
       formatAttributesMultiLine(nodeAttrs, level, hasComplexHtmlLabels || nodeAttrs.length > 1)
     else

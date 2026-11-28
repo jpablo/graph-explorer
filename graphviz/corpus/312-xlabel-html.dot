@@ -1,0 +1,7 @@
+digraph G {
+  a [xlabel=<abc<BR/><I>123</I>>];
+  b [xlabel=<<TABLE BORDER="0"><TR><TD>x</TD><TD><B>y</B></TD></TR></TABLE>>, fontsize=10];
+  c [xlabel="plain"];
+  a -> b [xlabel=<<B>edge</B><BR/>two>];
+  b -> c;
+}
