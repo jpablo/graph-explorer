@@ -32,10 +32,18 @@ import scala.util.control.NonFatal
   *
   * The layout (ADR 0004) is in a side file next to the file:
   * `<base name>.layout.json`. The store reads the side file when the view
-  * opens ([[externalLayout]]). A change of the layout stays in memory until a
-  * save, as an edit of the source does, and the view is dirty until then
-  * ([[savedLayout]]). A save writes the side file with a compare-and-swap on
-  * its revision. A layout with no content removes the side file.
+  * opens ([[externalLayout]]). The read goes through the shell, so it ends
+  * after the view opens. Until it ends, [[layoutReadPending]] is true, and the
+  * view holds its first drawing. Thus the first drawing shows the stored
+  * positions, and not the automatic layout. The read is the source of the
+  * layout and of its revision. The library keeps a copy of each side file
+  * for its cards, but this store does not use it: that copy can be older
+  * than the file on disk.
+  *
+  * A change of the layout stays in memory until a save, as an edit of the
+  * source does, and the view is dirty until then ([[savedLayout]]). A save
+  * writes the side file with a compare-and-swap on its revision. A layout
+  * with no content removes the side file.
   */
 final class FilePersistence(session: DocumentSessionId, library: Option[DesktopLibrary]) extends DiagramPersistence:
 
@@ -85,13 +93,23 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
 
   override def savedLayoutNow: Option[DiagramLayout] = disk.now().map(_.layout)
 
+  /** The session whose side file this store reads when it opens. `None` with no shell, or with no session. */
+  private val readOnOpen: Option[DesktopDocumentRegistry.Session] =
+    DesktopDocumentRegistry.get(session).filter(_ => DesktopIpc.available)
+
+  private var readPending: Boolean = readOnOpen.isDefined
+
+  override def layoutReadPending: Boolean = readPending
+
   // The read of the side file goes through the shell, so it ends after the
-  // view opens. The view then takes the layout (`Persistence.followLayout`).
+  // view opens. The view holds its first drawing until then, and it takes the
+  // layout before that drawing (`Persistence.followLayout`). Each end of the
+  // read sends a layout, so the view never waits for a read that ended.
   // A failed read counts as no side file: a later save then expects no side
   // file, and the shell refuses it if one exists.
   locally:
     import scala.concurrent.ExecutionContext.Implicits.global
-    for open <- DesktopDocumentRegistry.get(session) if DesktopIpc.available do
+    for open <- readOnOpen do
       DesktopFiles
         .readLayout(open.path)
         .map:
@@ -107,6 +125,7 @@ final class FilePersistence(session: DocumentSessionId, library: Option[DesktopL
             org.scalajs.dom.console.warn(s"The layout file of ${open.path} does not load: ${error.getMessage}")
             DiskLayout(open.path, DiagramLayout.empty, None)
         .foreach: read =>
+          readPending = false
           disk.set(Some(read))
           loadedLayouts.emit(read.layout)
 

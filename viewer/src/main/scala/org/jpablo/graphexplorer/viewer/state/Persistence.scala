@@ -160,15 +160,31 @@ trait Persistence:
     persistence.external.foreach: next =>
       if metadata.now() != next then metadata.set(next)
 
+  /** False while the store reads the layout of the open, and the view holds its first drawing (ADR 0004). Only a
+    * file on the desktop has this read: the side file. The render waits for this flag (`ViewerState.renderState`).
+    */
+  private[state] lazy val firstLayoutKnown: Var[Boolean] = Var(!persistence.layoutReadPending)
+
   /** Take the layout that the store reads after the open: the side file of a file (ADR 0004).
     *
-    * The read is not a step of the history. A person can change the layout
-    * before the read ends. Then the view keeps that change, and the view is
-    * dirty, because the store holds a different layout.
+    * The view holds its first drawing until the read ends ([[firstLayoutKnown]]). The read ends also when it finds
+    * no side file or when it fails. The view takes the layout first, and then it lets the drawing start. Airstream
+    * runs the two `Var.set` calls in that order, so the first drawing has the stored positions, with no automatic
+    * layout before them. A shell that does not reply in [[Persistence.LayoutReadPatienceMs]] does not stop the
+    * drawing: the view then draws with the layout that it has, and the late read applies as below.
+    *
+    * The read is not a step of the history, and the view is not dirty after it. A person can change the layout
+    * before the read ends, for example with Freeze. Then the view keeps that change, and the view is dirty, because
+    * the store holds a different layout.
     */
   private def followLayout(): Unit =
     persistence.externalLayout.foreach: next =>
       if layout.now() == persistence.initial.layout && layout.now() != next then history.adoptLayout(next)
+      if !firstLayoutKnown.now() then firstLayoutKnown.set(true)
+    if !firstLayoutKnown.now() then
+      scala.scalajs.js.timers.setTimeout(Persistence.LayoutReadPatienceMs.toDouble):
+        if !firstLayoutKnown.now() then firstLayoutKnown.set(true)
+      ()
 
   /** True when a file is behind this view (§8).
     *
@@ -496,6 +512,13 @@ trait Persistence:
     * store of a browser diagram stops its sync to the storage here.
     */
   def closePersistence(): Unit = persistence.close()
+
+object Persistence:
+
+  /** The longest time that a view holds its first drawing for the read of its layout (`followLayout`). A read of a
+    * side file through the shell usually ends in a few milliseconds. This limit is for a shell that does not reply.
+    */
+  val LayoutReadPatienceMs: Int = 1000
 
 /** One diagram as the viewer saves it: the source, the format, the metadata,
   * and the stored name.

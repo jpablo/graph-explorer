@@ -60,6 +60,12 @@ trait DiagramPersistence:
     */
   def externalLayout: EventStream[DiagramLayout] = EventStream.empty
 
+  /** True when the store reads the layout after the open ([[externalLayout]]), and that read did not end. Each read
+    * of the store sends a value on [[externalLayout]], also a read that finds no layout or that fails. The view holds
+    * its first drawing until that value comes, so the first drawing shows the stored positions (ADR 0004).
+    */
+  def layoutReadPending: Boolean = false
+
   /** The layout that the store holds, when a save writes the layout apart from each change: the side file of a
     * file. `None`: the store keeps each change of the layout at once, so the layout is never unsaved.
     */

@@ -70,6 +70,11 @@ final class FakeDesktopShell:
     */
   var saveReplyAfter: Option[Future[Unit]] = None
 
+  /** Set: the reply of `read_layout` waits for this future. A test can then see a view while the read of its side
+    * file has no reply, or a shell that never replies.
+    */
+  var layoutReplyAfter: Option[Future[Unit]] = None
+
   /** The open requests that wait for `complete_open`, by request id: the path,
     * true when this open made the watch, and the answer.
     */
@@ -315,7 +320,13 @@ final class FakeDesktopShell:
       case "read_layout" =>
         val path = canonical(str(a, "diagramPath"))
         if !files.contains(path) then refuse("DOCUMENT_MISSING", s"no such file: $path")
-        else ok(layouts.get(path).fold[js.Any](null)(text => js.Dynamic.literal(text = text, revision = hash(text))))
+        else
+          layoutReplyAfter match
+            case None => ok(layouts.get(path).fold[js.Any](null)(text => js.Dynamic.literal(text = text, revision = hash(text))))
+            case Some(gate) =>
+              given scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+              // The reply has the side file at the time of the reply, as a slow shell gives it.
+              gate.map(_ => layouts.get(path).fold[js.Any](null)(text => js.Dynamic.literal(text = text, revision = hash(text)))).toJSPromise
 
       // `write_layout` in `main.rs`: a compare-and-swap on the revision of the side file. A null base expects no
       // side file, and a null text removes the side file.

@@ -473,6 +473,14 @@ case class ViewerState(
     * the new drawing. A Mermaid flowchart that became a free layout (ADR 0004) kept its Mermaid drawing.
     */
   private lazy val renderStateWithStrategy: Signal[(RenderState, SelectableElementStrategy)] =
+    // ADR 0004: while the store reads the layout of the open (the side file of a file), the render does not start.
+    // Else the first drawing has the automatic layout, and the nodes move to their stored positions after the read.
+    firstLayoutKnown.signal.distinct.flatMapSwitch: known =>
+      if known then rendererStateWithStrategy
+      else selectionStrategy.map(strategy => (RenderState.Pending(None), strategy))
+
+  /** The state of the render of the current renderer, with its selection strategy, with no wait for the layout. */
+  private lazy val rendererStateWithStrategy: Signal[(RenderState, SelectableElementStrategy)] =
     currentRenderer
       .combineWithFn(currentFormat)((renderer, sourceFormat) => (renderer, renderer.format == sourceFormat))
       .distinct
