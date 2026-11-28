@@ -5,6 +5,8 @@ import com.raquo.laminar.api.L.{div, render, Signal}
 import munit.FunSuite
 import org.jpablo.graphexplorer.library.LoggedChecks
 import org.jpablo.graphexplorer.router.Router
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.toRawText
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.components.labelEditor.FormattedEditor
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, XLabel}
 import org.jpablo.graphexplorer.viewer.models.{ArrowId, AttributeId, ElementId, ElementIds, NodeId}
@@ -19,8 +21,9 @@ import scala.scalajs.js
 /** The external label (`xlabel`) of a node or an arrow has the label editor.
   *
   * Graphviz draws an `xlabel` outside the element, and it can be HTML-like markup, as a label can. The XLabel row of
-  * the "More attributes" card of the context strip is a one-line text box. The row has a button "Edit the external
-  * label". The button opens the Edit External Label dialog, with the tabs "Formatted" and "Source" and a preview. The
+  * the "More attributes" card of the context strip is a one-line text box. For one selected element with a label that
+  * is markup, the row shows the label as the canvas draws it, in a button that opens the dialog. The row has a button
+  * "Edit the external label". The button opens the Edit External Label dialog, with the tabs "Formatted" and "Source" and a preview. The
   * preview draws the label as text with the font of the element, and with no shape, as the canvas draws it.
   */
 class EditXLabelDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
@@ -44,6 +47,15 @@ class EditXLabelDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
     def dialogOpen: Boolean              = find("#edit-xlabel-dialog dialog").isDefined
     def prose: Option[dom.html.Element]  = find("#edit-xlabel-dialog .ProseMirror")
     def preview: Option[dom.html.Element] = find("#edit-xlabel-dialog .gx-label-preview svg")
+    /** The values of the text boxes of the "More attributes" card of the strip (`card`: nodes or arrows). */
+    def boxValues(card: String): Seq[String] =
+      find(s"#$card").toSeq.flatMap: c =>
+        c.querySelectorAll("input, textarea").toSeq.collect:
+          case i: dom.html.Input    => i.value
+          case t: dom.html.TextArea => t.value
+    /** The texts of the drawings (svg) in the "More attributes" card of the strip. */
+    def drawnTexts(card: String): Seq[String] =
+      find(s"#$card").toSeq.flatMap(_.querySelectorAll("svg text").toSeq.map(_.textContent.trim))
     def attr(id: ElementId, name: AttributeId): Option[String] =
       val g = state.fullGraphNow()
       val attrs = id match
@@ -120,5 +132,103 @@ class EditXLabelDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
           check(s.preview.exists(_.textContent.contains("ext")), s"the preview shows '${s.preview.map(_.textContent)}'")
           val shapes = s.preview.toList.flatMap(_.querySelectorAll("g.node path, g.node polygon, g.node ellipse").toList)
           check(shapes.isEmpty, s"the preview draws a shape: ${shapes.map(_.outerHTML.take(80))}")
+
+  // ---- the XLabel row shows an HTML external label as the canvas draws it -------------------
+  // Found on 2026-11-28. The XLabel row of the "More attributes" card showed the markup `abc<BR/><I>def</I>` as text.
+  // The Title row of the Diagram panel shows the title drawn, and a click opens its dialog. The XLabel row does the
+  // same for an external label with markup.
+
+  private val htmlDot =
+    """digraph G { a [xlabel=<abc<BR/><I>def</I>>]; b [xlabel="plain b"]; a -> b [xlabel=<x<BR/><B>y</B>>] }"""
+
+  private def withHtmlStrip(body: Strip => Future[Unit]): Future[Unit] =
+    val owner = ManualOwner()
+    val box   = dom.document.createElement("div").asInstanceOf[dom.html.Element]
+    dom.document.body.appendChild(box)
+    TestHelpers.sharedGraphviz
+      .flatMap: graphviz =>
+        val state = ViewerState(ViewTarget.diagram("xlabel-row-spec"), graphviz, initialSource = Some(htmlDot))(using owner)
+        Waits
+          .settle(state.fullGraphNow().nodeIds.contains(a), timeoutMs = 10000)
+          .flatMap: _ =>
+            check(state.fullGraphNow().nodeIds.contains(a), "precondition: the diagram did not load")
+            val commands = Commands(state, RouterCommands(Router()))
+            val root     = render(box, div(AttributesToolbar(Signal.fromValue("x"), commands, state), EditXLabelDialog(state)))
+            body(Strip(state, box)).transform(outcome => { root.unmount(); outcome })
+      .transform: outcome =>
+        box.remove()
+        owner.killSubscriptions()
+        outcome
+
+  /** The XLabel row of `card` draws `lines`, and no text box of the card shows the markup. */
+  private def rowDraws(s: Strip, card: String, lines: Seq[String], markup: String): Future[Unit] =
+    Waits
+      .settle(lines.forall(s.drawnTexts(card).contains))
+      .map: _ =>
+        val boxes = s.boxValues(card)
+        check(!boxes.exists(_.contains(markup)), s"the XLabel row shows the markup as text: ${boxes.mkString(" | ")}")
+        check(
+          lines.forall(s.drawnTexts(card).contains),
+          s"the XLabel row does not draw the lines ${lines.mkString(", ")}: ${s.drawnTexts(card).mkString(" | ")}"
+        )
+
+  test("the XLabel row of a node draws an external label with markup, not its markup"):
+    withHtmlStrip: s =>
+      s.state.selection.set(ElementIds(Set(a)))
+      rowDraws(s, "extra-node-attributes", Seq("abc", "def"), "<BR/>")
+
+  test("the XLabel row of an arrow draws an external label with markup, not its markup"):
+    withHtmlStrip: s =>
+      val arrow = s.state.fullGraphNow().arrows.keys.head
+      s.state.selection.set(ElementIds(Set(arrow)))
+      rowDraws(s, "extra-arrow-attributes", Seq("x", "y"), "<BR/>")
+
+  test("a click on the drawn external label in the XLabel row opens the dialog"):
+    withHtmlStrip: s =>
+      s.state.selection.set(ElementIds(Set(a)))
+      Waits
+        .settle(s.find("#extra-node-attributes svg").isDefined)
+        .flatMap: _ =>
+          val drawn = s.find("#extra-node-attributes svg").map(_.closest("button, [role='button']"))
+          check(drawn.exists(_ != null), s"the drawn external label is not a button: ${s.find("#extra-node-attributes").map(_.innerHTML.take(600))}")
+          drawn.get.asInstanceOf[dom.html.Element].click()
+          Waits.settle(FormattedEditor.viewOf(s.box).isDefined)
+        .map(_ => check(s.dialogOpen, "a click on the drawn external label did not open the dialog"))
+
+  test("a plain external label keeps the text box of the XLabel row"):
+    withHtmlStrip: s =>
+      s.state.selection.set(ElementIds(Set(NodeId("b"))))
+      Waits
+        .settle(s.boxValues("extra-node-attributes").contains("plain b"))
+        .map: _ =>
+          check(
+            s.boxValues("extra-node-attributes").contains("plain b"),
+            s"the XLabel row of a plain external label has no text box with it: ${s.boxValues("extra-node-attributes")}"
+          )
+
+  test("the XLabel row changes between the text box and the drawing when the label changes between plain and markup"):
+    withHtmlStrip: s =>
+      val b    = NodeId("b")
+      val card = "extra-node-attributes"
+      s.state.selection.set(ElementIds(Set(b)))
+      Waits
+        .settle(s.boxValues(card).contains("plain b"))
+        .flatMap: _ =>
+          // Type markup in the text box of the row.
+          val input = s.find(s"#$card").toSeq
+            .flatMap(_.querySelectorAll("input").toSeq.collect { case i: dom.html.Input if i.value == "plain b" => i })
+            .headOption
+          check(input.isDefined, s"the XLabel row has no text box with 'plain b': ${s.boxValues(card)}")
+          input.get.value = "q<BR/><I>r</I>"
+          input.get.dispatchEvent(new dom.Event("input", js.Dynamic.literal(bubbles = true).asInstanceOf[dom.EventInit]))
+          rowDraws(s, card, Seq("q", "r"), "<BR/>")
+        .flatMap: _ =>
+          // A plain label again gives the text box again.
+          val updates = s.state.elementAttributesUpdates(ElementIds(Set(b)))
+          toRawText(RowBuilder.simpleInputVar(XLabel.attrId, updates), "").set("plain again")
+          Waits.settle(s.boxValues(card).contains("plain again"))
+        .map: _ =>
+          check(s.boxValues(card).contains("plain again"), s"the XLabel row has no text box after a plain label: ${s.boxValues(card)}")
+          check(!s.drawnTexts(card).contains("r"), s"the XLabel row still draws the markup: ${s.drawnTexts(card)}")
 
 end EditXLabelDialogSpec

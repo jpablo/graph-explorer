@@ -941,8 +941,9 @@ svg {
 
 // The title in the Title row of the Diagram panel: the drawing of the title, as a button
 // that opens the Edit Title dialog. The box is white, as the canvas is, so the colors of
-// the title read as on the canvas also in a dark panel.
-.gx-title-shown {
+// the title read as on the canvas also in a dark panel. The XLabel row of the "More
+// attributes" card shows an external label with markup in the same way.
+.gx-title-shown, .gx-xlabel-shown {
   @apply block w-full text-left cursor-pointer rounded;
 
   .gx-label-preview {
@@ -963,6 +964,16 @@ svg {
 
   .gx-title-empty {
     @apply block text-xs italic opacity-60 px-2 py-1 rounded border border-dashed border-base-300;
+  }
+}
+
+// The cell of the XLabel row: a text box or the drawing of the label. It fills the value
+// column, as a lone text box of a row does.
+.gx-xlabel-cell {
+  @apply flex flex-1 min-w-0;
+
+  > input {
+    @apply w-full;
   }
 }
 

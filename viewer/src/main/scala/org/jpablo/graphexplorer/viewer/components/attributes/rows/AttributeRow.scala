@@ -38,7 +38,8 @@ object AttributeRow:
       // with a larger editor. Only the rows of the side panel show it.
       labelAction: Option[() => ReactiveElement.Base] = None,
       // A view that the side panel shows in place of the input of a text row. The Title row
-      // shows the drawing of the title with it.
+      // shows the drawing of the title with it. The XLabel row (`xlabelRow`) shows a text box or
+      // the drawing of an external label with markup.
       customCell: Option[() => ReactiveElement.Base] = None
   ) extends AttributeRow
 

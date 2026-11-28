@@ -121,7 +121,7 @@ def ToolbarNodesAttributesView(
           i(cls := "bi-three-dots", title := "More attributes"),
           rows(
             InvisibleStyle -> checkbox,
-            row(XLabel, InputType.text).copy(labelAction = Some(xlabelAction(state))),
+            xlabelRow(state, row(XLabel, InputType.text)),
             sidesRow,
             Regular     -> checkbox,
             Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),

@@ -54,14 +54,23 @@ def DiagramLabelEditor(
 /** The drawing of `label` as the canvas draws the label of `element`, with
   * the Graphviz engine and the dark-color setting of the canvas. The Title
   * row of the Diagram panel shows the title with it.
+  *
+  * @param asText true draws `label` as an external label: text with the font
+  *               of `element` and with no shape. The XLabel row uses it.
   */
-def DiagramLabelDrawing(state: ViewerState, label: Signal[String], element: ElementId): HtmlElement =
+def DiagramLabelDrawing(
+    state:   ViewerState,
+    label:   Signal[String],
+    element: ElementId,
+    asText:  Boolean = false
+): HtmlElement =
   LabelEditorParts.preview(
     label,
     state.fullGraph,
     Signal.fromValue(element),
     dot => state.graphviz.textToSvgOnly(DotText(dot)),
-    state.diagramDarkColors.signal
+    state.diagramDarkColors.signal,
+    asText
   )
 
 /** The ids of new elements in the label dialogs. */
