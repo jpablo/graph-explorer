@@ -96,11 +96,11 @@ object CanvasFit:
         val b = toUser(right, bottom)
         BBox(a.x min b.x, a.y min b.y, (b.x - a.x).abs, (b.y - a.y).abs)
 
-  /** The transform of the fit `mode` of the drawing of `svg`.
+  /** The transform of the fit `mode` of the drawing of `svg`, with a zoom of `maxZoom` or less.
     *
     * It is empty when the svg has no size on the screen: it is not in the document, or the canvas is hidden.
     */
-  def transform(svg: dom.svg.SVG, mode: FitMode): Option[CanvasTransform] =
+  def transform(svg: dom.svg.SVG, mode: FitMode, maxZoom: Double = Double.PositiveInfinity): Option[CanvasTransform] =
     val box = svg.getBoundingClientRect()
     val vb  = svg.viewBox.baseVal
     Option
@@ -108,4 +108,4 @@ object CanvasFit:
         BBox(vb.x, vb.y, vb.width, vb.height)
       .map: viewBox =>
         val drawing = drawingBounds(svg).getOrElse(viewBox)
-        CanvasTransform.fit(mode, box.width, box.height, viewBox, drawing)
+        CanvasTransform.fit(mode, box.width, box.height, viewBox, drawing, maxZoom = maxZoom)

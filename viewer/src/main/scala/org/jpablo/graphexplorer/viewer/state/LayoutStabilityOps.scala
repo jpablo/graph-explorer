@@ -168,39 +168,39 @@ trait LayoutStabilityOps:
     * @param scaleNow the client px for one user unit of the drawing group of `svg` now
     * @param pinned   the client point of a pinned node now, and its client point in the map of the empty drawing (near
     *                 the point of the double-click, of the pointer, or of the drop). The node goes to the second point.
-    *                 With no pinned node, the drawing goes to the center of the canvas (see [[naturalFit]]).
+    *                 With no pinned node, the drawing goes to the center of the space inside the margins of a fit (see
+    *                 [[naturalFit]]).
     */
   private def showAtNaturalScale(svg: dom.svg.SVG, scaleNow: Double, pinned: Option[(ClientPoint, ClientPoint)]): Unit =
-    val fit     = CanvasFit.transform(svg, FitMode.Page)
     val natural = naturalZoom(scaleNow)
     pinned match
-      case Some((now, before)) if fit.forall(_.zoom >= natural) =>
+      case Some((now, before)) if CanvasFit.transform(svg, FitMode.Page).forall(_.zoom >= natural) =>
         keepScaleAndPlace(CanvasRoot.mainGroup(svg), now, before, scaleNow, ManualLayoutOps.NaturalPxPerPoint)
-      case _ => fit.foreach(f => resetView(Some(naturalFit(f, natural))))
+      case _ => naturalFit(svg, natural).foreach(f => resetView(Some(f)))
 
-  /** The zoom that gives the natural scale, when the drawing group shows `scaleNow` client px for one user unit at the
-    * zoom of now. The client px for one user unit change in proportion to the zoom.
+  /** The zoom that gives the natural scale of the renderer of now (`Renderer.naturalPxPerUnit`), when the drawing
+    * group shows `scaleNow` client px for one user unit at the zoom of now. The client px for one user unit change in
+    * proportion to the zoom. A free layout always draws with Graphviz, so its natural scale is
+    * [[ManualLayoutOps.NaturalPxPerPoint]].
     */
   private def naturalZoom(scaleNow: Double): Double =
-    zoomNow * ManualLayoutOps.NaturalPxPerPoint / scaleNow
+    zoomNow * rendererNow.naturalPxPerUnit / scaleNow
 
-  /** The fit `fit` with a zoom of `natural` or less. A drawing that fits stays at the center at each zoom of the fit
-    * or less (see `CanvasTransform.fit`), so only the zoom changes. A drawing that is larger than the canvas at the
-    * natural scale keeps its fit.
+  /** The fit of the Fit button for the drawing `svg`, with a zoom of `natural` or less (see `CanvasTransform.fit`).
+    * A drawing that fits goes to the center of the space inside the margins. A drawing that is larger than the canvas
+    * at the natural scale keeps the full fit.
     */
-  private def naturalFit(fit: CanvasTransform, natural: Double): CanvasTransform =
-    if fit.zoom <= natural then fit else fit.copy(zoom = natural)
+  private def naturalFit(svg: dom.svg.SVG, natural: Double): Option[CanvasTransform] =
+    CanvasFit.transform(svg, FitMode.Page, maxZoom = natural)
 
-  /** The fit of Auto for the new drawing `svg`. In a free layout, the fit does not zoom in past the natural scale.
-    * Else one small node fills the canvas. An automatic diagram gets the fit of the Fit button.
+  /** The fit of Auto for the new drawing `svg`: the fit of the Fit button, with no zoom past the natural scale of the
+    * renderer (see [[naturalZoom]]). Else one small node fills the canvas. This limit applies to each diagram,
+    * automatic or manual. The Fit buttons have no limit.
     */
   private def autoFitOf(svg: dom.svg.SVG): Option[CanvasTransform] =
-    val fit = CanvasFit.transform(svg, FitMode.Page)
-    if !drawsFreeLayoutNow then fit
-    else
-      Option(CanvasRoot.mainGroup(svg).getScreenCTM()).filter(_.a > 0) match
-        case Some(ctm) => fit.map(naturalFit(_, naturalZoom(ctm.a)))
-        case None      => fit
+    Option(CanvasRoot.mainGroup(svg).getScreenCTM()).filter(_.a > 0) match
+      case Some(ctm) => naturalFit(svg, naturalZoom(ctm.a))
+      case None      => CanvasFit.transform(svg, FitMode.Page)
 
   /** When the NEW svg has just mounted: pan so the focal node keeps its screen
     * position. A focal that vanished in the new layout (hidden, collapsed
@@ -212,8 +212,8 @@ trait LayoutStabilityOps:
     // (synchronously, pre-paint) and let the transition glide elements from
     // their old screen positions into the refit frame. Anchoring stands aside.
     // The fit measures `newSvg` itself. The transition has not started yet,
-    // so each element is at its new place. In a free layout, the fit stops at
-    // the natural scale (see `autoFitOf`).
+    // so each element is at its new place. The fit stops at the natural scale
+    // of the renderer, in each diagram (see `autoFitOf`).
     if autoFit.now() then resetView(autoFitOf(newSvg))
     else if keepFreeLayoutMap(newSvg) then ()
     else

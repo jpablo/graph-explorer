@@ -25,6 +25,9 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
 
   override def format: DiagramFormat = DiagramFormat.Mermaid
 
+  /** Mermaid draws in CSS px: one user unit is one px. */
+  override def naturalPxPerUnit: Double = 1.0
+
   /** Draw a Mermaid source. The parse of a flowchart source gives the drawn ids of its arrows. */
   override def textToSvg(text: String): Future[SvgWithPositions] =
     draw(text, None)

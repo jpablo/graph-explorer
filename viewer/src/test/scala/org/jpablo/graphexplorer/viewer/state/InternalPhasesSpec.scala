@@ -691,6 +691,7 @@ object TwoFormatFakeLanguages extends DiagramLanguages:
     override def info: DiagramLanguageInfo = DiagramLanguageInfo(tag, s"$tag source", "https://example.test", s"$tag docs")
     override def id: String    = tag.toLowerCase
     override def label: String = tag
+    override def naturalPxPerUnit: Double = 1.0
     override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(graphFor(text))
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String =
@@ -720,6 +721,7 @@ object FakeDiagramLanguages extends DiagramLanguages:
     override def info: DiagramLanguageInfo                         = DiagramLanguageInfo("Fake", "fake source", "https://example.test", "Fake docs")
     override def id: String                                        = "fake"
     override def label: String                                     = "Fake"
+    override def naturalPxPerUnit: Double                          = 1.0
     override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(ViewerGraph.minimal)
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String = s"FAKE:${graph.nodeIds.size}"
@@ -741,6 +743,7 @@ object ClassifyingFakeLanguages extends DiagramLanguages:
     override def info: DiagramLanguageInfo = DiagramLanguageInfo("Fake", "fake source", "https://example.test", "Fake docs")
     override def id: String    = "fake"
     override def label: String = "Fake"
+    override def naturalPxPerUnit: Double = 1.0
     override def textToGraph(text: String): Future[ViewerGraph] =
       if text.startsWith("renderonly") then
         Future.failed(RenderOnlyDiagram("sequence", "“sequence” diagrams are render-only"))

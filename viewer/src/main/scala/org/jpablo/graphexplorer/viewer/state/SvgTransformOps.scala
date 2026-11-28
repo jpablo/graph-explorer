@@ -167,7 +167,7 @@ trait SvgTransformOps:
       translateXY -> target.pan
     )
 
-  /** Fit: all of the drawing, with a margin of [[CanvasTransform.FitMarginPx]] (see [[CanvasTransform.fit]]).
+  /** Fit: all of the drawing, inside the margins [[CanvasTransform.FitMarginsPx]] (see [[CanvasTransform.fit]]).
     *
     * The canvas measures the drawing (see [[measureFitWith]]). Without a measure (no canvas, a canvas with no size,
     * the 3D view), the fit is [[CanvasTransform.fallback]]. Auto stays as it is.
@@ -334,8 +334,11 @@ final case class CanvasTransform(zoom: Double, pan: SvgPoint) derives CanEqual:
 
 object CanvasTransform:
 
-  /** The margin between the drawing and each edge of the SVG box after a fit, in CSS px. */
-  val FitMarginPx = 8.0
+  /** The margins of each fit, in CSS px: 32 px at the top, the left and the right of the SVG box, and 56 px at the
+    * bottom. The zoom toolbar (`ZoomToolbar`) floats over the bottom of the canvas. It is 40 px high and 8 px above
+    * the bottom, so the bottom margin keeps the drawing above it.
+    */
+  val FitMarginsPx: FitMargins = FitMargins(top = 32, right = 32, bottom = 56, left = 32)
 
   /** The fit when the canvas cannot measure the drawing: the viewBox at 90%, at the center. */
   val fallback: CanvasTransform = CanvasTransform(SvgTransformOps.FitZoom, SvgPoint.origin)
@@ -346,20 +349,24 @@ object CanvasTransform:
     * zoom scales around the center c of the viewBox (see `CanvasRoot.centerScaleOrigin`). Thus the transform draws a
     * user point p at (box center) + meet · zoom · (p + pan − c), in px.
     *
-    * The fit uses the bounds of the drawing, not the viewBox. The viewBox can have padding around the drawing.
+    * The fit uses the bounds of the drawing, not the viewBox. The viewBox can have padding around the drawing. The
+    * space inside the margins is the "inner box".
     *
-    *   - [[FitMode.Page]]: the Fit button. All of the drawing, as large as the box minus the margins allows.
-    *   - [[FitMode.Width]]: the width of the drawing is the width of the box minus the two margins.
-    *   - [[FitMode.Height]]: the height of the drawing is the height of the box minus the two margins.
+    *   - [[FitMode.Page]]: the Fit button. All of the drawing, as large as the inner box allows.
+    *   - [[FitMode.Width]]: the width of the drawing is the width of the inner box.
+    *   - [[FitMode.Height]]: the height of the drawing is the height of the inner box.
     *
-    * On each axis, a drawing that fits between the margins is at the center. A drawing that is larger than the box
-    * shows its start at the margin: its top after Fit width, its left side after Fit height.
+    * The zoom is not more than `maxZoom`. On each axis, a drawing that fits in the inner box is at the center of the
+    * inner box. A drawing that is larger than the inner box shows its start at the margin: its top after Fit width,
+    * its left side after Fit height.
     *
     * @param boxW    the width of the SVG box, in px
     * @param boxH    the height of the SVG box, in px
     * @param viewBox the viewBox, in user units
     * @param drawing the bounds of the drawing, in user units (the space inside the drawing group)
-    * @param margin  the margin at each edge, in px
+    * @param margins the margin at each edge, in px
+    * @param maxZoom the largest zoom of the fit. Auto uses it to stop at the natural scale (see
+    *                `LayoutStabilityOps.autoFitOf`). The Fit buttons have no limit.
     */
   def fit(
       mode:    FitMode,
@@ -367,7 +374,8 @@ object CanvasTransform:
       boxH:    Double,
       viewBox: BBox,
       drawing: BBox,
-      margin:  Double = FitMarginPx
+      margins: FitMargins = FitMarginsPx,
+      maxZoom: Double = Double.PositiveInfinity
   ): CanvasTransform =
     if boxW <= 0 || boxH <= 0 || viewBox.width <= 0 || viewBox.height <= 0 then fallback
     else
@@ -375,28 +383,35 @@ object CanvasTransform:
       val d = if drawing.width > 0 || drawing.height > 0 then drawing else viewBox
       // px for each user unit at a zoom of 1.
       val meet   = math.min(boxW / viewBox.width, boxH / viewBox.height)
-      val availW = (boxW - 2 * margin) max 1
-      val availH = (boxH - 2 * margin) max 1
+      val availW = (boxW - margins.left - margins.right) max 1
+      val availH = (boxH - margins.top - margins.bottom) max 1
       // px for each user unit that fits the width, and the height. A line has no size on one axis.
       val kx   = if d.width > 0 then availW / d.width else Double.PositiveInfinity
       val ky   = if d.height > 0 then availH / d.height else Double.PositiveInfinity
       val page = kx min ky
-      val k = mode match
+      val ofMode = mode match
         case FitMode.Page   => page
         case FitMode.Width  => if kx.isInfinite then page else kx
         case FitMode.Height => if ky.isInfinite then page else ky
-      // The pan on one axis. A drawing that fits between the margins goes to the center. A larger one puts its start
-      // at the margin.
-      def axisPan(boxLen: Double, avail: Double, start: Double, len: Double, center: Double): Double =
-        if k * len > avail * (1 + 1e-9) then (margin - boxLen / 2) / k - start + center
-        else center - (start + len / 2)
+      val k = ofMode min (maxZoom * meet)
+      // The pan on one axis. A drawing that fits in the inner box goes to the center of the inner box. A larger one
+      // puts its start at the start margin. The center of the inner box is (startMargin − endMargin) / 2 px from the
+      // center of the box.
+      def axisPan(
+          boxLen: Double, avail: Double, startMargin: Double, endMargin: Double, start: Double, len: Double, center: Double
+      ): Double =
+        if k * len > avail * (1 + 1e-9) then (startMargin - boxLen / 2) / k - start + center
+        else center - (start + len / 2) + (startMargin - endMargin) / 2 / k
       CanvasTransform(
         k / meet,
         SvgPoint(
-          axisPan(boxW, availW, d.x, d.width, viewBox.x + viewBox.width / 2),
-          axisPan(boxH, availH, d.y, d.height, viewBox.y + viewBox.height / 2)
+          axisPan(boxW, availW, margins.left, margins.right, d.x, d.width, viewBox.x + viewBox.width / 2),
+          axisPan(boxH, availH, margins.top, margins.bottom, d.y, d.height, viewBox.y + viewBox.height / 2)
         )
       )
+
+/** The space between the drawing and each edge of the SVG box after a fit, in CSS px (see [[CanvasTransform.fit]]). */
+final case class FitMargins(top: Double, right: Double, bottom: Double, left: Double) derives CanEqual
 
 /** The kinds of fit: all of the drawing (the Fit button), its width, or its height. */
 enum FitMode derives CanEqual:

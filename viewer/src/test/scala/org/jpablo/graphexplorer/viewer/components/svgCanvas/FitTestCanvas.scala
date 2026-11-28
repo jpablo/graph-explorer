@@ -21,8 +21,17 @@ object FitTestCanvas:
   val canvasW = 800.0
   val canvasH = 600.0
 
-  /** The margin between the drawing and each edge of the SVG box after a fit, in px. */
-  val margin = 8.0
+  /** The margin between the drawing and the top, the left and the right edge of the SVG box after a fit, in px. */
+  val sideMargin = 32.0
+
+  /** The margin between the drawing and the bottom edge of the SVG box after a fit, in px. The zoom toolbar floats
+    * there.
+    */
+  val bottomMargin = 56.0
+
+  /** The width and the height of the space inside the margins, in px. */
+  val innerW = canvasW - 2 * sideMargin
+  val innerH = canvasH - sideMargin - bottomMargin
 
   /** The rectangle of the drawing on the screen, relative to the SVG box: (left, top, width, height) in px. The
     * drawing is the visible marks without the Mermaid sheet and the Graphviz background polygon.
@@ -30,6 +39,13 @@ object FitTestCanvas:
   final case class Drawn(left: Double, top: Double, width: Double, height: Double, detail: String = ""):
     def right: Double  = canvasW - left - width
     def bottom: Double = canvasH - top - height
+
+    /** True when the drawing is at the center of the space inside the margins, from the left to the right. */
+    def centeredAcross: Boolean = near(left, right)
+
+    /** True when the drawing is at the center of the space inside the margins, from the top to the bottom. */
+    def centeredDown: Boolean = near(top - sideMargin, bottom - bottomMargin)
+
     override def toString =
       f"left $left%.1f, top $top%.1f, width $width%.1f, height $height%.1f, right $right%.1f, " +
         f"bottom $bottom%.1f ($detail)"

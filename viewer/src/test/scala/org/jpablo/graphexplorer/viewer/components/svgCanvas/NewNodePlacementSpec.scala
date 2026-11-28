@@ -438,6 +438,14 @@ class NewNodePlacementSpec extends FunSuite with TestHelpers with LoggedChecks w
     check(dom.document.elementsFromPoint(p._1, p._2).exists(_ eq canvas.svg), s"precondition: the point $p is not on the svg")
     p
 
+  /** The center of the space inside the margins of a fit (32 px at the top, the left and the right of the svg box,
+    * 56 px at the bottom). A fit puts a drawing that fits at this point. The bottom margin is larger, so the point is
+    * 12 px above the center of the svg.
+    */
+  private def innerCenter(canvas: TestCanvas): (Double, Double) =
+    val r = canvas.svg.getBoundingClientRect()
+    ((r.left + 32 + r.right - 32) / 2, (r.top + 32 + r.bottom - 56) / 2)
+
   // Found on 2026-11-27 on the desktop. The drawing of an empty diagram is a small sheet, and the canvas stretches it
   // to the size of the canvas. The first node kept that map from the layout to the screen, so the node was many times
   // larger than the canvas.
@@ -492,14 +500,14 @@ class NewNodePlacementSpec extends FunSuite with TestHelpers with LoggedChecks w
       redrawn(canvas, first, a).map: _ =>
         atNaturalScale(canvas, a)
         val (cx, cy) = centerOf(shapeOf(canvas.nodeGroup(a).get))
-        val (x0, y0) = svgCenter(canvas)
+        val (x0, y0) = innerCenter(canvas)
         check(
           math.abs(cx - x0) <= 2 && math.abs(cy - y0) <= 2,
-          s"the node a is drawn at ($cx, $cy), and the center of the canvas is ($x0, $y0)"
+          s"the node a is drawn at ($cx, $cy), and the center of the space inside the margins is ($x0, $y0)"
         )
 
   // Found on 2026-11-27. With Auto on, the fit filled the canvas with the one node: 14.5 px for one point on a canvas
-  // of 800 px. In the manual mode, the fit of Auto does not zoom in past the natural scale.
+  // of 800 px. The fit of Auto does not zoom in past the natural scale (see also AutoFitScaleSpec).
   test("with Auto on, the first node of an empty diagram, from an edit of the source, shows at the natural scale, at the center"):
     withEmptyManual: canvas =>
       canvas.state.autoFit.set(true)
@@ -509,10 +517,10 @@ class NewNodePlacementSpec extends FunSuite with TestHelpers with LoggedChecks w
         check(canvas.state.autoFit.now(), "precondition: the edit of the source turned Auto off")
         atNaturalScale(canvas, a)
         val (cx, cy) = centerOf(shapeOf(canvas.nodeGroup(a).get))
-        val (x0, y0) = svgCenter(canvas)
+        val (x0, y0) = innerCenter(canvas)
         check(
           math.abs(cx - x0) <= 2 && math.abs(cy - y0) <= 2,
-          s"the node a is drawn at ($cx, $cy), and the center of the canvas is ($x0, $y0)"
+          s"the node a is drawn at ($cx, $cy), and the center of the space inside the margins is ($x0, $y0)"
         )
 
   test("with Auto on, a free layout larger than the canvas still fits the canvas, below the natural scale"):

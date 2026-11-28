@@ -234,8 +234,14 @@ class BendPointsSpec extends FunSuite with TestHelpers with LoggedChecks with Ca
   test("an automatic diagram shows no bend handles, and a drag on its arrow adds no bend"):
     withCanvas(dot, a): canvas =>
       val ab = arrowOf(canvas, a, b)
+      // The svg of this canvas is 800 x 1690 px, taller than the window. Auto shows the small drawing at the natural
+      // scale, at the center of the svg, below the window. Fit (no limit of the zoom) fills the svg with the drawing,
+      // so the arrow shows in the window.
+      canvas.state.resetView()
       canvas.state.selection.set2(ab.id)
       Waits.settle(canvas.box.querySelector("g.edge-endpoint-disk") != null, timeoutMs = 3000).flatMap(_ => Waits.after(50)).map: _ =>
+        val (px, py) = pointOnPath(edgeGroup(canvas, ab.id).get, 0.5)
+        check(dom.document.elementFromPoint(px, py) != null, s"precondition: the arrow at ($px, $py) is not in the window")
         check(handles(canvas).isEmpty, s"an automatic diagram shows bend handles: ${handles(canvas).size}")
         val edge     = edgeGroup(canvas, ab.id).get
         val (x0, y0) = pointOnPath(edge, 0.5)

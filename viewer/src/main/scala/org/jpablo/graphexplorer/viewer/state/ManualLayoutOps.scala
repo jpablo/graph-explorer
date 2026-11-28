@@ -4,6 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.gxcore.layout.FreeLayout
 import org.jpablo.graphexplorer.gxcore.model.{DiagramLayout, LayoutPoint}
+import org.jpablo.graphexplorer.viewer.backends.Renderer
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{ArrowId, GroupId, GroupMemberId, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
@@ -149,6 +150,9 @@ trait ManualLayoutOps:
   def hasFreeLayoutNow: Boolean = activeLayoutObs.now().isManual
 
   private lazy val rendererObs = currentRenderer.observe
+
+  /** The renderer that draws the diagram now. */
+  private[state] def rendererNow: Renderer = rendererObs.now()
 
   /** The answer to a drag of nodes: the nodes to move, or no drag. */
   def startNodeDrag(pressed: NodeId): Option[ManualLayoutOps.NodeDragPlan] =

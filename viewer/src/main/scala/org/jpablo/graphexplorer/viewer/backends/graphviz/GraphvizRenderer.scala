@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionSt
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.ArrowId
+import org.jpablo.graphexplorer.viewer.state.ManualLayoutOps
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -24,6 +25,9 @@ class GraphvizRenderer(graphviz: Graphviz) extends Renderer:
   override def label: String = "Graphviz"
 
   override def format: DiagramFormat = DiagramFormat.DOT
+
+  /** Graphviz draws in points: one user unit is one point, and one point is 4/3 CSS px. */
+  override def naturalPxPerUnit: Double = ManualLayoutOps.NaturalPxPerPoint
 
   override def textToSvg(text: String): Future[SvgWithPositions] =
     Future.fromTry(graphviz.textToSvg(DotText(text)))

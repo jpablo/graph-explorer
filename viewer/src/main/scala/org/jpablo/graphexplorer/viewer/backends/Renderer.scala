@@ -99,6 +99,11 @@ trait Renderer:
     */
   def format: DiagramFormat
 
+  /** The natural scale of a drawing of this renderer: the CSS px on the screen for one user unit of its SVG. With
+    * Auto on, a fit does not zoom in past this scale (see `LayoutStabilityOps.autoFitOf`).
+    */
+  def naturalPxPerUnit: Double
+
   /** Render diagram text to SVG with position data.
     *
     * @param text

@@ -8,7 +8,9 @@ import org.scalajs.dom
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-/** Fit puts the center of the drawing at the center of the canvas.
+/** Fit puts the center of the drawing at the center of the canvas: the center of the space inside the margins of a
+  * fit (see [[FitTestCanvas]]). The bottom margin is larger than the top margin, so that center is above the center
+  * of the SVG box.
   *
   * The group of the drawing scales around its `transform-origin`. Only the root
   * group of Graphviz had an origin near the center (a rule in style.scss). A
@@ -54,10 +56,11 @@ class FitCentersSpec extends FunSuite with TestHelpers with LoggedChecks:
         afterMicrotasks:
           val d  = p.drawn
           val dx = (d.left - d.right) / 2
-          val dy = (d.top - d.bottom) / 2
+          val dy = ((d.top - FitTestCanvas.sideMargin) - (d.bottom - FitTestCanvas.bottomMargin)) / 2
           check(
             dx.abs <= 1.0 && dy.abs <= 1.0,
-            f"$id: after Fit the center of the drawing is ($dx%.1f, $dy%.1f) px from the center of the canvas: $d"
+            f"$id: after Fit the center of the drawing is ($dx%.1f, $dy%.1f) px from the center of the space inside " +
+              f"the margins: $d"
           )
 
   test("Fit centers a Mermaid sequence diagram whose viewBox does not start at (0, 0)"):
