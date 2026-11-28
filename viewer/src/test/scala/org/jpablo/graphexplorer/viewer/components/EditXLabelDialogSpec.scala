@@ -231,4 +231,36 @@ class EditXLabelDialogSpec extends FunSuite with TestHelpers with LoggedChecks:
           check(s.boxValues(card).contains("plain again"), s"the XLabel row has no text box after a plain label: ${s.boxValues(card)}")
           check(!s.drawnTexts(card).contains("r"), s"the XLabel row still draws the markup: ${s.drawnTexts(card)}")
 
+  // Found on 2026-11-28. Markup that the person types in the text box changed the row to the drawing after the key
+  // that completed a tag. The text box then left the page, and the next keys went nowhere. While the text box has
+  // the focus, the row keeps it. When the focus leaves, the row draws the label.
+  test("the XLabel row keeps its text box and the focus while the person types markup, and draws it after the blur"):
+    withHtmlStrip: s =>
+      val b    = NodeId("b")
+      val card = "extra-node-attributes"
+      s.state.selection.set(ElementIds(Set(b)))
+      Waits
+        .settle(s.boxValues(card).contains("plain b"))
+        .flatMap: _ =>
+          val input = s.find(s"#$card").toSeq
+            .flatMap(_.querySelectorAll("input").toSeq.collect { case i: dom.html.Input if i.value == "plain b" => i })
+            .headOption
+          check(input.isDefined, s"the XLabel row has no text box with 'plain b': ${s.boxValues(card)}")
+          val box = input.get
+          box.focus()
+          check(dom.document.activeElement eq box, "precondition: the text box does not take the focus")
+          // One input event for each key, as a browser sends them.
+          val markup = "q<BR/><I>r</I>"
+          box.value = ""
+          for n <- 1 to markup.length do
+            box.value = markup.take(n)
+            box.dispatchEvent(new dom.Event("input", js.Dynamic.literal(bubbles = true).asInstanceOf[dom.EventInit]))
+          Waits.after(100).map(_ => box)
+        .flatMap: box =>
+          check(box.isConnected, s"the text box left the page during the typing: the row shows ${s.drawnTexts(card)}")
+          check(dom.document.activeElement eq box, "the text box lost the focus during the typing")
+          check(box.value == "q<BR/><I>r</I>", s"the text box shows '${box.value}'")
+          box.blur()
+          rowDraws(s, card, Seq("q", "r"), "<BR/>")
+
 end EditXLabelDialogSpec

@@ -27,17 +27,23 @@ def xlabelAction(state: ViewerState): () => ReactiveElement.Base = () =>
   * The row shows a text box. When one element is selected and its external label is markup, the row shows the label
   * as the canvas draws it, in a button that opens the Edit External Label dialog. A text box shows markup as text.
   * The Title row of the Diagram panel works in the same way.
+  *
+  * While the text box has the focus, the row keeps the same text box, also when the person types markup. Thus the
+  * focus and the caret stay. When the focus leaves the text box, the row draws a markup label.
   */
 def xlabelRow(state: ViewerState, row: InputAttribute): InputAttribute =
   row.copy(labelAction = Some(xlabelAction(state)), customCell = Some(() => xlabelCell(state, row)))
 
 private def xlabelCell(state: ViewerState, row: InputAttribute): HtmlElement =
   val text = toRawText(row.inputVar, "").signal
+  // True while the text box of the row has the focus.
+  val boxFocused = Var(false)
   // The element whose external label the row draws. None gives the text box.
   val drawn: Signal[Option[ElementId]] =
     state.selection.signal
-      .combineWith(text)
-      .map((selection, label) => Option.when(selection.size == 1 && HtmlLabels.isHtml(label))(selection.head))
+      .combineWith(text, boxFocused.signal)
+      .map: (selection, label, focused) =>
+        Option.when(!focused && selection.size == 1 && HtmlLabels.isHtml(label))(selection.head)
       .distinct
   span(
     cls := "gx-xlabel-cell",
@@ -51,5 +57,10 @@ private def xlabelCell(state: ViewerState, row: InputAttribute): HtmlElement =
           onClick --> (_ => state.editingXLabelV.set(Some(element))),
           DiagramLabelDrawing(state, text, element, asText = true)
         )
-      case None => InputWithValue(row).amend(aria.label := row.label)
+      case None =>
+        InputWithValue(row).amend(
+          aria.label := row.label,
+          onFocus.mapTo(true) --> boxFocused,
+          onBlur.mapTo(false) --> boxFocused
+        )
   )
