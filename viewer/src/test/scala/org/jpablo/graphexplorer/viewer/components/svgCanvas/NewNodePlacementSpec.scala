@@ -401,6 +401,166 @@ class NewNodePlacementSpec extends FunSuite with TestHelpers with LoggedChecks w
         placedNear(canvas, id, expected)
         drawnNode(canvas, id).map(_ => drawnAt(canvas, id, p))
 
+  // ------------------------------------------------------------ the first node of an empty diagram
+
+  /** The natural scale of a Graphviz drawing: one point is 4/3 CSS px (96 px for 72 points). */
+  private val naturalPxPerPoint = 96.0 / 72.0
+
+  /** A canvas of an empty diagram in the manual mode (Manual on an empty diagram sets only the mode). */
+  private def withEmptyManual(body: TestCanvas => Future[Unit]): Future[Unit] =
+    withEmptyManualOf("digraph G {\n}")(body)
+
+  /** A canvas of the empty diagram `source` in the manual mode. */
+  private def withEmptyManualOf(source: String)(body: TestCanvas => Future[Unit]): Future[Unit] =
+    withCanvasWhen(source, "the canvas shows the empty drawing")(_.svg != null): canvas =>
+      sizeLikeApp(canvas.box)
+      canvas.state.animateLayoutChanges.set(false)
+      canvas.state.promptLabelBeforeNewNode.set(false)
+      canvas.state.history.markGesture()
+      canvas.state.freezeLayout()
+      Waits.after(300).map: _ =>
+        check(layoutOf(canvas).isManual, "precondition: Manual did not set the manual mode")
+        check(canvas.state.drawsFreeLayoutNow, "precondition: the canvas does not draw a free layout")
+      .flatMap(_ => body(canvas))
+
+  /** The node `id` shows at the natural scale. */
+  private def atNaturalScale(canvas: TestCanvas, id: NodeId): Unit =
+    val scale = pxPerPoint(canvas.nodeGroup(id).get)
+    check(
+      math.abs(scale / naturalPxPerPoint - 1) < 0.02,
+      f"the node $id shows at $scale%.2f px for one point, and the natural scale is $naturalPxPerPoint%.2f"
+    )
+
+  /** The center of the svg of the canvas. The point must be on the svg. */
+  private def svgCenter(canvas: TestCanvas): (Double, Double) =
+    val r = canvas.svg.getBoundingClientRect()
+    val p = (r.left + r.width / 2, r.top + r.height / 2)
+    check(dom.document.elementsFromPoint(p._1, p._2).exists(_ eq canvas.svg), s"precondition: the point $p is not on the svg")
+    p
+
+  // Found on 2026-11-27 on the desktop. The drawing of an empty diagram is a small sheet, and the canvas stretches it
+  // to the size of the canvas. The first node kept that map from the layout to the screen, so the node was many times
+  // larger than the canvas.
+  test("the first node of an empty diagram in the manual mode shows at the natural scale, at the point of the double-click"):
+    withEmptyManual: canvas =>
+      val r      = canvas.svg.getBoundingClientRect()
+      val p      = (r.left + r.width / 2, r.top + r.height / 2)
+      check(dom.document.elementsFromPoint(p._1, p._2).exists(_ eq canvas.svg), s"precondition: the point $p is not on the svg")
+      val before = nodeIds(canvas)
+      doubleClickAt(p)
+      Waits.settle(nodeIds(canvas).size == before.size + 1).flatMap: _ =>
+        val id = oneNew(canvas, before)
+        drawnNode(canvas, id).map: _ =>
+          val scale = pxPerPoint(canvas.nodeGroup(id).get)
+          check(
+            math.abs(scale / naturalPxPerPoint - 1) < 0.02,
+            f"the new node shows at $scale%.2f px for one point, and the natural scale is $naturalPxPerPoint%.2f"
+          )
+          drawnAt(canvas, id, p)
+
+  test("the first node of an empty diagram in the manual mode: New node (n) shows it at the natural scale, at the pointer"):
+    withEmptyManual: canvas =>
+      val (cx, cy) = svgCenter(canvas)
+      val p        = (cx - 120, cy + 60)
+      check(dom.document.elementsFromPoint(p._1, p._2).exists(_ eq canvas.svg), s"precondition: the point $p is not on the svg")
+      val before = nodeIds(canvas)
+      pointerTo(p)
+      key(canvas, "n")
+      Waits.settle(nodeIds(canvas).size == before.size + 1).flatMap: _ =>
+        val id = oneNew(canvas, before)
+        drawnNode(canvas, id).map: _ =>
+          atNaturalScale(canvas, id)
+          drawnAt(canvas, id, p)
+
+  test("the first node of an empty Mermaid flowchart in the manual mode shows at the natural scale, at the point of the double-click"):
+    withEmptyManualOf("flowchart LR\n"): canvas =>
+      val p      = svgCenter(canvas)
+      val before = nodeIds(canvas)
+      doubleClickAt(p)
+      Waits.settle(nodeIds(canvas).size == before.size + 1).flatMap: _ =>
+        val id = oneNew(canvas, before)
+        drawnNode(canvas, id).map: _ =>
+          atNaturalScale(canvas, id)
+          drawnAt(canvas, id, p)
+
+  // With Auto on, the new drawing gets the fit, as in each other diagram. A gesture turns Auto off.
+  test("with Auto off, the first node of an empty diagram, from an edit of the source, shows at the natural scale, at the center"):
+    withEmptyManual: canvas =>
+      canvas.state.autoFit.set(false)
+      val first = canvas.svg
+      canvas.state.replaceSourceDetectingFormat("digraph G {\n  a\n}")
+      redrawn(canvas, first, a).map: _ =>
+        atNaturalScale(canvas, a)
+        val (cx, cy) = centerOf(shapeOf(canvas.nodeGroup(a).get))
+        val (x0, y0) = svgCenter(canvas)
+        check(
+          math.abs(cx - x0) <= 2 && math.abs(cy - y0) <= 2,
+          s"the node a is drawn at ($cx, $cy), and the center of the canvas is ($x0, $y0)"
+        )
+
+  // Found on 2026-11-27. With Auto on, the fit filled the canvas with the one node: 14.5 px for one point on a canvas
+  // of 800 px. In the manual mode, the fit of Auto does not zoom in past the natural scale.
+  test("with Auto on, the first node of an empty diagram, from an edit of the source, shows at the natural scale, at the center"):
+    withEmptyManual: canvas =>
+      canvas.state.autoFit.set(true)
+      val first = canvas.svg
+      canvas.state.replaceSourceDetectingFormat("digraph G {\n  a\n}")
+      redrawn(canvas, first, a).map: _ =>
+        check(canvas.state.autoFit.now(), "precondition: the edit of the source turned Auto off")
+        atNaturalScale(canvas, a)
+        val (cx, cy) = centerOf(shapeOf(canvas.nodeGroup(a).get))
+        val (x0, y0) = svgCenter(canvas)
+        check(
+          math.abs(cx - x0) <= 2 && math.abs(cy - y0) <= 2,
+          s"the node a is drawn at ($cx, $cy), and the center of the canvas is ($x0, $y0)"
+        )
+
+  test("with Auto on, a free layout larger than the canvas still fits the canvas, below the natural scale"):
+    withEmptyManual: canvas =>
+      canvas.state.autoFit.set(true)
+      val first = canvas.svg
+      canvas.state.replaceSourceDetectingFormat("digraph G {\n  a\n  b\n}")
+      redrawn(canvas, first, a).flatMap: _ =>
+        val before = canvas.svg
+        canvas.state.history.markGesture()
+        canvas.state.placeNodes(Map(a -> LayoutPoint(0, 0), NodeId("b") -> LayoutPoint(3000, 0)))
+        canvas.state.autoFit.set(true)
+        redrawn(canvas, before, NodeId("b")).map: _ =>
+          val r     = canvas.svg.getBoundingClientRect()
+          val scale = pxPerPoint(canvas.nodeGroup(a).get)
+          check(scale < naturalPxPerPoint, f"the drawing of 3000 points shows at $scale%.2f px for one point, above the natural scale")
+          val boxes = Seq(a, NodeId("b")).map(id => shapeOf(canvas.nodeGroup(id).get).getBoundingClientRect())
+          check(
+            boxes.forall(b => b.left >= r.left - 1 && b.right <= r.right + 1 && b.top >= r.top - 1 && b.bottom <= r.bottom + 1),
+            s"Auto did not fit the two nodes in the canvas: ${boxes.map(b => (b.left, b.right)).mkString(", ")}, canvas (${r.left}, ${r.right})"
+          )
+
+  test("a second node of the diagram keeps the scale of the first node, and the first node stays on the screen"):
+    withEmptyManual: canvas =>
+      val p      = svgCenter(canvas)
+      val before = nodeIds(canvas)
+      doubleClickAt(p)
+      Waits.settle(nodeIds(canvas).size == before.size + 1).flatMap: _ =>
+        val first = oneNew(canvas, before)
+        drawnNode(canvas, first).flatMap: _ =>
+          atNaturalScale(canvas, first)
+          val firstAt = centerOf(shapeOf(canvas.nodeGroup(first).get))
+          val q       = (p._1 + 150, p._2 - 90)
+          check(dom.document.elementsFromPoint(q._1, q._2).exists(_ eq canvas.svg), s"precondition: the point $q is not on the svg")
+          val two = nodeIds(canvas)
+          doubleClickAt(q)
+          Waits.settle(nodeIds(canvas).size == two.size + 1).flatMap: _ =>
+            val second = oneNew(canvas, two)
+            drawnNode(canvas, second).map: _ =>
+              atNaturalScale(canvas, second)
+              atNaturalScale(canvas, first)
+              drawnAt(canvas, second, q)
+              val (fx, fy) = centerOf(shapeOf(canvas.nodeGroup(first).get))
+              check(
+                math.abs(fx - firstAt._1) <= 1 && math.abs(fy - firstAt._2) <= 1,
+                s"the first node moved on the screen from $firstAt to ($fx, $fy)"
+              )
+
   // ------------------------------------------------------------ a double-click
 
   test("a double-click on the empty canvas of a free layout adds a node at that point"):

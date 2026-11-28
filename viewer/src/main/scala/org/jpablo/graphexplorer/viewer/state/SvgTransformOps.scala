@@ -208,6 +208,9 @@ trait SvgTransformOps:
     if scaleX > 0 && scaleY > 0 then
       snapPan(translateXY.now() - SvgPoint(dx / scaleX, dy / scaleY))
 
+  /** The zoom of the drawing group now. */
+  def zoomNow: Double = zoomValue.now()
+
   /** Keep the screen scale and the screen place of an anchor after a new layout of a free layout (ADR 0004).
     *
     * A new layout gives a new viewBox. The svg shows its viewBox as large as its box allows, so a larger drawing

@@ -73,6 +73,7 @@ In a free layout, a new node goes to a place that the person chooses. The center
 - A new node from the new-arrow control of a node gets an automatic place.
 - The new nodes and their places are one change, so they are one step of the history. The new node goes out of the layout and out of the source with one undo. As for a drag, Auto goes off.
 - After a new layout of a free layout, the canvas keeps the screen scale, and a pinned node keeps its screen place. Else a larger drawing gets a smaller scale (the svg shows its whole viewBox), and the nodes move on the screen.
+- An empty drawing is a small sheet, and the svg stretches it to the size of the canvas, so its scale has no use. Thus a place in an empty drawing uses the natural scale (one point is 4/3 CSS px) from the origin of the drawing group. The first drawing with a node gets the natural scale, and its pinned node goes to the point of the person. With no pinned node, the drawing goes to the center of the canvas. A drawing that is larger than the canvas at the natural scale gets the fit. In the manual mode, the fit of Auto also stops at the natural scale, with the drawing at the center of the canvas. The Fit buttons and an automatic diagram keep the full fit.
 
 ## Bend points
 

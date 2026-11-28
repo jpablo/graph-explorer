@@ -227,11 +227,22 @@ trait ManualLayoutOps:
     *
     * The canvas gives the point of the drawing (`getScreenCTM()` of the drawing group, the y axis up). The offset of
     * a pinned node takes it to the frame of the layout, as for a drag ([[layoutOffsetNow]]).
+    *
+    * A drawing with no node is a small sheet, and the svg stretches it to the size of the canvas. Its screen matrix
+    * then has a very large scale, and one step of the grid is hundreds of px. Thus the point of an empty drawing
+    * uses the natural scale ([[ManualLayoutOps.NaturalPxPerPoint]]) from the origin of the drawing group. The first
+    * render of a node uses the same map (see `LayoutStabilityOps.keepFreeLayoutMap`).
     */
   def layoutPointAt(at: ClientPoint): Option[LayoutPoint] =
     if renderOnlyNow || !hasFreeLayoutNow || rendererObs.now().id != languages.freeLayoutRenderer.id then None
     else
-      placeGeometry.flatMap(_.drawingPoint(at)).map: (x, y) =>
+      val drawn =
+        if drawnCentersNow().nonEmpty then placeGeometry.flatMap(_.drawingPoint(at))
+        else
+          placeGeometry.flatMap(_.drawingOrigin()).map: o =>
+            val n = ManualLayoutOps.NaturalPxPerPoint
+            ((at.x - o.x) / n, -(at.y - o.y) / n)
+      drawn.map: (x, y) =>
         val (dx, dy) = layoutOffsetNow()
         ManualLayoutOps.snapped(LayoutPoint(x + dx, y + dy))
 
@@ -354,6 +365,11 @@ object ManualLayoutOps:
       def onGrid(v: Double) = math.round(v / grid) * grid
       (onGrid(from.x + dx) - from.x, onGrid(from.y + dy) - from.y)
 
+  /** The natural scale of a Graphviz drawing on the screen: 96 CSS px for 72 points. The drawing group has one user
+    * unit for one point.
+    */
+  val NaturalPxPerPoint: Double = 96.0 / 72.0
+
   /** `p` with its two values on the grid of `grid` points. */
   def snapped(p: LayoutPoint, grid: Double = GridPt): LayoutPoint =
     LayoutPoint(math.round(p.x / grid) * grid, math.round(p.y / grid) * grid)
@@ -383,11 +399,13 @@ object ManualLayoutOps:
     * state has no DOM.
     *
     * @param drawingPoint  the point of the drawing under a client point: points, with the y axis up
+    * @param drawingOrigin the client point of the point (0, 0) of the drawing
     * @param pointer       the last client point of the pointer over the canvas, or None when the pointer is not over it
     * @param visibleCenter the client point at the center of the visible part of the canvas
     */
   final case class PlaceGeometry(
       drawingPoint:  ClientPoint => Option[(Double, Double)],
+      drawingOrigin: () => Option[ClientPoint],
       pointer:       () => Option[ClientPoint],
       visibleCenter: () => Option[ClientPoint]
   )

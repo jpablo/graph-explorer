@@ -47,6 +47,11 @@ trait LayoutStabilityOps:
     */
   private var pendingFreeMap: Option[(dom.SVGMatrix, (Double, Double))] = None
 
+  /** True when the OLD drawing shows no node. Its map from the layout to the screen then has no use for the new
+    * drawing (see `keepFreeLayoutMap`).
+    */
+  private var pendingEmptyDrawing: Boolean = false
+
   /** None when the element has no rendered geometry (a hidden tab/pane makes
     * getBoundingClientRect return zeros) — anchoring on a degenerate
     * measurement computes a garbage delta and throws the viewport off-screen.
@@ -70,6 +75,8 @@ trait LayoutStabilityOps:
         offset <- drawnFreeOffset
         ctm    <- Option(CanvasRoot.mainGroup(old).getScreenCTM()).filter(_.a > 0)
       yield (ctm, offset)
+    pendingEmptyDrawing =
+      lastRenderedSvg.filter(_.isConnected).exists(old => SelectableElement.findAll(old, strategy).forall(_.nodeId.isEmpty))
     lastRenderedSvg.filter(_.isConnected).foreach { old =>
       // Snapshot for the transition FIRST, mid-flight if one is running — the
       // measurements are visual (client space), so an interrupted animation
@@ -125,6 +132,11 @@ trait LayoutStabilityOps:
     * anchor is not a node: a nudge moves the selected node, and an anchor on it kept it still on the screen, so the
     * rest of the drawing moved. A drag holds the node at the drop place until the swap, and the map puts it there too.
     *
+    * An old drawing with no node is an exception. It is a small sheet, and the svg stretches it to the size of the
+    * canvas, so its screen matrix has a very large scale. The map of an empty drawing has the natural scale from the
+    * origin of its drawing group (see `ManualLayoutOps.layoutPointAt`). The new drawing gets that map (see
+    * [[showAtNaturalScale]]).
+    *
     * @return false when the old drawing or the new drawing is not a free layout
     */
   private def keepFreeLayoutMap(newSvg: dom.svg.SVG): Boolean =
@@ -137,12 +149,58 @@ trait LayoutStabilityOps:
       yield
         val newOffset = layoutOffsetNow()
         // A place of the layout. Any place works. A pinned node is near the drawing, so the numbers stay small.
-        val p = layout.now().nodes.headOption.fold((0.0, 0.0))((_, place) => (place.x, place.y))
+        val pinned = layout.now().nodes.headOption.map((_, place) => (place.x, place.y))
+        val p      = pinned.getOrElse((0.0, 0.0))
         def client(ctm: dom.SVGMatrix, offset: (Double, Double)): ClientPoint =
           val (x, y) = (p._1 - offset._1, -(p._2 - offset._2))
           ClientPoint(ctm.a * x + ctm.c * y + ctm.e, ctm.b * x + ctm.d * y + ctm.f)
-        keepScaleAndPlace(group, client(newCtm, newOffset), client(oldCtm, oldOffset), newCtm.a, oldCtm.a)
+        val now = client(newCtm, newOffset)
+        if pendingEmptyDrawing then
+          val n = ManualLayoutOps.NaturalPxPerPoint
+          val (x, y) = (p._1 - oldOffset._1, -(p._2 - oldOffset._2))
+          showAtNaturalScale(newSvg, newCtm.a, pinned.map(_ => (now, ClientPoint(oldCtm.e + n * x, oldCtm.f + n * y))))
+        else keepScaleAndPlace(group, now, client(oldCtm, oldOffset), newCtm.a, oldCtm.a)
     kept.isDefined
+
+  /** Show the new drawing `svg` at the natural scale of Graphviz: one layout point is 4/3 CSS px on the screen. A
+    * drawing that is larger than the canvas at that scale gets the fit of the Fit button.
+    *
+    * @param scaleNow the client px for one user unit of the drawing group of `svg` now
+    * @param pinned   the client point of a pinned node now, and its client point in the map of the empty drawing (near
+    *                 the point of the double-click, of the pointer, or of the drop). The node goes to the second point.
+    *                 With no pinned node, the drawing goes to the center of the canvas (see [[naturalFit]]).
+    */
+  private def showAtNaturalScale(svg: dom.svg.SVG, scaleNow: Double, pinned: Option[(ClientPoint, ClientPoint)]): Unit =
+    val fit     = CanvasFit.transform(svg, FitMode.Page)
+    val natural = naturalZoom(scaleNow)
+    pinned match
+      case Some((now, before)) if fit.forall(_.zoom >= natural) =>
+        keepScaleAndPlace(CanvasRoot.mainGroup(svg), now, before, scaleNow, ManualLayoutOps.NaturalPxPerPoint)
+      case _ => fit.foreach(f => resetView(Some(naturalFit(f, natural))))
+
+  /** The zoom that gives the natural scale, when the drawing group shows `scaleNow` client px for one user unit at the
+    * zoom of now. The client px for one user unit change in proportion to the zoom.
+    */
+  private def naturalZoom(scaleNow: Double): Double =
+    zoomNow * ManualLayoutOps.NaturalPxPerPoint / scaleNow
+
+  /** The fit `fit` with a zoom of `natural` or less. A drawing that fits stays at the center at each zoom of the fit
+    * or less (see `CanvasTransform.fit`), so only the zoom changes. A drawing that is larger than the canvas at the
+    * natural scale keeps its fit.
+    */
+  private def naturalFit(fit: CanvasTransform, natural: Double): CanvasTransform =
+    if fit.zoom <= natural then fit else fit.copy(zoom = natural)
+
+  /** The fit of Auto for the new drawing `svg`. In a free layout, the fit does not zoom in past the natural scale.
+    * Else one small node fills the canvas. An automatic diagram gets the fit of the Fit button.
+    */
+  private def autoFitOf(svg: dom.svg.SVG): Option[CanvasTransform] =
+    val fit = CanvasFit.transform(svg, FitMode.Page)
+    if !drawsFreeLayoutNow then fit
+    else
+      Option(CanvasRoot.mainGroup(svg).getScreenCTM()).filter(_.a > 0) match
+        case Some(ctm) => fit.map(naturalFit(_, naturalZoom(ctm.a)))
+        case None      => fit
 
   /** When the NEW svg has just mounted: pan so the focal node keeps its screen
     * position. A focal that vanished in the new layout (hidden, collapsed
@@ -154,8 +212,9 @@ trait LayoutStabilityOps:
     // (synchronously, pre-paint) and let the transition glide elements from
     // their old screen positions into the refit frame. Anchoring stands aside.
     // The fit measures `newSvg` itself. The transition has not started yet,
-    // so each element is at its new place.
-    if autoFit.now() then resetView(CanvasFit.transform(newSvg, FitMode.Page))
+    // so each element is at its new place. In a free layout, the fit stops at
+    // the natural scale (see `autoFitOf`).
+    if autoFit.now() then resetView(autoFitOf(newSvg))
     else if keepFreeLayoutMap(newSvg) then ()
     else
       pendingAnchor.foreach { (id, oldX, oldY, oldScale) =>
@@ -191,6 +250,7 @@ trait LayoutStabilityOps:
       }
     pendingAnchor = None
     pendingFreeMap = None
+    pendingEmptyDrawing = false
     drawnFreeOffset = Option.when(drawsFreeLayoutNow)(layoutOffsetNow())
     // The new view first, the transition second. The transition measures the new drawing in client space. If it
     // measures before the drawing group has the new zoom and pan, frame 0 starts from a wrong frame, and each element

@@ -55,6 +55,7 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
       // geometry. The last place of the pointer over the canvas comes from the moves below.
       val geometry = ManualLayoutOps.PlaceGeometry(
         drawingPoint = at => drawingPointAt(container.ref, at),
+        drawingOrigin = () => drawingOriginOf(container.ref),
         pointer = () => pointer,
         visibleCenter = () => visibleCenterOf(container.ref)
       )
@@ -221,6 +222,11 @@ private def drawingPointAt(container: dom.Element, at: ClientPoint): Option[(Dou
     Option(CanvasRoot.mainGroup(svg).getScreenCTM()).filter(m => m.a != 0 && m.d != 0).map: ctm =>
       val local = at.toSvgPoint(ctm)
       (local.x, -local.y)
+
+/** The client point of the point (0, 0) of the drawing group, or None with no drawing. */
+private def drawingOriginOf(container: dom.Element): Option[ClientPoint] =
+  Option(container.querySelector(":scope > svg")).collect { case svg: dom.svg.SVG => svg }.flatMap: svg =>
+    Option(CanvasRoot.mainGroup(svg).getScreenCTM()).map(ctm => ClientPoint(ctm.e, ctm.f))
 
 /** The client point at the center of the visible part of the canvas: the box of the canvas inside the window. A canvas
   * out of the window gives the center of its box.
