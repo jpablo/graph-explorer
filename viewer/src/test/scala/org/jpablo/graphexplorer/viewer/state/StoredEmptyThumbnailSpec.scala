@@ -49,12 +49,12 @@ class StoredEmptyThumbnailSpec extends FunSuite with TestHelpers with LoggedChec
   test("a stored Mermaid thumbnail with no drawing is drawn again"):
     // A source that no earlier run stored.
     val source = s"flowchart TD\n  A-->B\n  %% ${js.Date.now()}"
-    ThumbnailDiskCache.put(DiagramFormat.Mermaid, source, EmptyRender)
+    ThumbnailDiskCache.put(DiagramFormat.Mermaid, ThumbnailRenderer.cacheKeyOf(source), EmptyRender)
     val owner = ManualOwner()
 
     // The write is fire-and-forget, so read until the record is there.
     def stored(tries: Int): Future[Unit] =
-      ThumbnailDiskCache.get(DiagramFormat.Mermaid, source).flatMap:
+      ThumbnailDiskCache.get(DiagramFormat.Mermaid, ThumbnailRenderer.cacheKeyOf(source)).flatMap:
         case Some(svg) if svg == EmptyRender => Future.unit
         case _ if tries > 0                  => afterMicrotasks(()).flatMap(_ => stored(tries - 1))
         case other => Future.fromTry(Try(check(false, s"precondition: the disk cache does not hold the empty record: $other")))
@@ -81,11 +81,11 @@ class StoredEmptyThumbnailSpec extends FunSuite with TestHelpers with LoggedChec
   test("a stored Mermaid thumbnail from before the sheet shows with a sheet"):
     // A source that no earlier run stored.
     val source = s"flowchart TD\n  A-->B\n  %% sheet ${js.Date.now()}"
-    ThumbnailDiskCache.put(DiagramFormat.Mermaid, source, RenderWithNoSheet)
+    ThumbnailDiskCache.put(DiagramFormat.Mermaid, ThumbnailRenderer.cacheKeyOf(source), RenderWithNoSheet)
     val owner = ManualOwner()
 
     def stored(tries: Int): Future[Unit] =
-      ThumbnailDiskCache.get(DiagramFormat.Mermaid, source).flatMap:
+      ThumbnailDiskCache.get(DiagramFormat.Mermaid, ThumbnailRenderer.cacheKeyOf(source)).flatMap:
         case Some(svg) if svg == RenderWithNoSheet => Future.unit
         case _ if tries > 0                        => afterMicrotasks(()).flatMap(_ => stored(tries - 1))
         case other => Future.fromTry(Try(check(false, s"precondition: the disk cache does not hold the old record: $other")))

@@ -29,12 +29,14 @@ class MermaidRenderer(using ExecutionContext) extends Renderer:
   override def textToSvg(text: String): Future[SvgWithPositions] =
     draw(text, None)
 
-  /** Draw the graph, and stamp the ids of the graph on the SVG.
+  /** Draw the graph, and stamp the ids of the graph on the SVG. The view uses
+    * this when the view differs from the source, and the thumbnail of the
+    * library uses it in the same case.
     *
     * The Mermaid text of a graph does not always keep the ids of the graph
     * (see [[MermaidDrawnIds]]). A graph from a DOT source is the usual case.
     */
-  private def graphToSvg(graph: ViewerGraph, images: LocalImages): Future[SvgWithPositions] =
+  def graphToSvg(graph: ViewerGraph, images: LocalImages = LocalImages.empty): Future[SvgWithPositions] =
     draw(images.mermaidText(MermaidPrinter.graphToText(graph, omitInternal = false)), Some(mermaidDrawnIds(graph)))
 
   /** Draw `text`, and stamp the drawn ids on the SVG.

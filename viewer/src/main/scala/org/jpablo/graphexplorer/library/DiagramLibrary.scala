@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.library
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.DiagramSnapshot
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ThumbnailView}
 
 /** What the home page and the library panel show about the library (D7.3).
   *
@@ -29,6 +29,12 @@ trait LibraryListing:
 
   /** The source of a diagram, for its thumbnail. */
   def diagramSource(id: DiagramId): Signal[String]
+
+  /** What the thumbnail of a diagram draws besides its source: the parts of its metadata and its layout that change
+    * the drawing of the view (ADR 0004). A diagram with no layout, or with a layout that does not load, has the
+    * automatic layout.
+    */
+  def diagramView(id: DiagramId): Signal[ThumbnailView]
 
   def diagramCardInfo(id: DiagramId, languages: DiagramLanguages): Option[DiagramCardInfo]
 

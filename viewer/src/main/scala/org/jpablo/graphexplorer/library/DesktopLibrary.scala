@@ -1,14 +1,14 @@
 package org.jpablo.graphexplorer.library
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.gxcore.model.{Board, DiagramMetadata, LibraryEntry}
+import org.jpablo.graphexplorer.gxcore.model.{Board, DiagramLayout, DiagramMetadata, LibraryEntry}
 import org.jpablo.graphexplorer.gxcore.store.{MetadataMigration, SafeFileName}
 import org.jpablo.graphexplorer.router.Route
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, SourceTitle}
-import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopIpc}
+import org.jpablo.graphexplorer.viewer.desktop.{DesktopDocumentRegistry, DesktopFiles, DesktopIpc}
 import org.jpablo.graphexplorer.viewer.desktop.DesktopIpc.{DiagramsFolder, EntryBase, FileSnapshot, IpcFailure}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, DocumentSessionId}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, DocumentSessionId, ThumbnailView}
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -73,6 +73,11 @@ final class DesktopLibrary private () extends LibraryListing:
 
   /** The file of each entry, as the last read found it. */
   private val files: Var[Map[String, FileState]] = Var(Map.empty)
+
+  /** The layout of each file of the list, from its side file (ADR 0004), as the last read found it. The library
+    * reads the side file each time that it reads the file, so a card shows the layout of the last save.
+    */
+  private val layouts: Var[Map[String, DiagramLayout]] = Var(Map.empty)
 
   /** A clock of the changes that this page makes, so that a refresh that
     * started before a change cannot undo it in the mirror.
@@ -184,6 +189,17 @@ final class DesktopLibrary private () extends LibraryListing:
           .flatMap(e => fileStates.get(e.path))
           .collect { case FileState.Loaded(text, _) => text }
           .getOrElse(DiagramSnapshot.minimalGraphText)
+      .distinct
+
+  /** The metadata of the entry, the layout of the side file, and the path of the file: the images with a path
+    * relative to the diagram come from its folder.
+    */
+  def diagramView(id: DiagramId): Signal[ThumbnailView] =
+    entries.signal
+      .combineWith(layouts.signal)
+      .map: (byKey, byPath) =>
+        byKey.get(id.value).fold(ThumbnailView.automatic): e =>
+          ThumbnailView.of(e.metadata, byPath.getOrElse(e.path, DiagramLayout.empty), Some(e.path))
       .distinct
 
   /** What a card shows. `None` while the file is not read yet. A missing file
@@ -499,8 +515,24 @@ final class DesktopLibrary private () extends LibraryListing:
     val known = files.now()
     readPaths(entries.now().values.map(_.path).toVector.distinct.filterNot(known.contains))
 
+  // One update gives the file and its layout together, so a card does not draw the source with no layout first.
   private def readPaths(paths: Vector[String]): Future[Unit] =
-    Future.traverse(paths)(readFileState).map(states => files.update(_ ++ states))
+    Future
+      .traverse(paths)(path => readFileState(path).zip(readLayoutOf(path)))
+      .map: read =>
+        Var.update(
+          files   -> ((known: Map[String, FileState]) => known ++ read.map(_._1)),
+          layouts -> ((known: Map[String, DiagramLayout]) => known ++ read.map((state, layout) => state._1 -> layout))
+        )
+
+  /** The layout in the side file of the diagram at `path`. No side file, a side file that does not parse, or a read
+    * that fails gives the automatic layout.
+    */
+  private def readLayoutOf(path: String): Future[DiagramLayout] =
+    DesktopFiles
+      .readLayout(path)
+      .map(_.flatMap(onDisk => DiagramLayout.parse(onDisk.text).toOption).getOrElse(DiagramLayout.empty))
+      .recover { case NonFatal(_) => DiagramLayout.empty }
 
   private def readFileState(path: String): Future[(String, FileState)] =
     DesktopIpc

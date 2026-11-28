@@ -246,10 +246,7 @@ case class ViewerState(
     */
   val currentRenderer: Signal[Renderer] =
     currentFormat
-      .combineWithFn(metadata.renderer.signal, sourceHasNoGraph, hasFreeLayout): (format, selected, noGraph, free) =>
-        val ofLanguage = languages.renderer(format)
-        if noGraph then ofLanguage
-        else selected.flatMap(languages.rendererById).getOrElse(if free then languages.freeLayoutRenderer else ofLanguage)
+      .combineWithFn(metadata.renderer.signal, sourceHasNoGraph, hasFreeLayout)(languages.rendererFor)
       .distinct
 
   /** The drawing comes from the renderer, so the strategy that reads its SVG does also. */
@@ -432,9 +429,7 @@ case class ViewerState(
   private val pacedSourceText = EditorPacing.paceSignal(sourceText.signal)
 
   private val viewDiffersFromSource =
-    metadata.hiddenElements.signal
-      .combineWithFn(metadata.collapsedGroups.signal)((hidden, collapsed) => hidden.nonEmpty || collapsed.nonEmpty)
-      .distinct
+    metadata.signal.map(MetadataOps.viewDiffersFromSource).distinct
 
   /** The render inputs for ONE renderer, with `visibleText` serialized in THAT
     * renderer's language rather than in whichever one is current.

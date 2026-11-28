@@ -111,6 +111,13 @@ object MetadataOps:
       collapsedGroups = groups.map(ElementRef.render) ++ metadata.collapsedGroups.filterNot(ref => parse(ref).exists(_.isGroupId))
     )
 
+  /** True when the view of the diagram is not the drawing of its source: an element is hidden, or a group is
+    * collapsed. Then a renderer that can draw the source draws the visible graph. The view and the thumbnail of the
+    * library both use this rule.
+    */
+  def viewDiffersFromSource(metadata: DiagramMetadata): Boolean =
+    hiddenIn(metadata).nonEmpty || collapsedIn(metadata).nonEmpty
+
   /** `tags` with the tag that the person typed at the end. The rule trims the
     * text. It ignores an empty text and a tag that `tags` has, as `gx tag`
     * does. The comparison is exact: `Infra` and `infra` are two tags.

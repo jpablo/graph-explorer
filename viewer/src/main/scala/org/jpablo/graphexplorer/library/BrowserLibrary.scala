@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.storedString
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages}
 import org.jpablo.graphexplorer.viewer.models.DiagramId
-import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ViewerSettings}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ThumbnailView, ViewerSettings}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -349,6 +349,16 @@ object BrowserLibrary extends DiagramLibrary:
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
           DiagramSnapshot.minimalGraphText
+
+  /** The view of a diagram for its thumbnail, as a Signal: the metadata and the layout of its stored payload. A
+    * payload that does not load gives the automatic view.
+    */
+  def diagramView(id: DiagramId): Signal[ThumbnailView] =
+    val diagramStorage = storedString(diagramKey(id), write(DiagramSnapshot.empty))
+    diagramStorage.signal
+      .map: stateStr =>
+        Try(read[DiagramSnapshot](stateStr)).map(s => ThumbnailView.of(s.metadata, s.layout)).getOrElse(ThumbnailView.automatic)
+      .distinct
 
   // ----------------- Private methods -----------------
 

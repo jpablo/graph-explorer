@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.DiagramLanguages
 import org.jpablo.graphexplorer.viewer.models.DiagramId
 import org.jpablo.graphexplorer.router.Route
-import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ViewerSettings}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSnapshot, ThumbnailView, ViewerSettings}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -51,7 +51,8 @@ object Library:
   def index: Signal[LibraryIndex] = listing.index
   def indexNow(): LibraryIndex    = listing.indexNow()
 
-  def diagramSource(id: DiagramId): Signal[String] = listing.diagramSource(id)
+  def diagramSource(id: DiagramId): Signal[String]       = listing.diagramSource(id)
+  def diagramView(id: DiagramId): Signal[ThumbnailView]   = listing.diagramView(id)
   def diagramExists(id: DiagramId): Boolean        = listing.diagramExists(id)
 
   /** Take the diagram out of the library. On the desktop, the file stays. */

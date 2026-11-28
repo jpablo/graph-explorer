@@ -51,6 +51,22 @@ trait DiagramLanguages:
     */
   def freeLayoutRenderer: Renderer = renderer(DiagramFormat.DOT)
 
+  /** The renderer that draws a diagram (ADR 0002, ADR 0004). The view and the thumbnail of the library both use
+    * this rule, so the two draw with the same renderer.
+    *
+    * A kind of diagram with no graph (a Mermaid sequence diagram) has only the renderer of its language, which draws
+    * the source. Else the renderer that the person selected wins. Else a diagram in the manual mode goes to
+    * [[freeLayoutRenderer]], and each other diagram to the renderer of its language. An id that this build does not
+    * have counts as no selection.
+    *
+    * @param noGraph true for a kind of diagram with no graph.
+    * @param freeLayout true for a diagram in the manual mode.
+    */
+  def rendererFor(format: DiagramFormat, selected: Option[String], noGraph: Boolean, freeLayout: Boolean): Renderer =
+    val ofLanguage = renderer(format)
+    if noGraph then ofLanguage
+    else selected.flatMap(rendererById).getOrElse(if freeLayout then freeLayoutRenderer else ofLanguage)
+
 /** Default registry wiring the concrete Graphviz and Mermaid parts.
   *
   * The construction of each part is side-effect-free (Mermaid.js itself is initialized lazily

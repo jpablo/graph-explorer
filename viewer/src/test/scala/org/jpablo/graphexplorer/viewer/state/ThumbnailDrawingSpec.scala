@@ -306,7 +306,7 @@ class ThumbnailDrawingSpec extends FunSuite with TestHelpers with LoggedChecks:
   /** Read the disk cache until the record of `source` satisfies `ok`. */
   private def storedRecord(format: DiagramFormat, source: String, what: String)(ok: String => Boolean): Future[String] =
     def loop(tries: Int): Future[String] =
-      ThumbnailDiskCache.get(format, source).flatMap:
+      ThumbnailDiskCache.get(format, ThumbnailRenderer.cacheKeyOf(source)).flatMap:
         case Some(svg) if ok(svg) => Future.successful(svg)
         case _ if tries > 0       => afterMicrotasks(()).flatMap(_ => loop(tries - 1))
         case other                => Future.fromTry(Try(check(false, s"$what: $other")).map(_ => fail(what)))
@@ -315,7 +315,7 @@ class ThumbnailDrawingSpec extends FunSuite with TestHelpers with LoggedChecks:
   /** Put `record` in the disk cache for `source`, mount the thumbnail, and
     * give the SVG of the card and the record that the disk cache holds then. */
   private def cardFor(format: DiagramFormat, source: String, record: String): Future[(dom.svg.SVG, String)] =
-    ThumbnailDiskCache.put(format, source, record)
+    ThumbnailDiskCache.put(format, ThumbnailRenderer.cacheKeyOf(source), record)
     val owner = ManualOwner()
     storedRecord(format, source, "precondition: the disk cache does not hold the record")(_ == record)
       .flatMap: _ =>

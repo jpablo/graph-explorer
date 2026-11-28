@@ -28,6 +28,12 @@ final class FakeDesktopShell:
   /** The layout side file of each diagram (`<base name>.layout.json`), by the path of the diagram. */
   val layouts: mutable.Map[String, String] = mutable.Map.empty
 
+  /** The image files next to the diagrams, by path. `local_image` gives the start of their bytes (base64). */
+  val images: mutable.Map[String, String] = mutable.Map.empty
+
+  /** The asset URL of each image path: `convertFileSrc` of the shell. A test sets a URL that the page can load. */
+  val assetUrls: mutable.Map[String, String] = mutable.Map.empty
+
   /** `library/metadata/`, by entry file name. */
   val entries: mutable.Map[String, String] = mutable.Map.empty
 
@@ -43,8 +49,9 @@ final class FakeDesktopShell:
   /** The paths that `open_document` watches. */
   val watched: mutable.Set[String] = mutable.Set.empty
 
-  /** True: `save_document` refuses a path that has no watch with
-    * DOCUMENT_NOT_WATCHED, as `put_document_snapshot` in `main.rs` does.
+  /** True: `save_document` and `write_layout` refuse a path that has no watch
+    * with DOCUMENT_NOT_WATCHED, as `put_document_snapshot` and `write_layout`
+    * in `main.rs` do. `read_layout` needs no watch.
     *
     * The default is false, because the older tests record a session with no
     * watch and then save.
@@ -142,7 +149,9 @@ final class FakeDesktopShell:
       refusals.get(command) match
         case Some((code, message)) => refuse(code, message)
         case None                  => answer(command, a)
-    js.Dynamic.global.window.__TAURI__ = js.Dynamic.literal(core = js.Dynamic.literal(invoke = invoke))
+    val convertFileSrc: js.Function1[String, String] = path => assetUrls.getOrElse(path, s"asset://localhost$path")
+    js.Dynamic.global.window.__TAURI__ =
+      js.Dynamic.literal(core = js.Dynamic.literal(invoke = invoke, convertFileSrc = convertFileSrc))
 
   def uninstall(): Unit = js.Dynamic.global.window.__TAURI__ = null
 
@@ -301,7 +310,8 @@ final class FakeDesktopShell:
                 given scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
                 gate.map(_ => reply).toJSPromise
 
-      // `read_layout` in `main.rs`: the text and the revision of the side file, or null for no side file.
+      // `read_layout` in `main.rs`: the text and the revision of the side file, or null for no side file. The read
+      // needs no watch, because the library reads the side file of each diagram for its thumbnail.
       case "read_layout" =>
         val path = canonical(str(a, "diagramPath"))
         if !files.contains(path) then refuse("DOCUMENT_MISSING", s"no such file: $path")
@@ -315,6 +325,7 @@ final class FakeDesktopShell:
         val base    = optional(a, "baseRevision")
         val current = layouts.get(path)
         if !files.contains(path) then refuse("DOCUMENT_MISSING", s"no such file: $path")
+        else if saveNeedsWatch && !watched.contains(path) then refuse("DOCUMENT_NOT_WATCHED", s"$path is not an open diagram")
         else if current.map(hash) != base then
           js.Promise.reject(js.Dynamic.literal(code = "LAYOUT_CONFLICT", message = "the layout file changed on disk"))
         else
@@ -331,6 +342,15 @@ final class FakeDesktopShell:
         ok(())
 
       case "viewer_ready" | "set_unsaved" | "live_view_reply" | "open_external" => ok(())
+
+      // `local_image` in `main.rs`: the path of the image `src` relative to the diagram, and the start of its bytes.
+      // The read needs no watch, because the library draws the images of each diagram on its thumbnail.
+      case "local_image" =>
+        val diagram = canonical(str(a, "diagramPath"))
+        val path    = canonical(diagram.reverse.dropWhile(_ != '/').reverse + str(a, "src"))
+        images.get(path) match
+          case Some(head) => ok(js.Dynamic.literal(path = path, headBase64 = head))
+          case None       => refuse("IMAGE_MISSING", s"no such image: $path")
 
       case other => refuse("UNKNOWN_COMMAND", s"the fake shell has no command $other")
 

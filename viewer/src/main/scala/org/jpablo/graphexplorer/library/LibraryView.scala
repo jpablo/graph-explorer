@@ -458,13 +458,17 @@ private def exampleCard(
   )
 }
 
-/** The rendered thumbnail of a diagram. The function reads the source, renders
-  * it, and wraps it to fill the box of the caller. The card and the list row
-  * both use it, so the two modes show a diagram preview in the same way.
+/** The rendered thumbnail of a diagram. The function reads the source and the
+  * view of the diagram (the parts of its metadata and its layout that change
+  * the drawing), renders them as the view does, and wraps the drawing to fill
+  * the box of the caller. The card and the list row both use it, so the two
+  * modes show a diagram preview in the same way.
   */
 private def diagramThumbnail(graphviz: Graphviz, diagram: DiagramSummary): Signal[Div] =
-  Library.diagramSource(diagram.id).distinct
-    .flatMapSwitch: str =>
+  Library.diagramSource(diagram.id)
+    .combineWith(Library.diagramView(diagram.id))
+    .distinct
+    .flatMapSwitch: (str, view) =>
       Telemetry.log(
         "home.thumb.start",
         "projectId"   -> diagram.id.value,
@@ -474,6 +478,7 @@ private def diagramThumbnail(graphviz: Graphviz, diagram: DiagramSummary): Signa
       ThumbnailRenderer.processDotText(
         graphviz,
         DotText(str),
+        view,
         telemetryContext = Seq(
           "projectId" -> diagram.id.value,
           "name"      -> diagram.name

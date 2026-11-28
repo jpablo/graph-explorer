@@ -121,7 +121,7 @@ object DesktopFiles:
 
   /** The URL and the natural size of the image `src` (a path relative to the diagram at `diagramPath`). The shell
     * allows the file for the asset protocol, and gives the start of its bytes, so that the page reads the size from
-    * the header of the image.
+    * the header of the image. The diagram does not have to be open: the thumbnail of the library also uses this.
     */
   def localImage(diagramPath: String, src: String)(using ExecutionContext): Future[LocalImages.Loaded] =
     DesktopIpc

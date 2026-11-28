@@ -2106,16 +2106,30 @@ fn write_asset(
     audited(&state.audit_logger, "asset.write", &diagram_path, result)
 }
 
-/// Read the layout side file of an open diagram (`<name>.layout.json`, ADR
-/// 0004). `null` when the diagram has no side file. See
-/// `local_files::read_layout_at`.
+/// Read the layout side file of a diagram (`<name>.layout.json`, ADR 0004).
+/// `null` when the diagram has no side file. See [`read_layout_of`].
 #[tauri::command(rename_all = "camelCase")]
 fn read_layout(
     state: tauri::State<'_, IpcState>,
     diagram_path: String,
 ) -> std::result::Result<Option<local_files::LayoutFile>, IpcError> {
-    let diagram = watched_diagram(&state.watch_registry, &diagram_path)?;
-    local_files::read_layout_at(&state.access_policy, &diagram)
+    read_layout_of(&state.access_policy, &diagram_path)
+}
+
+/// Read the layout side file of the diagram at `diagram_path`.
+///
+/// The read needs no watch. The home page draws the thumbnail of each diagram
+/// of the library with its layout, and it does not open these files. The
+/// read has the check of `read_document`: the path must be in the access
+/// policy (`DOCUMENT_DENIED`). `local_files::read_layout_at` then makes the
+/// name of the side file from the diagram file, and it refuses a link at that
+/// name. A write of the side file still needs a watch ([`write_layout_of`]).
+fn read_layout_of(
+    access_policy: &AccessPolicy,
+    diagram_path: &str,
+) -> std::result::Result<Option<local_files::LayoutFile>, IpcError> {
+    let diagram = allowed_document_path(access_policy, diagram_path, "DOCUMENT_READ_FAILED")?;
+    local_files::read_layout_at(access_policy, &diagram)
 }
 
 /// The answer of `write_layout`: the revision of the side file, or `null`
@@ -2136,12 +2150,30 @@ fn write_layout(
     base_revision: Option<String>,
 ) -> std::result::Result<LayoutWritten, IpcError> {
     let result = (|| {
-        let diagram = watched_diagram(&state.watch_registry, &diagram_path)?;
-        let revision =
-            local_files::write_layout_at(&state.access_policy, &diagram, text.as_deref(), base_revision.as_deref())?;
+        let revision = write_layout_of(
+            &state.watch_registry,
+            &state.access_policy,
+            &diagram_path,
+            text.as_deref(),
+            base_revision.as_deref(),
+        )?;
         Ok((LayoutWritten { revision: revision.clone() }, revision))
     })();
     audited(&state.audit_logger, "layout.write", &diagram_path, result)
+}
+
+/// Write the layout side file of the diagram at `diagram_path`. The diagram
+/// must be open (`DOCUMENT_NOT_WATCHED`), so the page cannot write next to
+/// any file of the disk. See `local_files::write_layout_at`.
+fn write_layout_of(
+    watch_registry: &WatchRegistry,
+    access_policy: &AccessPolicy,
+    diagram_path: &str,
+    text: Option<&str>,
+    base_revision: Option<&str>,
+) -> std::result::Result<Option<String>, IpcError> {
+    let diagram = watched_diagram(watch_registry, diagram_path)?;
+    local_files::write_layout_at(access_policy, &diagram, text, base_revision)
 }
 
 /// An image that the page can draw: its real path, and the start of its bytes
@@ -2153,14 +2185,14 @@ struct LocalImage {
     head_base64: String,
 }
 
-/// Let the page draw the image `src` of an open diagram.
+/// Let the page draw the image `src` of a diagram.
 ///
 /// The asset protocol has an empty scope (`tauri.conf.json`). This command
-/// adds ONE file to it, after the checks of `local_files::local_image_path`:
-/// an image file inside the folder of the diagram. The page then draws the
-/// file from `convertFileSrc(path)`. Graphviz needs the size of the image,
-/// so the command also gives the start of the file, and the page reads the
-/// size from its header.
+/// adds ONE file to it, after the checks of [`local_image_file`]: an image
+/// file inside the folder of the diagram. The page then draws the file from
+/// `convertFileSrc(path)`. Graphviz needs the size of the image, so the
+/// command also gives the start of the file, and the page reads the size from
+/// its header.
 #[tauri::command(rename_all = "camelCase")]
 fn local_image(
     app: tauri::AppHandle,
@@ -2169,10 +2201,7 @@ fn local_image(
     src: String,
 ) -> std::result::Result<LocalImage, IpcError> {
     use base64::Engine;
-    let diagram = watched_diagram(&state.watch_registry, &diagram_path)?;
-    let path = local_files::local_image_path(&state.access_policy, &diagram, &src)?;
-    let head = local_files::read_head(&path, local_files::IMAGE_HEAD_BYTES)
-        .map_err(|err| IpcError::new("IMAGE_MISSING", format!("{}: {err}", path.display())))?;
+    let (path, head) = local_image_file(&state.access_policy, &diagram_path, &src)?;
     app.asset_protocol_scope()
         .allow_file(&path)
         .map_err(|err| IpcError::new("IMAGE_REFUSED", format!("{}: {err}", path.display())))?;
@@ -2180,6 +2209,26 @@ fn local_image(
         path: strip_verbatim_prefix(&path),
         head_base64: base64::engine::general_purpose::STANDARD.encode(head),
     })
+}
+
+/// The real path of the image `src` of the diagram at `diagram_path`, and the
+/// start of its bytes.
+///
+/// The read needs no watch. The home page draws the thumbnail of each diagram
+/// of the library with its images, and it does not open these files. The
+/// diagram has the check of `read_document`: its path must be in the access
+/// policy (`DOCUMENT_DENIED`). `local_files::local_image_path` then permits
+/// only an image file inside the folder of the diagram.
+fn local_image_file(
+    access_policy: &AccessPolicy,
+    diagram_path: &str,
+    src: &str,
+) -> std::result::Result<(PathBuf, Vec<u8>), IpcError> {
+    let diagram = allowed_document_path(access_policy, diagram_path, "DOCUMENT_READ_FAILED")?;
+    let path = local_files::local_image_path(access_policy, &diagram, src)?;
+    let head = local_files::read_head(&path, local_files::IMAGE_HEAD_BYTES)
+        .map_err(|err| IpcError::new("IMAGE_MISSING", format!("{}: {err}", path.display())))?;
+    Ok((path, head))
 }
 
 /// Open the link of a node: an http or https link in the browser, or a local
@@ -4595,9 +4644,10 @@ mod tests {
         }
     }
 
-    /// The files next to a diagram (`write_asset`, `local_image`) are only for
-    /// a diagram that the page has open. Thus the page cannot write or read
-    /// next to any file of the disk.
+    /// A write next to a diagram (`write_asset`, and a write of the layout
+    /// side file) is only for a diagram that the page has open. Thus the page
+    /// cannot write next to any file of the disk. A read of the side file and
+    /// of an image needs no watch (see the next tests).
     #[test]
     fn the_files_next_to_a_diagram_need_a_watched_diagram() {
         let dir = temp_dir_for("watched-diagram");
@@ -4606,9 +4656,19 @@ mod tests {
         let path = file.to_string_lossy().to_string();
         let normalized = normalize_path(&path).expect("normalizable");
         let registry: WatchRegistry = Arc::new(Mutex::new(HashMap::new()));
+        let layout = dir.join("arch.layout.json");
+        let _ = fs::remove_file(&layout);
+        let policy = AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: Vec::new(),
+        };
 
         let refused = watched_diagram(&registry, &path).expect_err("a diagram with no watch");
         assert_eq!(refused.code, "DOCUMENT_NOT_WATCHED");
+        let refused = write_layout_of(&registry, &policy, &path, Some(r#"{"version":1,"nodes":{}}"#), None)
+            .expect_err("a layout write with no watch");
+        assert_eq!(refused.code, "DOCUMENT_NOT_WATCHED");
+        assert!(!layout.exists(), "a refused write made the side file");
 
         registry.lock().expect("lock").insert(
             normalized.clone(),
@@ -4619,6 +4679,75 @@ mod tests {
             },
         );
         assert_eq!(watched_diagram(&registry, &path).expect("a watched diagram"), normalized);
+        write_layout_of(&registry, &policy, &path, Some(r#"{"version":1,"nodes":{}}"#), None)
+            .expect("a layout write of a watched diagram");
+        assert!(layout.exists(), "the write of a watched diagram made no side file");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The home page draws each diagram of the library with its images, and it
+    /// does not open these files. Thus a read of an image of a diagram needs no
+    /// watch. The read still has the access policy of `read_document`, and the
+    /// image must be inside the folder of the diagram.
+    #[test]
+    fn a_read_of_an_image_next_to_a_diagram_needs_no_watch_and_keeps_the_access_policy() {
+        let dir = temp_dir_for("unwatched-image-read");
+        let assets = dir.join("arch.assets");
+        fs::create_dir_all(&assets).expect("assets folder");
+        let file = dir.join("arch.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        let png: &[u8] = b"\x89PNG\r\n\x1a\n0000IHDR";
+        fs::write(assets.join("a.png"), png).expect("seed image");
+        let path = file.to_string_lossy().to_string();
+        let open = AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: Vec::new(),
+        };
+
+        let (image, head) = local_image_file(&open, &path, "arch.assets/a.png").expect("a read with no watch");
+        assert_eq!(image, fs::canonicalize(assets.join("a.png")).expect("canonical"));
+        assert_eq!(head, png);
+        assert_eq!(
+            local_image_file(&open, &path, "../outside.png").expect_err("a path out of the folder").code,
+            "IMAGE_REFUSED"
+        );
+
+        let deny = AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: vec![fs::canonicalize(&dir).expect("a denied root that exists")],
+        };
+        assert_eq!(
+            local_image_file(&deny, &path, "arch.assets/a.png").expect_err("a read outside the policy").code,
+            "DOCUMENT_DENIED"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The home page draws each diagram of the library with its layout, and it
+    /// does not open these files. Thus a read of the side file needs no watch.
+    /// The read still has the access policy of `read_document`.
+    #[test]
+    fn a_read_of_the_layout_side_file_needs_no_watch_and_keeps_the_access_policy() {
+        let dir = temp_dir_for("unwatched-layout-read");
+        let file = dir.join("arch.dot");
+        fs::write(&file, "digraph { a }").expect("seed file");
+        let text = r#"{"version":1,"manual":true,"nodes":{"a":{"x":1,"y":2}}}"#;
+        fs::write(dir.join("arch.layout.json"), text).expect("seed side file");
+        let path = file.to_string_lossy().to_string();
+        let open = AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: Vec::new(),
+        };
+
+        let read = read_layout_of(&open, &path).expect("a read with no watch").expect("a side file");
+        assert_eq!(read.text, text);
+        assert_eq!(read.revision, content_hash(text.as_bytes()));
+
+        let deny = AccessPolicy {
+            allowed_roots: Vec::new(),
+            denied_roots: vec![fs::canonicalize(&dir).expect("a denied root that exists")],
+        };
+        assert_eq!(read_layout_of(&deny, &path).expect_err("a read outside the policy").code, "DOCUMENT_DENIED");
         let _ = fs::remove_dir_all(&dir);
     }
 
